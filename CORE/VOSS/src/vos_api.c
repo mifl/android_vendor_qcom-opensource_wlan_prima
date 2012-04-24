@@ -102,6 +102,7 @@
 /*---------------------------------------------------------------------------
  * Data definitions
  * ------------------------------------------------------------------------*/
+static VosContextType  gVosContext;
 static pVosContextType gpVosContext;
 
 /*---------------------------------------------------------------------------
@@ -150,7 +151,7 @@ VOS_STATUS vos_preOpen ( v_CONTEXT_t *pVosContext )
 
    /* Allocate the VOS Context */
    *pVosContext = NULL;
-   gpVosContext = (VosContextType*) kmalloc(sizeof(VosContextType), GFP_KERNEL);
+   gpVosContext = &gVosContext;
 
    if (NULL == gpVosContext)
    {
@@ -204,10 +205,6 @@ VOS_STATUS vos_preClose( v_CONTEXT_t *pVosContext )
                 "%s: Context mismatch", __func__);
       return VOS_STATUS_E_FAILURE;
    }
-
-   /* Free the VOS Context */
-   if(gpVosContext != NULL)
-      kfree(gpVosContext);
 
    *pVosContext = gpVosContext = NULL;
 
