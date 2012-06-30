@@ -43,7 +43,6 @@
 #include "limSendMessages.h"
 #include "cfgApi.h"
 #include "limSessionUtils.h"
-#include "limFT.h"
 
 
 #include "pmmApi.h"
@@ -208,7 +207,6 @@ void pmmInitBmpsResponseHandler(tpAniSirGlobal pMac, eHalStatus rspStatus)
 
     tPmmState nextState = pMac->pmm.gPmmState;
     tSirResultCodes retStatus = eSIR_SME_SUCCESS;
-    tpPESession     psessionEntry;
 
     /* we need to process all the deferred messages enqueued since
      * the initiating the SIR_HAL_ENTER_BMPS_REQ.
@@ -266,18 +264,6 @@ void pmmInitBmpsResponseHandler(tpAniSirGlobal pMac, eHalStatus rspStatus)
     return;
 
 failure:
-    psessionEntry = peGetValidPowerSaveSession(pMac);
-    if(psessionEntry != NULL)
-    {
-       if (pMac->lim.gLimTimersCreated && pMac->lim.limTimers.gLimHeartBeatTimer.pMac)
-       {
-           if(VOS_TRUE != tx_timer_running(&pMac->lim.limTimers.gLimHeartBeatTimer))
-           {
-               PELOGE(pmmLog(pMac, LOGE, FL("Unexpected heartbeat timer not running"));)
-               limReactivateHeartBeatTimer(pMac, psessionEntry);
-           }
-       }
-    }
 
     //Generate an error response back to PMC
     pMac->pmm.gPmmState = nextState;
@@ -317,7 +303,7 @@ void pmmExitBmpsRequestHandler(tpAniSirGlobal pMac, tpExitBmpsInfo pExitBmpsInfo
 
     if (NULL == pExitBmpsInfo)
     {
-        respStatus = eSIR_SME_BMPS_REQ_REJECT;
+        respStatus = eSIR_SME_BMPS_REQ_FAILED;
         PELOGW(pmmLog(pMac, LOGW, FL("pmmBmps: Rcvd EXIT_BMPS with NULL body\n"));)
         goto failure;
     }
@@ -355,7 +341,7 @@ void pmmExitBmpsRequestHandler(tpAniSirGlobal pMac, tpExitBmpsInfo pExitBmpsInfo
         if(pmmSendChangePowerSaveMsg(pMac) !=  eSIR_SUCCESS)
         {
             /* Wakeup request failed */
-            respStatus = eSIR_SME_BMPS_REQ_REJECT;
+            respStatus = eSIR_SME_BMPS_REQ_FAILED;
             pmmBmpsUpdateHalReqFailureCnt(pMac);
             goto failure;
         }
@@ -418,7 +404,7 @@ void pmmInitBmpsPwrSave(tpAniSirGlobal pMac)
 
     if((psessionEntry = peGetValidPowerSaveSession(pMac))== NULL)
     {
-        respStatus = eSIR_SME_BMPS_REQ_REJECT;
+        respStatus = eSIR_SME_BMPS_REQ_FAILED;
         goto failure;
     }
 #ifdef FEATURE_WLAN_DIAG_SUPPORT 
@@ -440,20 +426,6 @@ void pmmInitBmpsPwrSave(tpAniSirGlobal pMac)
         goto failure;
     }
 
-    //If we are in a missed beacon scenario, we should not be attempting to enter BMPS as heartbeat probe is going on
-    if(pMac->pmm.inMissedBeaconScenario)
-    {
-       if (pMac->lim.gLimTimersCreated && pMac->lim.limTimers.gLimHeartBeatTimer.pMac)
-       {
-           if(VOS_TRUE != tx_timer_running(&pMac->lim.limTimers.gLimHeartBeatTimer))
-           {
-               PELOGE(pmmLog(pMac, LOGE, FL("Unexpected heartbeat timer not running"));)
-               limReactivateHeartBeatTimer(pMac, psessionEntry);
-           }
-       }
-       respStatus = eSIR_SME_BMPS_REQ_REJECT;
-       goto failure;
-    }
 
     /* At this point, device is associated and PMM is not in BMPS_SLEEP state. 
      * Heartbeat timer not running is an indication that PE have detected a
@@ -484,7 +456,7 @@ void pmmInitBmpsPwrSave(tpAniSirGlobal pMac)
             FL("pmmBmps: Init Power Save Request Failed: Sending Response: %d\n"), 
             retStatus);)
 
-        respStatus = eSIR_SME_BMPS_REQ_REJECT;
+        respStatus = eSIR_SME_BMPS_REQ_FAILED;
         pmmBmpsUpdateHalReqFailureCnt(pMac);
         goto failure;
     }
@@ -524,7 +496,6 @@ tSirRetStatus pmmSendChangePowerSaveMsg(tpAniSirGlobal pMac)
     tSirRetStatus  retStatus = eSIR_SUCCESS;
     tpExitBmpsParams  pExitBmpsParams;
     tSirMsgQ msgQ;
-    tANI_U8  currentOperatingChannel = limGetCurrentOperatingChannel(pMac);
 
     if( eHAL_STATUS_SUCCESS != palAllocateMemory( pMac->hHdd, (void **)&pExitBmpsParams, sizeof(*pExitBmpsParams)) )
     {
@@ -540,14 +511,10 @@ tSirRetStatus pmmSendChangePowerSaveMsg(tpAniSirGlobal pMac)
     msgQ.bodyval = 0;
 
     /* If reason for full power is disconnecting (ie. link is
-     * disconnected) or becasue of channel switch or full power requested 
-     * because of beacon miss and connected on DFS channel 
-     * then we should not send data null.
+     * disconnected), then we should not send data null.
      * For all other reason code, send data null.
      */
-    if ( !(SIR_IS_FULL_POWER_REASON_DISCONNECTED(pMac->pmm.gPmmExitBmpsReasonCode) ||
-          ( (eSME_MISSED_BEACON_IND_RCVD == pMac->pmm.gPmmExitBmpsReasonCode) && 
-             limIsconnectedOnDFSChannel(currentOperatingChannel))))
+    if ( !SIR_IS_FULL_POWER_REASON_DISCONNECTED(pMac->pmm.gPmmExitBmpsReasonCode)  )
         pExitBmpsParams->sendDataNull = 1;
 
     /* we need to defer any incoming messages until we
@@ -595,11 +562,6 @@ tSirRetStatus  pmmSendInitPowerSaveMsg(tpAniSirGlobal pMac,tpPESession psessionE
     tSirRetStatus   retCode = eSIR_SUCCESS;
     tSirMsgQ msgQ;
     tpEnterBmpsParams pBmpsParams = NULL;
-    int         i=0;
-
-    tANI_U32    rssiFilterPeriod = 5;
-    tANI_U32    numBeaconPerRssiAverage = 5;
-    tANI_U32    bRssiFilterEnable = FALSE;
 
     if(psessionEntry->currentBssBeaconCnt == 0)
     {
@@ -620,51 +582,6 @@ tSirRetStatus  pmmSendInitPowerSaveMsg(tpAniSirGlobal pMac,tpPESession psessionE
     pBmpsParams->dtimCount = psessionEntry->lastBeaconDtimCount;
     pBmpsParams->dtimPeriod = psessionEntry->lastBeaconDtimPeriod;
     pBmpsParams->bssIdx = psessionEntry->bssIdx;
-
-    if(wlan_cfgGetInt(pMac, WNI_CFG_RSSI_FILTER_PERIOD, &rssiFilterPeriod) != eSIR_SUCCESS)
-        pmmLog(pMac, LOGP, FL("pmmCfg: cfgGet failed for Rssi filter period"));
-
-    // This flag can be overridden when 11r/CCXEnabled=1 and FastTransition=1
-    if(wlan_cfgGetInt(pMac, WNI_CFG_PS_ENABLE_RSSI_MONITOR, &bRssiFilterEnable) != eSIR_SUCCESS)
-        pmmLog(pMac, LOGP, FL("pmmCfg: cfgGet failed for Rssi monitor enable flag"));
-    pBmpsParams->bRssiFilterEnable = bRssiFilterEnable;
-
-
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-    // If there is a CCX assoc or 11r assoc we need to pick up the rssiFilterPeriod from the
-    // FT config value.
-    for(i =0; i < pMac->lim.maxBssId; i++)
-    {
-        if (limisFastTransitionRequired(pMac, i))
-        {
-            if(wlan_cfgGetInt(pMac, WNI_CFG_FT_RSSI_FILTER_PERIOD, &rssiFilterPeriod) != eSIR_SUCCESS)
-                pmmLog(pMac, LOGP, FL("pmmCfg: cfgGet failed for Rssi filter period"));
-            // We need to override the ini value to enable 
-            // FW RSSI Monitoring. Basically if CCX and FT are enabled
-            // then enable FW RSSI Monitoring
-
-            pBmpsParams->bRssiFilterEnable = TRUE;
-            break;
-        }
-    }
-#endif
-
-    pBmpsParams->rssiFilterPeriod = (tANI_U8)rssiFilterPeriod;
-
-    /* The numBeaconPerRssiAverage should be <= rssiFilter Period,
-     * and less than the max allowed (default set to 20 in CFG)
-     */
-    if(wlan_cfgGetInt(pMac, WNI_CFG_NUM_BEACON_PER_RSSI_AVERAGE, &numBeaconPerRssiAverage) != eSIR_SUCCESS)
-        pmmLog(pMac, LOGP, FL("pmmCfg: cfgGet failed for num beacon per rssi"));
-
-    pBmpsParams->numBeaconPerRssiAverage = (tANI_U8) numBeaconPerRssiAverage;
-    if (numBeaconPerRssiAverage > rssiFilterPeriod)
-        pBmpsParams->numBeaconPerRssiAverage = 
-            (tANI_U8)GET_MIN_VALUE(rssiFilterPeriod, WNI_CFG_NUM_BEACON_PER_RSSI_AVERAGE_STAMAX);
-
-    pmmLog (pMac, LOG1,
-        "%s: [INFOLOG]RssiFilterInfo..%d %x %x\n", __func__, (int)pBmpsParams->bRssiFilterEnable,
-        (unsigned int)pBmpsParams->rssiFilterPeriod, (unsigned int)pBmpsParams->numBeaconPerRssiAverage);
 
     msgQ.type = WDA_ENTER_BMPS_REQ;
     msgQ.reserved = 0;
@@ -1295,14 +1212,6 @@ void pmmProcessMessage(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
             pmmFilterMatchCountResponseHandler(pMac, pMsg);
             break;
 #endif // WLAN_FEATURE_PACKET_FILTERING
-
-
-#ifdef WLAN_FEATURE_GTK_OFFLOAD
-        case WDA_GTK_OFFLOAD_GETINFO_RSP:
-            pmmGTKOffloadGetInfoResponseHandler(pMac, pMsg);
-            break;
-#endif // WLAN_FEATURE_GTK_OFFLOAD
-
         default:
             PELOGW(pmmLog(pMac, LOGW, 
                 FL("PMM: Unknown message in pmmMsgQ type %d, potential memory leak!!\n"),
@@ -2131,14 +2040,6 @@ void pmmEnterWowlRequestHandler(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
     pHalWowlParams->ucPatternFilteringEnable = pSmeWowlParams->ucPatternFilteringEnable;
     (void)palCopyMemory( pMac->hHdd, (tANI_U8 *)pHalWowlParams->magicPtrn, (tANI_U8 *)pSmeWowlParams->magicPtrn, sizeof(tSirMacAddr) );
 
-#ifdef WLAN_WAKEUP_EVENTS
-    pHalWowlParams->ucWoWEAPIDRequestEnable = pSmeWowlParams->ucWoWEAPIDRequestEnable;
-    pHalWowlParams->ucWoWEAPOL4WayEnable = pSmeWowlParams->ucWoWEAPOL4WayEnable;
-    pHalWowlParams->ucWowNetScanOffloadMatch = pSmeWowlParams->ucWowNetScanOffloadMatch;
-    pHalWowlParams->ucWowGTKRekeyError = pSmeWowlParams->ucWowGTKRekeyError;
-    pHalWowlParams->ucWoWBSSConnLoss = pSmeWowlParams->ucWoWBSSConnLoss;
-#endif // WLAN_WAKEUP_EVENTS
-
     if(wlan_cfgGetInt(pMac, WNI_CFG_WOWLAN_UCAST_PATTERN_FILTER_ENABLE, &cfgValue) != eSIR_SUCCESS)
     {
         limLog(pMac, LOGP, FL("cfgGet failed for WNI_CFG_WOWLAN_UCAST_PATTERN_FILTER_ENABLE"));
@@ -2816,40 +2717,3 @@ void pmmFilterMatchCountResponseHandler(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
     return;
 }
 #endif // WLAN_FEATURE_PACKET_FILTERING
-
-#ifdef WLAN_FEATURE_GTK_OFFLOAD
-void pmmGTKOffloadGetInfoResponseHandler(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
-{
-    tpSirGtkOffloadGetInfoRspParams  pGtkOffloadGetInfoRspParams;
-    eHalStatus                       rspStatus;
-    tSirResultCodes                  smeRspCode = eSIR_SME_SUCCESS;
-
-    /* we need to process all the deferred messages enqueued
-     * since the initiating the WDA_GTK_OFFLOAD_GETINFO_REQ.
-     */
-    SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
-
-    pGtkOffloadGetInfoRspParams = (tpSirGtkOffloadGetInfoRspParams)(limMsg->bodyptr);
-    if (NULL == pGtkOffloadGetInfoRspParams)
-    {
-        pmmLog(pMac, LOGE, FL("Received WDA_GTK_OFFLOAD_GETINFO_RSP with NULL msg "));
-        smeRspCode = eSIR_SME_GTK_OFFLOAD_GETINFO_REQ_FAILED;
-    }
-    else
-    {
-        rspStatus = pGtkOffloadGetInfoRspParams->ulStatus;
-        if(rspStatus == eHAL_STATUS_SUCCESS)
-        {
-            pmmLog(pMac, LOGW, FL("Rcv successful response from HAL to get GTK Offload Information\n"));
-        }
-        else
-        {
-            pmmLog(pMac, LOGE, FL("HAL failed to get GTK Offload Information, informing SME\n"));
-            smeRspCode = eSIR_SME_GTK_OFFLOAD_GETINFO_REQ_FAILED;
-        }
-    }
-
-    limSendSmeRsp(pMac, eWNI_PMC_GTK_OFFLOAD_GETINFO_RSP, smeRspCode, 0, 0);
-    return;
-}
-#endif // WLAN_FEATURE_GTK_OFFLOAD

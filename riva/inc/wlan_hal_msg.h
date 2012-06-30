@@ -55,8 +55,8 @@
   All values are in the range 0..255 (ie they are 8-bit values)
  ---------------------------------------------------------------------------*/
 #define WLAN_HAL_VER_MAJOR 0
-#define WLAN_HAL_VER_MINOR 1
-#define WLAN_HAL_VER_VERSION 1
+#define WLAN_HAL_VER_MINOR 0
+#define WLAN_HAL_VER_VERSION 2
 #define WLAN_HAL_VER_REVISION 0
 
 /*---------------------------------------------------------------------------
@@ -304,6 +304,7 @@ typedef enum
    WLAN_HAL_RADAR_DETECT_INTR_IND    = 144,
    WLAN_HAL_KEEP_ALIVE_REQ           = 145,
    WLAN_HAL_KEEP_ALIVE_RSP           = 146,      
+   
 
    /*PNO messages*/
    WLAN_HAL_SET_PREF_NETWORK_REQ     = 147,
@@ -318,6 +319,7 @@ typedef enum
    WLAN_HAL_SET_TX_PER_TRACKING_RSP  = 155,
    WLAN_HAL_TX_PER_HIT_IND           = 156,
    
+
    WLAN_HAL_8023_MULTICAST_LIST_REQ   = 157,
    WLAN_HAL_8023_MULTICAST_LIST_RSP   = 158,   
 
@@ -333,24 +335,9 @@ typedef enum
     
    WLAN_HAL_SET_POWER_PARAMS_REQ            = 166,
    WLAN_HAL_SET_POWER_PARAMS_RSP            = 167,
-
+    
    WLAN_HAL_TSM_STATS_REQ                   = 168,
    WLAN_HAL_TSM_STATS_RSP                   = 169,
-
-   // wake reason indication (WOW)
-   WLAN_HAL_WAKE_REASON_IND                 = 170,
-   // GTK offload support 
-   WLAN_HAL_GTK_OFFLOAD_REQ                 = 171,
-   WLAN_HAL_GTK_OFFLOAD_RSP                 = 172,
-   WLAN_HAL_GTK_OFFLOAD_GETINFO_REQ         = 173,
-   WLAN_HAL_GTK_OFFLOAD_GETINFO_RSP         = 174,
-
-   WLAN_HAL_FEATURE_CAPS_EXCHANGE_REQ       = 175,
-   WLAN_HAL_FEATURE_CAPS_EXCHANGE_RSP       = 176,
-   WLAN_HAL_EXCLUDE_UNENCRYPTED_IND         = 177,
-
-   WLAN_HAL_SET_THERMAL_MITIGATION_REQ      = 178,
-   WLAN_HAL_SET_THERMAL_MITIGATION_RSP      = 179,
 
    WLAN_HAL_MSG_MAX = WLAN_HAL_MAX_ENUM_SIZE
 }tHalHostMsgType;
@@ -387,7 +374,6 @@ typedef enum
    eHAL_SYS_MODE_LEARN,
    eHAL_SYS_MODE_SCAN,
    eHAL_SYS_MODE_PROMISC,
-   eHAL_SYS_MODE_SUSPEND_LINK,
    eHAL_SYS_MODE_MAX = WLAN_HAL_MAX_ENUM_SIZE
 } eHalSysMode;
 
@@ -990,8 +976,10 @@ typedef PACKED_PRE struct PACKED_POST
   /*success or failure */
   tANI_U32   status;
 
-  tANI_U32 startTSF[2];
-  tPowerdBm txMgmtPower;
+#if defined WLAN_FEATURE_VOWIFI
+    tANI_U32 startTSF[2];
+    tPowerdBm txMgmtPower;
+#endif
 
 }tHalStartScanRspParams, *tpHalStartScanRspParams;
 
@@ -1537,6 +1525,13 @@ typedef PACKED_PRE struct PACKED_POST
     /*EDCA Parameters for Voice Access Category*/
     tSirMacEdcaParamRecord acvo;
 
+#if defined WLAN_FEATURE_VOWIFI
+    /*HAL fills in the tx power used for mgmt frames in txMgmtPower*/
+    tANI_S8     txMgmtPower;
+    /*maxTxPower has max power to be used after applying the power constraint if any */
+    tANI_S8     maxTxPower;
+#endif    
+
 #ifdef WLAN_FEATURE_VOWIFI_11R
     tANI_U8 extSetStaKeyParamValid; //Ext Bss Config Msg if set
     tSetStaKeyParams extSetStaKeyParam;  //SetStaKeyParams for ext bss msg
@@ -1546,12 +1541,7 @@ typedef PACKED_PRE struct PACKED_POST
     tANI_U8   halPersona;
    
     tANI_U8 bSpectrumMgtEnable;
-
-    /*HAL fills in the tx power used for mgmt frames in txMgmtPower*/
-    tANI_S8     txMgmtPower;
-    /*maxTxPower has max power to be used after applying the power constraint if any */
-    tANI_S8     maxTxPower;
-  
+   
 } tConfigBssParams, * tpConfigBssParams;
 
 typedef PACKED_PRE struct PACKED_POST
@@ -1602,8 +1592,10 @@ typedef PACKED_PRE struct PACKED_POST
     /*MAC Address of STA(PEER/SELF) in staContext of configBSSReq*/
     tSirMacAddr   staMac;
 
+#ifdef WLAN_FEATURE_VOWIFI
     /*HAL fills in the tx power used for mgmt frames in this field. */
     tANI_S8     txMgmtPower;
+#endif
 
 } tConfigBssRspParams, * tpConfigBssRspParams;
 
@@ -1665,17 +1657,21 @@ typedef PACKED_PRE struct PACKED_POST
   /* Self STA MAC */
   tSirMacAddr selfStaMacAddr;
      
+#ifndef WLAN_FEATURE_VOWIFI   
   /*Local power constraint*/
   tANI_U8         ucLocalPowerConstraint;
+#endif
 
   /*Secondary channel offset */
   tSirMacHTSecondaryChannelOffset  secondaryChannelOffset;
 
-  /*link State*/
-  tSirLinkState   linkState;
-
+#ifdef WLAN_FEATURE_VOWIFI
   /* Max TX power */
   tANI_S8 maxTxPower;
+#endif
+
+  /*link State*/
+  tSirLinkState   linkState;
 
 } tHalJoinReqParams, *tpHalJoinReqParams;
 
@@ -1694,8 +1690,10 @@ typedef PACKED_PRE struct PACKED_POST
   /*success or failure */
   tANI_U32   status;
 
+#ifdef WLAN_FEATURE_VOWIFI
   /* HAL fills in the tx power used for mgmt frames in this field */
   tPowerdBm txMgmtPower;
+#endif
 
 }tHalJoinRspParams, *tpHalJoinRspParams;
 
@@ -1920,11 +1918,15 @@ typedef PACKED_PRE struct PACKED_POST
     /* Channel number */
     tANI_U8 channelNumber;
 
+#ifndef WLAN_FEATURE_VOWIFI
     /* Local power constraint */
     tANI_U8 localPowerConstraint;
+#endif
 
     /*Secondary channel offset */
     tSirMacHTSecondaryChannelOffset secondaryChannelOffset;
+
+#ifdef WLAN_FEATURE_VOWIFI
 
     //HAL fills in the tx power used for mgmt frames in this field.
     tPowerdBm txMgmtPower;
@@ -1935,15 +1937,12 @@ typedef PACKED_PRE struct PACKED_POST
     /* Self STA MAC */
     tSirMacAddr selfStaMacAddr;
 
-    /*VO WIFI comment: BSSID needed to identify session. As the request has power constraints,
-       this should be applied only to that session*/
-    /* Since MTU timing and EDCA are sessionized, this struct needs to be sessionized and
-     * bssid needs to be out of the VOWifi feature flag */
-    /* V IMP: Keep bssId field at the end of this msg. It is used to mantain backward compatbility
-     * by way of ignoring if using new host/old FW or old host/new FW since it is at the end of this struct
-     */
+    /*BSSID needed to identify session. As the request has power constraints,
+      this should be applied only to that session*/
     tSirMacAddr bssId;
    
+#endif
+    
 }tSwitchChannelParams, *tpSwitchChannelParams;
 
 typedef PACKED_PRE struct PACKED_POST
@@ -1964,11 +1963,13 @@ typedef PACKED_PRE struct PACKED_POST
     /* Channel number - same as in request*/
     tANI_U8 channelNumber;
 
+#ifdef WLAN_FEATURE_VOWIFI
     /* HAL fills in the tx power used for mgmt frames in this field */
     tPowerdBm txMgmtPower;
 
     /* BSSID needed to identify session - same as in request*/
     tSirMacAddr bssId;
+#endif
     
 }tSwitchChannelRspParams, *tpSwitchChannelRspParams;
 
@@ -2644,64 +2645,6 @@ typedef PACKED_PRE struct PACKED_POST
 }  tDelBARspMsg, *tpDelBARspMsg;
 
 
-#ifdef FEATURE_WLAN_CCX
-
-/*---------------------------------------------------------------------------
- * WLAN_HAL_TSM_STATS_REQ
- *--------------------------------------------------------------------------*/
-typedef PACKED_PRE struct PACKED_POST
-{
-    /* Traffic Id */
-    tANI_U8 tsmTID;
-
-    tSirMacAddr bssId;
-} tTsmStatsParams, *tpTsmStatsParams;
-
-typedef PACKED_PRE struct PACKED_POST
-{
-    tHalMsgHeader header;
-    tTsmStatsParams  tsmStatsParams; 
-}  tTsmStatsReqMsg, *tpTsmStatsReqMsg;
-
-
-/*---------------------------------------------------------------------------
- * WLAN_HAL_TSM_STATS_RSP
- *--------------------------------------------------------------------------*/
-typedef PACKED_PRE struct PACKED_POST
-{
-    /*success or failure */
-    tANI_U32   status;
-
-    /* Uplink Packet Queue delay */ 
-    tANI_U16      UplinkPktQueueDly;
-
-    /* Uplink Packet Queue delay histogram */ 
-    tANI_U16      UplinkPktQueueDlyHist[4];
-
-    /* Uplink Packet Transmit delay */ 
-    tANI_U32      UplinkPktTxDly;
-
-    /* Uplink Packet loss */ 
-    tANI_U16      UplinkPktLoss;
-
-    /* Uplink Packet count */ 
-    tANI_U16      UplinkPktCount;
-
-    /* Roaming count */ 
-    tANI_U8       RoamingCount;
-
-    /* Roaming Delay */ 
-    tANI_U16      RoamingDly;
-} tTsmStatsRspParams, *tpTsmStatsRspParams;
-
-typedef PACKED_PRE struct PACKED_POST
-{
-    tHalMsgHeader header;
-    tTsmStatsRspParams tsmStatsRspParams;
-}  tTsmStatsRspMsg, *tpTsmStatsRspMsg;
-
-
-#endif
 
 /*---------------------------------------------------------------------------
  * WLAN_HAL_SET_KEYDONE_MSG
@@ -2711,7 +2654,6 @@ typedef PACKED_PRE struct PACKED_POST
 {
   /*bssid of the keys */
   tANI_U8   bssidx;
-  tANI_U8   encType;
 } tSetKeyDoneParams, *tpSetKeyDoneParams;
 
 typedef PACKED_PRE struct PACKED_POST
@@ -3295,28 +3237,10 @@ typedef PACKED_PRE struct PACKED_POST
  *--------------------------------------------------------------------------*/
 #define HAL_IPV4_ARP_REPLY_OFFLOAD                  0
 #define HAL_IPV6_NEIGHBOR_DISCOVERY_OFFLOAD         1
-#define HAL_IPV6_NS_OFFLOAD                         2
-#define HAL_IPV6_ADDR_LEN                           16
-#define HAL_MAC_ADDR_LEN                            6
 #define HAL_OFFLOAD_DISABLE                         0
 #define HAL_OFFLOAD_ENABLE                          1
 #define HAL_OFFLOAD_BCAST_FILTER_ENABLE             0x2
 #define HAL_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE     (HAL_OFFLOAD_ENABLE|HAL_OFFLOAD_BCAST_FILTER_ENABLE)
-
-typedef PACKED_PRE struct PACKED_POST _tHalNSOffloadParams
-{
-   tANI_U8 srcIPv6Addr[HAL_IPV6_ADDR_LEN];
-   tANI_U8 selfIPv6Addr[HAL_IPV6_ADDR_LEN];
-   //Only support 2 possible Network Advertisement IPv6 address
-   tANI_U8 targetIPv6Addr1[HAL_IPV6_ADDR_LEN];
-   tANI_U8 targetIPv6Addr2[HAL_IPV6_ADDR_LEN];
-   tANI_U8 selfMacAddr[HAL_MAC_ADDR_LEN];
-   tANI_U8 srcIPv6AddrValid : 1;
-   tANI_U8 targetIPv6Addr1Valid : 1;
-   tANI_U8 targetIPv6Addr2Valid : 1;
-   tANI_U8 reserved1 : 5;
-   tANI_U8 reserved2;   //make it DWORD aligned
-} tHalNSOffloadParams;
 
 typedef PACKED_PRE struct PACKED_POST
 {
@@ -3325,7 +3249,7 @@ typedef PACKED_PRE struct PACKED_POST
     PACKED_PRE union PACKED_POST
     {
         tANI_U8 hostIpv4Addr [4];
-        tANI_U8 hostIpv6Addr [HAL_IPV6_ADDR_LEN];
+        tANI_U8 hostIpv6Addr [16];
     } params;
 } tHalHostOffloadReq, *tpHalHostOffloadReq;
 
@@ -3333,7 +3257,6 @@ typedef PACKED_PRE struct PACKED_POST
 {
    tHalMsgHeader header;
    tHalHostOffloadReq hostOffloadParams;
-   tHalNSOffloadParams nsOffloadParams;
 }  tHalHostOffloadReqMsg, *tpHalHostOffloadReqMsg;
 
 /*---------------------------------------------------------------------------
@@ -3419,7 +3342,7 @@ typedef PACKED_PRE struct PACKED_POST
  * WLAN_HAL_ADD_WOWL_BCAST_PTRN
  *--------------------------------------------------------------------------*/
 #define HAL_WOWL_BCAST_PATTERN_MAX_SIZE 128
-#define HAL_WOWL_BCAST_MAX_NUM_PATTERNS 16
+#define HAL_WOWL_BCAST_MAX_NUM_PATTERNS 8
 
 typedef PACKED_PRE struct PACKED_POST
 {
@@ -3431,8 +3354,6 @@ typedef PACKED_PRE struct PACKED_POST
     tANI_U8  ucPattern[HAL_WOWL_BCAST_PATTERN_MAX_SIZE]; // Pattern
     tANI_U8  ucPatternMaskSize;     // Non-zero pattern mask size
     tANI_U8  ucPatternMask[HAL_WOWL_BCAST_PATTERN_MAX_SIZE]; // Pattern mask
-    tANI_U8  ucPatternExt[HAL_WOWL_BCAST_PATTERN_MAX_SIZE]; // Extra pattern
-    tANI_U8  ucPatternMaskExt[HAL_WOWL_BCAST_PATTERN_MAX_SIZE]; // Extra pattern mask
 } tHalWowlAddBcastPtrn, *tpHalWowlAddBcastPtrn;
 
 typedef PACKED_PRE struct PACKED_POST
@@ -3514,29 +3435,6 @@ typedef PACKED_PRE struct PACKED_POST
      * in WoWLAN mode for some time. Set 0 to disable this feature.      
      */
     tANI_U8   ucWowMaxSleepUsec;
-    
-    /* This configuration directs the WoW packet filtering to look for EAP-ID
-     * requests embedded in EAPOL frames and use this as a wake source.
-     */
-    tANI_U8   ucWoWEAPIDRequestEnable;
-
-    /* This configuration directs the WoW packet filtering to look for EAPOL-4WAY
-     * requests and use this as a wake source.
-     */
-    tANI_U8   ucWoWEAPOL4WayEnable;
-
-    /* This configuration allows a host wakeup on an network scan offload match.
-     */
-    tANI_U8   ucWowNetScanOffloadMatch;
-
-    /* This configuration allows a host wakeup on any GTK rekeying error.
-     */
-    tANI_U8   ucWowGTKRekeyError;
-
-    /* This configuration allows a host wakeup on BSS connection loss.
-     */
-    tANI_U8   ucWoWBSSConnLoss;
-
 } tHalWowlEnterParams, *tpHalWowlEnterParams;
 
 typedef PACKED_PRE struct PACKED_POST
@@ -4292,22 +4190,6 @@ typedef PACKED_PRE struct PACKED_POST
    tHalWlanHostSuspendIndParam suspendIndParams;
 }tHalWlanHostSuspendIndMsg, *tpHalWlanHostSuspendIndMsg;
 
-/*---------------------------------------------------------------------------
- * WLAN_HAL_EXCLUDE_UNENCRYTED_IND
- *-------------------------------------------------------------------------*/
-
-typedef PACKED_PRE struct PACKED_POST
-{
-    tANI_BOOLEAN bDot11ExcludeUnencrypted;
-    tSirMacAddr bssId; 
-}tHalWlanExcludeUnEncryptedIndParam,*tpHalWlanExcludeUnEncryptedIndParam;
-
-typedef PACKED_PRE struct PACKED_POST
-{
-   tHalMsgHeader header;
-   tHalWlanExcludeUnEncryptedIndParam excludeUnEncryptedIndParams;
-}tHalWlanExcludeUnEncrptedIndMsg, *tpHalWlanExcludeUnEncrptedIndMsg;
-
 #ifdef WLAN_FEATURE_P2P
 /*---------------------------------------------------------------------------
  *WLAN_HAL_NOA_ATTR_IND
@@ -4509,7 +4391,7 @@ typedef PACKED_PRE struct PACKED_POST {
     ePNOMode         modePNO;
     
     /*Number of networks sent for PNO*/
-    tANI_U32          ucNetworksCount;
+    tANI_U32          ucNetworksCount; 
 
     /*The networks that PNO needs to look for*/
     tNetworkType     aNetworks[WLAN_HAL_PNO_MAX_SUPP_NETWORKS];
@@ -4936,257 +4818,6 @@ typedef PACKED_PRE struct PACKED_POST{
    tANI_U32   status;
 
 }  tSetPowerParamsResp, *tpSetPowerParamsResp;
-
-/*---------------------------------------------------------------------------
- ****************Capability bitmap exchange definitions and macros starts*************
- *--------------------------------------------------------------------------*/
-
-typedef PACKED_PRE struct PACKED_POST{
-
-   tANI_U32 featCaps[4];
-
-}  tWlanFeatCaps, *tpWlanFeatCaps;
-
-typedef PACKED_PRE struct PACKED_POST{
-
-   tHalMsgHeader header;    
-   tWlanFeatCaps wlanFeatCaps;
-
-}  tWlanFeatCapsMsg, *tpWlanFeatCapsMsg;
-
-
-typedef enum {
-    MCC        = 0,
-    P2P        = 1,
-    MAX_FEATURE_SUPPORTED = 128,
-} placeHolderInCapBitmap;
-
-#define setFeatCaps(a,b)   {  tANI_U32 arr_index, bit_index; \
-                              if ((b>=0) && (b<=127)) { \
-                                arr_index = b/32; \
-                                bit_index = b % 32; \
-                                (a)->featCaps[arr_index] |= (1<<bit_index); \
-                              } \
-                           }
-#define getFeatCaps(a,b,c) {  tANI_U32 arr_index, bit_index; \
-                              if ((b>=0) && (b<=127)) { \
-                                arr_index = b/32; \
-                                bit_index = b % 32; \
-                                c = (a)->featCaps[arr_index] & (1<<bit_index); \
-                              } \
-                           }
-#define clearFeatCaps(a,b) {  tANI_U32 arr_index, bit_index; \
-                              if ((b>=0) && (b<=127)) { \
-                                arr_index = b/32; \
-                                bit_index = b % 32; \
-                                (a)->featCaps[arr_index] |= (0<<bit_index); \
-                              } \
-                           }
-
-/*---------------------------------------------------------------------------
- * WLAN_HAL_WAKE_REASON_IND
- *--------------------------------------------------------------------------*/
-
-/* status codes to help debug rekey failures */
-typedef enum
-{
-    WLAN_HAL_GTK_REKEY_STATUS_SUCCESS            = 0,
-    WLAN_HAL_GTK_REKEY_STATUS_NOT_HANDLED        = 1, /* rekey detected, but not handled */
-    WLAN_HAL_GTK_REKEY_STATUS_MIC_ERROR          = 2, /* MIC check error on M1 */
-    WLAN_HAL_GTK_REKEY_STATUS_DECRYPT_ERROR      = 3, /* decryption error on M1  */
-    WLAN_HAL_GTK_REKEY_STATUS_REPLAY_ERROR       = 4, /* M1 replay detected */
-    WLAN_HAL_GTK_REKEY_STATUS_MISSING_KDE        = 5, /* missing GTK key descriptor in M1 */
-    WLAN_HAL_GTK_REKEY_STATUS_MISSING_IGTK_KDE   = 6, /* missing iGTK key descriptor in M1 */
-    WLAN_HAL_GTK_REKEY_STATUS_INSTALL_ERROR      = 7, /* key installation error */
-    WLAN_HAL_GTK_REKEY_STATUS_IGTK_INSTALL_ERROR = 8, /* iGTK key installation error */
-    WLAN_HAL_GTK_REKEY_STATUS_RESP_TX_ERROR      = 9, /* GTK rekey M2 response TX error */
-
-    WLAN_HAL_GTK_REKEY_STATUS_GEN_ERROR          = 255 /* non-specific general error */
-} tGTKRekeyStatus;
-
-/* wake reason types */
-typedef enum
-{
-    WLAN_HAL_WAKE_REASON_NONE             = 0,
-    WLAN_HAL_WAKE_REASON_MAGIC_PACKET     = 1,  /* magic packet match */
-    WLAN_HAL_WAKE_REASON_PATTERN_MATCH    = 2,  /* host defined pattern match */
-    WLAN_HAL_WAKE_REASON_EAPID_PACKET     = 3,  /* EAP-ID frame detected */
-    WLAN_HAL_WAKE_REASON_EAPOL4WAY_PACKET = 4,  /* start of EAPOL 4-way handshake detected */
-    WLAN_HAL_WAKE_REASON_NETSCAN_OFFL_MATCH = 5, /* network scan offload match */
-    WLAN_HAL_WAKE_REASON_GTK_REKEY_STATUS = 6,  /* GTK rekey status wakeup (see status) */
-    WLAN_HAL_WAKE_REASON_BSS_CONN_LOST    = 7,  /* BSS connection lost */
-} tWakeReasonType;
-
-/*
-  Wake Packet which is saved at tWakeReasonParams.DataStart
-  This data is sent for any wake reasons that involve a packet-based wakeup :
-
-  WLAN_HAL_WAKE_REASON_TYPE_MAGIC_PACKET
-  WLAN_HAL_WAKE_REASON_TYPE_PATTERN_MATCH
-  WLAN_HAL_WAKE_REASON_TYPE_EAPID_PACKET
-  WLAN_HAL_WAKE_REASON_TYPE_EAPOL4WAY_PACKET
-  WLAN_HAL_WAKE_REASON_TYPE_GTK_REKEY_STATUS
-
-  The information is provided to the host for auditing and debug purposes
-
-*/
-
-/*
-  Wake reason indication parameters
-*/
-typedef PACKED_PRE struct PACKED_POST
-{
-    uint32  ulReason;        /* see tWakeReasonType */
-    uint32  ulReasonArg;     /* argument specific to the reason type */
-    uint32  ulStoredDataLen; /* length of optional data stored in this message, in case
-                              HAL truncates the data (i.e. data packets) this length
-                              will be less than the actual length */
-    uint32  ulActualDataLen; /* actual length of data */
-    uint8   aDataStart[1];   /* variable length start of data (length == storedDataLen)
-                             see specific wake type */
-} tWakeReasonParams, *tpWakeReasonParams;
-
-/*
-  Wake reason indication
-*/
-typedef PACKED_PRE struct PACKED_POST
-{
-    tHalMsgHeader       header;
-    tWakeReasonParams   wakeReasonParams;
-} tHalWakeReasonInd, *tpHalWakeReasonInd;
-
-/*---------------------------------------------------------------------------
-* WLAN_HAL_GTK_OFFLOAD_REQ
-*--------------------------------------------------------------------------*/
-
-#define HAL_GTK_KEK_BYTES 16
-#define HAL_GTK_KCK_BYTES 16
-
-#define WLAN_HAL_GTK_OFFLOAD_FLAGS_DISABLE (1 << 0)
-
-typedef PACKED_PRE struct PACKED_POST
-{
-  tANI_U32     ulFlags;             /* optional flags */
-  tANI_U8      aKCK[HAL_GTK_KCK_BYTES];  /* Key confirmation key */ 
-  tANI_U8      aKEK[HAL_GTK_KEK_BYTES];  /* key encryption key */
-  tANI_U64     ullKeyReplayCounter; /* replay counter */
-} tHalGtkOffloadReqParams, *tpHalGtkOffloadReqParams;
-
-typedef PACKED_PRE struct PACKED_POST
-{
-   tHalMsgHeader header;
-   tHalGtkOffloadReqParams gtkOffloadReqParams;
-}  tHalGtkOffloadReqMsg, *tpHalGtkOffloadReqMsg;
-
-/*---------------------------------------------------------------------------
-* WLAN_HAL_GTK_OFFLOAD_RSP
-*--------------------------------------------------------------------------*/
-typedef PACKED_PRE struct PACKED_POST
-{
-    tANI_U32   ulStatus;   /* success or failure */
-} tHalGtkOffloadRspParams, *tpHalGtkOffloadRspParams;
-
-typedef PACKED_PRE struct PACKED_POST
-{
-   tHalMsgHeader header;
-   tHalGtkOffloadRspParams gtkOffloadRspParams;
-}  tHalGtkOffloadRspMsg, *tpHalGtkOffloadRspMsg;
-
-
-/*---------------------------------------------------------------------------
-* WLAN_HAL_GTK_OFFLOAD_GETINFO_REQ
-*--------------------------------------------------------------------------*/
-
-typedef PACKED_PRE struct PACKED_POST
-{
-   tHalMsgHeader header;
-}  tHalGtkOffloadGetInfoReqMsg, *tpHalGtkOffloadGetInfoReqMsg;
-
-/*---------------------------------------------------------------------------
-* WLAN_HAL_GTK_OFFLOAD_GETINFO_RSP
-*--------------------------------------------------------------------------*/
-typedef PACKED_PRE struct PACKED_POST
-{
-   tANI_U32   ulStatus;             /* success or failure */
-   tANI_U32   ulLastRekeyStatus;    /* last rekey status when the rekey was offloaded */
-   tANI_U64   ullKeyReplayCounter;  /* current replay counter value */
-   tANI_U32   ulTotalRekeyCount;    /* total rekey attempts */
-   tANI_U32   ulGTKRekeyCount;      /* successful GTK rekeys */
-   tANI_U32   ulIGTKRekeyCount;     /* successful iGTK rekeys */
-} tHalGtkOffloadGetInfoRspParams, *tptHalGtkOffloadGetInfoRspParams;
-
-typedef PACKED_PRE struct PACKED_POST
-{
-   tHalMsgHeader header;
-   tHalGtkOffloadGetInfoRspParams gtkOffloadGetInfoRspParams;
-}  tHalGtkOffloadGetInfoRspMsg, *tpHalGtkOffloadGetInfoRspMsg;
-
-/*
-   Thermal Mitigation mode of operation.
-   HAL_THERMAL_MITIGATION_MODE_0 - Based on AMPDU disabling aggregation
-   HAL_THERMAL_MITIGATION_MODE_1 - Based on AMPDU disabling aggregation and
-   reducing transmit power
-   HAL_THERMAL_MITIGATION_MODE_2 - Not supported
-*/
-typedef enum
-{
-  HAL_THERMAL_MITIGATION_MODE_INVALID = -1,
-  HAL_THERMAL_MITIGATION_MODE_0,
-  HAL_THERMAL_MITIGATION_MODE_1,
-  HAL_THERMAL_MITIGATION_MODE_2,
-  HAL_THERMAL_MITIGATION_MODE_MAX = WLAN_HAL_MAX_ENUM_SIZE,
-}tHalThermalMitigationModeType;
-//typedef tANI_S16 tHalThermalMitigationModeType;
-
-/*
-   Thermal Mitigation level.
-   Note the levels are incremental i.e HAL_THERMAL_MITIGATION_LEVEL_2 =
-   HAL_THERMAL_MITIGATION_LEVEL_0 + HAL_THERMAL_MITIGATION_LEVEL_1
-
-   HAL_THERMAL_MITIGATION_LEVEL_0 - lowest level of thermal mitigation. This
-   level indicates normal mode of operation
-   HAL_THERMAL_MITIGATION_LEVEL_1 - 1st level of thermal mitigation
-   HAL_THERMAL_MITIGATION_LEVEL_2 - 2nd level of thermal mitigation
-   HAL_THERMAL_MITIGATION_LEVEL_3 - 3rd level of thermal mitigation
-   HAL_THERMAL_MITIGATION_LEVEL_4 - 4th level of thermal mitigation
-*/
-typedef enum 
-{
-  HAL_THERMAL_MITIGATION_LEVEL_INVALID = -1,
-  HAL_THERMAL_MITIGATION_LEVEL_0,
-  HAL_THERMAL_MITIGATION_LEVEL_1,
-  HAL_THERMAL_MITIGATION_LEVEL_2,
-  HAL_THERMAL_MITIGATION_LEVEL_3,
-  HAL_THERMAL_MITIGATION_LEVEL_4,
-  HAL_THERMAL_MITIGATION_LEVEL_MAX = WLAN_HAL_MAX_ENUM_SIZE,
-}tHalThermalMitigationLevelType;
-//typedef tANI_S16 tHalThermalMitigationLevelType;
-
-typedef PACKED_PRE struct PACKED_POST
-{
-   /* Thermal Mitigation Operation Mode */
-   tHalThermalMitigationModeType thermalMitMode;
-
-   /* Thermal Mitigation Level */
-   tHalThermalMitigationLevelType thermalMitLevel;
-    
-}tSetThermalMitgationType, *tpSetThermalMitgationType;
-
-/* WLAN_HAL_SET_THERMAL_MITIGATION_REQ */
-typedef PACKED_PRE struct PACKED_POST
-{
-    tHalMsgHeader               header;
-    tSetThermalMitgationType    thermalMitParams;
-} tSetThermalMitigationReqMsg, *tpSetThermalMitigationReqMsg;
-
-typedef PACKED_PRE struct PACKED_POST{
-
-   tHalMsgHeader header;
-
-   /*status of the request */
-   tANI_U32   status;
-
-}  tSetThermalMitigationResp, *tpSetThermalMitigationResp;
 
 #if defined(__ANI_COMPILER_PRAGMA_PACK_STACK)
 #pragma pack(pop)

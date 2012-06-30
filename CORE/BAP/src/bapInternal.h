@@ -157,7 +157,7 @@ when        who    what, where, why
 /*Offset of the protocol type field inside the LLC/SNAP header*/
 #define WLANBAP_LLC_PROTO_TYPE_OFFSET  WLANBAP_LLC_OUI_OFFSET +  WLANBAP_LLC_OUI_SIZE
 
-#define WLANBAP_MAX_NUM_TRIPLETS               5
+#define WLANBAP_MAX_NUM_TRIPLETS               2
 
 #define WLANBAP_MAX_SIZE_TRIPLETS              3
 /*----------------------------------------------------------------------------

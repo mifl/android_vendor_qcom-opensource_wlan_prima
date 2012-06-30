@@ -20,8 +20,7 @@
  */
 
 /*
- *
- * Airgo Networks, Inc proprietary. All rights reserved.
+ * Airgo Networks, Inc proprietary. All rights reserved
  * macInitApi.c - This file has all the mac level init functions
  *                   for all the defined threads at system level.
  * Author:    Dinesh Upadhyay

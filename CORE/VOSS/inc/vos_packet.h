@@ -81,10 +81,7 @@ typedef enum
    VOS_PKT_TYPE_TX_802_3_DATA,
    
    /// voss Packet contains Received data of an unknown frame type
-   VOS_PKT_TYPE_RX_RAW,
-
-   /// Invalid sentinel value
-   VOS_PKT_TYPE_MAXIMUM
+   VOS_PKT_TYPE_RX_RAW
 
 } VOS_PKT_TYPE;
 

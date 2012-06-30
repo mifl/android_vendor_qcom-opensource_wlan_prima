@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limProcessAssocRspFrame.cc contains the code
  * for processing Re/Association Response Frame.
@@ -50,10 +49,6 @@
 #include "limSerDesUtils.h"
 #include "limStaHashApi.h"
 #include "limSendMessages.h"
-
-#ifdef FEATURE_WLAN_CCX
-#include "ccxApi.h"
-#endif
 
 extern tSirRetStatus schBeaconEdcaProcess(tpAniSirGlobal pMac, tSirMacEdcaParamSetIE *edca, tpPESession psessionEntry);
 
@@ -85,8 +80,7 @@ void limUpdateAssocStaDatas(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpSirAsso
     tANI_BOOLEAN    qosMode; 
     tANI_U16        rxHighestRate = 0;
 
-    limGetPhyMode(pMac, &phyMode, psessionEntry);
-
+    phyMode = pMac->lim.gLimPhyMode;
     pStaDs->staType= STA_ENTRY_SELF;
 
     limGetQosMode(psessionEntry, &qosMode);    
@@ -196,7 +190,7 @@ void limUpdateAssocStaDatas(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpSirAsso
             * local EDCA params. This is needed (refer to bug #14989) as we'll 
             * be passing the gLimEdcaParams to HAL in limProcessStaMlmAddBssRsp().
             */ 
-           schSetDefaultEdcaParams(pMac, psessionEntry);
+           schSetDefaultEdcaParams(pMac);
        }
 
 
@@ -314,7 +308,7 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
          (psessionEntry->limMlmState != eLIM_MLM_WT_ASSOC_RSP_STATE)) ||
         ((subType == LIM_REASSOC) &&
          ((psessionEntry->limMlmState != eLIM_MLM_WT_REASSOC_RSP_STATE) 
-#if defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#ifdef WLAN_FEATURE_VOWIFI_11R
          && (psessionEntry->limMlmState != eLIM_MLM_WT_FT_REASSOC_RSP_STATE)
 #endif
          )))
@@ -420,7 +414,7 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
     }
     if( (palAllocateMemory(pMac->hHdd, (void**)&psessionEntry->assocRsp, frameLen)) != eSIR_SUCCESS)
     {
-        PELOGE(limLog(pMac, LOGE, FL("Unable to allocate memory to store assoc response, len = %d"), frameLen);)
+        PELOGE(limLog(pMac, LOGE, FL("Unable to allocate memory to store assoc response"));)
     }
     else
     {
@@ -428,60 +422,6 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
         palCopyMemory(pMac->hHdd, psessionEntry->assocRsp, pBody, frameLen);
         psessionEntry->assocRspLen = frameLen;
     }
-
-#ifdef WLAN_FEATURE_VOWIFI_11R
-    if (psessionEntry->ricData != NULL) 
-    {
-        palFreeMemory(pMac->hHdd, psessionEntry->ricData);
-        psessionEntry->ricData = NULL;
-    }
-    if(pAssocRsp->ricPresent)
-    {
-        psessionEntry->RICDataLen = pAssocRsp->num_RICData * sizeof(tDot11fIERICDataDesc);
-        if( (palAllocateMemory(pMac->hHdd, (void**)&psessionEntry->ricData, psessionEntry->RICDataLen)) != eSIR_SUCCESS)
-        {
-            PELOGE(limLog(pMac, LOGE, FL("Unable to allocate memory to store assoc response"));)
-            psessionEntry->RICDataLen = 0; 
-        }
-        else
-        {
-            palCopyMemory(pMac->hHdd, psessionEntry->ricData, &pAssocRsp->RICData[0], psessionEntry->RICDataLen);
-        }
-    }
-    else
-    {
-        psessionEntry->RICDataLen = 0;
-        psessionEntry->ricData = NULL;
-    }
-#endif    
-
-#ifdef FEATURE_WLAN_CCX    
-    if (psessionEntry->tspecIes != NULL) 
-    {
-        palFreeMemory(pMac->hHdd, psessionEntry->tspecIes);
-        psessionEntry->tspecIes = NULL;
-    }
-    if(pAssocRsp->tspecPresent)
-    {
-        psessionEntry->tspecLen = pAssocRsp->num_tspecs * sizeof(tDot11fIEWMMTSPEC);
-        if( (palAllocateMemory(pMac->hHdd, (void**)&psessionEntry->tspecIes, psessionEntry->tspecLen)) != eSIR_SUCCESS)
-        {
-            PELOGE(limLog(pMac, LOGE, FL("Unable to allocate memory to store assoc response"));)
-            psessionEntry->tspecLen = 0; 
-        }
-        else
-        {
-            palCopyMemory(pMac->hHdd, psessionEntry->tspecIes, &pAssocRsp->TSPECInfo[0], psessionEntry->tspecLen);
-        }
-        PELOG1(limLog(pMac, LOG1, FL(" Tspec EID present in assoc rsp "));)
-    }
-    else
-    {
-        psessionEntry->tspecLen = 0;
-        psessionEntry->tspecIes = NULL;
-        PELOG1(limLog(pMac, LOG1, FL(" Tspec EID *NOT* present in assoc rsp "));)
-    }
-#endif
 
     if (pAssocRsp->capabilityInfo.ibss)
     {
@@ -563,33 +503,7 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
     {
         // Log success
         PELOG1(limLog(pMac, LOG1, FL("Successfully Reassociated with BSS\n"));)
-#ifdef FEATURE_WLAN_CCX
-        {
-            tANI_U8 cnt = 0;
-            if (pAssocRsp->tsmPresent)
-            {
-                limLog(pMac, LOGW, "TSM IE Present in Reassoc Rsp\n");
-                // Start the TSM  timer only if the TSPEC Ie is present in the reassoc rsp
-                if (pAssocRsp->tspecPresent) {
-                    // Find the TSPEC IE with VO user priority
-                    for (cnt=0; cnt<pAssocRsp->num_tspecs; cnt++) {
-                        if ( upToAc(pAssocRsp->TSPECInfo[cnt].user_priority) == EDCA_AC_VO) {
-                            psessionEntry->ccxContext.tsm.tid = pAssocRsp->TSPECInfo[cnt].user_priority;
-                            vos_mem_copy(&psessionEntry->ccxContext.tsm.tsmInfo,
-                                    &pAssocRsp->tsmIE, sizeof(tSirMacCCXTSMIE));
-                            limActivateTSMStatsTimer(pMac, psessionEntry);
-                            if(psessionEntry->ccxContext.tsm.tsmInfo.state) {
-                                psessionEntry->ccxContext.tsm.tsmMetrics.RoamingCount++;
-                            }
-                            break;
-                        }
-                    }
-                } else {
-                    limLog(pMac, LOGE, "TSM present but TSPEC IE not present in Reassoc Rsp\n");
-                }
-            }
-        }
-#endif
+
         if (psessionEntry->pLimMlmJoinReq)
         {
             palFreeMemory( pMac->hHdd, psessionEntry->pLimMlmJoinReq);
@@ -613,15 +527,13 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
             goto assocReject;
         }
 
-#if defined(WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#ifdef WLAN_FEATURE_VOWIFI_11R
         if (psessionEntry->limMlmState == eLIM_MLM_WT_FT_REASSOC_RSP_STATE)
         {
 #ifdef WLAN_FEATURE_VOWIFI_11R_DEBUG
             PELOGE(limLog(pMac, LOGE, FL("Sending self sta\n"));)
 #endif
             pmmResetPmmState(pMac);
-
-            limUpdateAssocStaDatas(pMac, pStaDs, pAssocRsp,psessionEntry);
 
             // Store assigned AID for TIM processing
             psessionEntry->limAID = pAssocRsp->aid & 0x3FFF;
@@ -654,12 +566,7 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
 
     // Log success
     PELOG1(limLog(pMac, LOG1, FL("Successfully Associated with BSS\n"));)
-#ifdef FEATURE_WLAN_CCX
-    if(psessionEntry->ccxContext.tsm.tsmInfo.state)
-    {
-        psessionEntry->ccxContext.tsm.tsmMetrics.RoamingCount = 0;
-    }
-#endif
+
     /**
      * Update the status for PMM module
      */
@@ -742,11 +649,7 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
   
 
 assocReject:
-    if ((subType == LIM_ASSOC)
-#ifdef WLAN_FEATURE_VOWIFI_11R
-                    || ((subType == LIM_REASSOC) && (psessionEntry->limMlmState == eLIM_MLM_WT_FT_REASSOC_RSP_STATE))
-#endif
-       ) {
+    if (subType == LIM_ASSOC) {
         PELOGE(limLog(pMac, LOGE,  FL("Assoc Rejected by the peer. Reason: %d\n"), mlmAssocCnf.resultCode);)
         pMac->lim.gLimMlmState = eLIM_MLM_IDLE_STATE;
         MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, pMac->lim.gLimMlmState));
@@ -759,20 +662,18 @@ assocReject:
         if(limSetLinkState(pMac, eSIR_LINK_IDLE_STATE,psessionEntry->bssId, 
              psessionEntry->selfMacAddr, NULL, NULL) != eSIR_SUCCESS)
             PELOGE(limLog(pMac, LOGE,  FL("Failed to set the LinkState\n"));)
-        if (subType == LIM_ASSOC)
-        {
-           limPostSmeMessage(pMac, LIM_MLM_ASSOC_CNF, (tANI_U32 *) &mlmAssocCnf);
-        }
-#ifdef WLAN_FEATURE_VOWIFI_11R
-        else
-        {
-                mlmAssocCnf.resultCode = eSIR_SME_FT_REASSOC_FAILURE;
-                limPostSmeMessage(pMac, LIM_MLM_REASSOC_CNF, (tANI_U32 *) &mlmAssocCnf);
-        }
-#endif /* WLAN_FEATURE_VOWIFI_11R */
+        limPostSmeMessage(pMac, LIM_MLM_ASSOC_CNF, (tANI_U32 *) &mlmAssocCnf);
     } else {
-        limRestorePreReassocState( pMac, 
-                  eSIR_SME_REASSOC_REFUSED, mlmAssocCnf.protStatusCode,psessionEntry); 
+#ifdef WLAN_FEATURE_VOWIFI_11R
+        if (psessionEntry->limMlmState == eLIM_MLM_WT_FT_REASSOC_RSP_STATE)
+        {
+            limRestorePreReassocState( pMac, 
+                      eSIR_SME_FT_REASSOC_FAILURE, mlmAssocCnf.protStatusCode,psessionEntry); 
+        }
+        else
+#endif /* WLAN_FEATURE_VOWIFI_11R */
+            limRestorePreReassocState( pMac, 
+                      eSIR_SME_REASSOC_REFUSED, mlmAssocCnf.protStatusCode,psessionEntry); 
     }
 
     /* CR: vos packet memory is leaked when assoc rsp timeouted/failed. */

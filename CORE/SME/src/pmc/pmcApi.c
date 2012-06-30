@@ -42,9 +42,9 @@
 #include "smeInside.h"
 #include "csrInsideApi.h"
 #include "wlan_ps_wow_diag.h"
+
 #include "wlan_qct_wda.h"
 #include "limSessionUtils.h"
-#include "csrInsideApi.h"
 
 extern void pmcReleaseCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand );
 
@@ -734,8 +734,7 @@ eHalStatus pmcStartAutoBmpsTimer (tHalHandle hHal)
 
    /* Check if there is an Infra session. If there is no Infra session, timer will be started 
          when STA associates to AP */
-
-   if (pmcShouldBmpsTimerRun(pMac))
+   if (csrIsInfraConnected(pMac))
    {
       if (pmcStartTrafficTimer(hHal, pMac->pmc.bmpsConfig.trafficMeasurePeriod) != eHAL_STATUS_SUCCESS)
          return eHAL_STATUS_FAILURE;
@@ -1649,13 +1648,6 @@ tANI_BOOLEAN pmcAllowImps( tHalHandle hHal )
        return eANI_BOOLEAN_FALSE;
     }
 
-    //All sessions must be disconnected to allow IMPS
-    if ( !csrIsAllSessionDisconnected( pMac ) )
-    {
-       smsLog(pMac, LOGW, "PMC: Atleast one connected session. IMPS cannot be entered\n");
-       return eANI_BOOLEAN_FALSE;
-    }
-
     return eANI_BOOLEAN_TRUE;
 }
 
@@ -2264,10 +2256,8 @@ eHalStatus pmcWowlDelBcastPattern (
             - Polling of all modules through the Power Save Check routine passes
             - STA is associated to an access point
     \param  hHal - The handle returned by macOpen.
-    \param  - enterWowlCallbackRoutine Callback routine invoked in case of success/failure
-    \param  - enterWowlCallbackContext -  Cookie to be passed back during callback
-    \param  - wakeReasonIndCB Callback routine invoked for Wake Reason Indication
-    \param  - wakeReasonIndCBContext -  Cookie to be passed back during callback
+    \param  - callbackRoutine Callback routine invoked in case of success/failure
+    \param  - callbackContext -  Cookie to be passed back during callback
     \param  - fullPowerReason - Reason why this API is being invoked. SME needs to
               distinguish between BAP and HDD requests
     \return eHalStatus - status 
@@ -2277,13 +2267,8 @@ eHalStatus pmcWowlDelBcastPattern (
   ---------------------------------------------------------------------------*/
 eHalStatus pmcEnterWowl ( 
     tHalHandle hHal, 
-    void (*enterWowlCallbackRoutine) (void *callbackContext, eHalStatus status),
-    void *enterWowlCallbackContext,
-#ifdef WLAN_WAKEUP_EVENTS
-    void (*wakeReasonIndCB) (void *callbackContext, tpSirWakeReasonInd pWakeReasonInd),
-    void *wakeReasonIndCBContext,
-#endif // WLAN_WAKEUP_EVENTS
-    tpSirSmeWowlEnterParams wowlEnterParams)
+    void (*callbackRoutine) (void *callbackContext, eHalStatus status),   
+    void *callbackContext, tpSirSmeWowlEnterParams wowlEnterParams)
 {
    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
 
@@ -2356,21 +2341,14 @@ eHalStatus pmcEnterWowl (
       return eHAL_STATUS_FAILURE;
    }
 
-   // To avoid race condition, set callback routines before sending message.
-   /* cache the WOWL information */
-   pMac->pmc.wowlEnterParams = *wowlEnterParams;
-   pMac->pmc.enterWowlCallbackRoutine = enterWowlCallbackRoutine;
-   pMac->pmc.enterWowlCallbackContext = enterWowlCallbackContext;
-#ifdef WLAN_WAKEUP_EVENTS
-   /* Cache the Wake Reason Indication callback information */
-   pMac->pmc.wakeReasonIndCB = wakeReasonIndCB;
-   pMac->pmc.wakeReasonIndCBContext = wakeReasonIndCBContext;
-#endif // WLAN_WAKEUP_EVENTS
-
    /* Enter Request WOWL State. */
    if (pmcRequestEnterWowlState(hHal, wowlEnterParams) != eHAL_STATUS_SUCCESS)
       return eHAL_STATUS_FAILURE;
 
+   /* cache the WOWL information */
+   pMac->pmc.wowlEnterParams = *wowlEnterParams;
+   pMac->pmc.enterWowlCallbackRoutine = callbackRoutine;
+   pMac->pmc.enterWowlCallbackContext = callbackContext;
    pMac->pmc.wowlModeRequired = TRUE;
 
    return eHAL_STATUS_PMC_PENDING;
@@ -2431,14 +2409,11 @@ eHalStatus pmcSetHostOffload (tHalHandle hHal, tpSirHostOffloadReq pRequest)
     tpSirHostOffloadReq pRequestBuf;
     vos_msg_t msg;
 
-    VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "%s: IP address = %d.%d.%d.%d", __FUNCTION__,
-        pRequest->params.hostIpv4Addr[0], pRequest->params.hostIpv4Addr[1],
-        pRequest->params.hostIpv4Addr[2], pRequest->params.hostIpv4Addr[3]);
-
     pRequestBuf = vos_mem_malloc(sizeof(tSirHostOffloadReq));
     if (NULL == pRequestBuf)
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for host offload request", __FUNCTION__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate "
+                  "memory for host offload request", __FUNCTION__);
         return eHAL_STATUS_FAILED_ALLOC;
     }
     vos_mem_copy(pRequestBuf, pRequest, sizeof(tSirHostOffloadReq));
@@ -2448,7 +2423,8 @@ eHalStatus pmcSetHostOffload (tHalHandle hHal, tpSirHostOffloadReq pRequest)
     msg.bodyptr = pRequestBuf;
     if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_HOST_OFFLOAD message to WDA", __FUNCTION__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post "
+                  "WDA_SET_HOST_OFFLOAD message to WDA", __FUNCTION__);
         vos_mem_free(pRequestBuf);
         return eHAL_STATUS_FAILURE;
     }
@@ -2500,47 +2476,6 @@ eHalStatus pmcSetKeepAlive (tHalHandle hHal, tpSirKeepAliveReq pRequest)
 
     return eHAL_STATUS_SUCCESS;
 }
-
-
-#ifdef WLAN_NS_OFFLOAD
-
-/* ---------------------------------------------------------------------------
-    \fn pmcSetNSOffload
-    \brief  Set the host offload feature.
-    \param  hHal - The handle returned by macOpen.
-    \param  pRequest - Pointer to the offload request.
-    \return eHalStatus
-            eHAL_STATUS_FAILURE  Cannot set the offload.
-            eHAL_STATUS_SUCCESS  Request accepted. 
-  ---------------------------------------------------------------------------*/
-eHalStatus pmcSetNSOffload (tHalHandle hHal, tpSirHostOffloadReq pRequest)
-{
-    tpSirHostOffloadReq pRequestBuf;
-    vos_msg_t msg;
-    int i;
-
-    pRequestBuf = vos_mem_malloc(sizeof(tSirHostOffloadReq));
-    if (NULL == pRequestBuf)
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for NS offload request", __FUNCTION__);
-        return eHAL_STATUS_FAILED_ALLOC;
-    }
-    vos_mem_copy(pRequestBuf, pRequest, sizeof(tSirHostOffloadReq));
-
-    msg.type = WDA_SET_NS_OFFLOAD;
-    msg.reserved = 0;
-    msg.bodyptr = pRequestBuf;
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post SIR_HAL_SET_HOST_OFFLOAD message to HAL", __FUNCTION__);
-        vos_mem_free(pRequestBuf);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    return eHAL_STATUS_SUCCESS;
-}
-
-#endif //WLAN_NS_OFFLOAD
 
 
 void pmcClosePowerSaveCheckList(tpAniSirGlobal pMac)
@@ -2813,6 +2748,7 @@ eHalStatus pmcSetPreferredNetworkList
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
     tANI_U8 ucDot11Mode; 
 
+
     VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "%s: SSID = %s, %s", __FUNCTION__,
         pRequest->aNetworks[0].ssId.ssId, pRequest->aNetworks[1].ssId.ssId);
 
@@ -2840,7 +2776,7 @@ eHalStatus pmcSetPreferredNetworkList
     msg.type     = WDA_SET_PNO_REQ;
     msg.reserved = 0;
     msg.bodyptr  = pRequestBuf;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_PNO_REQ message to WDA", __FUNCTION__);
         vos_mem_free(pRequestBuf);
@@ -2850,8 +2786,6 @@ eHalStatus pmcSetPreferredNetworkList
     /* Cache the Preferred Network Found Indication callback information */
     pMac->pmc.prefNetwFoundCB = callbackRoutine;
     pMac->pmc.preferredNetworkFoundIndCallbackContext = callbackContext;
-
-    VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "-%s", __FUNCTION__);
 
     return eHAL_STATUS_SUCCESS;
 }
@@ -2875,7 +2809,7 @@ eHalStatus pmcSetRssiFilter(tHalHandle hHal,   v_U8_t        rssiThreshold)
     msg.type = WDA_SET_RSSI_FILTER_REQ;
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_PNO_REQ message to WDA", __FUNCTION__);
         vos_mem_free(pRequestBuf);
@@ -2923,7 +2857,7 @@ eHalStatus pmcUpdateScanParams(tHalHandle hHal, tCsrConfig *pRequest, tCsrChanne
     msg.type = WDA_UPDATE_SCAN_PARAMS_REQ;
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_UPDATE_SCAN_PARAMS message to WDA", __FUNCTION__);
         vos_mem_free(pRequestBuf);
@@ -2956,6 +2890,7 @@ eHalStatus pmcSetPowerParams(tHalHandle hHal,   tSirSetPowerParamsReq*  pwParams
 
     vos_mem_copy(pRequestBuf, pwParams, sizeof(*pRequestBuf)); 
 
+    pRequestBuf->uDTIMPeriod = psessionEntry->dtimPeriod; 
 
     msg.type = WDA_SET_POWER_PARAMS_REQ;
     msg.reserved = 0;
@@ -3023,100 +2958,3 @@ eHalStatus pmcGetFilterMatchCount
     return eHAL_STATUS_SUCCESS;
 }
 #endif // WLAN_FEATURE_PACKET_FILTERING
-
-#ifdef WLAN_FEATURE_GTK_OFFLOAD
-/* ---------------------------------------------------------------------------
-    \fn pmcSetGTKOffload
-    \brief  Set GTK offload feature.
-    \param  hHal - The handle returned by macOpen.
-    \param  pGtkOffload - Pointer to the GTK offload request.
-    \return eHalStatus
-            eHAL_STATUS_FAILURE  Cannot set the offload.
-            eHAL_STATUS_SUCCESS  Request accepted. 
-  ---------------------------------------------------------------------------*/
-eHalStatus pmcSetGTKOffload (tHalHandle hHal, tpSirGtkOffloadParams pGtkOffload)
-{
-    tpSirGtkOffloadParams pRequestBuf;
-    vos_msg_t msg;
-    int i;
-
-    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s: KeyReplayCounter: %d", 
-                __FUNCTION__, pGtkOffload->ullKeyReplayCounter);
-
-    pRequestBuf = (tpSirGtkOffloadParams)vos_mem_malloc(sizeof(tSirGtkOffloadParams));
-    if (NULL == pRequestBuf)
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate "
-                  "memory for GTK offload request", __FUNCTION__);
-        return eHAL_STATUS_FAILED_ALLOC;
-    }
-
-    vos_mem_copy(pRequestBuf, pGtkOffload, sizeof(tSirGtkOffloadParams));
-        
-    msg.type = WDA_GTK_OFFLOAD_REQ;
-    msg.reserved = 0;
-    msg.bodyptr = pRequestBuf;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post "
-                  "SIR_HAL_SET_GTK_OFFLOAD message to HAL", __FUNCTION__);
-        vos_mem_free(pRequestBuf);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    return eHAL_STATUS_SUCCESS;
-}
-
-/* ---------------------------------------------------------------------------
-    \fn pmcGetGTKOffload
-    \brief  Get GTK offload information.
-    \param  hHal - The handle returned by macOpen.
-    \param  callbackRoutine - Pointer to the GTK Offload Get Info response callback routine.
-    \return eHalStatus
-            eHAL_STATUS_FAILURE  Cannot set the offload.
-            eHAL_STATUS_SUCCESS  Request accepted. 
-  ---------------------------------------------------------------------------*/
-eHalStatus pmcGetGTKOffload(tHalHandle hHal, GTKOffloadGetInfoCallback callbackRoutine, void *callbackContext)
-{
-    tpSirGtkOffloadGetInfoRspParams  pRequestBuf;
-    vos_msg_t               msg;
-    tpAniSirGlobal          pMac = PMAC_STRUCT(hHal);
-
-    VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "%s: filterId = %d", 
-                __FUNCTION__);
-
-    pRequestBuf = vos_mem_malloc(sizeof(tSirGtkOffloadGetInfoRspParams));
-    if (NULL == pRequestBuf)
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate "
-                  "memory for Get GTK Offload request", __FUNCTION__);
-        return eHAL_STATUS_FAILED_ALLOC;
-    }
-
-    msg.type = WDA_GTK_OFFLOAD_GETINFO_REQ;
-    msg.reserved = 0;
-    msg.bodyptr = pRequestBuf;
-
-    /* Cache the Get GTK Offload callback information */
-    if (NULL != pMac->pmc.GtkOffloadGetInfoCB)
-    {
-        // Do we need to check if the callback is in use? 
-        // Because we are not sending the same message again when it is pending,
-        // the only case when the callback is not NULL is that the previous message was timed out or failed.
-        // So, it will be safe to set the callback in this case.
-    }
-
-    pMac->pmc.GtkOffloadGetInfoCB = callbackRoutine;
-    pMac->pmc.GtkOffloadGetInfoCBContext = callbackContext;
-
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_GTK_OFFLOAD_GETINFO_REQ message to WDA", 
-                    __FUNCTION__);
-        vos_mem_free(pRequestBuf);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    return eHAL_STATUS_SUCCESS;
-}
-#endif // WLAN_FEATURE_GTK_OFFLOAD

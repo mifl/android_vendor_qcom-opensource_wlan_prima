@@ -171,7 +171,6 @@ typedef enum {
 typedef enum {
     eSAP_START_BSS_EVENT = 0, /*Event sent when BSS is started*/
     eSAP_STOP_BSS_EVENT,      /*Event sent when BSS is stopped*/
-    eSAP_STA_ASSOC_IND,       /* Indicate the association request to upper layers */    
     eSAP_STA_ASSOC_EVENT,     /*Event sent when we have successfully associated a station and 
                                 upper layer neeeds to allocate a context*/
     eSAP_STA_REASSOC_EVENT,   /*Event sent when we have successfully reassociated a station and 
@@ -241,25 +240,6 @@ typedef struct sap_StopBssCompleteEvent_s {
     v_U8_t status;
 } tSap_StopBssCompleteEvent;
 
-typedef struct sap_StationAssocIndication_s {
-    v_MACADDR_t  staMac;
-    v_U8_t       assoId;
-    v_U8_t       staId;
-    v_U8_t       status;
-    // Required for indicating the frames to upper layer
-    tANI_U32     beaconLength;
-    tANI_U8*     beaconPtr;
-    tANI_U32     assocReqLength;
-    tANI_U8*     assocReqPtr;
-    tANI_BOOLEAN fWmmEnabled;
-#if WLAN_SOFTAP_FEATURE
-    eCsrAuthType negotiatedAuthType;
-    eCsrEncryptionType negotiatedUCEncryptionType;
-    eCsrEncryptionType negotiatedMCEncryptionType;
-    tANI_BOOLEAN fAuthRequired;
-#endif
-} tSap_StationAssocIndication;
-
 typedef struct sap_StationAssocReassocCompleteEvent_s {
     v_MACADDR_t  staMac;
     v_U8_t       staId;
@@ -269,13 +249,6 @@ typedef struct sap_StationAssocReassocCompleteEvent_s {
     v_U32_t      statusCode; 
     eSapAuthType SapAuthType;
     v_BOOL_t     wmmEnabled;
-    // Required for indicating the frames to upper layer
-    tANI_U32     beaconLength;
-    tANI_U8*     beaconPtr;
-    tANI_U32     assocReqLength;
-    tANI_U8*     assocReqPtr;
-    tANI_U32     assocRespLength;
-    tANI_U8*     assocRespPtr;    
 } tSap_StationAssocReassocCompleteEvent;
 
 typedef struct sap_StationDisassocCompleteEvent_s {
@@ -371,7 +344,6 @@ typedef struct sap_Event_s {
     union {
         tSap_StartBssCompleteEvent                sapStartBssCompleteEvent; /*SAP_START_BSS_EVENT*/
         tSap_StopBssCompleteEvent                 sapStopBssCompleteEvent;  /*SAP_STOP_BSS_EVENT*/
-        tSap_StationAssocIndication               sapAssocIndication;       /*SAP_ASSOC_INDICATION */         
         tSap_StationAssocReassocCompleteEvent     sapStationAssocReassocCompleteEvent; /*SAP_STA_ASSOC_EVENT, SAP_STA_REASSOC_EVENT*/
         tSap_StationDisassocCompleteEvent         sapStationDisassocCompleteEvent;/*SAP_STA_DISASSOC_EVENT*/
         tSap_StationSetKeyCompleteEvent           sapStationSetKeyCompleteEvent;/*SAP_STA_SET_KEY_EVENT*/

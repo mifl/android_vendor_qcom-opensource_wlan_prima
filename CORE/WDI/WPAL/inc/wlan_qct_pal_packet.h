@@ -283,17 +283,6 @@ wpt_status wpalLockPacketForTransfer( wpt_packet *pPacket);
 wpt_status wpalUnlockPacket( wpt_packet *pPacket);
 
 /*---------------------------------------------------------------------------
-    wpalPacketGetFragCount – Get count of memory chains (fragments)
-                       in a packet
-    Param: 
-        pPacket – pointer to a wpt_packet
- 
-    Return:
-        memory fragment count in a packet
----------------------------------------------------------------------------*/
-wpt_int32 wpalPacketGetFragCount(wpt_packet *pPkt);
-
-/*---------------------------------------------------------------------------
     wpalIsPacketLocked –  Check whether the Packet is locked for DMA.
     Param: 
         pPacket – pointer to a wpt_packet

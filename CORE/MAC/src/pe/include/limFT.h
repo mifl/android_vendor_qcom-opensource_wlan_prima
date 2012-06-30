@@ -25,6 +25,7 @@
    Macros and Function prototypes FT and 802.11R purposes 
 
    Copyright 2010 (c) Qualcomm, Incorporated.  All Rights Reserved.
+   
    Qualcomm Confidential and Proprietary.
   
   ========================================================================*/
@@ -62,10 +63,11 @@ void        limProcessMlmFTReassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf,
                 tpPESession psessionEntry);
 void        limProcessFTPreauthRspTimeout(tpAniSirGlobal pMac);
 
-int         limisFastTransitionRequired(tpAniSirGlobal pMac, int SessionId);
 tANI_BOOLEAN   limProcessFTUpdateKey(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf );
 tSirRetStatus  limProcessFTAggrQosReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf );
+
 void        limProcessFTAggrQoSRsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
+
 
 #endif /* __LIMFT_H__ */ 
 

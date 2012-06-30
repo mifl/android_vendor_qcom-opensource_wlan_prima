@@ -48,14 +48,6 @@ void dump_pmc_callbackRoutine (void *callbackContext, eHalStatus status)
     smsLog(pMac, LOGW, "*********Received callback from PMC with status = %d\n*********",status);
 }
 
-#ifdef WLAN_WAKEUP_EVENTS
-void dump_pmc_callbackRoutine2 (void *callbackContext, tpSirWakeReasonInd pWakeReasonInd)
-{
-    tpAniSirGlobal pMac = (tpAniSirGlobal)callbackContext;
-    smsLog(pMac, LOGW, "*********Received callback from PMC with reason = %d\n*********",pWakeReasonInd->ulReason);
-}
-#endif // WLAN_WAKEUP_EVENTS
-
 void dump_pmc_deviceUpdateRoutine (void *callbackContext, tPmcState pmcState)
 {
     tpAniSirGlobal pMac = (tpAniSirGlobal)callbackContext;
@@ -245,11 +237,7 @@ dump_pmc_enter_wowl( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32
 
     pMac->pmc.bmpsEnabled = TRUE;
     pMac->pmc.wowlEnabled = TRUE;
-#ifdef WLAN_WAKEUP_EVENTS
-    (void)sme_EnterWowl(pMac, dump_pmc_callbackRoutine, pMac, dump_pmc_callbackRoutine2, pMac, &wowlEnterParams);
-#else // WLAN_WAKEUP_EVENTS
     (void)sme_EnterWowl(pMac, dump_pmc_callbackRoutine, pMac, &wowlEnterParams);
-#endif // WLAN_WAKEUP_EVENTS
     return p;
 }
 
@@ -331,11 +319,7 @@ dump_pmc_test_Wowl( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 
     pMac->pmc.pmcState = BMPS;
 
     //Enter Wowl
-#ifdef WLAN_WAKEUP_EVENTS
-    sme_EnterWowl(pMac, dump_pmc_callbackRoutine, pMac, dump_pmc_callbackRoutine2, pMac, &wowlEnterParams);
-#else // WLAN_WAKEUP_EVENTS
     sme_EnterWowl(pMac, dump_pmc_callbackRoutine, pMac, &wowlEnterParams);
-#endif // WLAN_WAKEUP_EVENTS
     smeRsp.messageType = eWNI_PMC_ENTER_WOWL_RSP;
     pmcMessageProcessor(pMac, &smeRsp);
 

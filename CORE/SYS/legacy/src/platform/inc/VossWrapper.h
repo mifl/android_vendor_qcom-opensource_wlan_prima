@@ -78,7 +78,6 @@ extern "C" {
 #include "vos_types.h"
 #ifdef FEATURE_WLAN_INTEGRATED_SOC
 #include "vos_trace.h"
-#include "vos_memory.h"
 #endif
 
 /* Interlocked Compare Exchange related definitions */
@@ -166,7 +165,6 @@ extern "C" {
 /*      - Windows structures are written in C and they are not C++ aware.  */
 /*      - There should not be any dependency between MAC FW include tree   */
 /*        and Windows include tree.                                        */
-/*                                                                         */
 /*  Instead, ThreadX structures are defined here as void*.  This will be   */
 /*  used by the wrapper functions to save the pointer of the actual Windows*/
 /*  structure.  Windows structure is allocated in ?                        */

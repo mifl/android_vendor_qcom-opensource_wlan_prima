@@ -421,7 +421,7 @@ v_UINT_t tx_timer_create_intern( v_PVOID_t pMacGlobal, TX_TIMER *timer_ptr,
 
 #ifdef WLAN_DEBUG
     // Store the timer name
-    vos_mem_copy(timer_ptr->timerName, name_ptr, sizeof(timer_ptr->timerName));
+    strlcpy(timer_ptr->timerName, name_ptr, sizeof(timer_ptr->timerName));
 #endif // Store the timer name, for Debug build only
 
     status = vos_timer_init( &timer_ptr->vosTimer, VOS_TIMER_TYPE_SW, 
@@ -483,7 +483,7 @@ v_UINT_t tx_timer_deactivate(TX_TIMER *timer_ptr)
    vStatus = vos_timer_stop( &timer_ptr->vosTimer );
    if (VOS_STATUS_SUCCESS != vStatus)
    {
-      VOS_TRACE(VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_WARN, 
+      VOS_TRACE(VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_WARN,
                 "Unable to stop timer %s; status =%d\n", 
                 TIMER_NAME, vStatus);
    }

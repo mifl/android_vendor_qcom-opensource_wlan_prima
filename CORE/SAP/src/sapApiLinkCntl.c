@@ -260,8 +260,7 @@ WLANSAP_RoamCallback
     /* sapContext value */    
     ptSapContext sapContext = (ptSapContext) pContext; 
     tWLAN_SAPEvent sapEvent; /* State machine event */
-    VOS_STATUS  vosStatus = VOS_STATUS_SUCCESS;
-    eHalStatus halStatus = eHAL_STATUS_SUCCESS;
+    VOS_STATUS  vosStatus = VOS_STATUS_SUCCESS; 
 
     VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, before switch on roamStatus = %d\n", __FUNCTION__, roamStatus);
     switch(roamStatus)
@@ -270,12 +269,13 @@ WLANSAP_RoamCallback
         {
             /* tHalHandle */
             tHalHandle hHal = VOS_GET_HAL_CB(sapContext->pvosGCtx);
+            eHalStatus halStatus;
 
             if (NULL == hHal)
             {
                VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
                           "In %s invalid hHal", __FUNCTION__);
-               halStatus = eHAL_STATUS_FAILED_ALLOC;
+               vosStatus = VOS_STATUS_E_FAULT;
             }
             else
             {
@@ -302,10 +302,6 @@ WLANSAP_RoamCallback
                 
                 /* Handle event */ 
                 vosStatus = sapFsm(sapContext, &sapEvent);
-                if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-                {
-                    halStatus = eHAL_STATUS_FAILURE;
-                }
             }
             break;
 
@@ -412,34 +408,7 @@ WLANSAP_RoamCallback
 
             sapContext->SapQosCfg.WmmIsEnabled = pCsrRoamInfo->wmmEnabledSta;
             // MAC filtering
-            vosStatus = sapIsPeerMacAllowed(sapContext, (v_U8_t *)pCsrRoamInfo->peerMac);
-            
-            if ( VOS_STATUS_SUCCESS == vosStatus )
-            {
-                vosStatus = sapSignalHDDevent( sapContext, pCsrRoamInfo, eSAP_STA_ASSOC_IND, (v_PVOID_t)eSAP_STATUS_SUCCESS);
-                if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-                {
-                   VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR, 
-                      "In %s, CSR roamResult = (%d) MAC"
-                      "(%02X-%02X-%02X-%02X-%02X-%02X) fail",
-                      __FUNCTION__, roamResult, pCsrRoamInfo->peerMac[0],
-                      pCsrRoamInfo->peerMac[1], pCsrRoamInfo->peerMac[2],
-                      pCsrRoamInfo->peerMac[3], pCsrRoamInfo->peerMac[4],
-                      pCsrRoamInfo->peerMac[5]);
-                    halStatus = eHAL_STATUS_FAILURE;
-                }
-            }
-            else
-            {
-                VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_WARN, 
-                   "In %s, CSR roamResult = (%d) MAC"
-                   "(%02X-%02X-%02X-%02X-%02X-%02X) not allowed",
-                   __FUNCTION__, roamResult, pCsrRoamInfo->peerMac[0],
-                   pCsrRoamInfo->peerMac[1], pCsrRoamInfo->peerMac[2],
-                   pCsrRoamInfo->peerMac[3], pCsrRoamInfo->peerMac[4], pCsrRoamInfo->peerMac[5]);
-                halStatus = eHAL_STATUS_FAILURE;
-            } 
-
+            vosStatus = sapIsPeerMacAllowed(sapContext, (v_U8_t *)pCsrRoamInfo->peerMac); 
             break;
 
         case eCSR_ROAM_RESULT_INFRA_ASSOCIATION_CNF:
@@ -459,10 +428,6 @@ WLANSAP_RoamCallback
             sapContext->SapQosCfg.WmmIsEnabled = pCsrRoamInfo->wmmEnabledSta;
             /* Fill in the event structure */
             vosStatus = sapSignalHDDevent( sapContext, pCsrRoamInfo, eSAP_STA_ASSOC_EVENT, (v_PVOID_t)eSAP_STATUS_SUCCESS);
-            if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-            {
-                halStatus = eHAL_STATUS_FAILURE;
-            }
             break;
 
         case eCSR_ROAM_RESULT_DISASSOC_IND:
@@ -470,10 +435,6 @@ WLANSAP_RoamCallback
                         __FUNCTION__, "eCSR_ROAM_RESULT_DISASSOC_IND", roamResult);
             /* Fill in the event structure */
             vosStatus = sapSignalHDDevent( sapContext, pCsrRoamInfo, eSAP_STA_DISASSOC_EVENT, (v_PVOID_t)eSAP_STATUS_SUCCESS);
-            if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-            {
-                halStatus = eHAL_STATUS_FAILURE;
-            }
             break;
 
         case eCSR_ROAM_RESULT_DEAUTH_IND:
@@ -482,10 +443,6 @@ WLANSAP_RoamCallback
             /* Fill in the event structure */
             //TODO: we will use the same event inorder to inform HDD to disassociate the station
             vosStatus = sapSignalHDDevent( sapContext, pCsrRoamInfo, eSAP_STA_DISASSOC_EVENT, (v_PVOID_t)eSAP_STATUS_SUCCESS);
-            if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-            {
-                halStatus = eHAL_STATUS_FAILURE;
-            }
             break;
 
         case eCSR_ROAM_RESULT_MIC_ERROR_GROUP:
@@ -494,10 +451,6 @@ WLANSAP_RoamCallback
             /* Fill in the event structure */
             //TODO: support for group key MIC failure event to be handled
             vosStatus = sapSignalHDDevent( sapContext, pCsrRoamInfo, eSAP_STA_MIC_FAILURE_EVENT,(v_PVOID_t) NULL);
-            if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-            {
-                halStatus = eHAL_STATUS_FAILURE;
-            }
             break;
 
         case eCSR_ROAM_RESULT_MIC_ERROR_UNICAST: 
@@ -506,10 +459,6 @@ WLANSAP_RoamCallback
             /* Fill in the event structure */
             //TODO: support for unicast key MIC failure event to be handled
             vosStatus = sapSignalHDDevent( sapContext, pCsrRoamInfo, eSAP_STA_MIC_FAILURE_EVENT,(v_PVOID_t) NULL);
-            if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-            {
-                halStatus = eHAL_STATUS_FAILURE;
-            }
             break;
 
         case eCSR_ROAM_RESULT_AUTHENTICATED:
@@ -517,10 +466,6 @@ WLANSAP_RoamCallback
                        __FUNCTION__, "eCSR_ROAM_RESULT_AUTHENTICATED", roamResult);
             /* Fill in the event structure */
             sapSignalHDDevent( sapContext, pCsrRoamInfo,eSAP_STA_SET_KEY_EVENT, (v_PVOID_t)eSAP_STATUS_SUCCESS);
-            if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-            {
-                halStatus = eHAL_STATUS_FAILURE;
-            }
             break;
 
         case eCSR_ROAM_RESULT_ASSOCIATED:
@@ -541,10 +486,6 @@ WLANSAP_RoamCallback
 
             /* Handle event */ 
             vosStatus = sapFsm(sapContext, &sapEvent);
-            if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-            {
-                halStatus = eHAL_STATUS_FAILURE;
-            }
             break;
 
         case eCSR_ROAM_RESULT_INFRA_STOPPED:
@@ -558,10 +499,6 @@ WLANSAP_RoamCallback
 
             /* Handle event */ 
             vosStatus = sapFsm(sapContext, &sapEvent);
-            if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-            {
-                halStatus = eHAL_STATUS_FAILURE;
-            }
             break;
 
         case eCSR_ROAM_RESULT_WPS_PBC_PROBE_REQ_IND:
@@ -570,10 +507,6 @@ WLANSAP_RoamCallback
             /* Fill in the event structure */
             //TODO: support for group key MIC failure event to be handled
             vosStatus = sapSignalHDDevent( sapContext, pCsrRoamInfo, eSAP_WPS_PBC_PROBE_REQ_EVENT,(v_PVOID_t) NULL);
-            if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-            {
-                halStatus = eHAL_STATUS_FAILURE;
-            }
             break;
 
         case eCSR_ROAM_RESULT_FORCED:
@@ -604,10 +537,6 @@ WLANSAP_RoamCallback
                     __FUNCTION__, "eCSR_ROAM_RESULT_MAX_ASSOC_EXCEEDED", roamResult);
             /* Fill in the event structure */
             vosStatus = sapSignalHDDevent(sapContext, pCsrRoamInfo, eSAP_MAX_ASSOC_EXCEEDED, (v_PVOID_t)NULL);
-            if(!VOS_IS_STATUS_SUCCESS(vosStatus))
-            {
-                halStatus = eHAL_STATUS_FAILURE;
-            }
 
             break;
         default:
@@ -616,5 +545,5 @@ WLANSAP_RoamCallback
             break;
     }
 
-    return halStatus;
+    return vosStatus;
 }

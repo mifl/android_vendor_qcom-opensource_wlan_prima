@@ -438,10 +438,6 @@ convertToCsrProfile
     VOS_STATUS  vosStatus = VOS_STATUS_SUCCESS;
     v_S7_t sessionid = -1;
     tHalHandle     hHal = NULL;
-    v_U32_t triplet;
-    v_U8_t regulatoryClass;
-    v_U8_t firstChannel;
-    v_U8_t numChannels;
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
     if (NULL == btampContext) 
     {
@@ -573,121 +569,56 @@ convertToCsrProfile
     pProfile->pWPAReqIE = NULL;
     pProfile->nWPAReqIELength = 0;
 
-    // Identify the operation channel
-
-    /* Choose the operation channel from the preferred channel list */
-    pProfile->operationChannel = 0;
-    regulatoryClass = 0;
-    for (triplet = 0; triplet < btampContext->btamp_Remote_AMP_Assoc.HC_pref_num_triplets; triplet++)
+    // Specify the channel
+    /* Choose the operation channel from the preferred channel list
+     * Assume that for STA, only one preferred channel is available.
+     * If no preferred channel list, chose the one from user config
+     * If multi session on, we need to match the channel selected here 
+     * with the one we are currently operating on. The priority goes
+     * to the operating channel.
+     */
+    if (btampContext->btamp_Remote_AMP_Assoc.HC_pref_num_triplets)
+    {
+        /* Preferred channel list avaialble, choose the first preferred
+         channel
+         Check what do with the remaining channels if any ?
+         Number of channels in this Triplet and 
+         the Maximum Transmit power level (next 2 triplet values) */
+        /* Check if at least one channel match between local & remote and choose
+        the first common one */
+        if (btampContext->btamp_AMP_Assoc.HC_pref_num_triplets)
         {
-        firstChannel = 0;
-        numChannels = 0;
 
-        /* is this a regulatory class triplet? */
-        if (btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[triplet][0] == 201)
+            /* If no common subset, reject : going to be ugly for 5 Ghz(TBD) */
+            if(((btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0] + btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][1])<=
+                btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0]) ||
+               ((btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0] + btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][1])<=
+                btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0]))
             {
-            /* identify supported 2.4GHz regulatory classes */
-            switch (btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[triplet][1])
-            {
-                case 254:
-                {
-                    /* class 254 is special regulatory class defined by BT HS+3.0 spec that
-                       is valid only for unknown/'mobile' country */
-                    if ((btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[0] == 'X') &&
-                        (btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[1] == 'X'))
-                    {
-                        regulatoryClass = 254;
-                        firstChannel = 1;
-                        numChannels = 11;
-                    }
-                    break;
+                return VOS_STATUS_E_INVAL;  
             }
-                case 12:
+            else if((btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0] + btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][1])>
+                    btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0])
             {
-                    /* class 12 in the US regulatory domain is 2.4GHz channels 1-11 */
-                    if ((btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[0] == 'U') &&
-                        (btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[1] == 'S'))
-                    {
-                        regulatoryClass = 12;
-                        firstChannel = 1;
-                        numChannels = 11;
+                pProfile->operationChannel =  btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0];  
             }
-                    break;
-                }
-                case 4:
+            else if((btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0] + btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][1])>
+                    btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0])
             {
-                    /* class 4 in the Europe regulatory domain is 2.4GHz channels 1-13 */
-                    if ((btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[0] == 'G') &&
-                        (btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[1] == 'B'))
-                    {
-                        regulatoryClass = 4;
-                        firstChannel = 1;
-                        numChannels = 13;
+                pProfile->operationChannel =  btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0];  
             }
-                    break;
-                }
-                case 30:
+            else
             {
-                    /* class 30 in the Japan regulatory domain is 2.4GHz channels 1-13 */
-                    if ((btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[0] == 'J') &&
-                        (btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[1] == 'P'))
-                    {
-                        regulatoryClass = 30;
-                        firstChannel = 1;
-                        numChannels = 13;
+                return VOS_STATUS_E_INVAL;  
             }
-                    break;
         }
-                default:
+        else
         {
-                    break;
-                }
-            }
-            /* if the next triplet is not another regulatory class triplet then it must be a sub-band
-               triplet. Skip processing the default channels for this regulatory class triplet and let
-               the sub-band triplet restrict the available channels */
-            if (((triplet+1) < btampContext->btamp_Remote_AMP_Assoc.HC_pref_num_triplets) &&
-                (btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[triplet+1][0] != 201))
-            {
-                continue;
+            pProfile->operationChannel =
+               btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0];
         }
     }
     else
-    {
-            /* if the regulatory class is valid then this is a sub-band triplet */
-            if (regulatoryClass)
-            {
-                firstChannel = btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[triplet][0];
-                numChannels = btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[triplet][1];
-            }
-        }
-
-        if (firstChannel && numChannels)
-        {
-            if (!btampContext->btamp_AMP_Assoc.HC_pref_num_triplets)
-            {
-                pProfile->operationChannel = firstChannel;
-                break;
-            }
-            else if (((btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0] + btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][1]) <= firstChannel) ||
-               ((firstChannel + numChannels ) <= btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0]))
-            {
-                continue;
-            }
-            else if ((btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0] + btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][1]) > firstChannel)
-            {
-                pProfile->operationChannel = firstChannel;
-                break;
-            }
-            else if ((firstChannel + numChannels) > btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0])
-            {
-                pProfile->operationChannel =  btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0];
-                break;
-            }
-        }
-    }
-
-    if (!pProfile->operationChannel)
     {
         return VOS_STATUS_E_INVAL;
     }
@@ -931,23 +862,16 @@ gotoStarting
     if (btampContext->isBapSessionOpen == FALSE)
     {
 
-        halStatus = sme_OpenSession(hHal, 
-                                    WLANBAP_RoamCallback, 
-                                    btampContext,
-                                    // <=== JEZ081210: FIXME
-                                    //(tANI_U8 *) btampContext->self_mac_addr,  
-                                    btampContext->self_mac_addr,  
-                                    &btampContext->sessionId);
-        if(eHAL_STATUS_SUCCESS == halStatus)
-        {
-            btampContext->isBapSessionOpen = TRUE;
-        }
-        else
-        {
-            VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
-                         "sme_OpenSession failed in %s", __FUNCTION__);
-            *status = WLANBAP_ERROR_NO_CNCT;
-            return VOS_STATUS_E_FAILURE;
+    halStatus = sme_OpenSession(hHal, 
+            WLANBAP_RoamCallback, 
+            btampContext,
+            // <=== JEZ081210: FIXME
+            //(tANI_U8 *) btampContext->self_mac_addr,  
+            btampContext->self_mac_addr,  
+            &btampContext->sessionId);
+    if(eHAL_STATUS_SUCCESS == halStatus)
+    {
+        btampContext->isBapSessionOpen = TRUE;
         }
     }
     /* Update the SME Session info for this Phys Link (i.e., for this Phys State Machine instance) */
@@ -2663,7 +2587,6 @@ VOS_STATUS btampEstablishLogLink(ptBtampContext btampContext)
 
    pMsg->msgType = pal_cpu_to_be16((tANI_U16)eWNI_SME_BTAMP_LOG_LINK_IND);
    pMsg->msgLen = (tANI_U16)sizeof(tAniBtAmpLogLinkReq);
-   pMsg->sessionId = btampContext->sessionId;
    pMsg->btampHandle = btampContext;
 
    msg.type = eWNI_SME_BTAMP_LOG_LINK_IND;

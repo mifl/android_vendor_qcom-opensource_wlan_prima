@@ -489,7 +489,7 @@ sapFsm
     IN
        pconfig_params : Pointer to configuration structure
        bssType : SoftAP type
-       profile : pointer to a csrProfile that needs to be passed
+       profile : csrProfile taht needs to be passed
 
  RETURN VALUE
     If SUCCESS or FAILURE.
@@ -499,28 +499,6 @@ sapFsm
 ============================================================================*/
 eSapStatus
 sapconvertToCsrProfile(tsap_Config_t *pconfig_params, eCsrRoamBssType bssType, tCsrRoamProfile *profile);
-
-/*==========================================================================
-
-  FUNCTION    sapFreeRoamProfile
-
-  DESCRIPTION 
-    sapConvertToCsrProfile
-
-  DEPENDENCIES 
-
-  PARAMETERS 
-
-    IN
-       profile : pointer to a csrProfile that needs to be freed
-
- RETURN VALUE
-    If SUCCESS or FAILURE.
-
-  SIDE EFFECTS
-
-============================================================================*/
-void sapFreeRoamProfile(tCsrRoamProfile *profile);
 
 /*==========================================================================
 

@@ -43,10 +43,6 @@
 /*-------------------------------------------------------------------------
   Preprocessor definitions and constants
 -------------------------------------------------------------------------*/
-/* RIVA API version in format W.X.Y.Z is converted to a UINT32 integer */
-#define WLAN_HAL_CONSTRUCT_API_VERSION(W,X,Y,Z) (((W)<<24)+((X)<<16)+((Y)<<8)+(Z))
-#define IS_VERSION_BEFORE_VOWIFI(VER_FROM_HOST) \
-                 ((VER_FROM_HOST)<=WLAN_HAL_CONSTRUCT_API_VERSION(0,0,2,0))?1:0
 
 /*-------------------------------------------------------------------------
   Configuration Parameter IDs
@@ -131,14 +127,11 @@
 #define QWLAN_HAL_CFG_BTC_DHCP_BT_SLOTS_TO_BLOCK         77
 #define QWLAN_HAL_CFG_BTC_A2DP_DHCP_BT_SUB_INTERVALS     78
 #define QWLAN_HAL_CFG_PS_TX_INACTIVITY_TIMEOUT           79
-#define QWLAN_HAL_CFG_WCNSS_API_VERSION                  80
-#define QWLAN_HAL_CFG_AP_KEEPALIVE_TIMEOUT               81
-#define QWLAN_HAL_CFG_GO_KEEPALIVE_TIMEOUT               82
-#define QWLAN_HAL_CFG_MAX_PARAMS                         83
+#define QWLAN_HAL_CFG_MAX_PARAMS                         80
 
 
 /* Total number of Integer CFGs. This is used while allocating the memory for TLV */
-#define QWLAN_HAL_CFG_INTEGER_PARAM                      79
+#define QWLAN_HAL_CFG_INTEGER_PARAM                      76
 
 /*-------------------------------------------------------------------------
   Configuration Parameter min, max, defaults
@@ -237,17 +230,17 @@
 /* QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_ZERO */
 #define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_ZERO_STAMIN    0
 #define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_ZERO_STAMAX    255
-#define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_ZERO_STADEF    5
+#define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_ZERO_STADEF    4
 
 /* QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_ONE */
 #define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_ONE_STAMIN    0
 #define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_ONE_STAMAX    255
-#define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_ONE_STADEF    10
+#define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_ONE_STADEF    8
 
 /* QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_TWO */
 #define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_TWO_STAMIN    0
 #define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_TWO_STAMAX    255
-#define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_TWO_STADEF    15
+#define QWLAN_HAL_CFG_DYNAMIC_THRESHOLD_TWO_STADEF    12
 
 /* QWLAN_HAL_CFG_FIXED_RATE
  * Follwing rates in user configuration are mapped to TPE rates
@@ -611,21 +604,6 @@
 #define QWLAN_HAL_CFG_BTC_A2DP_DHCP_BT_SUB_INTERVALS_MAX  255
 #define QWLAN_HAL_CFG_BTC_A2DP_DHCP_BT_SUB_INTERVALS_DEF  15
 
-/* QWLAN_HAL_CFG_WCNSS_API_VERSION */
-#define QWLAN_HAL_CFG_WCNSS_API_VERSION_MIN  0           /* equivalent to 0.0.0.0 */
-#define QWLAN_HAL_CFG_WCNSS_API_VERSION_MAX  4294967295  /* equivalent to 255.255.255.255 */
-#define QWLAN_HAL_CFG_WCNSS_API_VERSION_DEF  0           /* equivalent to 0.0.0.0 */
-
-/* QWLAN_HAL_CFG_AP_KEEPALIVE_TIMEOUT */
-#define QWLAN_HAL_CFG_AP_KEEPALIVE_TIMEOUT_MIN  1
-#define QWLAN_HAL_CFG_AP_KEEPALIVE_TIMEOUT_MAX  255
-#define QWLAN_HAL_CFG_AP_KEEPALIVE_TIMEOUT_DEF  20
-
-/* QWLAN_HAL_CFG_GO_KEEPALIVE_TIMEOUT */
-#define QWLAN_HAL_CFG_GO_KEEPALIVE_TIMEOUT_MIN  1
-#define QWLAN_HAL_CFG_GO_KEEPALIVE_TIMEOUT_MAX  255
-#define QWLAN_HAL_CFG_GO_KEEPALIVE_TIMEOUT_DEF  20
-
 typedef struct 
 {
    uint8    cfgStaId[QCOM_WLAN_CFG_STA_ID_LEN]; //QWLAN_HAL_CFG_STA_ID
@@ -709,9 +687,6 @@ typedef struct
    uint32   cfgBtcExecutionMode;              //QWLAN_HAL_CFG_BTC_EXECUTION_MODE
    uint32   cfgBtcDhcpBtSlotsToBlock;         //QWLAN_HAL_CFG_BTC_DHCP_BT_SLOTS_TO_BLOCK
    uint32   cfgBtcA2dpDhcpBtSubIntervals;     //QWLAN_HAL_CFG_BTC_A2DP_DHCP_BT_SUB_INTERVALS
-   uint32   cfgWcnssApiVersion;               //QWLAN_HAL_CFG_WCNSS_API_VERSION
-   uint32   cfgApKeepAliveTimeout;            //QWLAN_HAL_CFG_AP_KEEPALIVE_TIMEOUT
-   uint32   cfgGoKeepAliveTimeout;            //QWLAN_HAL_CFG_GO_KEEPALIVE_TIMEOUT
 }tAniHalCfg, *tpAniHalCfg;
 
 #endif //__WLAN_HAL_CFG_H__

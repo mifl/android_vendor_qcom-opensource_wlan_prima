@@ -1130,53 +1130,6 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    ++pAdapter->hdd_stats.hddTxRxStats.txFetchDequeued;
    ++pAdapter->hdd_stats.hddTxRxStats.txFetchDequeuedAC[ac];
 
-   if(pHddCtx->cfg_ini->thermalMitigationEnable)
-   {
-      if(mutex_lock_interruptible(&pHddCtx->tmInfo.tmOperationLock))
-      {
-         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                    "%s: Tm Lock fail", __FUNCTION__);
-         return VOS_STATUS_E_FAILURE;
-      }
-      if(WLAN_HDD_TM_LEVEL_1 < pHddCtx->tmInfo.currentTmLevel)
-      {
-         if(0 == pHddCtx->tmInfo.txFrameCount)
-         {
-            /* Just recovered from sleep timeout */
-            pHddCtx->tmInfo.lastOpenTs = timestamp;
-         }
-
-         if(((timestamp - pHddCtx->tmInfo.lastOpenTs) > (pHddCtx->tmInfo.tmAction.txOperationDuration / 10)) &&
-            (pHddCtx->tmInfo.txFrameCount >= pHddCtx->tmInfo.tmAction.txBlockFrameCountThreshold))
-         {
-            spin_lock(&pAdapter->wmm_tx_queue[ac].lock);
-            /* During TX open duration, TX frame count is larger than threshold
-             * Block TX during Sleep time */
-            netif_tx_stop_all_queues(pAdapter->dev);
-            spin_unlock(&pAdapter->wmm_tx_queue[ac].lock);
-            pHddCtx->tmInfo.lastblockTs = timestamp;
-            if(VOS_TIMER_STATE_STOPPED == vos_timer_getCurrentState(&pHddCtx->tmInfo.txSleepTimer))
-            {
-               vos_timer_start(&pHddCtx->tmInfo.txSleepTimer, pHddCtx->tmInfo.tmAction.txSleepDuration);
-            }
-         }
-         else if(((timestamp - pHddCtx->tmInfo.lastOpenTs) > (pHddCtx->tmInfo.tmAction.txOperationDuration / 10)) &&
-                 (pHddCtx->tmInfo.txFrameCount < pHddCtx->tmInfo.tmAction.txBlockFrameCountThreshold))
-         {
-            /* During TX open duration, TX frame count is less than threshold
-             * Reset count and timestamp to prepare next cycle */
-            pHddCtx->tmInfo.lastOpenTs = timestamp;
-            pHddCtx->tmInfo.txFrameCount = 0;
-         }
-         else
-         {
-            /* Do Nothing */
-         }
-         pHddCtx->tmInfo.txFrameCount++;
-      }
-      mutex_unlock(&pHddCtx->tmInfo.tmOperationLock);
-   }
-
 
 #ifdef HDD_WMM_DEBUG
    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,"%s: Valid VOS PKT returned to TL", __FUNCTION__);

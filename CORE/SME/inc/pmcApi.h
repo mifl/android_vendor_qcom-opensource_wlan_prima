@@ -29,6 +29,8 @@
 
 * Description: Power Management Control (PMC) API definitions.
 
+*
+
 * Copyright 2008 (c) Qualcomm, Incorporated.  
 
 * All Rights Reserved.
@@ -43,6 +45,7 @@
 #ifndef __PMC_API_H__
 
 #define __PMC_API_H__
+
 
 //This timer value determines the default periodicity at which BMPS retries will happen
 //This default value is overwritten typicaly by OS specific registry/INI values. 
@@ -292,6 +295,8 @@ typedef struct sPmcSmpsConfigParams
 } tPmcSmpsConfigParams, *tpPmcSmpsConfigParams;
 
 
+
+
 /* Routine definitions. */
 
 extern eHalStatus pmcOpen (tHalHandle hHal);
@@ -407,15 +412,10 @@ extern eHalStatus pmcEnterWowl (
 
     tHalHandle hHal, 
 
-    void (*enterWowlCallbackRoutine) (void *callbackContext, eHalStatus status),
+    void (*callbackRoutine) (void *callbackContext, eHalStatus status),   
 
-    void *enterWowlCallbackContext,
-#ifdef WLAN_WAKEUP_EVENTS
-    void (*wakeReasonIndCB) (void *callbackContext, tpSirWakeReasonInd pWakeReasonInd),
+    void *callbackContext, tpSirSmeWowlEnterParams wowlEnterParams);
 
-    void *wakeReasonIndCBContext,
-#endif // WLAN_WAKEUP_EVENTS
-    tpSirSmeWowlEnterParams wowlEnterParams);
 
 extern eHalStatus pmcExitWowl (tHalHandle hHal);
 
@@ -433,52 +433,18 @@ extern eHalStatus pmcSetHostOffload (tHalHandle hHal, tpSirHostOffloadReq pReque
   ---------------------------------------------------------------------------*/
 extern eHalStatus pmcSetKeepAlive (tHalHandle hHal, tpSirKeepAliveReq pRequest);
 
-extern tANI_BOOLEAN pmcValidateConnectState( tHalHandle hHal );
-
-extern tANI_BOOLEAN pmcAllowImps( tHalHandle hHal );
-
-
-#ifdef FEATURE_WLAN_SCAN_PNO
-/*Pref netw found Cb declaration*/
-typedef void(*preferredNetworkFoundIndCallback)(void *callbackContext, tpSirPrefNetworkFoundInd pPrefNetworkFoundInd);
-
-extern eHalStatus pmcSetPreferredNetworkList(tHalHandle hHal, tpSirPNOScanReq pRequest, tANI_U8 sessionId, preferredNetworkFoundIndCallback callbackRoutine, void *callbackContext);
-extern eHalStatus pmcSetRssiFilter(tHalHandle hHal, v_U8_t rssiThreshold);
-#endif // FEATURE_WLAN_SCAN_PNO
-
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 // Packet Coalescing Filter Match Count Callback declaration
 typedef void(*FilterMatchCountCallback)(void *callbackContext,
                                         tpSirRcvFltPktMatchRsp pRcvFltPktMatchRsp);
-extern eHalStatus pmcGetFilterMatchCount(tHalHandle hHal, FilterMatchCountCallback callbackRoutine, void *callbackContext);
+
+extern eHalStatus pmcGetFilterMatchCount(tHalHandle hHal,
+                                         FilterMatchCountCallback callbackRoutine,
+                                         void *callbackContext);
 #endif // WLAN_FEATURE_PACKET_FILTERING
+extern tANI_BOOLEAN pmcValidateConnectState( tHalHandle hHal );
 
-#ifdef WLAN_FEATURE_GTK_OFFLOAD
-// GTK Offload Information Callback declaration
-typedef void(*GTKOffloadGetInfoCallback)(void *callbackContext, tpSirGtkOffloadGetInfoRspParams pGtkOffloadGetInfoRsp);
-
-/* ---------------------------------------------------------------------------
-    \fn pmcSetGTKOffload
-    \brief  Set GTK offload feature.
-    \param  hHal - The handle returned by macOpen.
-    \param  pGtkOffload - Pointer to the GTK offload request.
-    \return eHalStatus
-            eHAL_STATUS_FAILURE  Cannot set the offload.
-            eHAL_STATUS_SUCCESS  Request accepted. 
-  ---------------------------------------------------------------------------*/
-extern eHalStatus pmcSetGTKOffload (tHalHandle hHal, tpSirGtkOffloadParams pGtkOffload);
-
-/* ---------------------------------------------------------------------------
-    \fn pmcGetGTKOffload
-    \brief  Get GTK offload information.
-    \param  hHal - The handle returned by macOpen.
-    \param  callbackRoutine - Pointer to the GTK Offload Get Info response callback routine.
-    \return eHalStatus
-            eHAL_STATUS_FAILURE  Cannot set the offload.
-            eHAL_STATUS_SUCCESS  Request accepted. 
-  ---------------------------------------------------------------------------*/
-extern eHalStatus pmcGetGTKOffload (tHalHandle hHal, GTKOffloadGetInfoCallback callbackRoutine, void *callbackContext);
-#endif // WLAN_FEATURE_GTK_OFFLOAD
+extern tANI_BOOLEAN pmcAllowImps( tHalHandle hHal );
 
 #endif
 

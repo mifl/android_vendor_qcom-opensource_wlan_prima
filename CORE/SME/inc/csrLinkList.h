@@ -21,11 +21,14 @@
 
 /** ------------------------------------------------------------------------- * 
     ------------------------------------------------------------------------- *  
+
+  
     \file csrLinkList.h
   
     Exports and types for the Common link list interfaces.
   
-   Copyright (C) 2006 Airgo Networks, Incorporated
+    Copyright (C) 2006 Airgo Networks, Incorporated
+  
  
    ========================================================================== */
 #ifndef CSR_LINK_LIST_H__
@@ -46,7 +49,7 @@ typedef struct tagListElem
 typedef enum
 {
     LIST_FLAG_CLOSE = 0,
-    LIST_FLAG_OPEN = 0xa1b2c4d7,
+    LIST_FLAG_OPEN = 1,
 }tListFlag;
 
 //This is a circular double link list

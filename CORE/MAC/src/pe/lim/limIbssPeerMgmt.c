@@ -472,8 +472,7 @@ ibss_status_chg_notify(
     tANI_U16                staIndex,
     tANI_U8                 ucastSig, 
     tANI_U8                 bcastSig, 
-    tANI_U16                status,
-    tANI_U8                 sessionId)
+    tANI_U16                status)
 {
 
     tLimIbssPeerNode *peerNode;
@@ -492,7 +491,7 @@ ibss_status_chg_notify(
     }
 
     limSendSmeIBSSPeerInd(pMac,peerAddr, staIndex, ucastSig, bcastSig,
-                          beacon, bcnLen, status, sessionId);
+                          beacon, bcnLen, status);
 
     if(beacon != NULL)
     {
@@ -746,7 +745,7 @@ void limIbssDeleteAllPeers( tpAniSirGlobal pMac ,tpPESession psessionEntry)
 
             ibss_status_chg_notify( pMac, pCurrNode->peerMacAddr, pStaDs->staIndex, 
                                     pStaDs->ucUcastSig, pStaDs->ucBcastSig,
-                                    eWNI_SME_IBSS_PEER_DEPARTED_IND, psessionEntry->smeSessionId );
+                                    eWNI_SME_IBSS_PEER_DEPARTED_IND );
             dphDeleteHashEntry(pMac, pStaDs->staAddr, aid, &psessionEntry->dph.dphHashTable);
         }
 
@@ -1000,11 +999,10 @@ limIbssDecideProtection(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpUpdateBeaco
       return;
     }
 
-    limGetRfBand(pMac, &rfBand, psessionEntry);
+    limGetRfBand(pMac, &rfBand);
     if(SIR_BAND_2_4_GHZ== rfBand)
     {
-        limGetPhyMode(pMac, &phyMode, psessionEntry);
-
+        limGetPhyMode(pMac, &phyMode);
         //We are 11G or 11n. Check if we need protection from 11b Stations.
         if ((phyMode == WNI_CFG_PHY_MODE_11G) || (pMac->lim.htCapability))
         {
@@ -1166,8 +1164,7 @@ limIbssAddStaRsp(
 
     ibss_status_chg_notify(pMac, pAddStaParams->staMac, pStaDs->staIndex, 
                            pStaDs->ucUcastSig, pStaDs->ucBcastSig,
-                           eWNI_SME_IBSS_NEW_PEER_IND,
-                           psessionEntry->smeSessionId);
+                           eWNI_SME_IBSS_NEW_PEER_IND);
     palFreeMemory( pMac->hHdd, (void *) pAddStaParams );
 
     return eSIR_SUCCESS;
@@ -1236,7 +1233,7 @@ void limIbssAddBssRspWhenCoalescing(tpAniSirGlobal  pMac, void *msg, tpPESession
 
     limSendSmeWmStatusChangeNtf(pMac, eSIR_SME_JOINED_NEW_BSS,
                                 (tANI_U32 *) &newBssInfo,
-                                infoLen,pSessionEntry->smeSessionId);
+                                infoLen);
 #ifdef WLAN_SOFTAP_FEATURE
     {
         //Configure beacon and send beacons to HAL
@@ -1479,7 +1476,7 @@ limIbssCoalesce(
         limResetHBPktCount(psessionEntry);
         PELOGW(limLog(pMac, LOGW, FL("Partner joined our IBSS, Sending IBSS_ACTIVE Notification to SME\n"));)
         psessionEntry->limIbssActive = true;
-        limSendSmeWmStatusChangeNtf(pMac, eSIR_SME_IBSS_ACTIVE, NULL, 0, psessionEntry->smeSessionId);
+        limSendSmeWmStatusChangeNtf(pMac, eSIR_SME_IBSS_ACTIVE, NULL, 0);
         limHeartBeatDeactivateAndChangeTimer(pMac, psessionEntry);
         MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, 0, eLIM_HEART_BEAT_TIMER));
         if (limActivateHearBeatTimer(pMac) != TX_SUCCESS)
@@ -1551,8 +1548,7 @@ void limIbssHeartBeatHandle(tpAniSirGlobal pMac,tpPESession psessionEntry)
                     //Send indication.
                     ibss_status_chg_notify( pMac, pTempNode->peerMacAddr, staIndex, 
                                             ucUcastSig, ucBcastSig,
-                                            eWNI_SME_IBSS_PEER_DEPARTED_IND,
-                                            psessionEntry->smeSessionId );
+                                            eWNI_SME_IBSS_PEER_DEPARTED_IND );
                 }
                 if(pTempNode == pMac->lim.gLimIbssPeerList)
                 {
@@ -1603,7 +1599,7 @@ void limIbssHeartBeatHandle(tpAniSirGlobal pMac,tpPESession psessionEntry)
             psessionEntry->limIbssActive = false;
 
             limSendSmeWmStatusChangeNtf(pMac, eSIR_SME_IBSS_INACTIVE,
-                                          NULL, 0, psessionEntry->smeSessionId);
+                                          NULL, 0);
         }
     }
 }
@@ -1630,10 +1626,10 @@ limIbssDecideProtectionOnDelete(tpAniSirGlobal pMac,
     if(NULL == pStaDs)
       return;
 
-    limGetRfBand(pMac, &rfBand, psessionEntry);
+    limGetRfBand(pMac, &rfBand);
     if(SIR_BAND_2_4_GHZ == rfBand)
     {
-        limGetPhyMode(pMac, &phyMode, psessionEntry);
+        limGetPhyMode(pMac, &phyMode);
         erpEnabled = pStaDs->erpEnabled;
         //we are HT or 11G and 11B station is getting deleted.
         if ( ((phyMode == WNI_CFG_PHY_MODE_11G) || pMac->lim.htCapability) 

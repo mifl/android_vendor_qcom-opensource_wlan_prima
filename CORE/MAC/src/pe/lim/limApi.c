@@ -272,7 +272,14 @@ static void __limInitStates(tpAniSirGlobal pMac)
     palZeroMemory(pMac->hHdd, &pMac->lim.gLimNoShortParams, sizeof(tLimNoShortParams));
     palZeroMemory(pMac->hHdd, &pMac->lim.gLimNoShortSlotParams, sizeof(tLimNoShortSlotParams));
 
-    pMac->lim.gLimPhyMode = 0; 
+   // psessionEntry->dot11mode = WNI_CFG_DOT11_MODE_ALL;
+
+
+
+    //FIXME : right now initialiazing to 2.4 GHZ. But this should be filled in from cfg.
+    pMac->lim.gLimRFBand = SIR_BAND_2_4_GHZ;
+
+    pMac->lim.gLimPhyMode = 0;
     pMac->lim.scanStartTime = 0;    // used to measure scan time
 
     palZeroMemory(pMac->hHdd, pMac->lim.gLimBssid, sizeof(pMac->lim.gLimBssid));
@@ -556,7 +563,7 @@ static tSirRetStatus __limInitConfig( tpAniSirGlobal pMac )
    }
    if (wlan_cfgGetInt(pMac, WNI_CFG_SHORT_GI_40MHZ, &val3) != eSIR_SUCCESS) 
    {
-      PELOGE(limLog(pMac, LOGE, FL("could not retrieve shortGI 40Mhz CFG\n"));)
+      PELOGE(limLog(pMac, LOGE, FL("could not retrieve shortGI 20Mhz CFG\n"));)
       return eSIR_FAILURE;
    }
 
@@ -849,12 +856,12 @@ limCleanup(tpAniSirGlobal pMac)
     tpLimMgmtFrameRegistration pLimMgmtRegistration = NULL;
     
     while(vos_list_remove_front(&pMac->lim.gLimMgmtFrameRegistratinQueue,
-            (vos_list_node_t**)&pLimMgmtRegistration) == VOS_STATUS_SUCCESS)
+    		(vos_list_node_t**)&pLimMgmtRegistration) == VOS_STATUS_SUCCESS)
     {
         VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,
-                FL("Fixing leak! Deallocating pLimMgmtRegistration node"));
+        		FL("Fixing leak! Deallocating pLimMgmtRegistration node"));
 
-        palFreeMemory(pMac, pLimMgmtRegistration);
+    	palFreeMemory(pMac, pLimMgmtRegistration);
     }
 
     vos_list_destroy(&pMac->lim.gLimMgmtFrameRegistratinQueue);
@@ -1211,7 +1218,6 @@ tANI_U8 limIsTimerAllowedInPowerSaveState(tpAniSirGlobal pMac, tSirMsgQ *pMsg)
             /* Don't allow following timer messages if in sleep */
             case SIR_LIM_MIN_CHANNEL_TIMEOUT:
             case SIR_LIM_MAX_CHANNEL_TIMEOUT:
-            case SIR_LIM_PERIODIC_PROBE_REQ_TIMEOUT:
                 retStatus = FALSE;
                 break;
             /* May allow following timer messages in sleep mode */
@@ -1426,14 +1432,11 @@ VOS_STATUS peHandleMgmtFrame( v_PVOID_t pvosGCtx, v_PVOID_t vosBuff)
         return VOS_STATUS_E_FAILURE;
     }
 
-
     //
     //  The MPDU header is now present at a certain "offset" in
     // the BD and is specified in the BD itself
     //
     mHdr = WDA_GET_RX_MAC_HEADER(pRxPacketInfo);
-    if(mHdr->fc.type == SIR_MAC_MGMT_FRAME) 
-    {
     PELOG1(limLog( pMac, LOG1,
        FL ( "RxBd=%p mHdr=%p Type: %d Subtype: %d  Sizes:FC%d Mgmt%d\n"),
        pRxBd, mHdr, mHdr->fc.type, mHdr->fc.subType, sizeof(tSirMacFrameCtl), sizeof(tSirMacMgmtHdr) );)
@@ -1441,7 +1444,7 @@ VOS_STATUS peHandleMgmtFrame( v_PVOID_t pvosGCtx, v_PVOID_t vosBuff)
     MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT, 0, 
                         LIM_TRACE_MAKE_RXMGMT(mHdr->fc.subType,  
                         (tANI_U16) (((tANI_U16) (mHdr->seqControl.seqNumHi << 4)) | mHdr->seqControl.seqNumLo)));)
-    }
+
 
 
     // Forward to MAC via mesg = SIR_BB_XPORT_MGMT_MSG
@@ -1729,8 +1732,7 @@ limContinueChannelLearn(tpAniSirGlobal pMac)
     {
         /// Prepare and send Probe Request frame
         ssId.length = 0;
-        /* for learning channel, we don't include any additional IE */
-        limSendProbeReqMgmtFrame(pMac, &ssId, bssId, chanNum,pMac->lim.gSelfMacAddr, 0 , NULL);
+        limSendProbeReqMgmtFrame(pMac, &ssId, bssId, chanNum,pMac->lim.gSelfMacAddr);
     }
 
     // Activate Learn duration timer during which
@@ -2198,7 +2200,7 @@ limDetectChangeInApCapabilities(tpAniSirGlobal pMac,
         psessionEntry->limSentCapsChangeNtf = true;
         limSendSmeWmStatusChangeNtf(pMac, eSIR_SME_AP_CAPS_CHANGED,
                                     (tANI_U32 *) &apNewCaps,
-                                    len, psessionEntry->smeSessionId);
+                                    len);
     }
 #endif
 } /*** limDetectChangeInApCapabilities() ***/
@@ -2564,85 +2566,6 @@ void limHandleMissedBeaconInd(tpAniSirGlobal pMac)
     return;
 }
 
-/** -----------------------------------------------------------------
-  \brief limMicFailureInd() - handles mic failure  indication
- 
-  This function process the SIR_HAL_MIC_FAILURE_IND message from HAL,
-
-  \param pMac - global mac structure
-  \return - none 
-  \sa
-  ----------------------------------------------------------------- */
-void limMicFailureInd(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
-{
-    tpSirSmeMicFailureInd pSirSmeMicFailureInd;
-    tpSirSmeMicFailureInd pSirMicFailureInd = (tpSirSmeMicFailureInd)pMsg->bodyptr;
-    tSirMsgQ            mmhMsg;
-    tpPESession psessionEntry ;
-    tANI_U8     sessionId;
-
-    if((psessionEntry = peFindSessionByBssid(pMac,pSirMicFailureInd->bssId,&sessionId))== NULL)
-    {
-         limLog(pMac, LOGE,
-               FL("session does not exist for given BSSId\n"));
-         return;
-    }
-
-    if (eHAL_STATUS_SUCCESS !=
-                    palAllocateMemory(pMac->hHdd,
-                                      (void **) &pSirSmeMicFailureInd,
-                                      sizeof(tSirSmeMicFailureInd)))
-    {
-        // Log error
-       limLog(pMac, LOGP,
-               FL("memory allocate failed for eWNI_SME_MIC_FAILURE_IND\n"));
-       return;
-    }
-
-    pSirSmeMicFailureInd->messageType = eWNI_SME_MIC_FAILURE_IND;
-    pSirSmeMicFailureInd->length = sizeof(pSirSmeMicFailureInd);
-    pSirSmeMicFailureInd->sessionId = psessionEntry->smeSessionId;
-
-    vos_mem_copy(pSirSmeMicFailureInd->bssId,
-        pSirMicFailureInd->bssId,
-        sizeof(tSirMacAddr));
-
-    vos_mem_copy(pSirSmeMicFailureInd->info.srcMacAddr,
-        pSirMicFailureInd->info.srcMacAddr,
-        sizeof(tSirMacAddr));
-
-    vos_mem_copy(pSirSmeMicFailureInd->info.taMacAddr,
-        pSirMicFailureInd->info.taMacAddr,
-        sizeof(tSirMacAddr));
-
-    vos_mem_copy(pSirSmeMicFailureInd->info.dstMacAddr,
-        pSirMicFailureInd->info.dstMacAddr,
-        sizeof(tSirMacAddr));
-
-    vos_mem_copy(pSirSmeMicFailureInd->info.rxMacAddr,
-        pSirMicFailureInd->info.rxMacAddr,
-        sizeof(tSirMacAddr));
-
-    pSirSmeMicFailureInd->info.multicast = 
-                                   pSirMicFailureInd->info.multicast;
-
-    pSirSmeMicFailureInd->info.keyId= 
-                                  pSirMicFailureInd->info.keyId;
-
-    pSirSmeMicFailureInd->info.IV1= 
-                                  pSirMicFailureInd->info.IV1;
-
-    vos_mem_copy(pSirSmeMicFailureInd->info.TSC,
-         pSirMicFailureInd->info.TSC,SIR_CIPHER_SEQ_CTR_SIZE);
-
-    mmhMsg.type = eWNI_SME_MIC_FAILURE_IND;
-    mmhMsg.bodyptr = pSirSmeMicFailureInd;
-    mmhMsg.bodyval = 0;
-    MTRACE(macTraceMsgTx(pMac, 0, mmhMsg.type));
-    limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
-    return;
-}
-
 
 /** -----------------------------------------------------------------
   \brief limIsPktCandidateForDrop() - decides whether to drop the frame or not
@@ -2684,7 +2607,10 @@ tMgmtFrmDropReason limIsPktCandidateForDrop(tpAniSirGlobal pMac, tANI_U8 *pRxPac
         }
         if (limIsSystemInScanState(pMac))
         {
-            return eMGMT_DROP_NO_DROP;
+            if( WDA_IS_RX_IN_SCAN(pRxPacketInfo) )
+                return eMGMT_DROP_NO_DROP;
+            else
+                return eMGMT_DROP_NON_SCAN_MODE_FRAME;
         }
         else if (WDA_IS_RX_IN_SCAN(pRxPacketInfo))
         {

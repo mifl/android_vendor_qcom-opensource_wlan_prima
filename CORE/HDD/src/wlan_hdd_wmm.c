@@ -46,9 +46,9 @@
                Qualcomm Confidential and Proprietary
 ============================================================================*/
 
-/*---------------------------------------------------------------------------
+/*--------------------------------------------------------------------------- 
   Include files
-  -------------------------------------------------------------------------*/
+  -------------------------------------------------------------------------*/ 
 #include <wlan_hdd_tx_rx.h>
 #include <wlan_hdd_dp_utils.h>
 #include <wlan_hdd_wmm.h>
@@ -114,7 +114,7 @@ const v_U8_t hddLinuxUpToAcMap[8] = {
    HDD_LINUX_AC_VI,
    HDD_LINUX_AC_VO,
    HDD_LINUX_AC_VO
-};
+}; 
 
 #ifndef WLAN_MDM_CODE_REDUCTION_OPT
 /**
@@ -355,7 +355,7 @@ static void hdd_wmm_notify_app (hdd_wmm_qos_context_t* pQosContext)
    memset(&wrqu, 0, sizeof(wrqu));
    memset(buf, 0, sizeof(buf));
 
-   snprintf(buf, MAX_NOTIFY_LEN, "QCOM: TS change[%u: %u]",
+   snprintf(buf, MAX_NOTIFY_LEN, "QCOM: TS change[%u: %u]", 
             (unsigned int)pQosContext->handle,
             (unsigned int)pQosContext->lastStatus);
 
@@ -377,7 +377,7 @@ static void hdd_wmm_notify_app (hdd_wmm_qos_context_t* pQosContext)
   is allowed for the given AC.  this is designed to be called during SME
   callback processing since that is when access can be granted or removed
 
-  @param pAdapter    : [in] pointer to adapter context
+  @param pAdapter    : [in] pointer to adapter context  
   @param pAc         : [in] pointer to the per-AC status
 
   @return            : VOS_TRUE - access is allowed
@@ -425,166 +425,24 @@ static v_BOOL_t hdd_wmm_is_access_allowed(hdd_adapter_t* pAdapter,
    return VOS_TRUE;
 }
 
-#ifdef FEATURE_WLAN_CCX
-/**
-  @brief hdd_wmm_inactivity_timer_cb() - timer handler function which is
-  called for every inactivity interval per AC. This function gets the
-  current transmitted packets on the given AC, and checks if there where
-  any TX activity from the previous interval. If there was no traffic
-  then it would delete the TS that was negotiated on that AC.
-
-  @param pUserData   : [in] pointer to pQosContext
-
-  @return            : NONE
-*/
-void hdd_wmm_inactivity_timer_cb( v_PVOID_t pUserData )
-{
-    hdd_wmm_qos_context_t* pQosContext = (hdd_wmm_qos_context_t*)pUserData;
-    hdd_adapter_t* pAdapter;
-    hdd_wmm_ac_status_t *pAc;
-    hdd_wlan_wmm_status_e status;
-    VOS_STATUS vos_status;
-    v_U32_t currentTrafficCnt = 0;
-    WLANTL_ACEnumType acType = pQosContext->acType;
-
-    pAdapter = pQosContext->pAdapter;
-    pAc = &pAdapter->hddWmmStatus.wmmAcStatus[acType];
-
-    // Get the Tx stats for this AC.
-    currentTrafficCnt = pAdapter->hdd_stats.hddTxRxStats.txXmitClassifiedAC[pQosContext->acType];
-
-    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
-            FL("WMM inactivity Timer for AC=%d, currentCnt=%d, prevCnt=%d\n"),
-            acType, (int)currentTrafficCnt, (int)pAc->wmmPrevTrafficCnt);
-    if (pAc->wmmPrevTrafficCnt == currentTrafficCnt)
-    {
-        // If there is no traffic activity, delete the TSPEC for this AC
-        status = hdd_wmm_delts(pAdapter, pQosContext->handle);
-        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
-                FL("Deleted TS on AC %d, due to inactivity with status = %d!!!"),
-                acType, status);
-    }
-    else
-    {
-        pAc->wmmPrevTrafficCnt = currentTrafficCnt;
-        if (pAc->wmmInactivityTimer.state == VOS_TIMER_STATE_STOPPED)
-        {
-            // Restart the timer
-            vos_status = vos_timer_start(&pAc->wmmInactivityTimer, pAc->wmmInactivityTime);
-            if (!VOS_IS_STATUS_SUCCESS(vos_status))
-            {
-                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                        FL("Restarting inactivity timer failed on AC %d"), acType);
-            }
-        }
-        else
-        {
-            VOS_ASSERT(vos_timer_getCurrentState(
-                        &pAc->wmmInactivityTimer) == VOS_TIMER_STATE_STOPPED);
-        }
-    }
-
-    return;
-}
-
 
 /**
-  @brief hdd_wmm_enable_inactivity_timer() - function to enable the
-  traffic inactivity timer for the given AC, if the inactivity_interval
-  specified in the ADDTS parameters is non-zero
+  @brief hdd_wmm_sme_callback() - callback registered by HDD with SME for receiving 
+  QoS notifications. Even though this function has a static scope it gets called 
+  externally through some function pointer magic (so there is a need for 
+  rigorous parameter checking) 
 
-  @param pQosContext   : [in] pointer to pQosContext
-  @param inactivityTime: [in] value of the inactivity interval in millisecs
-
-  @return              : VOS_STATUS_E_FAILURE
-                         VOS_STATUS_SUCCESS
-*/
-VOS_STATUS hdd_wmm_enable_inactivity_timer(hdd_wmm_qos_context_t* pQosContext, v_U32_t inactivityTime)
-{
-    VOS_STATUS vos_status = VOS_STATUS_E_FAILURE;
-    hdd_adapter_t* pAdapter = pQosContext->pAdapter;
-    WLANTL_ACEnumType acType = pQosContext->acType;
-    hdd_wmm_ac_status_t *pAc;
-
-    pAdapter = pQosContext->pAdapter;
-    pAc = &pAdapter->hddWmmStatus.wmmAcStatus[acType];
-
-
-    // If QoS-Tspec is successfully setup and if the inactivity timer is non-zero,
-    // a traffic inactivity timer needs to be started for the given AC
-    vos_status = vos_timer_init(
-            &pAc->wmmInactivityTimer,
-            VOS_TIMER_TYPE_SW,
-            hdd_wmm_inactivity_timer_cb,
-            (v_PVOID_t)pQosContext );
-    if ( !VOS_IS_STATUS_SUCCESS(vos_status))
-    {
-        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                FL("Initializing inactivity timer failed on AC %d"), acType);
-        return vos_status;
-    }
-
-    // Start the inactivity timer
-    vos_status = vos_timer_start(
-            &pAc->wmmInactivityTimer,
-            inactivityTime);
-    if ( !VOS_IS_STATUS_SUCCESS(vos_status))
-    {
-        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                FL("Starting inactivity timer failed on AC %d"), acType);
-        return vos_status;
-    }
-    pAc->wmmInactivityTime = inactivityTime;
-    // Initialize the current tx traffic count on this AC
-    pAc->wmmPrevTrafficCnt = pAdapter->hdd_stats.hddTxRxStats.txXmitClassifiedAC[pQosContext->acType];
-
-    return vos_status;
-}
-
-/**
-  @brief hdd_wmm_enable_inactivity_timer() - function to disable the
-  traffic inactivity timer for the given AC. This would be called when
-  deleting the TS.
-
-  @param pQosContext   : [in] pointer to pQosContext
-
-  @return              : VOS_STATUS_E_FAILURE
-                         VOS_STATUS_SUCCESS
-*/
-VOS_STATUS hdd_wmm_disable_inactivity_timer(hdd_wmm_qos_context_t* pQosContext)
-{
-    hdd_adapter_t* pAdapter = pQosContext->pAdapter;
-    WLANTL_ACEnumType acType = pQosContext->acType;
-    hdd_wmm_ac_status_t *pAc  = &pAdapter->hddWmmStatus.wmmAcStatus[acType];
-    VOS_STATUS vos_status = VOS_STATUS_E_FAILURE;
-
-    // Clear the timer and the counter
-    pAc->wmmInactivityTime = 0;
-    pAc->wmmPrevTrafficCnt = 0;
-    vos_timer_stop(&pAc->wmmInactivityTimer);
-    vos_status = vos_timer_destroy(&pAc->wmmInactivityTimer);
-
-    return vos_status;
-}
-#endif // FEATURE_WLAN_CCX
-
-/**
-  @brief hdd_wmm_sme_callback() - callback registered by HDD with SME for receiving
-  QoS notifications. Even though this function has a static scope it gets called
-  externally through some function pointer magic (so there is a need for
-  rigorous parameter checking)
-
-  @param hHal : [in] the HAL handle
-  @param HddCtx : [in] the HDD specified handle
+  @param hHal : [in] the HAL handle  
+  @param HddCtx : [in] the HDD specified handle 
   @param pCurrentQosInfo : [in] the TSPEC params
   @param SmeStatus : [in] the QoS related SME status
 
-  @return
+  @return 
   eHAL_STATUS_SUCCESS if all good, eHAL_STATUS_FAILURE otherwise
 */
 static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
-                                        void * hddCtx,
-                                        sme_QosWmmTspecInfo* pCurrentQosInfo,
+                                        void * hddCtx, 
+                                        sme_QosWmmTspecInfo* pCurrentQosInfo, 
                                         sme_QosStatusType smeStatus,
                                         v_U32_t qosFlowId)
 {
@@ -649,7 +507,7 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
          // notify TL that packets are pending
          status = WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                                         (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.staId[0],
-                                        acType );
+                                        acType );      
 
          if ( !VOS_IS_STATUS_SUCCESS( status ) )
          {
@@ -668,16 +526,6 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
          pQosContext->lastStatus = HDD_WLAN_WMM_STATUS_SETUP_SUCCESS;
          hdd_wmm_notify_app(pQosContext);
       }
-
-#ifdef FEATURE_WLAN_CCX
-      // Check if the inactivity interval is specified
-      if (pCurrentQosInfo->inactivity_interval) {
-         VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO,
-                 "%s: Inactivity timer value = %d for AC=%d\n",
-                 __FUNCTION__, pCurrentQosInfo->inactivity_interval, acType);
-         hdd_wmm_enable_inactivity_timer(pQosContext, pCurrentQosInfo->inactivity_interval);
-      }
-#endif // FEATURE_WLAN_CCX
 
       // notify TL to enable trigger frames if necessary
       hdd_wmm_enable_tl_uapsd(pQosContext);
@@ -705,7 +553,7 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
          // notify TL that packets are pending
          status = WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                                         (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.staId[0],
-                                        acType );
+                                        acType );      
 
          if ( !VOS_IS_STATUS_SUCCESS( status ) )
          {
@@ -749,7 +597,7 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
          // this was triggered by implicit QoS so we know packets are pending
          status = WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                                         (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.staId[0],
-                                        acType );
+                                        acType );      
 
          if ( !VOS_IS_STATUS_SUCCESS( status ) )
          {
@@ -771,7 +619,7 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
 
       /* Setting up QoS Failed, QoS context can be released.
        * SME is releasing this flow information and if HDD doen't release this context,
-       * next time if application uses the same handle to set-up QoS, HDD (as it has
+       * next time if application uses the same handle to set-up QoS, HDD (as it has 
        * QoS context for this handle) will issue Modify QoS request to SME but SME will
        * reject as no it has no information for this flow.
        */
@@ -800,7 +648,7 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
          // this was triggered by implicit QoS so we know packets are pending
          status = WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                                         (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.staId[0],
-                                        acType );
+                                        acType );      
 
          if ( !VOS_IS_STATUS_SUCCESS( status ) )
          {
@@ -823,7 +671,7 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
 
    case SME_QOS_STATUS_SETUP_NOT_QOS_AP_RSP:
       VOS_TRACE( VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_ERROR,
-                 "%s: Setup failed, not a QoS AP\n",
+                 "%s: Setup failed, not a QoS AP\n", 
                  __FUNCTION__);
       if (!HDD_WMM_HANDLE_IMPLICIT == pQosContext->handle)
       {
@@ -888,7 +736,7 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
          // notify TL that packets are pending
          status = WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                                         (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.staId[0],
-                                        acType );
+                                        acType );      
 
          if ( !VOS_IS_STATUS_SUCCESS( status ) )
          {
@@ -937,7 +785,7 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
          // this was triggered by implicit QoS so we know packets are pending
          status = WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                                         (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.staId[0],
-                                        acType );
+                                        acType );      
 
          if ( !VOS_IS_STATUS_SUCCESS( status ) )
          {
@@ -1190,13 +1038,13 @@ static eHalStatus hdd_wmm_sme_callback (tHalHandle hHal,
       break;
 
    case SME_QOS_STATUS_INTO_APSD_POWER_MODE_IND:
-      // need to tell TL to start sending trigger frames again
+      // need to tell TL to start sending trigger frames again 
       hdd_wmm_enable_tl_uapsd(pQosContext);
       break;
 
    default:
       VOS_TRACE( VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_ERROR,
-                 "%s: unexpected SME Status=%d\n",
+                 "%s: unexpected SME Status=%d\n", 
                  __FUNCTION__, smeStatus );
       VOS_ASSERT(0);
    }
@@ -1325,9 +1173,7 @@ static void hdd_wmm_do_implicit_qos(struct work_struct *work)
       qosInfo.suspension_interval = (WLAN_HDD_GET_CTX(pAdapter))->cfg_ini->InfraUapsdBkSuspIntv;
       break;
    }
-#ifdef FEATURE_WLAN_CCX
-   qosInfo.inactivity_interval = (WLAN_HDD_GET_CTX(pAdapter))->cfg_ini->InfraInactivityInterval;
-#endif
+
    qosInfo.ts_info.burst_size_defn = (WLAN_HDD_GET_CTX(pAdapter))->cfg_ini->burstSizeDefinition;
 
    switch ((WLAN_HDD_GET_CTX(pAdapter))->cfg_ini->tsInfoAckPolicy)
@@ -1410,7 +1256,7 @@ static void hdd_wmm_do_implicit_qos(struct work_struct *work)
 
       status = WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                                      (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.staId[0],
-                                     acType );
+                                     acType );      
 
       if ( !VOS_IS_STATUS_SUCCESS( status ) )
       {
@@ -1424,7 +1270,7 @@ static void hdd_wmm_do_implicit_qos(struct work_struct *work)
 
    default:
       VOS_TRACE( VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_ERROR,
-                 "%s: unexpected SME Status=%d\n",
+                 "%s: unexpected SME Status=%d\n", 
                  __FUNCTION__, smeStatus );
       VOS_ASSERT(0);
    }
@@ -1455,13 +1301,13 @@ VOS_STATUS hdd_wmm_init ( hdd_context_t* pHddCtx )
    {
       hddWmmDscpToUpMap[dscp] = SME_QOS_WMM_UP_BE;
    }
-   hddWmmDscpToUpMap[8]  = SME_QOS_WMM_UP_BK;
-   hddWmmDscpToUpMap[16] = SME_QOS_WMM_UP_RESV;
-   hddWmmDscpToUpMap[24] = SME_QOS_WMM_UP_EE;
-   hddWmmDscpToUpMap[32] = SME_QOS_WMM_UP_CL;
-   hddWmmDscpToUpMap[40] = SME_QOS_WMM_UP_VI;
-   hddWmmDscpToUpMap[48] = SME_QOS_WMM_UP_VO;
-   hddWmmDscpToUpMap[56] = SME_QOS_WMM_UP_NC;
+   hddWmmDscpToUpMap[8]  = SME_QOS_WMM_UP_BK; 
+   hddWmmDscpToUpMap[16] = SME_QOS_WMM_UP_RESV; 
+   hddWmmDscpToUpMap[24] = SME_QOS_WMM_UP_EE; 
+   hddWmmDscpToUpMap[32] = SME_QOS_WMM_UP_CL; 
+   hddWmmDscpToUpMap[40] = SME_QOS_WMM_UP_VI; 
+   hddWmmDscpToUpMap[48] = SME_QOS_WMM_UP_VO; 
+   hddWmmDscpToUpMap[56] = SME_QOS_WMM_UP_NC; 
 
    return VOS_STATUS_SUCCESS;
 }
@@ -1526,9 +1372,6 @@ VOS_STATUS hdd_wmm_adapter_close ( hdd_adapter_t* pAdapter )
    {
       pQosContext = list_first_entry(&pAdapter->hddWmmStatus.wmmContextList,
                                      hdd_wmm_qos_context_t, node);
-#ifdef FEATURE_WLAN_CCX
-      hdd_wmm_disable_inactivity_timer(pQosContext);
-#endif
       hdd_wmm_free_context(pQosContext);
    }
 
@@ -1539,8 +1382,8 @@ VOS_STATUS hdd_wmm_adapter_close ( hdd_adapter_t* pAdapter )
   @brief hdd_wmm_classify_pkt() - Function which will classify an OS packet
   into a WMM AC based on either 802.1Q or DSCP
 
-  @param pAdapter : [in]  pointer to adapter context
-  @param skb      : [in]  pointer to OS packet (sk_buff)
+  @param pAdapter : [in]  pointer to adapter context  
+  @param skb      : [in]  pointer to OS packet (sk_buff) 
   @param pAcType  : [out] pointer to WMM AC type of OS packet
 
   @return         : None
@@ -1571,7 +1414,7 @@ v_VOID_t hdd_wmm_classify_pkt ( hdd_adapter_t* pAdapter,
 
 #ifdef HDD_WMM_DEBUG
    VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
-             "%s: proto/length is 0x%04x",
+             "%s: proto/length is 0x%04x", 
              __FUNCTION__, pHdr->eth_II.h_proto);
 #endif // HDD_WMM_DEBUG
 
@@ -1736,42 +1579,42 @@ v_U16_t hdd_hostapd_select_queue(struct net_device * dev, struct sk_buff *skb)
 {
    WLANTL_ACEnumType ac;
    sme_QosWmmUpType up = SME_QOS_WMM_UP_BE;
-   v_USHORT_t queueIndex;
+   v_USHORT_t queueIndex;   
    v_MACADDR_t *pDestMacAddress = (v_MACADDR_t*)skb->data;
    hdd_adapter_t *pAdapter = (hdd_adapter_t *)netdev_priv(dev);
    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 #ifdef FEATURE_WLAN_NON_INTEGRATED_SOC
-   tpAniSirGlobal  pMac = (tpAniSirGlobal) vos_get_context(VOS_MODULE_ID_HAL, pHddCtx->pvosContext);
+   tpAniSirGlobal  pMac = (tpAniSirGlobal) vos_get_context(VOS_MODULE_ID_HAL, pHddCtx->pvosContext);   
 #endif //FEATURE_WLAN_NON_INTEGRATED_SOC
    v_U8_t STAId;
    v_U8_t *pSTAId = (v_U8_t *)(((v_U8_t *)(skb->data)) - 1);
-
+    
    /*Get the Station ID*/
 #ifdef FEATURE_WLAN_NON_INTEGRATED_SOC
    if (eHAL_STATUS_SUCCESS != halTable_FindStaidByAddr(pMac, (tANI_U8 *)pDestMacAddress, &STAId))
    {
       VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
             "%s: Failed to find right station", __FUNCTION__);
-      *pSTAId = HDD_WLAN_INVALID_STA_ID;
-      goto done;
+      *pSTAId = HDD_WLAN_INVALID_STA_ID; 
+      goto done; 
    }
 #else
    if (VOS_STATUS_SUCCESS != hdd_softap_GetStaId(pAdapter, pDestMacAddress, &STAId))
    {
       VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
             "%s: Failed to find right station", __FUNCTION__);
-      *pSTAId = HDD_WLAN_INVALID_STA_ID;
-      goto done;
+      *pSTAId = HDD_WLAN_INVALID_STA_ID; 
+      goto done; 
    }
 #endif //FEATURE_WLAN_NON_INTEGRATED_SOC
-
+   
    spin_lock_bh( &pAdapter->staInfo_lock );
    if (FALSE == vos_is_macaddr_equal(&pAdapter->aStaInfo[STAId].macAddrSTA, pDestMacAddress))
    {
       VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
                    "%s: Station MAC address does not matching", __FUNCTION__);
-
-      *pSTAId = HDD_WLAN_INVALID_STA_ID;
+      
+      *pSTAId = HDD_WLAN_INVALID_STA_ID; 
       goto release_lock;
    }
    if (pAdapter->aStaInfo[STAId].isUsed && pAdapter->aStaInfo[STAId].isQosEnabled && (HDD_WMM_USER_MODE_NO_QOS != pHddCtx->cfg_ini->WmmMode))
@@ -1781,7 +1624,7 @@ v_U16_t hdd_hostapd_select_queue(struct net_device * dev, struct sk_buff *skb)
    }
    *pSTAId = STAId;
 
-release_lock:
+release_lock:   
     spin_unlock_bh( &pAdapter->staInfo_lock );
 done:
    skb->priority = up;
@@ -1823,9 +1666,9 @@ v_U16_t hdd_wmm_select_queue(struct net_device * dev, struct sk_buff *skb)
 
 /**============================================================================
   @brief hdd_wmm_acquire_access() - Function which will attempt to acquire
-  admittance for a WMM AC
+  admittance for a WMM AC 
 
-  @param pAdapter : [in]  pointer to adapter context
+  @param pAdapter : [in]  pointer to adapter context  
   @param acType   : [in]  WMM AC type of OS packet
   @param pGranted : [out] pointer to boolean flag when indicates if access
                           has been granted or not
@@ -1953,7 +1796,7 @@ VOS_STATUS hdd_wmm_assoc( hdd_adapter_t* pAdapter,
       // to HDD via the QoS callback associated with the given
       // flow, and U-APSD parameters will be updated there
 
-      VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
+      VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW, 
                 "%s: Reassoc so no work, Exiting", __FUNCTION__);
 
       return VOS_STATUS_SUCCESS;
@@ -1962,12 +1805,12 @@ VOS_STATUS hdd_wmm_assoc( hdd_adapter_t* pAdapter,
    // get the negotiated UAPSD Mask
    uapsdMask = pRoamInfo->u.pConnectedProfile->modifyProfileFields.uapsd_mask;
 
-   VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
+   VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW, 
              "%s: U-APSD mask is 0x%02x", __FUNCTION__, (int) uapsdMask);
 
    if (uapsdMask & HDD_AC_VO)
    {
-      status = WLANTL_EnableUAPSDForAC( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
+      status = WLANTL_EnableUAPSDForAC( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext, 
                                         (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.staId[0],
                                         WLANTL_AC_VO,
                                         7,
@@ -1981,7 +1824,7 @@ VOS_STATUS hdd_wmm_assoc( hdd_adapter_t* pAdapter,
 
    if (uapsdMask & HDD_AC_VI)
    {
-      status = WLANTL_EnableUAPSDForAC( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
+      status = WLANTL_EnableUAPSDForAC( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext, 
                                         (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.staId[0],
                                         WLANTL_AC_VI,
                                         5,
@@ -1995,7 +1838,7 @@ VOS_STATUS hdd_wmm_assoc( hdd_adapter_t* pAdapter,
 
    if (uapsdMask & HDD_AC_BK)
    {
-      status = WLANTL_EnableUAPSDForAC( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
+      status = WLANTL_EnableUAPSDForAC( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext, 
                                         (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.staId[0],
                                         WLANTL_AC_BK,
                                         2,
@@ -2009,7 +1852,7 @@ VOS_STATUS hdd_wmm_assoc( hdd_adapter_t* pAdapter,
 
    if (uapsdMask & HDD_AC_BE)
    {
-      status = WLANTL_EnableUAPSDForAC( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
+      status = WLANTL_EnableUAPSDForAC( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext, 
                                         (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.staId[0],
                                         WLANTL_AC_BE,
                                         3,
@@ -2021,7 +1864,7 @@ VOS_STATUS hdd_wmm_assoc( hdd_adapter_t* pAdapter,
       VOS_ASSERT( VOS_IS_STATUS_SUCCESS( status ));
    }
 
-   VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
+   VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW, 
              "%s: Exiting", __FUNCTION__);
 
    return VOS_STATUS_SUCCESS;
@@ -2041,7 +1884,7 @@ static const v_U8_t acmMaskBit[WLANTL_MAX_AC] =
   @brief hdd_wmm_connect() - Function which will handle the housekeeping
   required by WMM when a connection is established
 
-  @param pAdapter : [in]  pointer to adapter context
+  @param pAdapter : [in]  pointer to adapter context  
   @param pRoamInfo: [in]  pointer to roam information
   @param eBssType : [in]  type of BSS
 
@@ -2057,7 +1900,7 @@ VOS_STATUS hdd_wmm_connect( hdd_adapter_t* pAdapter,
    v_BOOL_t qosConnection;
    v_U8_t acmMask;
 
-   VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW,
+   VOS_TRACE(VOS_MODULE_ID_HDD, WMM_TRACE_LEVEL_INFO_LOW, 
              "%s: Entered", __FUNCTION__);
 
    if ((eCSR_BSS_TYPE_INFRASTRUCTURE == eBssType) &&
@@ -2198,7 +2041,7 @@ v_BOOL_t hdd_wmm_is_active( hdd_adapter_t* pAdapter )
   @param handle    : [in]  handle to uniquely identify a TS
   @param pTspec    : [in]  pointer to the traffic spec
 
-  @return          : HDD_WLAN_WMM_STATUS_*
+  @return          : HDD_WLAN_WMM_STATUS_* 
   ===========================================================================*/
 hdd_wlan_wmm_status_e hdd_wmm_addts( hdd_adapter_t* pAdapter,
                                      v_U32_t handle,
@@ -2360,7 +2203,7 @@ hdd_wlan_wmm_status_e hdd_wmm_addts( hdd_adapter_t* pAdapter,
   @param pAdapter  : [in]  pointer to adapter context
   @param handle    : [in]  handle to uniquely identify a TS
 
-  @return          : HDD_WLAN_WMM_STATUS_*
+  @return          : HDD_WLAN_WMM_STATUS_* 
   ===========================================================================*/
 hdd_wlan_wmm_status_e hdd_wmm_delts( hdd_adapter_t* pAdapter,
                                      v_U32_t handle )
@@ -2416,23 +2259,19 @@ hdd_wlan_wmm_status_e hdd_wmm_delts( hdd_adapter_t* pAdapter,
    switch(smeStatus)
    {
    case SME_QOS_STATUS_RELEASE_SUCCESS_RSP:
-      // this flow is the only one on that AC, so go ahead and update
+      // this flow is the only one on that AC, so go ahead and update 
       // our TSPEC state for the AC
       pAdapter->hddWmmStatus.wmmAcStatus[acType].wmmAcTspecValid = VOS_FALSE;
 
       // need to tell TL to stop trigger timer, etc
       hdd_wmm_disable_tl_uapsd(pQosContext);
 
-#ifdef FEATURE_WLAN_CCX
-      // disable the inactivity timer
-      hdd_wmm_disable_inactivity_timer(pQosContext);
-#endif
       // we are done with this context
       hdd_wmm_free_context(pQosContext);
 
-      // SME must not fire any more callbacks for this flow since the context
+      // SME must not fire any more callbacks for this flow since the context 
       // is no longer valid
-
+      
       return HDD_WLAN_WMM_STATUS_RELEASE_SUCCESS;
 
    case SME_QOS_STATUS_RELEASE_REQ_PENDING_RSP:
@@ -2469,7 +2308,7 @@ hdd_wlan_wmm_status_e hdd_wmm_delts( hdd_adapter_t* pAdapter,
   @param pAdapter  : [in]  pointer to adapter context
   @param handle    : [in]  handle to uniquely identify a TS
 
-  @return          : HDD_WLAN_WMM_STATUS_*
+  @return          : HDD_WLAN_WMM_STATUS_* 
   ===========================================================================*/
 hdd_wlan_wmm_status_e hdd_wmm_checkts( hdd_adapter_t* pAdapter,
                                        v_U32_t handle )

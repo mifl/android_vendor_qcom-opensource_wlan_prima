@@ -57,12 +57,7 @@
 #if defined WLAN_FEATURE_VOWIFI
 #include "rrmApi.h"
 #endif
-
-#if defined FEATURE_WLAN_CCX
-#include "ccxApi.h"
-#endif
 #include "wlan_qct_wda.h"
-
 
 #define BA_DEFAULT_TX_BUFFER_SIZE 64
 
@@ -87,8 +82,6 @@ typedef enum
 -----------------------------------------------------------------*/
 void limStopTxAndSwitchChannel(tpAniSirGlobal pMac, tANI_U8 sessionId)
 {
-    tANI_U8 isFullPowerRequested = 0;
-
     PELOG1(limLog(pMac, LOG1, FL("Channel switch Mode == %d\n"), 
                        pMac->lim.gLimChannelSwitch.switchMode);)
 
@@ -98,13 +91,8 @@ void limStopTxAndSwitchChannel(tpAniSirGlobal pMac, tANI_U8 sessionId)
         /* Freeze the transmission */
         limFrameTransmissionControl(pMac, eLIM_TX_ALL, eLIM_STOP_TX);
 
-        /*Request for Full power only if the device is in powersave*/
-        if(!limIsSystemInActiveState(pMac))
-        {
-            /* Request Full Power */
-            limSendSmePreChannelSwitchInd(pMac);
-            isFullPowerRequested = 1;
-        }
+       /* Request Full Power */
+       limSendSmePreChannelSwitchInd(pMac);
     }
     else
     {
@@ -112,26 +100,12 @@ void limStopTxAndSwitchChannel(tpAniSirGlobal pMac, tANI_U8 sessionId)
         limFrameTransmissionControl(pMac, eLIM_TX_ALL, eLIM_RESUME_TX);
     }
 
-    /* change the channel immediatly only if the channel switch count is 0 and the 
-     * device is not in powersave 
-     * If the device is in powersave channel switch should happen only after the
-     * device comes out of the powersave */
-    if (pMac->lim.gLimChannelSwitch.switchCount == 0) 
+    if (pMac->lim.gLimChannelSwitch.switchCount == 0)
     {
-        if(limIsSystemInActiveState(pMac))
-        {
-            limProcessChannelSwitchTimeout(pMac);
-        }
-        else if(!isFullPowerRequested)
-        {
-            /* If the Full power is already not requested 
-             * Request Full Power so the channel switch happens 
-             * after device comes to full power */
-            limSendSmePreChannelSwitchInd(pMac);
-        }
+        /** If switch Count == 0 switch the channel right away */
+        limProcessChannelSwitchTimeout(pMac);
         return;
     }
-
     MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, 0, eLIM_CHANNEL_SWITCH_TIMER));
 
     pMac->lim.limTimers.gLimChannelSwitchTimer.sessionId = sessionId;
@@ -432,7 +406,7 @@ __limProcessAddTsReq(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession pse
     }
     else if (addts.tspec.tsinfo.traffic.accessPolicy == SIR_MAC_ACCESSPOLICY_EDCA)
     {
-        if(eSIR_SUCCESS != limSendHalMsgAddTs(pMac, pSta->staIndex, tspecIdx, addts.tspec, psessionEntry->peSessionId))
+        if(eSIR_SUCCESS != limSendHalMsgAddTs(pMac, pSta->staIndex, tspecIdx, addts.tspec))
         {
           limLog(pMac, LOGW, FL("AddTs with UP %d failed in limSendHalMsgAddTs - ignoring request\n"),
                  addts.tspec.tsinfo.traffic.userPrio);
@@ -576,16 +550,7 @@ __limProcessAddTsRsp(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession pse
 
         return;
     }
-#ifdef FEATURE_WLAN_CCX
-    if (addts.tsmPresent)
-    {
-        limLog(pMac, LOGW, "TSM IE Present\n");
-        psessionEntry->ccxContext.tsm.tid = addts.tspec.tsinfo.traffic.userPrio;
-        vos_mem_copy(&psessionEntry->ccxContext.tsm.tsmInfo,
-                                         &addts.tsmIE,sizeof(tSirMacCCXTSMIE));
-        limActivateTSMStatsTimer(pMac, psessionEntry);
-    }
-#endif
+
     /* Since AddTS response was successful, check for the PSB flag
      * and directional flag inside the TS Info field. 
      * An AC is trigger enabled AC if the PSB subfield is set to 1  
@@ -633,8 +598,8 @@ __limProcessAddTsRsp(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession pse
     else
         limLog(pMac, LOGE, FL("Self entry missing in Hash Table \n"));
 
-        
-    sirCopyMacAddr(peerMacAddr,psessionEntry->bssId);
+
+    sirCopyMacAddr(peerMacAddr, psessionEntry->bssId);
 
     //if schedule is not present then add TSPEC with svcInterval as 0.
     if(!addts.schedulePresent)
@@ -647,15 +612,14 @@ __limProcessAddTsRsp(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession pse
         pMac->lim.gLimAddtsSent = false;
         return;   //Error handling. send the response with error status. need to send DelTS to tear down the TSPEC status.
     }
-    if((addts.tspec.tsinfo.traffic.accessPolicy != SIR_MAC_ACCESSPOLICY_EDCA) ||
-       ((upToAc(addts.tspec.tsinfo.traffic.userPrio) < MAX_NUM_AC) &&
-       (psessionEntry->gLimEdcaParams[upToAc(addts.tspec.tsinfo.traffic.userPrio)].aci.acm)))
+    if((addts.tspec.tsinfo.traffic.accessPolicy != SIR_MAC_ACCESSPOLICY_EDCA) || 
+       (psessionEntry->gLimEdcaParams[upToAc(addts.tspec.tsinfo.traffic.userPrio)].aci.acm))
     {
-        retval = limSendHalMsgAddTs(pMac, pSta->staIndex, tspecInfo->idx, addts.tspec, psessionEntry->peSessionId);
+        retval = limSendHalMsgAddTs(pMac, pSta->staIndex, tspecInfo->idx, addts.tspec);
         if(eSIR_SUCCESS != retval)
         {
             limAdmitControlDeleteTS(pMac, pSta->assocId, &addts.tspec.tsinfo, NULL, &tspecInfo->idx);
-    
+
             // Send DELTS action frame to AP        
             cfgLen = sizeof(tSirMacAddr);
             limSendDeltsReqActionFrame(pMac, peerMacAddr, rspReqd, &addts.tspec.tsinfo, &addts.tspec,
@@ -666,7 +630,7 @@ __limProcessAddTsRsp(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession pse
             return;
         }
         PELOGW(limLog(pMac, LOGW, FL("AddTsRsp received successfully(UP %d, TSID %d)\n"),
-           addts.tspec.tsinfo.traffic.userPrio, addts.tspec.tsinfo.traffic.tsid);)
+               addts.tspec.tsinfo.traffic.userPrio, addts.tspec.tsinfo.traffic.tsid);)
     }
     else
     {
@@ -755,7 +719,7 @@ __limProcessDelTsReq(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession pse
         (psessionEntry->limSystemRole != eLIM_AP_ROLE &&
         (! psessionEntry->gLimEdcaParams[upToAc(tsinfo->traffic.userPrio)].aci.acm)))
 #else
-        if ((upToAc(tsinfo->traffic.userPrio) >= MAX_NUM_AC) || (! psessionEntry->gLimEdcaParams[upToAc(tsinfo->traffic.userPrio)].aci.acm))
+        if (! psessionEntry->gLimEdcaParams[upToAc(tsinfo->traffic.userPrio)].aci.acm)
 #endif
         {
             limLog(pMac, LOGW, FL("DelTs with UP %d has no AC - ignoring request\n"),
@@ -839,13 +803,8 @@ __limProcessDelTsReq(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession pse
         limLog(pMac, LOGE, FL("Self entry missing in Hash Table \n"));
 
     PELOG1(limLog(pMac, LOG1, FL("DeleteTS succeeded\n"));)
-    if((psessionEntry->limSystemRole != eLIM_AP_ROLE)&&(psessionEntry->limSystemRole != eLIM_BT_AMP_AP_ROLE))
+    if((psessionEntry->limSystemRole != eLIM_AP_ROLE) && (psessionEntry->limSystemRole != eLIM_BT_AMP_AP_ROLE))
       limSendSmeDeltsInd(pMac, &delts, aid,psessionEntry);
-
-#ifdef FEATURE_WLAN_CCX
-    limDeactivateAndChangeTimer(pMac,eLIM_TSM_TIMER);
-#endif
-
 }
 
 
@@ -1106,10 +1065,6 @@ __limValidateAddBAParameterSet( tpAniSirGlobal pMac,
     tLimAddBaValidationReqType reqType ,
     tANI_U8* pDelBAFlag /*this parameter is NULL except for call from processAddBAReq*/)
 {
-  if(baParameterSet.tid >= STACFG_MAX_TC)
-  {
-      return eSIR_MAC_WME_INVALID_PARAMS_STATUS;
-  }
 
   //check if there is already a BA session setup with this STA/TID while processing AddBaReq
   if((true == pSta->tcCfg[baParameterSet.tid].fUseBARx) &&
@@ -1738,60 +1693,6 @@ __limProcessNeighborReport( tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo ,tpPESes
 
 #endif
 
-#ifdef WLAN_FEATURE_11W
-/**
- * limProcessActionFrame
- *
- *FUNCTION:
- * This function is called by limProcessActionFrame() upon
- * SA query request Action frame reception.
- *
- *LOGIC:
- *
- *ASSUMPTIONS:
- *
- *NOTE:
- *
- * @param  pMac - Pointer to Global MAC structure
- * @param  *pBd - A pointer to Buffer descriptor + associated PDUs
- * @return None
- */
-static void __limProcessSAQueryRequestActionFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession psessionEntry)
-{
-    tpSirMacMgmtHdr     pHdr;
-    tANI_U8             *pBody;
-    tANI_U16            transId = 0;           
-
-    /* Prima  --- Below Macro not available in prima 
-       pHdr = SIR_MAC_BD_TO_MPDUHEADER(pBd);
-       pBody = SIR_MAC_BD_TO_MPDUDATA(pBd); */
-
-    pHdr = WDA_GET_RX_MAC_HEADER(pRxPacketInfo);
-    pBody = WDA_GET_RX_MPDU_DATA(pRxPacketInfo);
-
-    /*Extract 11w trsansId from SA query request action frame
-      In SA query response action frame we will send same transId
-      In SA query request action frame:
-      Category       : 1 byte
-      Action         : 1 byte
-      Transaction ID : 2 bbytes */
-
-    transId = pBody[2];
-    transId = transId << 8;
-    transId |= pBody[3];
-    
-    //Send 11w SA query response action frame
-    if (limSendSaQueryResponseFrame(pMac,
-                              transId,
-                              pHdr->sa,psessionEntry) != eSIR_SUCCESS)
-    {
-        PELOGE(limLog(pMac, LOGE, FL("fail to send SA query response action frame. \n"));)
-        return;
-    }
-}
-
-#endif
-
 /**
  * limProcessActionFrame
  *
@@ -2003,22 +1904,11 @@ limProcessActionFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession ps
         }
         break;
 #endif
-
-#ifdef WLAN_FEATURE_11W
-    case SIR_MAC_ACTION_SA_QUERY:
-    {
-        /**11w SA query request action frame received**/
-        __limProcessSAQueryRequestActionFrame(pMac,(tANI_U8*) pRxPacketInfo, psessionEntry );
-        break;
-     }
-#endif
-
     default:
        PELOGE(limLog(pMac, LOGE, FL("Action category %d not handled\n"), pActionHdr->category);)
        break;
     }
 }
-
 #if defined WLAN_FEATURE_P2P
 /**
  * limProcessActionFrameNoSession
@@ -2089,3 +1979,4 @@ limProcessActionFrameNoSession(tpAniSirGlobal pMac, tANI_U8 *pBd)
    }
 }
 #endif
+

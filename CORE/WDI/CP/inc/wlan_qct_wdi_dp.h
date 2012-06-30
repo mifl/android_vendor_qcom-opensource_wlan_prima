@@ -276,12 +276,6 @@ when        who    what, where, why
 
 #define WDI_RX_BD_GET_DPU_SIG( _pvBDHeader )     (((WDI_RxBdType*)_pvBDHeader)->dpuSignature)
 
-//flow control related.
-#define WDI_RX_FC_BD_GET_STA_TX_DISABLED_BITMAP( _pvBDHeader )     (((WDI_FcRxBdType*)_pvBDHeader)->fcStaTxDisabledBitmap)
-#define WDI_RX_FC_BD_GET_FC( _pvBDHeader )     (((WDI_FcRxBdType*)_pvBDHeader)->fc)
-#define WDI_RX_FC_BD_GET_STA_VALID_MASK( _pvBDHeader )     (((WDI_FcRxBdType*)_pvBDHeader)->fcSTAValidMask)
-
-
 /*------------ RSSI and SNR Information extraction -------------*/
 #define WDI_RX_BD_GET_RSSI0( _pvBDHeader )  \
     (((((WDI_RxBdType*)_pvBDHeader)->phyStats0) >> 24) & 0xff)

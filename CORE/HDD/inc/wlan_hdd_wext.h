@@ -49,9 +49,7 @@
 #define HDD_WLAN_WMM_PARAM_SUSPENSION_INTERVAL         13
 #define HDD_WLAN_WMM_PARAM_BURST_SIZE_DEFN             14
 #define HDD_WLAN_WMM_PARAM_ACK_POLICY                  15
-#define HDD_WLAN_WMM_PARAM_INACTIVITY_INTERVAL         16
-#define HDD_WLAN_WMM_PARAM_MAX_SERVICE_INTERVAL        17
-#define HDD_WLAN_WMM_PARAM_COUNT                       18
+#define HDD_WLAN_WMM_PARAM_COUNT                       16
 
 typedef enum
 {
@@ -194,7 +192,6 @@ typedef enum
 #endif
 
 
- 
 #define WPS_OUI_TYPE   "\x00\x50\xf2\x04"
 #define WPS_OUI_TYPE_SIZE  4
  
@@ -202,7 +199,6 @@ typedef enum
 #define P2P_OUI_TYPE   "\x50\x6f\x9a\x09"
 #define P2P_OUI_TYPE_SIZE  4
 #endif
-
 
 #ifdef WLAN_FEATURE_WFD
 #define WFD_OUI_TYPE   "\x50\x6f\x9a\x0a"
@@ -270,11 +266,6 @@ typedef struct hdd_wext_state_s
    /**Completion Variable*/
    struct completion completion_var;
 
-#ifdef FEATURE_WLAN_CCX
-   /* CCX state variables */
-   v_BOOL_t isCCXConnection;
-   eCsrAuthType collectedAuthType; /* Collected from ALL SIOCSIWAUTH Ioctls. Will be negotiatedAuthType - in tCsrProfile */
-#endif
 }hdd_wext_state_t;
 
 typedef struct ccp_freq_chan_map_s{

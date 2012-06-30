@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limTimerUtils.h contains the utility definitions
  * LIM uses for timer handling.
@@ -71,10 +70,7 @@ enum
 #ifdef WLAN_FEATURE_P2P
     eLIM_REMAIN_CHN_TIMER,
 #endif
-    eLIM_PERIODIC_PROBE_REQ_TIMER,
-#ifdef FEATURE_WLAN_CCX
-    eLIM_TSM_TIMER,
-#endif
+
 };
 
 // Timer Handler functions

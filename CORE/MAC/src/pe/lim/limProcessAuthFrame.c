@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limProcessAuthFrame.cc contains the code
  * for processing received Authentication Frame.
@@ -718,7 +717,6 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                                      sizeof(tSirMacAddr));
                         mlmAuthInd.authType = (tAniAuthType)
                                               pRxAuthFrameBody->authAlgoNumber;
-                        mlmAuthInd.sessionId = psessionEntry->smeSessionId;
 
                         limPostSmeMessage(pMac,
                                           LIM_MLM_AUTH_IND,
@@ -843,8 +841,7 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
 
                             // get random bytes and use as
                             // challenge text
-                            // TODO
-                            //if( !VOS_IS_STATUS_SUCCESS( vos_rand_get_bytes( 0, (tANI_U8 *)challengeTextArray, SIR_MAC_AUTH_CHALLENGE_LENGTH ) ) )
+                            if( !VOS_IS_STATUS_SUCCESS( vos_rand_get_bytes( 0, (tANI_U8 *)challengeTextArray, SIR_MAC_AUTH_CHALLENGE_LENGTH ) ) )
                             {
                                limLog(pMac, LOGE,FL("Challenge text preparation failed in limProcessAuthFrame"));
                             }
@@ -973,24 +970,6 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                 PELOG1(limPrintMacAddr(pMac, pHdr->sa, LOG1);)
 
                 break;
-            }
-
-            if (pRxAuthFrameBody->authStatusCode ==
-                eSIR_MAC_AUTH_ALGO_NOT_SUPPORTED_STATUS)
-            {
-                /**
-                 * Interoperability workaround: Linksys WAP4400N is returning
-                 * wrong authType in OpenAuth response in case of 
-                 * SharedKey AP configuration. Pretend we don't see that,
-                 * so upper layer can fallback to SharedKey authType,
-                 * and successfully connect to the AP.
-                 */
-                if (pRxAuthFrameBody->authAlgoNumber !=
-                    pMac->lim.gpLimMlmAuthReq->authType)
-                {
-                    pRxAuthFrameBody->authAlgoNumber =
-                    pMac->lim.gpLimMlmAuthReq->authType;
-                }
             }
 
             if (pRxAuthFrameBody->authAlgoNumber !=
@@ -1446,7 +1425,6 @@ limProcessAuthFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession pse
                                  sizeof(tSirMacAddr));
                     mlmAuthInd.authType = (tAniAuthType)
                                           pRxAuthFrameBody->authAlgoNumber;
-                    mlmAuthInd.sessionId = psessionEntry->smeSessionId;
 
                     limPostSmeMessage(pMac,
                                       LIM_MLM_AUTH_IND,

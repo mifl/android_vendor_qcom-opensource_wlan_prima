@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file sysEntryFunc.h contains module entry functions definitions
  * Author:      V. K. Kandarpa

@@ -61,6 +61,22 @@
 
 
 /*--------------------------------------------------------------------------
+  
+  \brief peGetCurrentChannel() - Returns the  channel number for scanning, from a valid session.
+
+  This function itrates the session Table and returns the channel number from first valid session
+   if no sessions are valid it returns 0
+    
+  \param pMac                   - pointer to global adapter context
+  \return                            - channel to scan from valid session else zero.
+  
+  \sa
+  
+  --------------------------------------------------------------------------*/
+tANI_U8 peGetCurrentChannel(tpAniSirGlobal pMac);
+
+
+/*--------------------------------------------------------------------------
   \brief peValidateJoinReq() - validates the Join request .
 
   This function is called to validate the Join Request for a BT-AMP station. If start BSS session is present
@@ -112,25 +128,5 @@ tANI_U8 peIsAnySessionActive(tpAniSirGlobal pMac);
 
 
 
-/*--------------------------------------------------------------------------
-  \brief isLimSessionOffChannel() - Determines if the session is 
-                                        off channel.
-
-  This function returns TRUE if the session Id passed needs to be on a different
-  channel than atleast one session already active.
-    
-  \param pMac                   - pointer to global adapter context
-  \param sessionId              - session ID of the session to be verified.  
-  
-  \return tANI_U8               - Boolean value for off-channel operation.
-  
-  \sa
-  --------------------------------------------------------------------------*/
-tANI_U8
-isLimSessionOffChannel(tpAniSirGlobal pMac, tANI_U8 sessionId);
-/* --------------------------------------------------------------------------*/
-
-tANI_U8
-peGetActiveSessionChannel( tpAniSirGlobal pMac );
 #endif //#if !defined( __LIM_SESSION_UTILS_H )
 

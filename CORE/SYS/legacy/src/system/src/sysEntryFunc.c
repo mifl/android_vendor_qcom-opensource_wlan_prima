@@ -167,6 +167,7 @@ sysBbtProcessMessageCore(tpAniSirGlobal pMac, tpSirMsgQ pMsg, tANI_U32 type,
     vos_pkt_t  *pVosPkt = (vos_pkt_t *)pMsg->bodyptr;
     VOS_STATUS  vosStatus =
               WDA_DS_PeekRxPacketInfo( pVosPkt, (v_PVOID_t *)&pBd, VOS_FALSE );
+
     pMac->sys.gSysBbtReceived++;
 
     if ( !VOS_IS_STATUS_SUCCESS(vosStatus) )
@@ -197,30 +198,18 @@ sysBbtProcessMessageCore(tpAniSirGlobal pMac, tpSirMsgQ pMsg, tANI_U32 type,
                 goto fail;
             }
             pMac->sys.gSysBbtPostedToLim++;
+
     }
-#ifdef FEATURE_WLAN_CCX
-    else if (type == SIR_MAC_DATA_FRAME)
-    {
-        PELOGW(sysLog(pMac, LOGW, FL("IAPP Frame...\n")););
-        //Post the message to PE Queue
-        ret = (tSirRetStatus) limPostMsgApi(pMac, pMsg);
-        if (ret != eSIR_SUCCESS)
-        {
-            PELOGE(sysLog(pMac, LOGE, FL("posting to LIM2 failed, ret %d\n"), ret);)
-            goto fail;
-        }
-        pMac->sys.gSysBbtPostedToLim++;
-    }
-#endif
     else
     {
-        PELOGE(sysLog(pMac, LOGE, "BBT received Invalid type %d subType %d "
+            PELOGE(sysLog(pMac, LOGE, "BBT received Invalid type %d subType %d "
                    "LIM state %X. BD dump is:\n",
                    type, subType, limGetSmeState(pMac));
-        sirDumpBuf(pMac, SIR_SYS_MODULE_ID, LOGE,
+            sirDumpBuf(pMac, SIR_SYS_MODULE_ID, LOGE,
                        (tANI_U8 *) pBd, WLANHAL_RX_BD_HEADER_SIZE);)
 
-        goto fail;
+            goto fail;
+
     }
 
     return eSIR_SUCCESS;

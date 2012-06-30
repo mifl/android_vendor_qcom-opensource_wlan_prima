@@ -475,7 +475,7 @@ LIM
 WNI_CFG_REASSOCIATION_FAILURE_TIMEOUT    I    4    7
 V    RW    NP
 NONE
-0    65535    2000
+0    65535    1000
 V    RW    NP
 NONE
 0    65535    3000
@@ -524,10 +524,10 @@ NONE
 WNI_CFG_PS_ENABLE_RSSI_MONITOR    I    4    7
 V    RW    NP
 HAL
-0    1    0
+0    1    1
 NV    RW    NP
 NONE
-0    1    0
+0    1    1
 
 
 *
@@ -2834,21 +2834,6 @@ NV    RW    NP
 LIM
 0    255    20
 
-*
-* Period for which Firmware will collect the 
-* RSSI stats. Its in units of beacon interval. 
-* Rssi Filter period should always be >=
-* the num_beacon_per_rssi_average.
-* This value is used ONLY for CCX and 11r Fasttransition
-*
-WNI_CFG_FT_RSSI_FILTER_PERIOD    I    4    5
-V    RW    NP
-LIM
-0    255    5
-NV    RW    NP
-LIM
-0    255    5
-
 
 WNI_CFG_MIN_RSSI_THRESHOLD    I    4    5
 V    RW    NP
@@ -3977,25 +3962,3 @@ NONE
 V    RW    NP
 NONE
 0    1     0
-
-*
-* AP Keep Alive Timeout (TU)
-*
-WNI_CFG_AP_KEEP_ALIVE_TIMEOUT    I    4    7
-V    RW    NP
-HAL
-1    255    20
-V    RW    NP
-HAL
-1    255    20
-
-*
-* GO Keep Alive Timeout (TU)
-*
-WNI_CFG_GO_KEEP_ALIVE_TIMEOUT    I    4    7
-V    RW    NP
-HAL
-1    255    20
-V    RW    NP
-HAL
-1    255    20

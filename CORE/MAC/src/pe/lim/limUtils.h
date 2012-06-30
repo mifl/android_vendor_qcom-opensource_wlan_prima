@@ -46,6 +46,7 @@ typedef enum
     TWO_BYTE   = 2
 } eSizeOfLenField;
 
+
 #define LIM_STA_ID_MASK                        0x00FF
 #define LIM_AID_MASK                              0xC000
 #define LIM_SPECTRUM_MANAGEMENT_BIT_MASK          0x0100
@@ -92,12 +93,6 @@ void limPrintMsgName(tpAniSirGlobal pMac, tANI_U16 logLevel, tANI_U32 msgType);
 void limPrintMsgInfo(tpAniSirGlobal pMac, tANI_U16 logLevel, tSirMsgQ *msg);
 char* limBssTypeStr(tSirBssType bssType);
 
-#if defined FEATURE_WLAN_CCX || defined WLAN_FEATURE_VOWIFI
-extern tSirRetStatus limSendSetMaxTxPowerReq ( tpAniSirGlobal pMac, 
-                                  tPowerdBm txPower, 
-                                  tpPESession pSessionEntry );
-extern tANI_U8 limGetMaxTxPower(tPowerdBm regMax, tPowerdBm apTxPower, tPowerdBm iniTxPower);
-#endif
 
 tANI_U32            limPostMsgApiNoWait(tpAniSirGlobal, tSirMsgQ *);
 tANI_U8           limIsAddrBC(tSirMacAddr);
@@ -380,7 +375,6 @@ void limHandleHeartBeatFailureTimeout(tpAniSirGlobal pMac);
 void limProcessDelStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ);
 void limProcessAddStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ);
 v_U8_t* limGetIEPtr(tpAniSirGlobal pMac, v_U8_t *pIes, int length, v_U8_t eid,eSizeOfLenField size_of_len_field);
-
 tANI_U8 limUnmapChannel(tANI_U8 mapChannel);
 
 #define limGetWscIEPtr(pMac, ie, ie_len) \
@@ -396,8 +390,6 @@ v_U8_t limGetNoaAttrStream(tpAniSirGlobal pMac, v_U8_t*pNoaStream,tpPESession ps
 v_U8_t limBuildP2pIe(tpAniSirGlobal pMac, tANI_U8 *ie, tANI_U8 *data, tANI_U8 ie_len);
 #endif
 v_U8_t* limGetVendorIEOuiPtr(tpAniSirGlobal pMac, tANI_U8 *oui, tANI_U8 oui_size, tANI_U8 *ie, tANI_U16 ie_len);
-tANI_BOOLEAN limIsconnectedOnDFSChannel(tANI_U8 currentChannel);
-tANI_U8 limGetCurrentOperatingChannel(tpAniSirGlobal pMac);
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 
@@ -463,22 +455,5 @@ typedef enum
 
 void limDiagEventReport(tpAniSirGlobal pMac, tANI_U16 eventType, tpPESession pSessionEntry, tANI_U16 status, tANI_U16 reasonCode);
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
-
-void peSetResumeChannel(tpAniSirGlobal pMac, tANI_U16 channel, tANI_U8 cbState);
-/*--------------------------------------------------------------------------
-  
-  \brief peGetResumeChannel() - Returns the  channel number for scanning, from a valid session.
-
-  This function itrates the session Table and returns the channel number from first valid session
-   if no sessions are valid it returns 0
-    
-  \param pMac                   - pointer to global adapter context
-  \return                            - channel to scan from valid session else zero.
-  
-  \sa
-  
-  --------------------------------------------------------------------------*/
-tANI_U8 peGetResumeChannel(tpAniSirGlobal pMac);
-
 
 #endif /* __LIM_UTILS_H */

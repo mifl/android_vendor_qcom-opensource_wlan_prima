@@ -658,7 +658,7 @@ WLANTL_BaSessionDel
   if(!VOS_IS_STATUS_SUCCESS(lockStatus))
   {
     TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-          "Unable to acquire reorder vos lock in %s\n", __FUNCTION__));
+          "Unable to acquire reorder vos lock in %s\n", __func__));
     return lockStatus;
   }
   pTLCb->atlSTAClients[ucSTAId].atlBAReorderInfo[ucTid].ucExists = 0;
@@ -816,7 +816,7 @@ VOS_STATUS
 WLANTL_AMSDUProcess
 ( 
   v_PVOID_t   pvosGCtx,
-  vos_pkt_t** ppVosDataBuff, 
+  vos_pkt_t*  vosDataBuff, 
   v_PVOID_t   pvBDHeader,
   v_U8_t      ucSTAId,
   v_U8_t      ucMPDUHLen,
@@ -833,20 +833,18 @@ WLANTL_AMSDUProcess
   v_U16_t         MPDUDataOffset;
   v_U16_t         packetLength; 
   static v_U32_t  numAMSDUFrames = 0;
-  vos_pkt_t*      vosDataBuff;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
   /*------------------------------------------------------------------------
     Sanity check
    ------------------------------------------------------------------------*/
-  if (( NULL == ppVosDataBuff ) || (NULL == *ppVosDataBuff) || ( NULL == pvBDHeader ) || 
+  if (( NULL == vosDataBuff ) || ( NULL == pvBDHeader ) || 
       ( WLANTL_STA_ID_INVALID(ucSTAId)) )
   {
     VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-               "WLAN TL:Invalid parameter sent on WLANTL_AMSDUProcess");
+               "WLAN TL:Invalid parameter sent on WLANTL_AMSDUComplete");
     return VOS_STATUS_E_INVAL;
   }
 
-  vosDataBuff = *ppVosDataBuff;
   /*------------------------------------------------------------------------
     Extract TL control block 
    ------------------------------------------------------------------------*/
@@ -854,7 +852,7 @@ WLANTL_AMSDUProcess
   if ( NULL == pTLCb ) 
   {
     VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-         "WLAN TL:Invalid TL pointer from pvosGCtx on WLANTL_AMSDUProcess");
+         "WLAN TL:Invalid TL pointer from pvosGCtx on WLANTL_AMSDUComplete");
     return VOS_STATUS_E_FAULT;
   }
 
@@ -872,12 +870,12 @@ WLANTL_AMSDUProcess
 
   if ( WLANHAL_RX_BD_AEF_SET == ucAef ) 
   {
-    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+    TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
                "WLAN TL:Error in AMSDU - dropping entire chain"));
 
     vos_pkt_return_packet(vosDataBuff);
-    *ppVosDataBuff = NULL;
-    return VOS_STATUS_SUCCESS; /*Not a transport error*/ 
+    vosDataBuff = NULL;
+    return VOS_STATUS_SUCCESS; /*Not a transport error*/
   }
 
   if((0 != ucMPDUHLen) && ucFsf)
@@ -892,8 +890,8 @@ WLANTL_AMSDUProcess
     {
       TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Pop MPDU AMSDU Header fail"));
       vos_pkt_return_packet(vosDataBuff);
-      *ppVosDataBuff = NULL;
-      return VOS_STATUS_SUCCESS; /*Not a transport error*/ 
+      vosDataBuff = NULL;
+      return VOS_STATUS_SUCCESS; /*Not a transport error*/
     }
     pTLCb->atlSTAClients[ucSTAId].ucMPDUHeaderLen = ucMPDUHLen;
     memcpy(pTLCb->atlSTAClients[ucSTAId].aucMPDUHeader, MPDUHeaderAMSDUHeader, ucMPDUHLen);
@@ -910,8 +908,8 @@ WLANTL_AMSDUProcess
     {
       TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Trim Garbage Data fail"));
       vos_pkt_return_packet(vosDataBuff);
-      *ppVosDataBuff = NULL;
-      return VOS_STATUS_SUCCESS; /*Not a transport error*/ 
+      vosDataBuff = NULL;
+      return VOS_STATUS_SUCCESS; /*Not a transport error*/
     }
 
     /* Remove MPDU header and AMSDU header from the packet */
@@ -920,8 +918,8 @@ WLANTL_AMSDUProcess
     {
       TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"AMSDU Header Pop fail"));
       vos_pkt_return_packet(vosDataBuff);
-      *ppVosDataBuff = NULL;
-      return VOS_STATUS_SUCCESS; /*Not a transport error*/ 
+      vosDataBuff = NULL;
+      return VOS_STATUS_SUCCESS; /*Not a transport error*/
     }
   } /* End of henalding not first sub frame specific */
 
@@ -931,8 +929,8 @@ WLANTL_AMSDUProcess
   {
     TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"MPDU Header Push back fail"));
     vos_pkt_return_packet(vosDataBuff);
-    *ppVosDataBuff = NULL;
-    return VOS_STATUS_SUCCESS; /*Not a transport error*/ 
+    vosDataBuff = NULL;
+    return VOS_STATUS_SUCCESS; /*Not a transport error*/
   }
 
   /* Find Padding and remove */
@@ -957,8 +955,8 @@ WLANTL_AMSDUProcess
     /* Not a valid case, not a valid frame, drop it */
     TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"Padding Size is negative, no possible %d", paddingSize));
     vos_pkt_return_packet(vosDataBuff);
-    *ppVosDataBuff = NULL;
-    return VOS_STATUS_SUCCESS; /*Not a transport error*/ 
+    vosDataBuff = NULL;
+    return VOS_STATUS_SUCCESS; /*Not a transport error*/
   }
 
   numAMSDUFrames++;

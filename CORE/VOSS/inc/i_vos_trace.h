@@ -99,7 +99,7 @@ if ( ! ( _condition ) )                                   \
    printk(KERN_CRIT "VOS ASSERT in %s Line %d\n", __FUNCTION__, __LINE__); \
    WARN_ON(1); \
 }
-
+        
 #else 
 
 
@@ -108,26 +108,6 @@ if ( ! ( _condition ) )                                   \
   VOS_INLINE_FN void vos_trace_msg( VOS_MODULE_ID module, ... ){}
   
   #define VOS_ASSERT( _condition )
-
-#endif
-
-#ifdef PANIC_ON_BUG
-
-#define VOS_BUG( _condition ) \
-if ( ! ( _condition ) )       \
-{                             \
-   printk(KERN_CRIT "VOS BUG in %s Line %d\n", __FUNCTION__, __LINE__); \
-   BUG_ON(1); \
-}
-
-#else
-
-#define VOS_BUG( _condition ) \
-if ( ! ( _condition ) )       \
-{                             \
-   printk(KERN_CRIT "VOS BUG in %s Line %d\n", __FUNCTION__, __LINE__); \
-   WARN_ON(1); \
-}
 
 #endif
 

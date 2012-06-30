@@ -32,6 +32,7 @@
   \author Sunit Bhatia
   
    Copyright 2008 (c) Qualcomm, Incorporated.  All Rights Reserved.
+   
    Qualcomm Confidential and Proprietary.
   
   ========================================================================*/
@@ -49,6 +50,7 @@
 #ifdef WLAN_SOFTAP_FEATURE
 #define NUM_WEP_KEYS 4
 #endif
+
 
 /*-------------------------------------------------------------------------- 
   Type declarations
@@ -128,11 +130,11 @@ typedef struct sPESession           // Added to Support BT-AMP
 
 
     /*
-    * staId:  Start BSS: this is the  Sta Id for the BSS.
-                 Join: this is the selfStaId
+    * staId:  Start BSS:     this is the  Sta Id for the BSS.
+                 Join:         this is the selfStaId
       In both cases above, the peer STA ID wll be stored in dph hash table.
     */
-    tANI_U16                staId;
+    tANI_U16                staId;            
     tANI_U16                statypeForBss;          //to know session is for PEER or SELF
     tANI_U8                 shortSlotTimeSupported;
     tANI_U8                 dtimPeriod;
@@ -159,27 +161,20 @@ typedef struct sPESession           // Added to Support BT-AMP
     tANI_U32                assocRspLen;
     tANI_U8                 *assocRsp;              //Used to store association response received while associating
     tAniSirDph              dph;
-    void *                  *parsedAssocReq;        //Used to store parsed assoc req from various requesting station
-#ifdef WLAN_FEATURE_VOWIFI_11R    
-    tANI_U32                RICDataLen;             //Used to store the Ric data received in the assoc response
-    tANI_U8                 *ricData;
-#endif
-#ifdef FEATURE_WLAN_CCX    
-    tANI_U32                tspecLen;               //Used to store the TSPEC IEs received in the assoc response
-    tANI_U8                 *tspecIes;
-#endif
-    tANI_U32                encryptType;
+    void *                  *parsedAssocReq;        // Used to store parsed assoc req from various requesting station
+    
+    tANI_U32                   encryptType;
 
 #ifdef WLAN_SOFTAP_FEATURE
     tANI_BOOLEAN            bTkipCntrMeasActive;    // Used to keep record of TKIP counter measures start/stop
 
     tANI_U8                 gLimProtectionControl;  //used for 11n protection
 
-    tANI_U8                 gHTNonGFDevicesPresent;
+    tANI_U8                 gHTNonGFDevicesPresent;    
 
     //protection related config cache
     tCfgProtection          cfgProtection;
-
+    
     // Number of legacy STAs associated
     tLimProtStaParams          gLim11bParams;
 
@@ -243,22 +238,10 @@ typedef struct sPESession           // Added to Support BT-AMP
 
     tANI_U32           lim11hEnable;
 
-    tPowerdBm  maxTxPower;   //MIN (Regulatory and local power constraint)
+    tPowerdBm          maxTxPower;   //MIN (Regulatory and local power constraint)
     tVOS_CON_MODE      pePersona;
 #if defined WLAN_FEATURE_VOWIFI
-    tPowerdBm  txMgmtPower;
-#endif
-
-#ifdef WLAN_FEATURE_VOWIFI_11R
-    tAniBool            is11Rconnection;
-#endif
-
-#ifdef FEATURE_WLAN_CCX
-    tAniBool            isCCXconnection;
-    tCcxPEContext       ccxContext;
-#endif
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
-    tAniBool            isFastTransitionEnabled;
+    tPowerdBm          txMgmtPower;
 #endif
 #ifdef WLAN_FEATURE_P2P
     tSirNoAParam p2pNoA;
@@ -288,9 +271,6 @@ typedef struct sPESession           // Added to Support BT-AMP
 
     tANI_U8            spectrumMgtEnabled;
 
-    /*Flag to Track Status/Indicate HBFailure on this session */
-    tANI_BOOLEAN LimHBFailureStatus;
-    tANI_U32           gLimPhyMode;
 }tPESession, *tpPESession;
 
 #define LIM_MAX_ACTIVE_SESSIONS 4
@@ -368,22 +348,6 @@ tpPESession peFindSessionByPeerSta(tpAniSirGlobal pMac, tANI_U8*  sa, tANI_U8* s
   \sa
   --------------------------------------------------------------------------*/
  tpPESession peFindSessionBySessionId(tpAniSirGlobal pMac , tANI_U8 sessionId);
-
-/*--------------------------------------------------------------------------
-  \brief peFindSessionByBssid() - looks up the PE session given staid.
-
-  This function returns the session context and the session ID if the session
-  corresponding to the given StaId is found in the PE session table.
-   
-  \param pMac                  - pointer to global adapter context
-  \param staid                 - StaId of the session
-  \param sessionId             - session ID is returned here, if session is found.
-
-  \return tpPESession          - pointer to the session context or NULL if session is not found.
-
---------------------------------------------------------------------------*/
- tpPESession peFindSessionByStaId(tpAniSirGlobal pMac,  tANI_U8  staid,    tANI_U8* sessionId);
- 
 
 
 

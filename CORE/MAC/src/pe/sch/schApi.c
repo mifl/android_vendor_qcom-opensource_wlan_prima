@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file schApi.cc contains functions related to the API exposed
  * by scheduler module
@@ -323,24 +322,6 @@ tSirRetStatus schSendBeaconReq( tpAniSirGlobal pMac, tANI_U8 *beaconPayload, tAN
   beaconParams->beaconLength = (tANI_U32) size;
   msgQ.bodyptr = beaconParams;
   msgQ.bodyval = 0;
-
-  // Keep a copy of recent beacon frame sent
-
-  // free previous copy of the beacon
-  if (psessionEntry->beacon )
-  {
-    palFreeMemory(pMac->hHdd, psessionEntry->beacon);
-  }
-
-  psessionEntry->bcnLen = 0;
-  psessionEntry->beacon = NULL;
-
-  if ( eHAL_STATUS_SUCCESS == palAllocateMemory( pMac->hHdd,(void **) &psessionEntry->beacon, size)) 
-  {
-    palCopyMemory(pMac->hHdd, psessionEntry->beacon, beaconPayload, size);
-    psessionEntry->bcnLen = size;
-  }
-
   MTRACE(macTraceMsgTx(pMac, 0, msgQ.type));
   if( eSIR_SUCCESS != (retCode = wdaPostCtrlMsg( pMac, &msgQ )))
   {
@@ -402,46 +383,24 @@ tANI_U32 limSendProbeRspTemplateToHal(tpAniSirGlobal pMac,tpPESession psessionEn
 
     nBytes = nPayload + sizeof( tSirMacMgmtHdr );
     
-    //Check if probe response IE is set first before checking beacon/probe rsp IE
-    if(wlan_cfgGetInt(pMac, WNI_CFG_PROBE_RSP_ADDNIE_FLAG, &addnIEPresent) != eSIR_SUCCESS)
+    //TODO: If additional IE needs to be added. Add then alloc required buffer.
+    if(wlan_cfgGetInt(pMac, WNI_CFG_PROBE_RSP_BCN_ADDNIE_FLAG, &addnIEPresent) != eSIR_SUCCESS)
     {
         schLog(pMac, LOGE, FL("Unable to get WNI_CFG_PROBE_RSP_BCN_ADDNIE_FLAG\n"));
         return retCode;
     }
-
-    if(!addnIEPresent)
-    {
-        //TODO: If additional IE needs to be added. Add then alloc required buffer.
-        if(wlan_cfgGetInt(pMac, WNI_CFG_PROBE_RSP_BCN_ADDNIE_FLAG, &addnIEPresent) != eSIR_SUCCESS)
-        {
-            schLog(pMac, LOGE, FL("Unable to get WNI_CFG_PROBE_RSP_BCN_ADDNIE_FLAG\n"));
-            return retCode;
-        }
     
-        if(addnIEPresent)
-        {
-            if(wlan_cfgGetStrLen(pMac, WNI_CFG_PROBE_RSP_BCN_ADDNIE_DATA, &addnIELen) != eSIR_SUCCESS)
-            {
-                schLog(pMac, LOGE, FL("Unable to get WNI_CFG_PROBE_RSP_BCN_ADDNIE_DATA length"));
-                return retCode;
-            }
-        }
-    }
-    else
-    {
-        //Probe rsp IE available
-        if(wlan_cfgGetStrLen(pMac, WNI_CFG_PROBE_RSP_ADDNIE_DATA1, &addnIELen) != eSIR_SUCCESS)
-        {
-            limLog(pMac, LOGP, FL("Unable to get WNI_CFG_PROBE_RSP_BCN_ADDNIE_DATA length"));
-            return retCode;
-        }
-    }
-
     if(addnIEPresent)
     {
+        if(wlan_cfgGetStrLen(pMac, WNI_CFG_PROBE_RSP_BCN_ADDNIE_DATA, &addnIELen) != eSIR_SUCCESS)
+        {
+            schLog(pMac, LOGE, FL("Unable to get WNI_CFG_PROBE_RSP_BCN_ADDNIE_DATA length"));
+            return retCode;
+        }
+
         if((nBytes + addnIELen) <= SIR_MAX_PACKET_SIZE ) 
             nBytes += addnIELen;
-        else 
+       else 
             addnIEPresent = false; //Dont include the IE.     
     }
        

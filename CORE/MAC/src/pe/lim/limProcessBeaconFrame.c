@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limProcessBeaconFrame.cc contains the code
  * for processing Received Beacon Frame.
@@ -86,7 +85,7 @@ limProcessBeaconFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession ps
     pHdr = WDA_GET_RX_MAC_HEADER(pRxPacketInfo);
 
 
-    PELOG2(limLog(pMac, LOG2, FL("Received Beacon frame with length=%d from "),
+   PELOG2(limLog(pMac, LOG2, FL("Received Beacon frame with length=%d from "),
            WDA_GET_RX_MPDU_LEN(pRxPacketInfo));
     limPrintMacAddr(pMac, pHdr->sa, LOG2);)
 
@@ -119,24 +118,13 @@ limProcessBeaconFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession ps
         }
 
 
-        MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_TSF, 0, beacon.timeStamp[0]);)
-        MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_TSF, 0, beacon.timeStamp[1]);)
+       MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_TSF, 0, beacon.timeStamp[0]);)
+       MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_TSF, 0, beacon.timeStamp[1]);)
 
 
         if ((pMac->lim.gLimMlmState  == eLIM_MLM_WT_PROBE_RESP_STATE) ||
             (pMac->lim.gLimMlmState  == eLIM_MLM_PASSIVE_SCAN_STATE))
-        {
-#ifdef WLAN_FEATURE_P2P
-            //If we are scanning for P2P, only accept probe rsp
-            if((pMac->lim.gLimHalScanState != eLIM_HAL_SCANNING_STATE) || (NULL == pMac->lim.gpLimMlmScanReq) 
-               || !pMac->lim.gpLimMlmScanReq->p2pSearch )
-#endif
-            {
-                limCheckAndAddBssDescription(pMac, &beacon, pRxPacketInfo, 
-                       ((pMac->lim.gLimHalScanState == eLIM_HAL_SCANNING_STATE) ? eANI_BOOLEAN_TRUE : eANI_BOOLEAN_FALSE), 
-                       eANI_BOOLEAN_FALSE);
-            }
-        }
+            limCheckAndAddBssDescription(pMac, &beacon, pRxPacketInfo, ((pMac->lim.gLimHalScanState == eLIM_HAL_SCANNING_STATE) ? eANI_BOOLEAN_TRUE : eANI_BOOLEAN_FALSE));
         else if (pMac->lim.gLimMlmState == eLIM_MLM_LEARN_STATE)
         {
 #if (WNI_POLARIS_FW_PRODUCT == AP) && (WNI_POLARIS_FW_PACKAGE == ADVANCED)
@@ -253,14 +241,7 @@ limProcessBeaconFrameNoSession(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo)
         if ( (pMac->lim.gLimMlmState == eLIM_MLM_WT_PROBE_RESP_STATE) ||
              (pMac->lim.gLimMlmState == eLIM_MLM_PASSIVE_SCAN_STATE) )
         {
-#ifdef WLAN_FEATURE_P2P
-            //If we are scanning for P2P, only accept probe rsp
-            if((pMac->lim.gLimHalScanState != eLIM_HAL_SCANNING_STATE) || (NULL == pMac->lim.gpLimMlmScanReq) 
-               || !pMac->lim.gpLimMlmScanReq->p2pSearch )
-#endif
-            {
-                limCheckAndAddBssDescription(pMac, &beacon, pRxPacketInfo, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_FALSE);
-            }
+            limCheckAndAddBssDescription(pMac, &beacon, pRxPacketInfo, eANI_BOOLEAN_TRUE);
         }
         else if (pMac->lim.gLimMlmState == eLIM_MLM_LEARN_STATE)
         {

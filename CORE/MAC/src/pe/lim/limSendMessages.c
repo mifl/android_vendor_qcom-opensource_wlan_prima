@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * limSendMessages.c: Provides functions to send messages or Indications to HAL.
  * Author:    Sunit Bhatia
@@ -240,6 +239,7 @@ tSirRetStatus limSendSwitchChnlParams(tpAniSirGlobal pMac,
     tpSwitchChannelParams pChnlParams = NULL;
     tSirRetStatus   retCode = eSIR_SUCCESS;
     tSirMsgQ msgQ;
+#if defined WLAN_FEATURE_VOWIFI
     tpPESession pSessionEntry;
 
     if((pSessionEntry = peFindSessionBySessionId(pMac , peSessionId)) == NULL)
@@ -249,6 +249,8 @@ tSirRetStatus limSendSwitchChnlParams(tpAniSirGlobal pMac,
        return eSIR_FAILURE;
 
     }
+
+#endif
 
     if( eHAL_STATUS_SUCCESS != palAllocateMemory( pMac->hHdd,
           (void **) &pChnlParams,
@@ -267,12 +269,12 @@ tSirRetStatus limSendSwitchChnlParams(tpAniSirGlobal pMac,
     pChnlParams->channelNumber= chnlNumber;
 #if defined WLAN_FEATURE_VOWIFI  
     pChnlParams->maxTxPower = maxTxPower;
+    palCopyMemory( pMac->hHdd, pChnlParams->bssId, pSessionEntry->bssId, sizeof(tSirMacAddr) );
     palCopyMemory( pMac->hHdd, pChnlParams->selfStaMacAddr, pSessionEntry->selfMacAddr, sizeof(tSirMacAddr) );
 #else
     pChnlParams->localPowerConstraint = localPwrConstraint;
 #endif
 
-    palCopyMemory( pMac->hHdd, pChnlParams->bssId, pSessionEntry->bssId, sizeof(tSirMacAddr) );
     pChnlParams->peSessionId = peSessionId;
     
     //we need to defer the message until we get the response back from WDA.

@@ -20,8 +20,7 @@
  */
 
 /*
- *
- * Airgo Networks, Inc proprietary. All rights reserved.
+ * Airgo Networks, Inc proprietary. All rights reserved
  * macInitApi.c - Header file for mac level init functions
   * Author:    Dinesh Upadhyay
  * Date:      04/23/2007

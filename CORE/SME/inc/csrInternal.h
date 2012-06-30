@@ -27,7 +27,9 @@
   
     Define internal data structure for MAC.
   
-    Copyright (C) 2006 Airgo Networks, Incorporated 
+    Copyright (C) 2006 Airgo Networks, Incorporated
+  
+ 
    ========================================================================== */
 #ifndef CSRINTERNAL_H__
 #define CSRINTERNAL_H__
@@ -46,8 +48,6 @@
 #include "csrNeighborRoam.h"
 #endif
 
-#define CSR_MAX_STA (HAL_NUM_STA)
-
 #define CSR_SME_SCAN_FLAGS_DELETE_CACHE     0x80
 
 #define CSR_TITAN_MAX_RATE_MIMO_CB 240
@@ -64,17 +64,12 @@
 
 //Support for multiple session
 #define CSR_SESSION_ID_INVALID    0xFF   // session ID invalid
-#define CSR_ROAM_SESSION_MAX      5   // No of sessions to be supported, and a
+#define CSR_ROAM_SESSION_MAX      3   // No of sessions to be supported, and a
                                       // session is for Infra, IBSS or BT-AMP
 
 #define CSR_IS_SESSION_VALID( pMac, sessionId ) ( ( (sessionId) < CSR_ROAM_SESSION_MAX ) \
                                                   && ( (pMac)->roam.roamSession[(sessionId)].sessionActive ) )
-#define CSR_GET_SESSION( pMac, sessionId ) \
-( \
-    (sessionId < CSR_ROAM_SESSION_MAX) ? \
-     (&(pMac)->roam.roamSession[(sessionId)]) :\
-     NULL \
-)
+#define CSR_GET_SESSION( pMac, sessionId ) (&(pMac)->roam.roamSession[(sessionId)])
 
 
 
@@ -132,7 +127,6 @@ typedef enum
     eCsrScanProbeBss, // directed probe on an entry from the candidate list - HO
     eCsrScanAbortBgScan,    //aborting a BG scan (meaning the scan is triggered by LIM timer)
     eCsrScanAbortNormalScan, //aborting a normal scan (the scan is trigger by eWNI_SME_SCAN_REQ)
-    eCsrScanP2PFindPeer    
 }eCsrScanReason;
 
 typedef enum 
@@ -149,14 +143,12 @@ typedef enum
     eCsrSmeIssuedReassocToSameAP,
     eCsrSmeIssuedReassocToDiffAP,
     eCsrForcedDeauth,        // roaming becuase someone asked us to deauth and stay disassociated.
+    
     eCsrSmeIssuedDisassocForHandoff, // will be issued by Handoff logic to disconect from current AP
     eCsrSmeIssuedAssocToSimilarAP, // will be issued by Handoff logic to join a new AP with same profile
     eCsrSmeIssuedIbssJoinFailure, // ibss join timer fired before any perr showed up, so shut down the network
     eCsrForcedIbssLeave,
     eCsrStopBss,
-    eCsrSmeIssuedFTReassoc,
-    eCsrForcedDisassocSta,
-    eCsrForcedDeauthSta,
     
 }eCsrRoamReason;
 
@@ -207,8 +199,7 @@ typedef enum
 typedef enum
 {
     eCsrNotRoaming,
-    eCsrLostlinkRoamingDisassoc,
-    eCsrLostlinkRoamingDeauth,
+    eCsrLostlinkRoaming,
     eCsrDynamicRoaming,
    eCsrReassocRoaming,
 }eCsrRoamingReason;
@@ -345,7 +336,7 @@ typedef struct tagScanCmd
     csrScanCompleteCallback callback;
     void                    *pContext;
     eCsrScanReason          reason;
-    eCsrRoamState           lastRoamState[CSR_ROAM_SESSION_MAX];
+    eCsrRoamState           lastRoamState;
     tCsrRoamProfile         *pToRoamProfile;
     tANI_U32                roamId;    //this is the ID related to the pToRoamProfile
     union
@@ -372,8 +363,6 @@ typedef struct tagRoamCmd
     tANI_BOOLEAN fReassocToSelfNoCapChange;    
 
     tANI_BOOLEAN fStopWds;
-    tSirMacAddr peerMac;
-    tSirMacReasonCodes reason;
 }tRoamCmd;
 
 typedef struct tagSetKeyCmd
@@ -445,6 +434,7 @@ typedef struct tagCsrCmd
 #ifdef WLAN_FEATURE_VOWIFI_11R
 typedef struct tagCsr11rConfig
 {
+    tANI_BOOLEAN   IsFTSupportEnabled;
     tANI_BOOLEAN   IsFTResourceReqSupported;
 } tCsr11rConfig;
 #endif
@@ -485,7 +475,6 @@ typedef struct tagCsrConfig
     tANI_BOOLEAN Is11hSupportEnabled;
     tANI_BOOLEAN shortSlotTime;
     tANI_BOOLEAN ProprietaryRatesEnabled;
-    tANI_BOOLEAN  fenableMCCMode;
     tANI_U16 TxRate;
     tANI_U8 AdHocChannel24;
     tANI_U8 AdHocChannel5G;
@@ -539,18 +528,6 @@ typedef struct tagCsrConfig
     tCsr11rConfig csr11rConfig;
 #endif
 
-#ifdef FEATURE_WLAN_LFR
-    tANI_U8   isFastRoamIniFeatureEnabled;
-#endif
-
-#ifdef FEATURE_WLAN_CCX
-    tANI_U8   isCcxIniFeatureEnabled;
-#endif
-
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-    tANI_U8   isFastTransitionEnabled;
-#endif
-
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
     tCsrNeighborRoamConfig neighborRoamConfig;
 #endif
@@ -560,10 +537,6 @@ typedef struct tagCsrConfig
     tANI_BOOLEAN addTSWhenACMIsOff;
 
     tANI_BOOLEAN fValidateList;
-    tANI_BOOLEAN concurrencyEnabled;
-
-    //To enable/disable scanning 2.4Ghz channels twice on a single scan request from HDD
-    tANI_BOOLEAN fScanTwice;
 
 }tCsrConfig;
 
@@ -660,8 +633,6 @@ typedef struct tagCsrScanStruct
     * (apprx 1.3 sec) */
     tANI_BOOLEAN fEnableDFSChnlScan;
 
-    tANI_BOOLEAN fDropScanCmd; //true means we don't accept scan commands
-
 #ifdef WLAN_AP_STA_CONCURRENCY
     tDblLinkList scanCmdPendingList;
 #endif    
@@ -677,10 +648,7 @@ typedef struct tagRoamCsrConnectedInfo
     tANI_U32 nAssocRspLength;   //The length, in bytes, of the assoc rsp frame, can be 0
 #ifdef WLAN_FEATURE_VOWIFI_11R
     tANI_U32 nRICRspLength; //Length of the parsed RIC response IEs received in reassoc response
-#endif    
-#ifdef FEATURE_WLAN_CCX
-    tANI_U32 nTspecIeLength;
-#endif    
+#endif
     tANI_U8 *pbFrames;  //Point to a buffer contain the beacon, assoc req, assoc rsp frame, in that order
                         //user needs to use nBeaconLength, nAssocReqLength, nAssocRspLength to desice where
                         //each frame starts and ends.
@@ -705,9 +673,6 @@ typedef struct tagCsrPeStatsReqInfo
    tANI_U8                staId;
    tANI_U8                numClient;
    tpAniSirGlobal         pMac;
-   /* To remember if the peStats timer is stopped successfully or not */   
-   tANI_BOOLEAN           timerStopFailed;
-
 }tCsrPeStatsReqInfo;
 
 typedef struct tagCsrStatsClientReqInfo
@@ -800,16 +765,6 @@ typedef struct tagCsrRoamSession
     tCsrTimerInfo joinRetryTimerInfo;
     tANI_U32 maxRetryCount;
 #endif
-#ifdef FEATURE_WLAN_CCX
-    tCsrCcxCckmInfo ccxCckmInfo;
-    tANI_BOOLEAN isPrevApInfoValid;
-    tSirMacSSid prevApSSID;
-    tCsrBssid prevApBssid;
-    tANI_U8 prevOpChannel;
-    tANI_U16 clientDissSecs;
-    tANI_U32 roamTS1;
-#endif
-    tANI_U8 bRefAssocStartCnt;   //Tracking assoc start indication
 } tCsrRoamSession;
 
 typedef struct tagCsrRoamStruct
@@ -822,8 +777,8 @@ typedef struct tagCsrRoamStruct
     tANI_U32 numChannelsEeprom; //total channels of eeprom
     tCsrChannel base20MHzChannels;   //The channel base to work on              
     tCsrChannel base40MHzChannels;   //center channels for 40MHz channels      
-    eCsrRoamState curState[CSR_ROAM_SESSION_MAX];  
-    eCsrRoamSubState curSubState[CSR_ROAM_SESSION_MAX];
+    eCsrRoamState curState;  
+    eCsrRoamSubState curSubState;
     //This may or may not have the up-to-date valid channel list
     //It is used to get WNI_CFG_VALID_CHANNEL_LIST and not allocate memory all the time
     tSirMacChanNum validChannelList[WNI_CFG_VALID_CHANNEL_LIST_LEN];
@@ -838,7 +793,7 @@ typedef struct tagCsrRoamStruct
     tCsrGlobalClassBStatsInfo  classBStatsInfo;
     tCsrGlobalClassCStatsInfo  classCStatsInfo;
     tCsrGlobalClassDStatsInfo  classDStatsInfo;
-    tCsrPerStaStatsInfo        perStaStatsInfo[CSR_MAX_STA];
+    tCsrPerStaStatsInfo        perStaStatsInfo[5];
     tDblLinkList  statsClientReqList;
     tDblLinkList  peStatsReqList;
     tCsrTlStatsReqInfo  tlStatsReqInfo;
@@ -856,43 +811,38 @@ typedef struct tagCsrRoamStruct
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING    
     tCsrNeighborRoamControlInfo neighborRoamInfo;
 #endif
-#ifdef FEATURE_WLAN_LFR
-    tANI_U8   isFastRoamIniFeatureEnabled;
-#endif
-#ifdef FEATURE_WLAN_CCX
-    tANI_U8   isCcxIniFeatureEnabled;
-#endif
 }tCsrRoamStruct;
 
 
 #define GET_NEXT_ROAM_ID(pRoamStruct)  (((pRoamStruct)->nextRoamId + 1 == 0) ? 1 : (pRoamStruct)->nextRoamId)
-#define CSR_IS_ROAM_STATE(pMac, state, sessionId)  ( (state) == (pMac)->roam.curState[sessionId] )
 
-#define CSR_IS_ROAM_STOP(pMac, sessionId) CSR_IS_ROAM_STATE( (pMac), eCSR_ROAMING_STATE_STOP, sessionId ) 
-#define CSR_IS_ROAM_INIT(pMac, sessionId)  CSR_IS_ROAM_STATE( (pMac), eCSR_ROAMING_STATE_INIT, sessionId ) 
-#define CSR_IS_ROAM_SCANNING(pMac, sessionId)  CSR_IS_ROAM_STATE( pMac, eCSR_ROAMING_STATE_SCANNING, sessionId )
-#define CSR_IS_ROAM_JOINING(pMac, sessionId)   CSR_IS_ROAM_STATE( pMac, eCSR_ROAMING_STATE_JOINING, sessionId )
-#define CSR_IS_ROAM_IDLE(pMac, sessionId) CSR_IS_ROAM_STATE( pMac, eCSR_ROAMING_STATE_IDLE, sessionId ) 
-#define CSR_IS_ROAM_JOINED(pMac, sessionId)    CSR_IS_ROAM_STATE( pMac, eCSR_ROAMING_STATE_JOINED, sessionId )
 
-#define CSR_IS_ROAM_SUBSTATE(pMac, subState, sessionId)   ((subState) == (pMac)->roam.curSubState[sessionId])
-#define CSR_IS_ROAM_SUBSTATE_JOIN_REQ(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_JOIN_REQ, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_AUTH_REQ(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_AUTH_REQ, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_REASSOC_REQ(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_REASSOC_REQ, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_DISASSOC_REQ(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISASSOC_REQ, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_DISASSOC_NO_JOIN(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISASSOC_NOTHING_TO_JOIN, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_REASSOC_FAIL(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISASSOC_REASSOC_FAILURE, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_DISASSOC_FORCED(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISASSOC_FORCED, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_DEAUTH_REQ(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DEAUTH_REQ, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_START_BSS_REQ(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_START_BSS_REQ, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_STOP_BSS_REQ(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_STOP_BSS_REQ, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_DISCONNECT_CONTINUE(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISCONNECT_CONTINUE_ROAMING, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_CONFIG(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_CONFIG, sessionId)
-#define CSR_IS_ROAM_SUBSTATE_WAITFORKEY(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_WAIT_FOR_KEY, sessionId)
-#define CSR_IS_ROAM_SUBSTATE_DISASSOC_HO(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISASSOC_HANDOFF, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_HO_NT(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_JOINED_NO_TRAFFIC, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_HO_NRT(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_JOINED_NON_REALTIME_TRAFFIC, sessionId) 
-#define CSR_IS_ROAM_SUBSTATE_HO_RT(pMac, sessionId)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_JOINED_REALTIME_TRAFFIC, sessionId) 
+#define CSR_IS_ROAM_STATE(pMac, state)  ( (state) == (pMac)->roam.curState )
+#define CSR_IS_ROAM_STOP(pMac) CSR_IS_ROAM_STATE( (pMac), eCSR_ROAMING_STATE_STOP ) 
+#define CSR_IS_ROAM_INIT(pMac)  CSR_IS_ROAM_STATE( (pMac), eCSR_ROAMING_STATE_INIT ) 
+#define CSR_IS_ROAM_SCANNING(pMac)  CSR_IS_ROAM_STATE( pMac, eCSR_ROAMING_STATE_SCANNING )
+#define CSR_IS_ROAM_JOINING(pMac)   CSR_IS_ROAM_STATE( pMac, eCSR_ROAMING_STATE_JOINING )
+#define CSR_IS_ROAM_IDLE(pMac) CSR_IS_ROAM_STATE( pMac, eCSR_ROAMING_STATE_IDLE ) 
+#define CSR_IS_ROAM_JOINED(pMac)    CSR_IS_ROAM_STATE( pMac, eCSR_ROAMING_STATE_JOINED )
+
+#define CSR_IS_ROAM_SUBSTATE(pMac, subState)   ((subState) == (pMac)->roam.curSubState)
+#define CSR_IS_ROAM_SUBSTATE_JOIN_REQ(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_JOIN_REQ) 
+#define CSR_IS_ROAM_SUBSTATE_AUTH_REQ(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_AUTH_REQ) 
+#define CSR_IS_ROAM_SUBSTATE_REASSOC_REQ(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_REASSOC_REQ) 
+#define CSR_IS_ROAM_SUBSTATE_DISASSOC_REQ(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISASSOC_REQ) 
+#define CSR_IS_ROAM_SUBSTATE_DISASSOC_NO_JOIN(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISASSOC_NOTHING_TO_JOIN) 
+#define CSR_IS_ROAM_SUBSTATE_REASSOC_FAIL(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISASSOC_REASSOC_FAILURE) 
+#define CSR_IS_ROAM_SUBSTATE_DISASSOC_FORCED(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISASSOC_FORCED) 
+#define CSR_IS_ROAM_SUBSTATE_DEAUTH_REQ(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DEAUTH_REQ) 
+#define CSR_IS_ROAM_SUBSTATE_START_BSS_REQ(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_START_BSS_REQ) 
+#define CSR_IS_ROAM_SUBSTATE_STOP_BSS_REQ(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_STOP_BSS_REQ) 
+#define CSR_IS_ROAM_SUBSTATE_DISCONNECT_CONTINUE(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISCONNECT_CONTINUE_ROAMING) 
+#define CSR_IS_ROAM_SUBSTATE_CONFIG(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_CONFIG)
+#define CSR_IS_ROAM_SUBSTATE_WAITFORKEY(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_WAIT_FOR_KEY)
+#define CSR_IS_ROAM_SUBSTATE_DISASSOC_HO(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_DISASSOC_HANDOFF) 
+#define CSR_IS_ROAM_SUBSTATE_HO_NT(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_JOINED_NO_TRAFFIC) 
+#define CSR_IS_ROAM_SUBSTATE_HO_NRT(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_JOINED_NON_REALTIME_TRAFFIC) 
+#define CSR_IS_ROAM_SUBSTATE_HO_RT(pMac)    CSR_IS_ROAM_SUBSTATE((pMac), eCSR_ROAM_SUBSTATE_JOINED_REALTIME_TRAFFIC) 
 
 #define CSR_IS_PHY_MODE_B_ONLY(pMac) \
         ((eCSR_DOT11_MODE_11b == (pMac)->roam.configParam.phyMode) ||\
@@ -954,8 +904,8 @@ typedef struct tagCsrRoamStruct
 
 #define CSR_IS_11D_INFO_FOUND(pMac) \
         (0 != (pMac)->scan.channelOf11dInfo)
-// DEAUTHIND
-#define CSR_IS_ROAMING(pSession) ((CSR_IS_LOSTLINK_ROAMING((pSession)->roamingReason)) || \
+
+#define CSR_IS_ROAMING(pSession) ((eCsrLostlinkRoaming == (pSession)->roamingReason) || \
                               (eCsrDynamicRoaming == (pSession)->roamingReason)  || \
                               (eCsrReassocRoaming == (pSession)->roamingReason))   
 
@@ -963,8 +913,6 @@ typedef struct tagCsrRoamStruct
 #define CSR_IS_SET_KEY_COMMAND( pCommand )    ( eSmeCommandSetKey == (pCommand)->command )
 
 #define CSR_IS_ADDTS_WHEN_ACMOFF_SUPPORTED(pMac) (pMac->roam.configParam.addTSWhenACMIsOff)
-// DEAUTHIND
-#define CSR_IS_LOSTLINK_ROAMING(reason)  ((eCsrLostlinkRoamingDisassoc == (reason)) || (eCsrLostlinkRoamingDeauth == (reason)))
 
 //Stop CSR from asking for IMPS, This function doesn't disable IMPS from CSR
 void csrScanSuspendIMPS( tpAniSirGlobal pMac );
@@ -1010,7 +958,6 @@ tANI_BOOLEAN csrIsIBSSStarted( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsBTAMPStarted( tpAniSirGlobal pMac );
 tANI_BOOLEAN csrIsBTAMP( tpAniSirGlobal pMac, tANI_U32 sessionId );
 eHalStatus csrIsBTAMPAllowed( tpAniSirGlobal pMac, tANI_U32 chnId );
-tANI_BOOLEAN csrIsValidMcConcurrentSession(tpAniSirGlobal pMac, tANI_U32 sessionId);
 #ifdef WLAN_SOFTAP_FEATURE
 tANI_BOOLEAN csrIsConnStateConnectedInfraAp( tpAniSirGlobal pMac, tANI_U32 sessionId );
 #endif
@@ -1059,7 +1006,7 @@ eHalStatus csrGetStatistics(tpAniSirGlobal pMac, eCsrStatsRequesterType requeste
                             tANI_U8 staId, void *pContext);
 
 
-eHalStatus csrGetRssi(tpAniSirGlobal pMac,tCsrRssiCallback callback,tANI_U8 staId,tCsrBssid bssId,void * pContext,void * pVosContext);
+eHalStatus csrGetRssi(tpAniSirGlobal pMac,tCsrRssiCallback callback,tANI_U8 staId,void * pContext,void * pVosContext);
 eHalStatus csrRoamRegisterCallback(tpAniSirGlobal pMac, csrRoamCompleteCallback callback, void *pContext);
 /* ---------------------------------------------------------------------------
     \fn csrGetConfigParam
@@ -1162,29 +1109,12 @@ tANI_U8 csrGetInfraOperationChannel( tpAniSirGlobal pMac, tANI_U8 sessionId);
 tANI_U8 csrGetConcurrentOperationChannel( tpAniSirGlobal pMac );
 
 eHalStatus csrRoamCopyConnectProfile(tpAniSirGlobal pMac, tANI_U32 sessionId, 
-                               tCsrRoamConnectedProfile *pProfile);
+                                   tCsrRoamConnectedProfile *pProfile);
 tANI_BOOLEAN csrIsSetKeyAllowed(tpAniSirGlobal pMac, tANI_U32 sessionId);
 
 void csrSetOppositeBandChannelInfo( tpAniSirGlobal pMac );
 void csrConstructCurrentValidChannelList( tpAniSirGlobal pMac, tDblLinkList *pChannelSetList, 
                                             tANI_U8 *pChannelList, tANI_U8 bSize, tANI_U8 *pNumChannels );
 
-#endif
-
-#ifdef WLAN_FEATURE_VOWIFI_11R
-//Returns whether the current association is a 11r assoc or not
-tANI_BOOLEAN csrRoamIs11rAssoc(tpAniSirGlobal pMac);
-#endif
-
-#ifdef FEATURE_WLAN_CCX
-//Returns whether the current association is a CCX assoc or not
-tANI_BOOLEAN csrRoamIsCCXAssoc(tpAniSirGlobal pMac);
-#endif
-
-
-void csrDisconnectAllActiveSessions(tpAniSirGlobal pMac);
-#ifdef FEATURE_WLAN_LFR
-//Returns whether "Legacy Fast Roaming" is enabled...or not
-tANI_BOOLEAN csrRoamIsFastRoamEnabled(tpAniSirGlobal pMac);
 #endif
 

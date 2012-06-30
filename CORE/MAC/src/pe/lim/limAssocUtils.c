@@ -664,10 +664,9 @@ limCleanupRxPath(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESession psessionE
         pMac->lim.gLastBeaconDtimCount = 0;
         pMac->lim.gLastBeaconDtimPeriod = 0;
 
-#ifdef FEATURE_WLAN_CCX
-        limDeactivateAndChangeTimer(pMac,eLIM_TSM_TIMER);
-#endif
+        
 
+        
         /**
          * Update the status for PMM module
          */
@@ -960,13 +959,7 @@ limRejectAssociation(tpAniSirGlobal pMac, tSirMacAddr peerAddr, tANI_U8 subType,
 
         if ( psessionEntry->parsedAssocReq[pStaDs->assocId] != NULL)
         {
-            // Assoction confirmation is complete, free the copy of association request frame
-            if ( ((tpSirAssocReq)(psessionEntry->parsedAssocReq[pStaDs->assocId]))->assocReqFrame) 
-            {
-                palFreeMemory(pMac->hHdd,((tpSirAssocReq)(psessionEntry->parsedAssocReq[pStaDs->assocId]))->assocReqFrame);
-                ((tpSirAssocReq)(psessionEntry->parsedAssocReq[pStaDs->assocId]))->assocReqFrame = NULL;
-            }            
-            palFreeMemory(pMac->hHdd, psessionEntry->parsedAssocReq[pStaDs->assocId]);    
+            palFreeMemory(pMac->hHdd, psessionEntry->parsedAssocReq[pStaDs->assocId]);
             psessionEntry->parsedAssocReq[pStaDs->assocId] = NULL;
         }
     }
@@ -1046,7 +1039,7 @@ limDecideApProtectionOnDelete(tpAniSirGlobal pMac,
     if(NULL == pStaDs)
       return;
 
-    limGetRfBand(pMac, &rfBand, psessionEntry);
+    limGetRfBand(pMac, &rfBand);
     if(SIR_BAND_5_GHZ == rfBand)
     {
         //we are HT. if we are 11A, then protection is not required.
@@ -1088,8 +1081,7 @@ limDecideApProtectionOnDelete(tpAniSirGlobal pMac,
     }
     else if(SIR_BAND_2_4_GHZ == rfBand)
     {
-        limGetPhyMode(pMac, &phyMode, psessionEntry);
-
+        limGetPhyMode(pMac, &phyMode);
         erpEnabled = pStaDs->erpEnabled;
         //we are HT or 11G and 11B station is getting deleted.
         if (((phyMode == WNI_CFG_PHY_MODE_11G) ||
@@ -1520,7 +1512,10 @@ limPopulateOwnRateSet(tpAniSirGlobal pMac,
 
     isArate = 0;
 
-    limGetPhyMode(pMac, &phyMode, psessionEntry);
+
+    if (wlan_cfgGetInt(pMac, WNI_CFG_PHY_MODE, &phyMode) != eSIR_SUCCESS)
+        PELOGE(limLog(pMac, LOGE, FL("cfg get failed for PHY_MODE\n"));)
+    
 
     // Get own rate set
     #if 0
@@ -1719,7 +1714,8 @@ limPopulateMatchingRateSet(tpAniSirGlobal pMac,
    isArate=0;
 
    // limGetPhyMode(pMac, &phyMode);
-   limGetPhyMode(pMac, &phyMode, psessionEntry);
+   // FIXME
+   phyMode = pMac->lim.gLimPhyMode;
 
    // get own rate set
    // val = WNI_CFG_OPERATIONAL_RATE_SET_LEN;
@@ -1884,6 +1880,7 @@ limPopulateMatchingRateSet(tpAniSirGlobal pMac,
                     }
                     else
                         rates->llbRates[bRateIndex++] = tempRateSet2.rate[i];
+            
                     break;
                 }
             }

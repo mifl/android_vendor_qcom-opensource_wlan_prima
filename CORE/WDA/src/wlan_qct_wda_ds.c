@@ -1294,12 +1294,11 @@ WDA_DS_TxFrames
   vos_pkt_t  *pTxDataChain = NULL;
   vos_pkt_t  *pTxPacket = NULL;
   v_BOOL_t   bUrgent;
-  wpt_uint32  ucTxResReq;
+  v_BOOL_t   bResult;
   WDI_Status wdiStatus;
   tWDA_CbContext *wdaContext = NULL;
   v_U32_t     uMgmtAvailRes;
   v_U32_t     uDataAvailRes;
-  WLANTL_TxCompCBType  pfnTxComp = NULL;
 
   wdaContext = (tWDA_CbContext *)vos_get_context(VOS_MODULE_ID_WDA, pvosGCtx);
   if ( NULL == wdaContext )
@@ -1317,7 +1316,7 @@ WDA_DS_TxFrames
   uMgmtAvailRes = WDI_GetAvailableResCount(wdaContext->pWdiContext, 
                                            WDI_MGMT_POOL_ID);
   
-  ucTxResReq = WLANTL_GetFrames( pvosGCtx, 
+  bResult = WLANTL_GetFrames( pvosGCtx, 
                               &pTxMgmtChain, 
                                uMgmtAvailRes, 
                               (wdaContext->uTxFlowMask & WDA_HI_FLOW_MASK),
@@ -1357,13 +1356,11 @@ WDA_DS_TxFrames
     {
       VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
                    "WDA : Pushing a packet to WDI failed.");
+      /* TODO Wd should return this packet to VOSS. Otherwise
+         UMAC is going in low resource condition.
+         Who needs to do it? DXE, WDI? 
+         */
       VOS_ASSERT( 0 );
-      //We need to free the packet here
-      vos_pkt_get_user_data_ptr(pTxPacket, VOS_PKT_USER_DATA_ID_TL, (void **)&pfnTxComp);
-      if(pfnTxComp)
-      {
-         pfnTxComp(pvosGCtx, pTxPacket, VOS_STATUS_E_FAILURE);
-      }
     }
 
   };
@@ -1372,7 +1369,7 @@ WDA_DS_TxFrames
   uDataAvailRes = WDI_GetAvailableResCount(wdaContext->pWdiContext, 
                                            WDI_DATA_POOL_ID);
 
-  ucTxResReq = WLANTL_GetFrames( pvosGCtx, 
+  bResult = WLANTL_GetFrames( pvosGCtx, 
                               &pTxDataChain, 
                               /*WDA_DS_DXE_RES_COUNT*/ uDataAvailRes, 
                               (wdaContext->uTxFlowMask & WDA_LO_FLOW_MASK),
@@ -1417,17 +1414,11 @@ WDA_DS_TxFrames
          Who needs to do it? DXE, WDI? 
          */
       VOS_ASSERT( 0 );
-      //We need to free the packet here
-      vos_pkt_get_user_data_ptr(pTxPacket, VOS_PKT_USER_DATA_ID_TL, (void **)&pfnTxComp);
-      if(pfnTxComp)
-      {
-         pfnTxComp(pvosGCtx, pTxPacket, VOS_STATUS_E_FAILURE);
-      }
     }
 
   };
 
-  WDI_DS_TxComplete(wdaContext->pWdiContext, ucTxResReq);
+  WDI_DS_TxComplete(wdaContext->pWdiContext);
 
   return vosStatus;
 }

@@ -75,8 +75,6 @@ extern tSirRetStatus limSetLinkState(
                          tSirMacAddr bssId, tSirMacAddr selfMacAddr, 
                          tpSetLinkStateCallback callback, void *callbackArg);
 
-static tSirRetStatus limCreateSessionForRemainOnChn(tpAniSirGlobal pMac, tPESession **ppP2pSession);
-
 /*------------------------------------------------------------------
  *
  * Below function is callback function, it is called when 
@@ -111,9 +109,6 @@ int limProcessRemainOnChnlReq(tpAniSirGlobal pMac, tANI_U32 *pMsg)
 {
     tANI_U8 i;
     tpPESession psessionEntry;
-#ifdef WLAN_FEATURE_P2P_INTERNAL
-    tpPESession pP2pSession;
-#endif
 
     tSirRemainOnChnReq *MsgBuff = (tSirRemainOnChnReq *)pMsg;
     pMac->lim.gpLimRemainOnChanReq = MsgBuff;
@@ -151,15 +146,6 @@ int limProcessRemainOnChnlReq(tpAniSirGlobal pMac, tANI_U32 *pMsg)
                     goto error;
                 }
 
-#ifdef WLAN_FEATURE_P2P_INTERNAL
-                //Session is needed to send probe rsp
-                if(eSIR_SUCCESS != limCreateSessionForRemainOnChn(pMac, &pP2pSession))
-                {
-                    limLog( pMac, LOGE, "Unable to create session");
-                    goto error;
-                }
-#endif
-
                 if ((limSetLinkState(pMac, eSIR_LINK_LISTEN_STATE,
                     nullBssid, pMac->lim.gSelfMacAddr, 
                     limSetLinkStateP2PCallback, NULL)) != eSIR_SUCCESS)
@@ -188,48 +174,6 @@ error:
     return FALSE;
 }
 
-
-tSirRetStatus limCreateSessionForRemainOnChn(tpAniSirGlobal pMac, tPESession **ppP2pSession)
-{
-    tSirRetStatus nSirStatus = eSIR_FAILURE;
-    tpPESession psessionEntry;
-    tANI_U8 sessionId;
-    tANI_U32 val;
-
-    if(pMac->lim.gpLimRemainOnChanReq && ppP2pSession)
-    {
-        if((psessionEntry = peCreateSession(pMac,
-           pMac->lim.gpLimRemainOnChanReq->selfMacAddr, &sessionId, 1)) == NULL)
-        {
-            limLog(pMac, LOGE, FL("Session Can not be created \n"));
-            /* send remain on chn failure */
-            return nSirStatus;
-        }
-        /* Store PE sessionId in session Table  */
-        psessionEntry->peSessionId = sessionId;
-
-        psessionEntry->limSystemRole = eLIM_P2P_DEVICE_ROLE;
-        CFG_GET_STR( nSirStatus, pMac,  WNI_CFG_SUPPORTED_RATES_11A,
-               psessionEntry->rateSet.rate, val , SIR_MAC_MAX_NUMBER_OF_RATES );
-        psessionEntry->rateSet.numRates = val;
-
-        CFG_GET_STR( nSirStatus, pMac, WNI_CFG_EXTENDED_OPERATIONAL_RATE_SET,
-                     psessionEntry->extRateSet.rate, val,
-                     WNI_CFG_EXTENDED_OPERATIONAL_RATE_SET_LEN );
-        psessionEntry->extRateSet.numRates = val;
-
-        sirCopyMacAddr(psessionEntry->selfMacAddr,
-                       pMac->lim.gpLimRemainOnChanReq->selfMacAddr);
-
-        psessionEntry->currentOperChannel = pMac->lim.gpLimRemainOnChanReq->chnNum;
-        nSirStatus = eSIR_SUCCESS;
-        *ppP2pSession = psessionEntry;
-    }
-
-    return nSirStatus;
-}
-
-
 /*------------------------------------------------------------------
  *
  * limSuspenLink callback, on success link suspend, trigger change chn
@@ -241,8 +185,9 @@ tSirRetStatus limRemainOnChnlChangeChnReq(tpAniSirGlobal pMac,
                                           eHalStatus status, tANI_U32 *data)
 {
     tpPESession psessionEntry;
-    tANI_U8 sessionId = 0;
+    tANI_U8 sessionId=0;
     tSirRetStatus nSirStatus = eSIR_FAILURE;
+    tANI_U32 val;
 
     if( NULL == pMac->lim.gpLimRemainOnChanReq )
     {
@@ -260,19 +205,35 @@ tSirRetStatus limRemainOnChnlChangeChnReq(tpAniSirGlobal pMac,
 
 
     if((psessionEntry = peFindSessionByBssid(
-        pMac,pMac->lim.gpLimRemainOnChanReq->selfMacAddr, &sessionId)) != NULL)
+        pMac,pMac->lim.gpLimRemainOnChanReq->selfMacAddr,&sessionId)) != NULL)
     {
         goto change_channel;
     }
     else /* Session Entry does not exist for given BSSId */
     {
         /* Try to Create a new session */
-        if(eSIR_SUCCESS != limCreateSessionForRemainOnChn(pMac, &psessionEntry))
+        if((psessionEntry = peCreateSession(pMac,
+           pMac->lim.gpLimRemainOnChanReq->selfMacAddr, &sessionId, 1)) == NULL)
         {
             limLog(pMac, LOGE, FL("Session Can not be created \n"));
             /* send remain on chn failure */
             goto error;
         }
+        /* Store PE sessionId in session Table  */
+        psessionEntry->peSessionId = sessionId;
+
+        psessionEntry->limSystemRole = eLIM_P2P_DEVICE_ROLE;
+        CFG_GET_STR( nSirStatus, pMac,  WNI_CFG_SUPPORTED_RATES_11A,
+               psessionEntry->rateSet.rate, val , SIR_MAC_MAX_NUMBER_OF_RATES );
+        psessionEntry->rateSet.numRates = val;
+
+        CFG_GET_STR( nSirStatus, pMac, WNI_CFG_EXTENDED_OPERATIONAL_RATE_SET,
+                     psessionEntry->extRateSet.rate, val,
+                     WNI_CFG_EXTENDED_OPERATIONAL_RATE_SET_LEN );
+        psessionEntry->extRateSet.numRates = val;
+
+        sirCopyMacAddr(psessionEntry->selfMacAddr,
+                       pMac->lim.gpLimRemainOnChanReq->selfMacAddr);
     }
 
 change_channel:
@@ -335,7 +296,7 @@ void limRemainOnChnlSetLinkStat(tpAniSirGlobal pMac, eHalStatus status,
        tx_timer_activate(&pMac->lim.limTimers.gLimRemainOnChannelTimer))
     {
         limLog( pMac, LOGE,
-                  "%s: remain on channel Timer Start Failed\n", __FUNCTION__);
+                  "%s: remain on channel Timer Start Failed\n", __func__);
         goto error;
     }
 
@@ -423,9 +384,6 @@ void limExitRemainOnChannel(tpAniSirGlobal pMac, eHalStatus status,
         PELOGE(limLog( pMac, LOGE, "Remain on Channel Failed\n");)
         goto error;
     }
-    //Set the resume channel to Any valid channel (invalid). 
-    //This will instruct HAL to set it to any previous valid channel.
-    peSetResumeChannel(pMac, 0, 0);
     limResumeLink(pMac, limRemainOnChnRsp, NULL);
     return;
 error:
@@ -448,7 +406,7 @@ void limRemainOnChnRsp(tpAniSirGlobal pMac, eHalStatus status, tANI_U32 *data)
     if ( NULL == MsgRemainonChannel )
     {
         PELOGE(limLog( pMac, LOGP,
-             "%s: No Pointer for Remain on Channel Req\n", __FUNCTION__);)
+             "%s: No Pointer for Remain on Channel Req\n", __func__);)
         return;
     }
 
@@ -533,7 +491,6 @@ void limSendSmeMgmtFrameInd(
     return;
 } /*** end limSendSmeListenRsp() ***/
 
-
 eHalStatus limP2PActionCnf(tpAniSirGlobal pMac, tANI_U32 txCompleteSuccess)
 {
     limSendSmeRsp(pMac, eWNI_SME_ACTION_FRAME_SEND_CNF,
@@ -542,7 +499,6 @@ eHalStatus limP2PActionCnf(tpAniSirGlobal pMac, tANI_U32 txCompleteSuccess)
 
     return eHAL_STATUS_SUCCESS;
 }
-
 
 void limSetHtCaps(tpAniSirGlobal pMac,tANI_U8 *pIeStartPtr,tANI_U32 nBytes)
 {

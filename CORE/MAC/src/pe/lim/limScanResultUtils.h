@@ -46,7 +46,7 @@ void    limRestorePreScanState(tpAniSirGlobal);
 void    limCopyScanResult(tpAniSirGlobal, tANI_U8 *);
 void    limReInitScanResults(tpAniSirGlobal);
 tANI_U32 limDeactivateMinChannelTimerDuringScan(tpAniSirGlobal);
-void    limCheckAndAddBssDescription(tpAniSirGlobal, tpSirProbeRespBeacon, tANI_U8 *, tANI_BOOLEAN, tANI_U8);
+void    limCheckAndAddBssDescription(tpAniSirGlobal, tpSirProbeRespBeacon, tANI_U8 *, tANI_BOOLEAN);
 #if defined WLAN_FEATURE_VOWIFI
 void    limCollectBssDescription(tpAniSirGlobal,
                                  tSirBssDescription *,

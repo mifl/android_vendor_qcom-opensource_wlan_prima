@@ -690,7 +690,7 @@ int logRtaiDump( tpAniSirGlobal pMac, tANI_U32 cmd, tANI_U32 arg1, tANI_U32 arg2
         pMac->menuCurrent = print_menu(pMac, p, pMac->menuCurrent);
         return pMac->gCurrentLogSize;
     }
-    if(cmd <= HAL_LOG_DUMP_CMD_END)
+    if(( cmd >= HAL_LOG_DUMP_CMD_START) && ( cmd <= HAL_LOG_DUMP_CMD_END))
     {
        WDA_HALDumpCmdReq(pMac, cmd, arg1, arg2, arg3, arg4, p);
     }

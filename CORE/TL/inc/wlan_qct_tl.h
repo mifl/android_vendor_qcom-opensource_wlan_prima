@@ -19,9 +19,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * */
-
 #ifndef WLAN_QCT_WLANTL_H
 #define WLAN_QCT_WLANTL_H
 
@@ -99,12 +96,6 @@ when        who    what, where, why
 /*Size of the OUI type field inside the LLC/SNAP header*/
 #define WLANTL_LLC_OUI_SIZE                   3
 
-/*Offset of the LLC/SNAP header*/
-#define WLANTL_LLC_SNAP_OFFSET                0
-
-/*Size of the LLC/SNAP header*/
-#define WLANTL_LLC_SNAP_SIZE                   8
-
 /*============================================================================
  *     GENERIC STRUCTURES - not belonging to TL 
  *     TO BE MOVED TO A GLOBAL HEADER
@@ -113,9 +104,6 @@ when        who    what, where, why
 #define WLANTL_MAX_AC                         4
 
 #ifdef WLAN_SOFTAP_FEATURE
-
-/* Bit Mask to represent All Stations */
-#define WLAN_ALL_STA                         0xFF
 
 /* Maximum number of station supported by TL, including BC. */
 #define WLAN_MAX_STA_COUNT  (HAL_NUM_STA)
@@ -270,11 +258,6 @@ typedef struct
   v_U8_t              ucUcastSig;
  /*Flag to indicate if STA is a WAPI STA*/
   v_U8_t         ucIsWapiSta;
-
-#ifdef FEATURE_WLAN_CCX
- /*Flag to indicate if STA is a CCX STA*/
-  v_U8_t         ucIsCcxSta;
-#endif
 
   /*DPU Signature used for broadcast data - used for data caching*/
   v_U8_t              ucBcastSig;

@@ -384,14 +384,7 @@ int wlan_hdd_cfg80211_cancel_remain_on_channel( struct wiphy *wiphy,
     return 0;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
-int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
-                     struct ieee80211_channel *chan, bool offchan,
-                     enum nl80211_channel_type channel_type,
-                     bool channel_type_valid, unsigned int wait,
-                     const u8 *buf, size_t len,  bool no_cck,
-                     bool dont_wait_for_ack, u64 *cookie )
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
 int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
                      struct ieee80211_channel *chan, bool offchan,
                      enum nl80211_channel_type channel_type,
@@ -403,14 +396,11 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
                      enum nl80211_channel_type channel_type,
                      bool channel_type_valid,
                      const u8 *buf, size_t len, u64 *cookie )
-#endif //LINUX_VERSION_CODE
+#endif
 {
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR( dev );
     hdd_cfg80211_state_t *cfgState = WLAN_HDD_GET_CFG_STATE_PTR( pAdapter );
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
-    hdd_adapter_t *goAdapter;
-#endif
 
     hddLog(VOS_TRACE_LEVEL_INFO, "%s: device_mode = %d",
                             __func__,pAdapter->device_mode);
@@ -464,32 +454,33 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
     hddLog( LOG1, "Action frame tx request");
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
-    goAdapter = hdd_get_adapter( pAdapter->pHddCtx, WLAN_HDD_P2P_GO );
-
-    //If GO adapter exists and operating on same frequency
-    //then we will not request remain on channel
-    if( goAdapter && ( ieee80211_frequency_to_channel(chan->center_freq)
-                         == goAdapter->sessionCtx.ap.operatingChannel ) )
-    {
-        goto send_frame;
-    }
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
     if( offchan && wait)
     {
         int status;
 
+        hdd_adapter_t *goAdapter;
+
+        goAdapter = hdd_get_adapter( pAdapter->pHddCtx, WLAN_HDD_P2P_GO );
+
+        //If GO adapter exists and operating on same frequency 
+        //then we will not request remain on channel 
+        if( goAdapter && ( ieee80211_frequency_to_channel(chan->center_freq)
+                             == goAdapter->sessionCtx.ap.operatingChannel ) )
+        {
+            goto send_frame;
+        } 
+
         // In case of P2P Client mode if we are already
         // on the same channel then send the frame directly
-
+        
         if((cfgState->remain_on_chan_ctx != NULL) &&
            (cfgState->current_freq == chan->center_freq)
           )
-        {
+        { 
             goto send_frame;
         }
-
+        
+	
         INIT_COMPLETION(pAdapter->offchannel_tx_event);
 
         status = wlan_hdd_request_remain_on_channel(wiphy, dev,
@@ -498,7 +489,7 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
 
         if(0 != status)
         {
-            if( (-EBUSY == status) &&
+            if( (-EBUSY == status) && 
                 (cfgState->current_freq == chan->center_freq) )
             {
                 goto send_frame;
@@ -914,13 +905,6 @@ int wlan_hdd_add_virtual_intf( struct wiphy *wiphy, char *name,
 
     ENTER();
 
-    if(hdd_get_adapter(pHddCtx, wlan_hdd_get_session_type(type)) != NULL)
-    {
-	  hddLog(VOS_TRACE_LEVEL_ERROR,"%s: Interface type %d already exists. Two"
-                     "interfaces of same type are not supported currently.",__func__, type);
-	  return NULL;
-    }
-
     if ( pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated )
     {
         if( (NL80211_IFTYPE_P2P_GO == type) || 
@@ -1108,16 +1092,9 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
 
     //Indicate Frame Over Normal Interface
     hddLog( LOG1, FL("Indicate Frame over NL80211 Interface"));
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
-    cfg80211_rx_mgmt( pAdapter->dev, freq, 0,
-                      pbFrames, nFrameLength,
-                      GFP_ATOMIC );
-#else
     cfg80211_rx_mgmt( pAdapter->dev, freq,
                       pbFrames, nFrameLength,
                       GFP_ATOMIC );
-#endif //LINUX_VERSION_CODE
 }
 
 /*

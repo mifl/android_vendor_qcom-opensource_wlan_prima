@@ -21,18 +21,20 @@
 
 /**
  *
- * Airgo Networks, Inc proprietary.
- * All Rights Reserved, Copyright 2005
- * This program is the confidential and proprietary product of Airgo Networks Inc.
- * Any Unauthorized use, reproduction or transfer of this program is strictly prohibited.
- * 
- * phyGlobal.h: Holds all globals for the phy, rf, and asic layers in hal
- * Author:  Mark Nelson
- * Date:    4/9/05
- *
- * History -
- * Date        Modified by              Modification Information
+   Airgo Networks, Inc proprietary.
+   All Rights Reserved, Copyright 2005
+   This program is the confidential and proprietary product of Airgo Networks Inc.
+   Any Unauthorized use, reproduction or transfer of this program is strictly prohibited.
+
+
+   phyGlobal.h: Holds all globals for the phy, rf, and asic layers in hal
+   Author:  Mark Nelson
+   Date:    4/9/05
+
+   History -
+   Date        Modified by              Modification Information
   --------------------------------------------------------------------------
+
  */
 
 #ifndef PHYGLOBAL_H

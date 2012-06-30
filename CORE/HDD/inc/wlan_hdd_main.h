@@ -91,10 +91,7 @@
 #define WLAN_WAIT_TIME_DISCONNECT  500
 #define WLAN_WAIT_TIME_STATS       800
 #define WLAN_WAIT_TIME_POWER       800
-/* Amount of time to wait for sme close session callback.
-   This value should be larger than the timeout used by WDI to wait for
-   a response from WCNSS */
-#define WLAN_WAIT_TIME_SESSIONOPENCLOSE  15000
+#define WLAN_WAIT_TIME_SESSIONOPENCLOSE  2000
 #define WLAN_WAIT_TIME_ABORTSCAN  2000
 
 /* Scan Req Timeout */
@@ -182,7 +179,6 @@ typedef struct hdd_stats_s
    tCsrGlobalClassDStatsInfo  ClassD_stat;
    tCsrPerStaStatsInfo        perStaStats;
    hdd_tx_rx_stats_t          hddTxRxStats;
-   hdd_chip_reset_stats_t     hddChipResetStats;
 } hdd_stats_t;
 
 typedef enum
@@ -358,41 +354,6 @@ typedef enum rem_on_channel_request_type
    OFF_CHANNEL_ACTION_TX,
 }rem_on_channel_request_type_t;
 
-/* Thermal mitigation Level Enum Type */
-typedef enum
-{
-   WLAN_HDD_TM_LEVEL_0,
-   WLAN_HDD_TM_LEVEL_1,
-   WLAN_HDD_TM_LEVEL_2,
-   WLAN_HDD_TM_LEVEL_3,
-   WLAN_HDD_TM_LEVEL_4,
-   WLAN_HDD_TM_LEVEL_MAX
-} WLAN_TmLevelEnumType;
-
-/* Driver Action based on thermal mitigation level structure */
-typedef struct
-{
-   v_BOOL_t  ampduEnable;
-   v_BOOL_t  enterImps;
-   v_U32_t   txSleepDuration;
-   v_U32_t   txOperationDuration;
-   v_U32_t   txBlockFrameCountThreshold;
-} hdd_tmLevelAction_t;
-
-/* Thermal Mitigation control context structure */
-typedef struct
-{
-   WLAN_TmLevelEnumType currentTmLevel;
-   hdd_tmLevelAction_t  tmAction;
-   vos_timer_t          txSleepTimer;
-   struct mutex         tmOperationLock;
-   vos_event_t          setTmDoneEvent;
-   v_U32_t              txFrameCount;
-   v_TIME_t             lastblockTs;
-   v_TIME_t             lastOpenTs;
-   struct netdev_queue *blockedQueue;
-} hdd_thermal_mitigation_info_t;
-
 #if defined CONFIG_CFG80211
 typedef struct hdd_remain_on_chan_ctx
 {
@@ -427,9 +388,11 @@ struct hdd_station_ctx
 
    v_BOOL_t bSendDisconnect;
 
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-   int     ft_carrier_on;
-#endif
+   /* These elements are for MAX rate report to UI feature
+    * required for some customers, controlled by ini element */
+   tANI_U8 prevAssocBSSID[WNI_CFG_BSSID_LEN];
+   tANI_U8 BSSIDSet;
+   struct rate_info  storedrateInfo; 
 };
 
 #define BSS_STOP    0 
@@ -574,7 +537,6 @@ struct hdd_adapter_s
    struct wireless_dev wdev ;
    struct cfg80211_scan_request *request ; 
 #endif
-
 #ifdef WLAN_FEATURE_P2P
    /** ops checks if Opportunistic Power Save is Enable or Not
     * ctw stores ctWindow value once we receive Opps command from 
@@ -616,12 +578,8 @@ struct hdd_adapter_s
    /** completion variable for disconnect callback */
    struct completion disconnect_comp_var;
 
-   /** Completion of change country code */
-   struct completion change_country_code;
-
    /* completion variable for Linkup Event */
    struct completion linkup_event_var;
-
 
    /* completion variable for abortscan */
    struct completion abortscan_event_var;
@@ -692,10 +650,8 @@ struct hdd_adapter_s
 #ifdef CONFIG_CFG80211
    hdd_cfg80211_state_t cfg80211State;
 #endif
-
    //Magic cookie for adapter sanity verification
    v_U32_t magic;
-   v_BOOL_t higherDtimTransition;
 };
 
 typedef struct hdd_dynamic_mcbcfilter_s
@@ -713,7 +669,6 @@ typedef struct hdd_dynamic_mcbcfilter_s
 #define WLAN_HDD_GET_HAL_CTX(pAdapter)  ((hdd_context_t*)(pAdapter->pHddCtx))->hHal
 #define WLAN_HDD_GET_HOSTAP_STATE_PTR(pAdapter) &(pAdapter)->sessionCtx.ap.HostapdState
 #define WLAN_HDD_GET_CFG_STATE_PTR(pAdapter)  &(pAdapter)->cfg80211State
-#define WLAN_HDD_MAX_MC_ADDR_LIST 10
 
 typedef struct hdd_adapter_list_node
 {
@@ -727,15 +682,6 @@ typedef struct hdd_priv_data_s
    int used_len;
    int total_len;
 }hdd_priv_data_t;
-
-#ifdef WLAN_FEATURE_PACKET_FILTERING
-typedef struct multicast_addr_list
-{
-   v_U8_t isFilterApplied;
-   v_U8_t mc_cnt;
-   v_U8_t addr[WLAN_HDD_MAX_MC_ADDR_LIST][ETH_ALEN];
-} t_multicast_add_list;
-#endif
 
 /** Adapter stucture definition */
 
@@ -852,12 +798,6 @@ struct hdd_context_s
    /** P2P Device MAC Address for the adapter  */
    v_MACADDR_t p2pDeviceAddress;
 #endif
-
-   /* Thermal mitigation information */
-   hdd_thermal_mitigation_info_t tmInfo;
-#ifdef WLAN_FEATURE_PACKET_FILTERING
-   t_multicast_add_list mc_addr_list;
-#endif
 };
 
 
@@ -924,9 +864,4 @@ void hdd_prevent_suspend(void);
 void hdd_allow_suspend(void);
 v_U8_t hdd_is_ssr_required(void);
 void hdd_set_ssr_required(v_U8_t value);
-
-VOS_STATUS hdd_enable_bmps_imps(hdd_context_t *pHddCtx);
-VOS_STATUS hdd_disable_bmps_imps(hdd_context_t *pHddCtx, tANI_U8 session_type);
-
-eHalStatus hdd_smeCloseSessionCallback(void *pContext);
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )

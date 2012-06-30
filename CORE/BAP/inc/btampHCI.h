@@ -281,7 +281,7 @@ typedef struct sBtampTLVAMP_Assoc_Preferred_Channel_List {
     v_U8_t       present;
     v_U8_t       country[3];
     v_U8_t       num_triplets;
-    v_U8_t       triplets[5][3];
+    v_U8_t       triplets[2][3];
 } tBtampTLVAMP_Assoc_Preferred_Channel_List;
 
 #define BTAMP_TLV_AMP_ASSOC_PREFERRED_CHANNEL_LIST ( 2 )
@@ -289,7 +289,7 @@ typedef struct sBtampTLVAMP_Assoc_Preferred_Channel_List {
 // N.B. These #defines do *not* include the ID & length
 #define BTAMP_TLV_AMP_ASSOC_PREFERRED_CHANNEL_LIST_MIN_LEN ( 5 )
 
-#define BTAMP_TLV_AMP_ASSOC_PREFERRED_CHANNEL_LIST_MAX_LEN ( 20 )
+#define BTAMP_TLV_AMP_ASSOC_PREFERRED_CHANNEL_LIST_MAX_LEN ( 11 )
 
 #ifdef __cplusplus
 extern "C" {

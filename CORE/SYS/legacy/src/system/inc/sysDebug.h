@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file sysGlobal.h contains the logDump utility for system module.
  * Author:      V. K. Kandarpa

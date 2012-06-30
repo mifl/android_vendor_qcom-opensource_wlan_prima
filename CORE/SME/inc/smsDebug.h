@@ -27,7 +27,8 @@
   
     Define debug log interface for SMS.
   
-   Copyright (C) 2006 Airgo Networks, Incorporated
+    Copyright (C) 2006 Airgo Networks, Incorporated
+  
  
    ========================================================================== */
    

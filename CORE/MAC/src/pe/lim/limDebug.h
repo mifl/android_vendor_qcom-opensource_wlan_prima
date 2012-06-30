@@ -20,6 +20,7 @@
  */
 
 /*
+ * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limDebug.h contains log function called by LIM module.
  *
  * Author:      Chandra Modumudi

@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limSecurityUtils.h contains the utility definitions
  * related to WEP encryption/decryption etc.

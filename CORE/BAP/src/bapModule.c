@@ -476,7 +476,9 @@ WLANBAP_GetNewHndl
    ptBtampHandle *hBtampHandle  /* Handle to return btampHandle value in  */ 
 )
 {
+  eHalStatus halStatus = eHAL_STATUS_SUCCESS;
   ptBtampContext  btampContext = NULL; 
+  tHalHandle hHal = NULL;
   /*------------------------------------------------------------------------
     Sanity check params
    ------------------------------------------------------------------------*/
@@ -507,6 +509,32 @@ WLANBAP_GetNewHndl
    * Request is made before Create Physical Link creation.
    */
   WLANBAP_ReadMacConfig (btampContext);
+
+  if (btampContext->isBapSessionOpen == FALSE)
+  {
+
+    // Let's open the SME session - we can use the global context. 
+    // because we know we only have one. 
+    hHal = VOS_GET_HAL_CB(btampContext->pvosGCtx);
+    if ( NULL == hHal ) 
+    {
+      VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
+                   "hHal is NULL in %s", __FUNCTION__);
+
+      return VOS_STATUS_E_FAULT;
+    }
+
+    halStatus = sme_OpenSession(hHal, 
+          WLANBAP_RoamCallback, 
+          btampContext,
+          btampContext->self_mac_addr,  
+          &btampContext->sessionId);
+    if(eHAL_STATUS_SUCCESS == halStatus)
+    {
+      btampContext->isBapSessionOpen = TRUE;
+    }
+  }
+
   return VOS_STATUS_SUCCESS;
 #else // defined(BTAMP_MULTIPLE_PHY_LINKS)
 #endif //BTAMP_MULTIPLE_PHY_LINKS
@@ -575,14 +603,11 @@ WLANBAP_ReleaseHndl
      return VOS_STATUS_E_FAULT;
   }
 
-  if( btampContext->isBapSessionOpen == TRUE )
+  halStatus = sme_CloseSession(halHandle, 
+          btampContext->sessionId, NULL, NULL);
+  if(eHAL_STATUS_SUCCESS == halStatus)
   {
-    halStatus = sme_CloseSession(halHandle, 
-            btampContext->sessionId, NULL, NULL);
-    if(eHAL_STATUS_SUCCESS == halStatus)
-    {
-      btampContext->isBapSessionOpen = FALSE;
-    }
+    btampContext->isBapSessionOpen = FALSE;
   }
 
   /* release the btampHandle  */ 

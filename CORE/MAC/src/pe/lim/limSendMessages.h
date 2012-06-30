@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * limSendMessages.h: Provides functions to send messages or Indications to HAL.
  * Author:    Sunit Bhatia

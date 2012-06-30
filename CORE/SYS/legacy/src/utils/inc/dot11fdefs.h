@@ -26,9 +26,8 @@
  *
  * \brief C defines customizing our framesc-generated code
  *
- *
- *
  * Copyright (C) 2006 Airgo Networks, Incorporated
+ *
  *
  * 'framesc' generates code written in terms of a number of macros
  * intended for customization.

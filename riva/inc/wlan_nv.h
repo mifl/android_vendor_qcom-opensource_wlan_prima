@@ -588,7 +588,7 @@ typedef PACKED_PRE union PACKED_POST
     sRegulatoryDomains   regDomains[NUM_REG_DOMAINS];                         // NV_TABLE_REGULATORY_DOMAINS
     sDefaultCountry      defaultCountryTable;                                 // NV_TABLE_DEFAULT_COUNTRY
     tTpcPowerTable       plutCharacterized[NUM_RF_CHANNELS];                  // NV_TABLE_TPC_POWER_TABLE
-    tANI_S16             plutPdadcOffset[NUM_RF_CHANNELS];                    // NV_TABLE_TPC_PDADC_OFFSETS
+    tANI_U16             plutPdadcOffset[NUM_RF_CHANNELS];                    // NV_TABLE_TPC_PDADC_OFFSETS
     tRateGroupPwrVR      pwrOptimum_virtualRate[NUM_RF_SUBBANDS];             // NV_TABLE_VIRTUAL_RATE
     //sCalFlashMemory    calFlashMemory;                                      // NV_TABLE_CAL_MEMORY
     sCalStatus           calStatus;                                           // NV_TABLE_CAL_STATUS
@@ -641,7 +641,7 @@ typedef PACKED_PRE struct PACKED_POST
     sRegulatoryDomains   regDomains[NUM_REG_DOMAINS];                         // NV_TABLE_REGULATORY_DOMAINS
     sDefaultCountry      defaultCountryTable;                                 // NV_TABLE_DEFAULT_COUNTRY
     tTpcPowerTable       plutCharacterized[NUM_RF_CHANNELS];                  // NV_TABLE_TPC_POWER_TABLE
-    tANI_S16             plutPdadcOffset[NUM_RF_CHANNELS];                    // NV_TABLE_TPC_PDADC_OFFSETS
+    tANI_U16             plutPdadcOffset[NUM_RF_CHANNELS];                    // NV_TABLE_TPC_PDADC_OFFSETS
     tRateGroupPwrVR      pwrOptimum_virtualRate[NUM_RF_SUBBANDS];             // NV_TABLE_VIRTUAL_RATE
     //sCalFlashMemory    calFlashMemory;                                      // NV_TABLE_CAL_MEMORY
     sCalStatus           calStatus;                                           // NV_TABLE_CAL_STATUS

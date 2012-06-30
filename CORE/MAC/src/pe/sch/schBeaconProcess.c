@@ -80,9 +80,7 @@ ap_beacon_process(
     tSirRFBand          rfBand = SIR_BAND_UNKNOWN;
     //Get RF band from psessionEntry
     rfBand = psessionEntry->limRFBand;
-
-    limGetPhyMode(pMac, &phyMode, psessionEntry);
-
+    limGetPhyMode(pMac, &phyMode);    
     if(SIR_BAND_5_GHZ == rfBand)
     {
         if (psessionEntry->htCapabality)
@@ -133,16 +131,6 @@ ap_beacon_process(
                     (pBcnStruct->erpIEInfo.useProtection ||
                     pBcnStruct->erpIEInfo.nonErpPresent)))
                 {
-#ifdef FEATURE_WLAN_CCX
-                    if( psessionEntry->isCCXconnection )
-                    {
-                        VOS_TRACE (VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO, 
-                            "%s: [INFOLOG]CCX 11g erpPresent=%d useProtection=%d nonErpPresent=%d\n", __func__,
-                            pBcnStruct->erpPresent,
-                            pBcnStruct->erpIEInfo.useProtection,
-                            pBcnStruct->erpIEInfo.nonErpPresent);
-                    } 
-#endif 
                     limEnableOverlap11gProtection(pMac, pBeaconParams, pMh,psessionEntry);
                 }
 
@@ -150,26 +138,13 @@ ap_beacon_process(
         }        
         // handling the case when HT AP has overlapping legacy BSS.
         else if(psessionEntry->htCapabality)
-        {             
+        {
             if (pBcnStruct->channelNumber == psessionEntry->currentOperChannel)
             {
-              if (((!(pBcnStruct->erpPresent)) && 
-                    !(pBcnStruct->HTInfo.present))|| 
-                  //if erp not present then  11B AP overlapping
-                  (pBcnStruct->erpPresent &&
-                  (pBcnStruct->erpIEInfo.useProtection ||
-                  pBcnStruct->erpIEInfo.nonErpPresent)))
+              if (pBcnStruct->erpPresent &&
+                    (pBcnStruct->erpIEInfo.useProtection ||
+                    pBcnStruct->erpIEInfo.nonErpPresent))
               {
-#ifdef FEATURE_WLAN_CCX
-                  if( psessionEntry->isCCXconnection )
-                  {
-                      VOS_TRACE (VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO, 
-                          "%s: [INFOLOG]CCX 11g erpPresent=%d useProtection=%d nonErpPresent=%d\n", __func__,
-                          pBcnStruct->erpPresent,
-                          pBcnStruct->erpIEInfo.useProtection,
-                          pBcnStruct->erpIEInfo.nonErpPresent);
-                  }  
-#endif 
                   limEnableOverlap11gProtection(pMac, pBeaconParams, pMh,psessionEntry);
               }
 
@@ -297,7 +272,7 @@ static void __schBeaconProcessNoSession(tpAniSirGlobal pMac, tpSchBeaconStruct p
     //If station(STA/BT-STA/BT-AP/IBSS) mode, Always save the beacon in the scan results, if atleast one session is active
     //schBeaconProcessNoSession will be called only when there is atleast one session active, so not checking 
     //it again here.
-    limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo, eANI_BOOLEAN_FALSE, eANI_BOOLEAN_FALSE);
+    limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo, eANI_BOOLEAN_FALSE);
     return;  
 }
 
@@ -372,7 +347,7 @@ static void __schBeaconProcessForSession( tpAniSirGlobal      pMac,
         
     
         //Always save the beacon into LIM's cached scan results
-        limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo, eANI_BOOLEAN_FALSE, eANI_BOOLEAN_FALSE);
+        limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo, eANI_BOOLEAN_FALSE);
         
         /**
                * This is the Beacon received from the AP  we're currently associated with. Check
@@ -504,29 +479,6 @@ static void __schBeaconProcessForSession( tpAniSirGlobal      pMac,
         }   
     }
 #endif
-
-#if defined FEATURE_WLAN_CCX
-        if( psessionEntry->isCCXconnection )
-        {
-           tPowerdBm  localConstraint = 0, regMax = 0, maxTxPower = 0;
-           if (pBeacon->ccxTxPwr.present)
-           {
-              localConstraint = pBeacon->ccxTxPwr.power_limit;
-              regMax = cfgGetRegulatoryMaxTransmitPower( pMac, psessionEntry->currentOperChannel ); 
-              maxTxPower = limGetMaxTxPower(regMax, localConstraint, pMac->roam.configParam.nTxPowerCap);
-
-              //If maxTxPower is increased or decreased
-             if( maxTxPower != psessionEntry->maxTxPower )
-             {
-                limLog( pMac, LOG1, "RegMax = %d, lpc = %d, MaxTx = %d", regMax, localConstraint, maxTxPower );
-                limLog( pMac, LOG1, "Local power constraint change..updating new maxTx power to HAL");
-                if( limSendSetMaxTxPowerReq ( pMac, maxTxPower, psessionEntry ) == eHAL_STATUS_SUCCESS )
-                   psessionEntry->maxTxPower = maxTxPower;
-             }
-           }
-        }
-#endif
-
 
 #if defined WLAN_FEATURE_VOWIFI
         if( pMac->rrm.rrmPEContext.rrmEnable )

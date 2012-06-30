@@ -28,8 +28,9 @@
     Exports and types for the neighbor roaming algorithm which is sepcifically 
     designed for Android.
   
-   Copyright (C) 2006 Airgo Networks, Incorporated
-   
+    Copyright (C) 2010 Airgo Networks, Incorporated
+  
+ 
 ========================================================================== */
 #ifndef CSR_NEIGHBOR_ROAM_H
 #define CSR_NEIGHBOR_ROAM_H
@@ -69,7 +70,6 @@ typedef struct sCsrNeighborRoamCfgParams
 #define CSR_NEIGHBOR_ROAM_INVALID_CHANNEL_INDEX    255
 typedef struct sCsrNeighborRoamChannelInfo
 {
-    tANI_BOOLEAN    IAPPNeighborListReceived; // Flag to mark reception of IAPP Neighbor list
     tANI_BOOLEAN    chanListScanInProgress;
     tANI_U8         currentChanIndex;       //Current channel index that is being scanned
     tCsrChannelInfo currentChannelListInfo; //Max number of channels in channel list and the list of channels
@@ -87,7 +87,7 @@ typedef struct sCsrNeighborRoamBSSInfo
 #define CSR_NEIGHBOR_ROAM_REPORT_QUERY_TIMEOUT  1000    //in milliseconds
 #define CSR_NEIGHBOR_ROAM_PREAUTH_RSP_WAIT_MULTIPLIER   5     //in milliseconds
 #define MAX_NUM_PREAUTH_FAIL_LIST_ADDRESS       10 //Max number of MAC addresses with which the pre-auth was failed
-#define MAX_BSS_IN_NEIGHBOR_RPT                 15
+#define MAX_BSS_IN_NEIGHBOR_RPT                 4
 #define CSR_NEIGHBOR_ROAM_MAX_NUM_PREAUTH_RETRIES 3
 
 /* Black listed APs. List of MAC Addresses with which the Preauthentication was failed. */
@@ -135,7 +135,6 @@ typedef struct sCsrNeighborRoamControlInfo
     eCsrNeighborRoamState       prevNeighborRoamState;
     tCsrNeighborRoamCfgParams   cfgParams;
     tCsrBssid                   currAPbssid; // current assoc AP
-    tANI_U8                     currAPoperationChannel; // current assoc AP
     tPalTimerHandle             neighborScanTimer;
     tPalTimerHandle             neighborResultsRefreshTimer;
     tCsrTimerInfo               neighborScanTimerInfo;
@@ -151,11 +150,6 @@ typedef struct sCsrNeighborRoamControlInfo
     tANI_BOOLEAN                is11rAssoc;
     tCsr11rAssocNeighborInfo    FTRoamInfo;
 #endif /* WLAN_FEATURE_VOWIFI_11R */
-#ifdef FEATURE_WLAN_CCX    
-    tANI_BOOLEAN                isCCXAssoc;
-    tANI_BOOLEAN                isVOAdmitted;
-    tANI_U32                    MinQBssLoadRequired;
-#endif
 } tCsrNeighborRoamControlInfo, *tpCsrNeighborRoamControlInfo;
 
 
@@ -175,9 +169,6 @@ void csrNeighborRoamPreauthRspHandler(tpAniSirGlobal pMac, VOS_STATUS vosStatus)
 #ifdef WLAN_FEATURE_VOWIFI_11R
 tANI_BOOLEAN csrNeighborRoamIs11rAssoc(tpAniSirGlobal pMac);
 #endif
-VOS_STATUS csrNeighborRoamCreateChanListFromNeighborReport(tpAniSirGlobal pMac);
-void csrNeighborRoamTranistionPreauthDoneToDisconnected(tpAniSirGlobal pMac);
-tANI_BOOLEAN csrNeighborRoamStatePreauthDone(tpAniSirGlobal pMac);
 
 
 

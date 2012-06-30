@@ -20,8 +20,8 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
+ *
  * Author:      Sandesh Goel
  * Date:        02/25/02
  * History:-
@@ -51,7 +51,7 @@ extern void schUpdateQosInfo(tpAniSirGlobal pMac);
 extern void schQosUpdateBroadcast(tpAniSirGlobal pMac, tpPESession psessionEntry);
 
 // fill in the default local edca parameter into gLimEdcaParams[]
-extern void schSetDefaultEdcaParams(tpAniSirGlobal pMac, tpPESession psessionE);
+extern void schSetDefaultEdcaParams(tpAniSirGlobal pMac);
 
 // update only local qos params
 extern void schQosUpdateLocal(tpAniSirGlobal pMac, tpPESession psessionEntry);

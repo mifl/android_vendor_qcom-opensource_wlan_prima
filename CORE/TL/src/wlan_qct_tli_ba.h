@@ -214,7 +214,7 @@ VOS_STATUS
 WLANTL_AMSDUProcess
 ( 
   v_PVOID_t   pvosGCtx,
-  vos_pkt_t** ppVosDataBuff, 
+  vos_pkt_t*  vosDataBuff, 
   v_PVOID_t   pvBDHeader,
   v_U8_t      ucSTAId,
   v_U8_t      ucMPDUHLen,

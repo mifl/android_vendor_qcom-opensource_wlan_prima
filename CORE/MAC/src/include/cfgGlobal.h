@@ -20,8 +20,8 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
+ *
  * Author:      Sandesh Goel
  * Date:        02/09/03
  * History:-

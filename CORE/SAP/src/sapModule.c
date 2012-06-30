@@ -159,8 +159,6 @@ WLANSAP_Open
         return VOS_STATUS_E_FAULT;
     }
 
-    vos_mem_zero(pSapCtx, sizeof(tSapContext));
-
     /*------------------------------------------------------------------------
         Clean up SAP control block, initialize all values
     ------------------------------------------------------------------------*/
@@ -317,8 +315,6 @@ WLANSAP_Stop
                    "%s: Invalid SAP pointer from pvosGCtx", __FUNCTION__);
         return VOS_STATUS_E_FAULT;
     }
-
-    sapFreeRoamProfile(&pSapCtx->csrRoamProfile);
     
     if( !VOS_IS_STATUS_SUCCESS( vos_lock_destroy( &pSapCtx->SapGlobalLock ) ) )
     {
@@ -1567,7 +1563,10 @@ WLANSAP_DelKeySta
     v_PVOID_t hHal = NULL;
     eHalStatus halStatus = eHAL_STATUS_FAILURE;
     v_U32_t roamId=0xFF;
-    tCsrRoamRemoveKey RemoveKeyInfo;
+    tCsrRoamSetKey SetKeyInfo;
+    tCsrRoamSetKey *pSetKeyInfo;
+
+    pSetKeyInfo = &SetKeyInfo;
 
     if (VOS_STA_SAP_MODE == vos_get_conparam ( ))
     {
@@ -1587,14 +1586,14 @@ WLANSAP_DelKeySta
             return VOS_STATUS_E_FAULT;
         }
 
-        vos_mem_zero(&RemoveKeyInfo, sizeof(RemoveKeyInfo));
-        RemoveKeyInfo.encType = pRemoveKeyInfo->encType;
-        vos_mem_copy(RemoveKeyInfo.peerMac, pRemoveKeyInfo->peerMac, WNI_CFG_BSSID_LEN); 
-        RemoveKeyInfo.keyId = pRemoveKeyInfo->keyId;
+        pSetKeyInfo->encType = pRemoveKeyInfo->encType;
+        vos_mem_copy(pSetKeyInfo->peerMac, pRemoveKeyInfo->peerMac, WNI_CFG_BSSID_LEN); 
+        pSetKeyInfo->keyId = pRemoveKeyInfo->keyId;
+        pSetKeyInfo->keyLength = 0;
 
-        halStatus = sme_RoamRemoveKey(hHal, pSapCtx->sessionId, &RemoveKeyInfo, &roamId);
+        sme_RoamSetKey(hHal, pSapCtx->sessionId, pSetKeyInfo, &roamId);
 
-        if (HAL_STATUS_SUCCESS(halStatus))
+        if (halStatus == eHAL_STATUS_SUCCESS)
         {
             vosStatus = VOS_STATUS_SUCCESS;
         }

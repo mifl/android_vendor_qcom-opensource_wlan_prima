@@ -55,7 +55,7 @@ void limSendSmeDeauthInd(tpAniSirGlobal, tpDphHashNode, tpPESession psessionEntr
 
 
 
-void limSendSmeWmStatusChangeNtf(tpAniSirGlobal, tSirSmeStatusChangeCode, tANI_U32 *, tANI_U16, tANI_U8);
+void limSendSmeWmStatusChangeNtf(tpAniSirGlobal, tSirSmeStatusChangeCode, tANI_U32 *, tANI_U16);
 void limSendSmeSetContextRsp(tpAniSirGlobal,
                              tSirMacAddr, tANI_U16, tSirResultCodes,tpPESession,tANI_U8,tANI_U16);
 void limSendSmePromiscuousModeRsp(tpAniSirGlobal pMac);
@@ -85,8 +85,7 @@ void limSendSmeRemoveKeyRsp(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr, tSirRe
 
 void limSendSmeGetTxPowerRsp(tpAniSirGlobal pMac, tANI_U32 power, tANI_U32 status);
 void limSendSmeGetNoiseRsp(tpAniSirGlobal pMac, tSirMacNoise noise);
-void limSendSmeIBSSPeerInd(tpAniSirGlobal pMac,tSirMacAddr peerMacAddr,tANI_U16 staIndex,tANI_U8 ucastIdx,tANI_U8 bcastIdx,
-               tANI_U8 *beacon,tANI_U16 beaconLen, tANI_U16 msgType, tANI_U8 sessionId);
+void limSendSmeIBSSPeerInd(tpAniSirGlobal pMac,tSirMacAddr peerMacAddr,tANI_U16 staIndex,tANI_U8 ucastIdx,tANI_U8 bcastIdx,tANI_U8 *beacon,tANI_U16 beaconLen, tANI_U16 msgType);
 void limSendExitBmpsInd(tpAniSirGlobal pMac, tExitBmpsReason reasonCode);
 
 

@@ -27,8 +27,9 @@
 
     Implementation supporting routines for CSR.
 
-
     Copyright (C) 2006 Airgo Networks, Incorporated
+
+
    ========================================================================== */
 
 #ifdef FEATURE_WLAN_NON_INTEGRATED_SOC
@@ -44,10 +45,20 @@
 #include "csrInsideApi.h"
 #include "smsDebug.h"
 #include "smeQosInternal.h"
-#ifdef FEATURE_WLAN_CCX
-#include "vos_utils.h"
-#include "csrCcx.h"
-#endif /* FEATURE_WLAN_CCX */
+
+
+#define CSR_OUI_USE_GROUP_CIPHER_INDEX 0x00
+#define CSR_OUI_WEP40_OR_1X_INDEX      0x01
+#define CSR_OUI_TKIP_OR_PSK_INDEX      0x02
+#define CSR_OUI_RESERVED_INDEX         0x03
+#define CSR_OUI_AES_INDEX              0x04
+#define CSR_OUI_WEP104_INDEX           0x05
+
+#ifdef FEATURE_WLAN_WAPI
+#define CSR_OUI_WAPI_RESERVED_INDEX    0x00
+#define CSR_OUI_WAPI_WAI_CERT_OR_SMS4_INDEX    0x01
+#define CSR_OUI_WAPI_WAI_PSK_INDEX     0x02
+#endif /* FEATURE_WLAN_WAPI */
 
 tANI_U8 csrWpaOui[][ CSR_WPA_OUI_SIZE ] = {
     { 0x00, 0x50, 0xf2, 0x00 },
@@ -55,10 +66,7 @@ tANI_U8 csrWpaOui[][ CSR_WPA_OUI_SIZE ] = {
     { 0x00, 0x50, 0xf2, 0x02 },
     { 0x00, 0x50, 0xf2, 0x03 },
     { 0x00, 0x50, 0xf2, 0x04 },
-    { 0x00, 0x50, 0xf2, 0x05 },
-#ifdef FEATURE_WLAN_CCX
-    { 0x00, 0x40, 0x96, 0x00 }, // CCKM
-#endif /* FEATURE_WLAN_CCX */
+    { 0x00, 0x50, 0xf2, 0x05 }
 };
 
 tANI_U8 csrRSNOui[][ CSR_RSN_OUI_SIZE ] = {
@@ -67,14 +75,7 @@ tANI_U8 csrRSNOui[][ CSR_RSN_OUI_SIZE ] = {
     { 0x00, 0x0F, 0xAC, 0x02 }, // TKIP or RSN-PSK
     { 0x00, 0x0F, 0xAC, 0x03 }, // Reserved
     { 0x00, 0x0F, 0xAC, 0x04 }, // AES-CCMP
-    { 0x00, 0x0F, 0xAC, 0x05 }, // WEP-104
-#ifdef WLAN_FEATURE_11W
-    { 0x00, 0x0F, 0xAC, 0x06 },  // BIP(encryption type) or (RSN-PSK-SHA256(authentication type)
-#endif
-#ifdef FEATURE_WLAN_CCX
-    { 0x00, 0x40, 0x96, 0x00 } // CCKM
-#endif /* FEATURE_WLAN_CCX */
-    
+    { 0x00, 0x0F, 0xAC, 0x05 }  // WEP-104
 };
 
 #ifdef FEATURE_WLAN_WAPI
@@ -86,6 +87,7 @@ tANI_U8 csrWapiOui[][ CSR_WAPI_OUI_SIZE ] = {
 #endif /* FEATURE_WLAN_WAPI */
 tANI_U8 csrWmeInfoOui[ CSR_WME_OUI_SIZE ] = { 0x00, 0x50, 0xf2, 0x02 };
 tANI_U8 csrWmeParmOui[ CSR_WME_OUI_SIZE ] = { 0x00, 0x50, 0xf2, 0x02 };
+
 
 static tCsrIELenInfo gCsrIELengthTable[] = {
 /* 000 */ { SIR_MAC_SSID_EID_MIN, SIR_MAC_SSID_EID_MAX },
@@ -349,6 +351,7 @@ static tCsrIELenInfo gCsrIELengthTable[] = {
 /* 254 */ { 0, 255 },
 /* 255 */ { SIR_MAC_ANI_WORKAROUND_EID_MIN, SIR_MAC_ANI_WORKAROUND_EID_MAX }
 };
+
 
 #if 0
 //Don't not insert entry into the table, put it to the end. If you have to insert, make sure it is also
@@ -1164,9 +1167,6 @@ tCsrDomainChnInfo gCsrDomainChnInfo[NUM_REG_DOMAINS] =
 };
 #endif
 
-extern const tRfChannelProps rfChannels[NUM_RF_CHANNELS];
-
-
 ////////////////////////////////////////////////////////////////////////
 
 /**
@@ -1359,7 +1359,7 @@ tANI_BOOLEAN csrIsConnStateConnectedWds( tpAniSirGlobal pMac, tANI_U32 sessionId
 tANI_BOOLEAN csrIsConnStateConnectedInfraAp( tpAniSirGlobal pMac, tANI_U32 sessionId )
 {
     return( (eCSR_ASSOC_STATE_TYPE_INFRA_CONNECTED == pMac->roam.roamSession[sessionId].connectState) ||
-        (eCSR_ASSOC_STATE_TYPE_INFRA_DISCONNECTED == pMac->roam.roamSession[sessionId].connectState ) );
+        (eCSR_ASSOC_STATE_TYPE_INFRA_DISCONNECTED == pMac->roam.roamSession[sessionId].connectState) );
 }
 #endif
 
@@ -1561,61 +1561,6 @@ tANI_BOOLEAN csrIsConnStateDisconnected(tpAniSirGlobal pMac, tANI_U32 sessionId)
     return (eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED == pMac->roam.roamSession[sessionId].connectState);
 }
 
-tANI_BOOLEAN csrIsValidMcConcurrentSession(tpAniSirGlobal pMac, tANI_U32 sessionId)
-{
-    tCsrRoamSession *pSession = NULL;
-    tANI_U8 Index = 0, ConnId = 0;
-    tVOS_CON_MODE Mode[CSR_ROAM_SESSION_MAX];
-
-    //Check for MCC support
-    if (!pMac->roam.configParam.fenableMCCMode)
-    {
-        return eANI_BOOLEAN_FALSE;
-    }
-
-    for( Index = 0; Index < CSR_ROAM_SESSION_MAX; Index++ ) 
-        Mode[Index] = VOS_MAX_NO_OF_MODE;
- 
-    for( Index = 0; Index < CSR_ROAM_SESSION_MAX; Index++ )
-    {
-        if( CSR_IS_SESSION_VALID( pMac, Index ) )
-        {
-            pSession = CSR_GET_SESSION( pMac, Index );
-
-            if (NULL != pSession->pCurRoamProfile)
-            {
-                Mode[ConnId] = pSession->pCurRoamProfile->csrPersona;
-                ConnId++;
-             }
-         }
-    }
-
-    Index  = 0;
-    if (Mode[Index] == VOS_STA_MODE && ConnId > Index)
-    {
-        switch (Mode[Index+1])
-        {
-            case VOS_P2P_CLIENT_MODE :
-              return eANI_BOOLEAN_TRUE;
-            case VOS_MAX_NO_OF_MODE :
-            default :
-                 break;
-        }
-    }
-    else if (Mode[Index] == VOS_P2P_CLIENT_MODE && ConnId > Index)
-    {
-        switch (Mode[Index +1])
-        {
-            case VOS_STA_MODE :
-                return eANI_BOOLEAN_TRUE;
-            case VOS_MAX_NO_OF_MODE :
-            default :
-                break;
-         }
-    }
-
-    return eANI_BOOLEAN_FALSE;
-}
 
 static tSirMacCapabilityInfo csrGetBssCapabilities( tSirBssDescription *pSirBssDesc )
 {
@@ -1674,11 +1619,6 @@ tANI_BOOLEAN csrIs11eSupported(tpAniSirGlobal pMac)
     return(pMac->roam.configParam.Is11eSupportEnabled);
 }
 
-tANI_BOOLEAN csrIsMCCSupported ( tpAniSirGlobal pMac )
-{
-   return(pMac->roam.configParam.fenableMCCMode);
-
-}
 
 tANI_BOOLEAN csrIsWmmSupported(tpAniSirGlobal pMac)
 {
@@ -2415,9 +2355,6 @@ tANI_BOOLEAN csrIsProfileWpa( tCsrRoamProfile *pProfile )
         case eCSR_AUTH_TYPE_WPA:
         case eCSR_AUTH_TYPE_WPA_PSK:
         case eCSR_AUTH_TYPE_WPA_NONE:
-#ifdef FEATURE_WLAN_CCX
-        case eCSR_AUTH_TYPE_CCKM_WPA:
-#endif
             fWpaProfile = TRUE;
             break;
 
@@ -2457,9 +2394,6 @@ tANI_BOOLEAN csrIsProfileRSN( tCsrRoamProfile *pProfile )
         case eCSR_AUTH_TYPE_FT_RSN:
         case eCSR_AUTH_TYPE_FT_RSN_PSK:
 #endif 
-#ifdef FEATURE_WLAN_CCX
-        case eCSR_AUTH_TYPE_CCKM_RSN:
-#endif 
             fRSNProfile = TRUE;
             break;
 
@@ -2490,55 +2424,6 @@ tANI_BOOLEAN csrIsProfileRSN( tCsrRoamProfile *pProfile )
     return( fRSNProfile );
 }
 
-
-#ifdef WLAN_FEATURE_VOWIFI_11R
-/* Function to return TRUE if the authtype is 11r */
-tANI_BOOLEAN csrIsAuthType11r( eCsrAuthType AuthType )
-{
-    switch ( AuthType )
-    {
-        case eCSR_AUTH_TYPE_FT_RSN_PSK:
-        case eCSR_AUTH_TYPE_FT_RSN:
-            return TRUE;
-            break;
-        default:
-            break;
-    }
-    return FALSE;
-}
-
-/* Function to return TRUE if the profile is 11r */
-tANI_BOOLEAN csrIsProfile11r( tCsrRoamProfile *pProfile )
-{
-    return csrIsAuthType11r( pProfile->negotiatedAuthType );
-}
-
-#endif
-
-#ifdef FEATURE_WLAN_CCX
-
-/* Function to return TRUE if the authtype is CCX */
-tANI_BOOLEAN csrIsAuthTypeCCX( eCsrAuthType AuthType )
-{
-    switch ( AuthType )
-    {
-        case eCSR_AUTH_TYPE_CCKM_WPA:
-        case eCSR_AUTH_TYPE_CCKM_RSN:
-            return TRUE;
-            break;
-        default:
-            break;
-    }
-    return FALSE;
-}
-
-/* Function to return TRUE if the profile is CCX */
-tANI_BOOLEAN csrIsProfileCCX( tCsrRoamProfile *pProfile )
-{
-    return (csrIsAuthTypeCCX( pProfile->negotiatedAuthType ));
-}
-
-#endif
 
 #ifdef FEATURE_WLAN_WAPI
 tANI_BOOLEAN csrIsProfileWapi( tCsrRoamProfile *pProfile )
@@ -2759,50 +2644,17 @@ static tANI_BOOLEAN csrIsFTAuthRSNPsk( tpAniSirGlobal pMac, tANI_U8 AllSuites[][
 
 #endif
 
-#ifdef FEATURE_WLAN_CCX
-
-/* 
- * Function for CCX CCKM AKM Authentication. We match the CCKM AKM Authentication Key Management suite
- * here. This matches for CCKM AKM Auth with the 802.1X exchange.
- *
- */
-static tANI_BOOLEAN csrIsCcxCckmAuthRSN( tpAniSirGlobal pMac, tANI_U8 AllSuites[][CSR_RSN_OUI_SIZE],
-                                  tANI_U8 cAllSuites,
-                                  tANI_U8 Oui[] )
-{
-    return( csrIsOuiMatch( pMac, AllSuites, cAllSuites, csrRSNOui[06], Oui ) );
-}
-
-static tANI_BOOLEAN csrIsCcxCckmAuthWpa( tpAniSirGlobal pMac, tANI_U8 AllSuites[][CSR_WPA_OUI_SIZE],
-                                tANI_U8 cAllSuites,
-                                tANI_U8 Oui[] )
-{
-    return( csrIsOuiMatch( pMac, AllSuites, cAllSuites, csrWpaOui[06], Oui ) );
-}
-
-#endif
-
 static tANI_BOOLEAN csrIsAuthRSN( tpAniSirGlobal pMac, tANI_U8 AllSuites[][CSR_RSN_OUI_SIZE],
                                   tANI_U8 cAllSuites,
                                   tANI_U8 Oui[] )
 {
-#ifdef WLAN_FEATURE_11W
-    return( csrIsOuiMatch( pMac, AllSuites, cAllSuites, csrRSNOui[01], Oui ) ||
-            csrIsOuiMatch( pMac, AllSuites, cAllSuites, csrRSNOui[05], Oui ));
-#else
     return( csrIsOuiMatch( pMac, AllSuites, cAllSuites, csrRSNOui[01], Oui ) );
-#endif
 }
 static tANI_BOOLEAN csrIsAuthRSNPsk( tpAniSirGlobal pMac, tANI_U8 AllSuites[][CSR_RSN_OUI_SIZE],
                                       tANI_U8 cAllSuites,
                                       tANI_U8 Oui[] )
 {
-#ifdef WLAN_FEATURE_11W
-    return( csrIsOuiMatch( pMac, AllSuites, cAllSuites, csrRSNOui[02], Oui ) ||
-            csrIsOuiMatch( pMac, AllSuites, cAllSuites, csrRSNOui[06], Oui ) );
-#else
     return( csrIsOuiMatch( pMac, AllSuites, cAllSuites, csrRSNOui[02], Oui ) );
-#endif
 }
 
 static tANI_BOOLEAN csrIsAuthWpa( tpAniSirGlobal pMac, tANI_U8 AllSuites[][CSR_WPA_OUI_SIZE],
@@ -2996,14 +2848,6 @@ tANI_BOOLEAN csrGetRSNInformation( tHalHandle hHal, tCsrAuthList *pAuthType, eCs
                         negAuthType = eCSR_AUTH_TYPE_FT_RSN_PSK;
                 }
 #endif
-#ifdef FEATURE_WLAN_CCX
-                /* CCX only supports 802.1X.  No PSK. */
-                if ( (negAuthType == eCSR_AUTH_TYPE_UNKNOWN) && csrIsCcxCckmAuthRSN( pMac, AuthSuites, cAuthSuites, Authentication ) )
-                {
-                    if (eCSR_AUTH_TYPE_CCKM_RSN == pAuthType->authType[i])
-                        negAuthType = eCSR_AUTH_TYPE_CCKM_RSN;
-                }
-#endif
                 if ( (negAuthType == eCSR_AUTH_TYPE_UNKNOWN) && csrIsAuthRSN( pMac, AuthSuites, cAuthSuites, Authentication ) )
                 {
                     if (eCSR_AUTH_TYPE_RSN == pAuthType->authType[i])
@@ -3123,8 +2967,6 @@ tANI_U8 csrConstructRSNIe( tHalHandle hHal, tANI_U32 sessionId, tCsrRoamProfile 
     tCsrRSNPMKIe        *pPMK;
     tANI_U8 PMKId[CSR_RSN_PMKID_SIZE];
     tDot11fBeaconIEs *pIesLocal = pIes;
-
-    smsLog(pMac, LOGW, "%s called...", __FUNCTION__);
 
     do
     {
@@ -3506,39 +3348,37 @@ tANI_BOOLEAN csrGetWpaCyphers( tpAniSirGlobal pMac, tCsrAuthList *pAuthType, eCs
             if( pNegotiatedMCCipher )
                 *pNegotiatedMCCipher = pMCEncryption->encryptionType[i];
 
-                /* Initializing with FALSE as it has TRUE value already */
-            fAcceptableCyphers = FALSE;
-            for (i = 0 ; i < pAuthType->numEntries; i++)
-            {
             //Ciphers are supported, Match authentication algorithm and pick first matching authtype.
+            if ( fAcceptableCyphers )
+            {
                 if ( csrIsAuthWpa( pMac, pWpaIe->auth_suites, cAuthSuites, Authentication ) )
                 {
-                    if (eCSR_AUTH_TYPE_WPA == pAuthType->authType[i])
                     negAuthType = eCSR_AUTH_TYPE_WPA;
                 }
-                if ( (negAuthType == eCSR_AUTH_TYPE_UNKNOWN) && csrIsAuthWpaPsk( pMac, pWpaIe->auth_suites, cAuthSuites, Authentication ) )
+                else if ( csrIsAuthWpaPsk( pMac, pWpaIe->auth_suites, cAuthSuites, Authentication ) )
                 {
-                    if (eCSR_AUTH_TYPE_WPA_PSK == pAuthType->authType[i])
                     negAuthType = eCSR_AUTH_TYPE_WPA_PSK;
                 }
-#ifdef FEATURE_WLAN_CCX
-                if ( (negAuthType == eCSR_AUTH_TYPE_UNKNOWN) && csrIsCcxCckmAuthWpa( pMac, pWpaIe->auth_suites, cAuthSuites, Authentication ) )
+                else
                 {
-                    if (eCSR_AUTH_TYPE_CCKM_WPA == pAuthType->authType[i])
-                        negAuthType = eCSR_AUTH_TYPE_CCKM_WPA;
+                    fAcceptableCyphers = FALSE;
+                    negAuthType = eCSR_AUTH_TYPE_UNKNOWN;
                 }
-#endif /* FEATURE_WLAN_CCX */
-
-                // The 1st auth type in the APs WPA IE, to match stations connecting
-                // profiles auth type will cause us to exit this loop
-                // This is added as some APs advertise multiple akms in the WPA IE.
-                if (eCSR_AUTH_TYPE_UNKNOWN != negAuthType)
+                if( 0 == pAuthType->numEntries )
                 {
+                    break;
+                }
+                fAcceptableCyphers = FALSE; 
+                for(i = 0; i < pAuthType->numEntries ; i++ )
+                {
+                    if ( pAuthType->authType[i] == negAuthType )
+                    {
                         fAcceptableCyphers = TRUE;
                         break;
                     }
-            } // for
+                }
             }
+        }
     }while(0);
 
     if ( fAcceptableCyphers )
@@ -3810,18 +3650,8 @@ tANI_U8 csrRetrieveRsnIe( tHalHandle hHal, tANI_U32 sessionId, tCsrRoamProfile *
     do
     {
         if ( !csrIsProfileRSN( pProfile ) ) break;
-#ifdef FEATURE_WLAN_LFR
-        if (csrRoamIsFastRoamEnabled(pMac))
-        {
-            // If "Legacy Fast Roaming" is enabled ALWAYS rebuild the RSN IE from 
-            // scratch. So it contains the current PMK-IDs
-            cbRsnIe = csrConstructRSNIe(pMac, sessionId, pProfile, pSirBssDesc, pIes, pRsnIe);
-        }
-        else 
-#endif
         if(pProfile->nRSNReqIELength && pProfile->pRSNReqIE)
         {
-            // If you have one started away, re-use it. 
             if(SIR_MAC_WPA_IE_MAX_LENGTH >= pProfile->nRSNReqIELength)
             {
                 cbRsnIe = (tANI_U8)pProfile->nRSNReqIELength;
@@ -3994,11 +3824,6 @@ tAniEdType csrTranslateEncryptTypeToEdType( eCsrEncryptionType EncryptType )
 #ifdef FEATURE_WLAN_WAPI
         case eCSR_ENCRYPT_TYPE_WPI:
             edType = eSIR_ED_WPI;
-#endif
-#ifdef WLAN_FEATURE_11W
-        //11w BIP
-        case eCSR_ENCRYPT_TYPE_AES_CMAC:
-            edType = eSIR_ED_AES_128_CMAC;
             break;
 #endif
     }
@@ -4795,10 +4620,7 @@ tANI_BOOLEAN csrMatchBSS( tHalHandle hHal, tSirBssDescription *pBssDesc, tCsrSca
             pIes = *ppIes;
         }
         
-        //Check if caller wants P2P
-        fCheck = (!pFilter->p2pResult || pIes->P2PBeaconProbeRes.present);
-        if(!fCheck) break;
-
+        fCheck = eANI_BOOLEAN_TRUE;
         if(pIes->SSID.present)
         {
             for(i = 0; i < pFilter->SSIDs.numOfSSIDs; i++)
@@ -4815,14 +4637,6 @@ tANI_BOOLEAN csrMatchBSS( tHalHandle hHal, tSirBssDescription *pBssDesc, tCsrSca
         {
             fCheck = csrIsBssidMatch( pMac, (tCsrBssid *)&pFilter->BSSIDs.bssid[i], (tCsrBssid *)pBssDesc->bssId );
             if ( fCheck ) break;
-
-            if (pFilter->p2pResult && pIes->P2PBeaconProbeRes.present)
-            {
-               fCheck = csrIsBssidMatch( pMac, (tCsrBssid *)&pFilter->BSSIDs.bssid[i], 
-                              (tCsrBssid *)pIes->P2PBeaconProbeRes.P2PDeviceInfo.P2PDeviceAddress );
-
-               if ( fCheck ) break;
-            }
         }
         if(!fCheck) break;
 
@@ -5370,6 +5184,24 @@ eCsrCfgDot11Mode csrGetCfgDot11ModeFromCsrPhyMode(eCsrPhyMode phyMode, tANI_BOOL
 }
 
 
+tANI_BOOLEAN csrIs40MhzChannel(tpAniSirGlobal pMac, tANI_U8 chnId)
+{
+    tANI_BOOLEAN fRet = eANI_BOOLEAN_FALSE;
+    tANI_U8 count;
+
+    for(count = 0; count < pMac->scan.base40MHzChannels.numChannels; count++)
+    {
+        if(chnId == pMac->scan.base40MHzChannels.channelList[count])
+        {
+            fRet = eANI_BOOLEAN_TRUE;
+            break;
+        }
+    }
+
+    return (fRet);
+}
+
+
 eHalStatus csrSetRegulatoryDomain(tpAniSirGlobal pMac, v_REGDOMAIN_t domainId, tANI_BOOLEAN *pfRestartNeeded)
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
@@ -5726,7 +5558,7 @@ eHalStatus csrGetSupportedCountryCode(tpAniSirGlobal pMac, tANI_U8 *pBuf, tANI_U
   -------------------------------------------------------------------------------*/
 eHalStatus csrGetSupportedCountryCode(tpAniSirGlobal pMac, tANI_U8 *pBuf, tANI_U32 *pbLen)
 {
-    eHalStatus status = eHAL_STATUS_SUCCESS;
+    eHalStatus status;
     VOS_STATUS vosStatus;
     v_SIZE_t size = (v_SIZE_t)*pbLen;
 
@@ -5734,10 +5566,9 @@ eHalStatus csrGetSupportedCountryCode(tpAniSirGlobal pMac, tANI_U8 *pBuf, tANI_U
     //eiter way, return the value back
     *pbLen = (tANI_U32)size;
 
-    //If pBuf is NULL, caller just want to get the size, consider it success
-    if(pBuf)
+    if( VOS_IS_STATUS_SUCCESS( vosStatus ) )
     {
-        if( VOS_IS_STATUS_SUCCESS( vosStatus ) )
+        if( pBuf )
         {
             tANI_U32 i, n = *pbLen / 3;
 
@@ -5746,10 +5577,11 @@ eHalStatus csrGetSupportedCountryCode(tpAniSirGlobal pMac, tANI_U8 *pBuf, tANI_U
                 pBuf[i*3 + 2] = ' ';
             }
         }
-        else
-        {
-            status = eHAL_STATUS_FAILURE;
-        }
+        status = eHAL_STATUS_SUCCESS;
+    }
+    else
+    {
+        status = eHAL_STATUS_FAILURE;
     }
 
     return (status);
@@ -5821,38 +5653,3 @@ tANI_BOOLEAN csrIsSetKeyAllowed(tpAniSirGlobal pMac, tANI_U32 sessionId)
     return ( fRet );
 }
 
-//no need to acquire lock for this basic function
-tANI_U16 sme_ChnToFreq(tANI_U8 chanNum)
-{
-   int i;
-
-   for (i = 0; i < NUM_RF_CHANNELS; i++) 
-   {
-      if (rfChannels[i].channelNum == chanNum) 
-      {
-         return rfChannels[i].targetFreq;
-      }
-   }
-
-   return (0);
-}
-
-/* Disconnect all active sessions by sending disassoc. This is mainly used to disconnect the remaining session when we 
- * transition from concurrent sessions to a single session. The use case is Infra STA and wifi direct multiple sessions are up and 
- * P2P session is removed. The Infra STA session remains and should resume BMPS if BMPS is enabled by default. However, there
- * are some issues seen with BMPS resume during this transition and this is a workaround which will allow the Infra STA session to
- * disconnect and auto connect back and enter BMPS this giving the same effect as resuming BMPS
- */
-void csrDisconnectAllActiveSessions(tpAniSirGlobal pMac)
-{
-    tANI_U8 i;
-
-    /* Disconnect all the active sessions */
-    for (i=0; i<CSR_ROAM_SESSION_MAX; i++)
-    {
-        if( CSR_IS_SESSION_VALID( pMac, i ) && !csrIsConnStateDisconnected( pMac, i ) )
-        {
-            csrRoamDisconnectInternal(pMac, i, eCSR_DISCONNECT_REASON_UNSPECIFIED);
-        }
-    }
-}

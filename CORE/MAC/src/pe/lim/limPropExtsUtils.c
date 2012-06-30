@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limPropExtsUtils.cc contains the utility functions
  * to populate, parse proprietary extensions required to
@@ -150,27 +149,17 @@ limExtractApCapability(tpAniSirGlobal pMac, tANI_U8 *pIE, tANI_U16 ieLen,
         if (beaconStruct.wmeEdcaPresent)
             *uapsd = beaconStruct.edcaParams.qosInfo.uapsd;
 
-#if defined FEATURE_WLAN_CCX
-        /* If there is Power Constraint Element specifically,
-         * adapt to it. Hence there is else condition check
-         * for this if statement.
-         */
-        if ( beaconStruct.ccxTxPwr.present)
-        {
-            *localConstraint = beaconStruct.ccxTxPwr.power_limit;
-        }
-#endif
-
         if (beaconStruct.powerConstraintPresent && ( pMac->lim.gLim11hEnable
 #if defined WLAN_FEATURE_VOWIFI
                  || pMac->rrm.rrmPEContext.rrmEnable
 #endif
                  ))
         {
-#if defined WLAN_FEATURE_VOWIFI 
-           *localConstraint -= beaconStruct.localPowerConstraint.localPowerConstraints;
+#if defined WLAN_FEATURE_VOWIFI
+           *localConstraint = beaconStruct.localPowerConstraint.localPowerConstraints;
 #else
            localPowerConstraints = (tANI_U32)beaconStruct.localPowerConstraint.localPowerConstraints;
+           *localConstraint = 0; 
 #endif
         }
 

@@ -218,25 +218,6 @@ VOS_STATUS WLANTL_HSInit
    v_PVOID_t   pAdapter
 );
 
-
-/*==========================================================================
-
-   FUNCTION    WLANTL_HSDeInit
-
-   DESCRIPTION 
-    
-   PARAMETERS 
-
-   RETURN VALUE
-
-============================================================================*/
-
-VOS_STATUS WLANTL_HSDeInit
-(
-   v_PVOID_t   pAdapter
-);
-
-
 /*==========================================================================
 
    FUNCTION

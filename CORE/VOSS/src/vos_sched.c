@@ -1270,7 +1270,7 @@ VOS_STATUS vos_sched_close ( v_PVOID_t pVosContext )
 
 VOS_STATUS vos_watchdog_close ( v_PVOID_t pVosContext )
 {
-    VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO_HIGH,
+    VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
         "%s: vos_watchdog closing now", __FUNCTION__);
     if (gpVosWatchdogContext == NULL)
     {

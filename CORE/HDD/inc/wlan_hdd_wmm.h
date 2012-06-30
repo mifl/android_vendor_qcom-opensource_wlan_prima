@@ -19,8 +19,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * */
 #ifndef _WLAN_HDD_WMM_H
 #define _WLAN_HDD_WMM_H
 /*============================================================================
@@ -86,7 +84,7 @@ typedef enum
    HDD_LINUX_AC_BK = 3
 
 } hdd_wmm_linuxac_t;
- 
+
 /*! @brief types of classification supported
 */
 typedef enum
@@ -172,14 +170,6 @@ typedef struct
    v_U32_t                      wmmAcUapsdServiceInterval;
    v_U32_t                      wmmAcUapsdSuspensionInterval;
    sme_QosWmmDirType            wmmAcUapsdDirection;
-
-#ifdef FEATURE_WLAN_CCX
-   // Inactivity time parameters for TSPEC
-   v_U32_t                      wmmInactivityTime;
-   v_U32_t                      wmmPrevTrafficCnt;
-   vos_timer_t                  wmmInactivityTimer;
-#endif
-
 } hdd_wmm_ac_status_t;
 
 /*! @brief WMM state & status info

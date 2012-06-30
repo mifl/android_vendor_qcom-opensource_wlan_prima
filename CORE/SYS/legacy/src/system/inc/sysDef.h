@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file sysDef.h contains the common definitions used to bring up
  * Sirius system.

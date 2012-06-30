@@ -20,7 +20,6 @@
  */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limSmeReqUtils.h contains the utility definitions
  * LIM uses while processing SME request messsages.

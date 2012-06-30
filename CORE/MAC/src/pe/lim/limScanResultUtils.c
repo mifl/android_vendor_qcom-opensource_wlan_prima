@@ -160,8 +160,6 @@ limCollectBssDescription(tpAniSirGlobal pMac,
                   sizeof(tSirMacAddr));
 
     // Copy Timestamp, Beacon Interval and Capability Info
-    pBssDescr->scanSysTimeMsec = vos_timer_get_system_time();
-
     pBssDescr->timeStamp[0]   = pBPR->timeStamp[0];
     pBssDescr->timeStamp[1]   = pBPR->timeStamp[1];
     pBssDescr->beaconInterval = pBPR->beaconInterval;
@@ -256,24 +254,12 @@ limCollectBssDescription(tpAniSirGlobal pMac,
     pBssDescr->mdie[1] = 0;
     pBssDescr->mdie[2] = 0;
     pBssDescr->mdiePresent = FALSE;
-    // If mdie is present in the probe resp we 
-    // fill it in the bss description
     if( pBPR->mdiePresent) 
     {
         pBssDescr->mdiePresent = TRUE;
         pBssDescr->mdie[0] = pBPR->mdie[0];
         pBssDescr->mdie[1] = pBPR->mdie[1];
         pBssDescr->mdie[2] = pBPR->mdie[2];
-    }
-#endif
-
-#ifdef FEATURE_WLAN_CCX
-    pBssDescr->QBSSLoad_present = FALSE;
-    pBssDescr->QBSSLoad_avail = 0; 
-    if( pBPR->QBSSLoad.present) 
-    {
-        pBssDescr->QBSSLoad_present = TRUE;
-        pBssDescr->QBSSLoad_avail = pBPR->QBSSLoad.avail;
     }
 #endif
     // Copy IE fields
@@ -361,36 +347,12 @@ void
 limCheckAndAddBssDescription(tpAniSirGlobal pMac,
                              tpSirProbeRespBeacon pBPR,
                              tANI_U8 *pRxPacketInfo,
-                             tANI_BOOLEAN fScanning,
-                             tANI_U8 fProbeRsp)
+                             tANI_BOOLEAN fScanning)
 {
     tLimScanResultNode   *pBssDescr;
     tANI_U32              frameLen, ieLen = 0;
     tANI_U8               rxChannelInBeacon = 0;
     eHalStatus            status;
-
-#ifdef WLAN_FEATURE_P2P
-    tSirMacAddr bssid = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    tANI_BOOLEAN fFound = FALSE;
-    tpSirMacDataHdr3a pHdr;
-
-    pHdr = WDA_GET_RX_MPDUHEADER3A((tANI_U8 *)pRxPacketInfo);
-
-    //Checking if scanning for a particular BSSID
-    if ((fScanning) && (pMac->lim.gpLimMlmScanReq)) 
-    {
-        fFound = palEqualMemory(pMac->hHdd, pHdr->addr3, &pMac->lim.gpLimMlmScanReq->bssId, 6);
-        if (!fFound)
-        {
-            if ((pMac->lim.gpLimMlmScanReq->p2pSearch) &&
-               (palEqualMemory(pMac->hHdd, pBPR->P2PProbeRes.P2PDeviceInfo.P2PDeviceAddress, 
-               &pMac->lim.gpLimMlmScanReq->bssId, 6)))
-            {
-                fFound = eANI_BOOLEAN_TRUE;
-            }
-        }
-    }
-#endif
 
     /**
      * Compare SSID with the one sent in
@@ -403,12 +365,9 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
      * a SSID (if it is also set). Ignore the other BSS in that case.
      */
 
-    if (((fScanning) && ( pMac->lim.gLimReturnAfterFirstMatch & 0x01 ) 
+    if ((fScanning) && ( pMac->lim.gLimReturnAfterFirstMatch & 0x01 ) 
         && (pMac->lim.gpLimMlmScanReq->numSsid) &&
                    !limIsScanRequestedSSID(pMac, &pBPR->ssId))
-                   ||  (!fFound && (pMac->lim.gpLimMlmScanReq && pMac->lim.gpLimMlmScanReq->bssId) &&
-                   !palEqualMemory(pMac->hHdd, bssid, &pMac->lim.gpLimMlmScanReq->bssId, 6))
-                   )
     {
         /**
          * Received SSID does not match with
@@ -443,7 +402,7 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
           /* This means that we are in 2.4GHz mode */
           if(WDA_GET_RX_CH(pRxPacketInfo) != rxChannelInBeacon)
           {
-             limLog(pMac, LOG3, FL("Beacon/Probe Rsp dropped. Channel in BD %d. "
+             limLog(pMac, LOGW, FL("Beacon/Probe Rsp dropped. Channel in BD %d. "
                                    "Channel in beacon" " %d\n"), 
                     WDA_GET_RX_CH(pRxPacketInfo),limGetChannelFromBeacon(pMac, pBPR));
              return;
@@ -478,8 +437,6 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
                              pBPR, pRxPacketInfo);
 #endif
 
-    pBssDescr->bssDescription.fProbeRsp = fProbeRsp;
-
     pBssDescr->next = NULL;
 
     /**
@@ -511,11 +468,7 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
 
         if ( ( pMac->lim.gLimReturnAfterFirstMatch & 0x01 ) ||
              ( pMac->lim.gLim24Band11dScanDone && ( pMac->lim.gLimReturnAfterFirstMatch & 0x40 ) ) ||
-             ( pMac->lim.gLim50Band11dScanDone && ( pMac->lim.gLimReturnAfterFirstMatch & 0x80 ) ) 
-#ifdef WLAN_FEATURE_P2P
-             || fFound
-#endif
-             )
+             ( pMac->lim.gLim50Band11dScanDone && ( pMac->lim.gLimReturnAfterFirstMatch & 0x80 ) ) )
 /*
         if ((pMac->lim.gLimReturnAfterFirstMatch & 0x01) ||
             (pMac->lim.gLim24Band11dScanDone &&
@@ -541,11 +494,8 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
             //while we already send FINISH_SCAN here. This may mess up the gLimHalScanState
             limDeactivateAndChangeTimer(pMac, eLIM_MIN_CHANNEL_TIMER);
             limDeactivateAndChangeTimer(pMac, eLIM_MAX_CHANNEL_TIMER);
-            //Set the resume channel to Any valid channel (invalid). 
-            //This will instruct HAL to set it to any previous valid channel.
-            peSetResumeChannel(pMac, 0, 0);
             limSendHalFinishScanReq( pMac, eLIM_HAL_FINISH_SCAN_WAIT_STATE );
-            //limSendHalFinishScanReq( pMac, eLIM_HAL_FINISH_SCAN_WAIT_STATE );
+            limSendHalFinishScanReq( pMac, eLIM_HAL_FINISH_SCAN_WAIT_STATE );
         }
     }//(eANI_BOOLEAN_TRUE == fScanning)
 
@@ -653,8 +603,6 @@ limLookupNaddHashEntry(tpAniSirGlobal pMac,
     tANI_U8                found = false;
     tLimScanResultNode *ptemp, *pprev;
     tSirMacCapabilityInfo *pSirCap, *pSirCapTemp;
-    int idx, len;
-    tANI_U8 *pbIe;
 
     index = limScanHashFunction(pBssDescr->bssDescription.bssId);
     ptemp = pMac->lim.gLimCachedScanHashTable[index];
@@ -685,34 +633,6 @@ limLookupNaddHashEntry(tpAniSirGlobal pMac,
             // Found the same BSS description
             if (action == LIM_HASH_UPDATE)
             {
-                if(pBssDescr->bssDescription.fProbeRsp != ptemp->bssDescription.fProbeRsp)
-                {
-                    //We get a different, save the old frame WSC IE if it is there
-                    idx = 0;
-                    len = ptemp->bssDescription.length - sizeof(tSirBssDescription) + 
-                       sizeof(tANI_U16) + sizeof(tANI_U32) - DOT11F_IE_WSCPROBERES_MIN_LEN - 2;
-                    pbIe = (tANI_U8 *)ptemp->bssDescription.ieFields;
-                    //Save WPS IE if it exists
-                    pBssDescr->bssDescription.WscIeLen = 0;
-                    while(idx < len)
-                    {
-                        if((DOT11F_EID_WSCPROBERES == pbIe[0]) &&
-                           (0x00 == pbIe[2]) && (0x50 == pbIe[3]) && (0xf2 == pbIe[4]) && (0x04 == pbIe[5]))
-                        {
-                            //Found it
-                            if((DOT11F_IE_WSCPROBERES_MAX_LEN - 2) >= pbIe[1])
-                            {
-                                palCopyMemory(pMac->hHdd, pBssDescr->bssDescription.WscIeProbeRsp,
-                                   pbIe, pbIe[1] + 2);
-                                pBssDescr->bssDescription.WscIeLen = pbIe[1] + 2;
-                            }
-                            break;
-                        }
-                        idx += pbIe[1] + 2;
-                        pbIe += pbIe[1] + 2;
-                    }
-                }
-
 
                 if(NULL != pMac->lim.gpLimMlmScanReq)
                 {

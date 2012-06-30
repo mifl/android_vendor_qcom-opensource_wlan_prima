@@ -186,8 +186,7 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
     tSirMacRateSet  basicRates;
     tANI_U8 i = 0, j = 0;
 
-    limGetPhyMode(pMac, &phyMode, psessionEntry);
-
+    limGetPhyMode(pMac, &phyMode);
     limGetQosMode(psessionEntry, &qosMode);
 
     pHdr = WDA_GET_RX_MAC_HEADER(pRxPacketInfo);
@@ -255,15 +254,6 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
         goto error;
     }
 
-    if ( palAllocateMemory(pMac->hHdd, (void **)&pAssocReq->assocReqFrame, framelen) != eHAL_STATUS_SUCCESS) 
-    {
-        limLog(pMac, LOGE, FL("Unable to allocate memory for the assoc req, length=%d from \n"),framelen);
-        goto error;
-    }
-    
-    palCopyMemory( pMac->hHdd, (tANI_U8 *) pAssocReq->assocReqFrame,
-                  (tANI_U8 *) pBody, framelen);
-    pAssocReq->assocReqFrameLength = framelen;    
 
     if (cfgGetCapabilityInfo(pMac, &temp,psessionEntry) != eSIR_SUCCESS)
     {
@@ -1249,12 +1239,6 @@ sendIndToSme:
 error:
     if (pAssocReq != NULL)
     {
-        if ( pAssocReq->assocReqFrame ) 
-        {
-            palFreeMemory(pMac->hHdd, pAssocReq->assocReqFrame);
-            pAssocReq->assocReqFrame = NULL;
-        }
-
         if (palFreeMemory(pMac->hHdd, pAssocReq) != eHAL_STATUS_SUCCESS) 
         {
             limLog(pMac, LOGP, FL("PalFree Memory failed \n"));
@@ -1290,7 +1274,7 @@ error:
 ------------------------------------------------------------------*/
 void limSendMlmAssocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession psessionEntry)
 {
-    tpLimMlmAssocInd        pMlmAssocInd = NULL;
+    tpLimMlmAssocInd        pMlmAssocInd;
     tpLimMlmReassocInd      pMlmReassocInd;
     tpSirAssocReq           pAssocReq;
     tANI_U16                temp;
@@ -1307,7 +1291,7 @@ void limSendMlmAssocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession p
     pAssocReq = (tpSirAssocReq) psessionEntry->parsedAssocReq[pStaDs->assocId];
 
     // Get the phyMode
-    limGetPhyMode(pMac, &phyMode, psessionEntry);
+    limGetPhyMode(pMac, &phyMode);
  
     // Extract pre-auth context for the peer BTAMP-STA, if any.
  
@@ -1465,13 +1449,6 @@ void limSendMlmAssocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession p
 
         }
 #endif
-
-        // Required for indicating the frames to upper layer
-        pMlmAssocInd->assocReqLength = pAssocReq->assocReqFrameLength;
-        pMlmAssocInd->assocReqPtr = pAssocReq->assocReqFrame;
-        
-        pMlmAssocInd->beaconPtr = psessionEntry->beacon;
-        pMlmAssocInd->beaconLength = psessionEntry->bcnLen;
 
         limPostSmeMessage(pMac, LIM_MLM_ASSOC_IND, (tANI_U32 *) pMlmAssocInd);
         palFreeMemory( pMac->hHdd, pMlmAssocInd);
@@ -1631,13 +1608,6 @@ void limSendMlmAssocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession p
 
         }
 #endif
-
-        // Required for indicating the frames to upper layer
-        pMlmReassocInd->assocReqLength = pAssocReq->assocReqFrameLength;
-        pMlmReassocInd->assocReqPtr = pAssocReq->assocReqFrame;
-
-        pMlmReassocInd->beaconPtr = psessionEntry->beacon;
-        pMlmReassocInd->beaconLength = psessionEntry->bcnLen;
 
         limPostSmeMessage(pMac, LIM_MLM_REASSOC_IND, (tANI_U32 *) pMlmReassocInd);
         palFreeMemory( pMac->hHdd, pMlmReassocInd);

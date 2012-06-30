@@ -96,13 +96,9 @@
    WDI should handle that timeout */
 #define VOS_WDA_TIMEOUT 15000
 
-/* Approximate amount of time to wait for WDA to stop WDI */
-#define VOS_WDA_STOP_TIMEOUT WDA_STOP_TIMEOUT 
-
 /*---------------------------------------------------------------------------
  * Data definitions
  * ------------------------------------------------------------------------*/
-static VosContextType  gVosContext;
 static pVosContextType gpVosContext;
 
 /*---------------------------------------------------------------------------
@@ -151,7 +147,7 @@ VOS_STATUS vos_preOpen ( v_CONTEXT_t *pVosContext )
 
    /* Allocate the VOS Context */
    *pVosContext = NULL;
-   gpVosContext = &gVosContext;
+   gpVosContext = (VosContextType*) kmalloc(sizeof(VosContextType), GFP_KERNEL);
 
    if (NULL == gpVosContext)
    {
@@ -205,6 +201,10 @@ VOS_STATUS vos_preClose( v_CONTEXT_t *pVosContext )
                 "%s: Context mismatch", __func__);
       return VOS_STATUS_E_FAILURE;
    }
+
+   /* Free the VOS Context */
+   if(gpVosContext != NULL)
+      kfree(gpVosContext);
 
    *pVosContext = gpVosContext = NULL;
 
@@ -883,7 +883,7 @@ VOS_STATUS vos_start( v_CONTEXT_t vosContext )
   }
 
 #endif
-  VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+  VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
             "%s: VOSS Start is successful!!", __func__);
 
   return VOS_STATUS_SUCCESS;
@@ -947,7 +947,7 @@ VOS_STATUS vos_stop( v_CONTEXT_t vosContext )
   }
 
   vosStatus = vos_wait_single_event( &(gpVosContext->wdaCompleteEvent),
-                                     VOS_WDA_STOP_TIMEOUT );
+                                     VOS_WDA_TIMEOUT );
    
   if ( vosStatus != VOS_STATUS_SUCCESS )
   {

@@ -546,9 +546,6 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
                     staInfo.assoc_req_ies =
                         (const u8 *)&pSapEvent->sapevt.sapStationAssocReassocCompleteEvent.ies[0];
                     staInfo.assoc_req_ies_len = iesLen;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
-                    staInfo.filled |= STATION_INFO_ASSOC_REQ_IES;
-#endif
                     cfg80211_new_sta(dev,
                                  (const u8 *)&pSapEvent->sapevt.sapStationAssocReassocCompleteEvent.staMac.bytes[0],
                                  &staInfo, GFP_KERNEL);
@@ -697,8 +694,7 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
             we_custom_event_generic = (v_BYTE_t *)maxAssocExceededEvent;
             hddLog(LOG1,"%s\n", maxAssocExceededEvent);
             break;
-        case eSAP_STA_ASSOC_IND:
-            return VOS_STATUS_SUCCESS;
+
         default:
             hddLog(LOG1,"SAP message is not handled\n");
             goto stopbss;
@@ -897,20 +893,6 @@ static iw_softap_setparam(struct net_device *dev,
                 }
             }
             break;
-
-        case QCSAP_PARAM_HIDE_SSID:
-            {
-                eHalStatus status = eHAL_STATUS_SUCCESS;
-                status = sme_HideSSID(hHal, pHostapdAdapter->sessionId, set_value);
-                if(eHAL_STATUS_SUCCESS != status)
-                {
-                    hddLog(VOS_TRACE_LEVEL_ERROR,
-                            "%s: QCSAP_PARAM_HIDE_SSID failed",
-                            __FUNCTION__);
-                    return status;
-                }
-                break;
-            }
 
         default:
             hddLog(LOGE, FL("Invalid setparam command %d value %d"),
@@ -1408,10 +1390,6 @@ int iw_softap_get_channel_list(struct net_device *dev,
     v_U8_t i = 0;
     v_U8_t bandStartChannel = RF_CHAN_1;
     v_U8_t bandEndChannel = RF_CHAN_165;
-    v_U32_t temp_num_channels = 0;
-    hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
-    tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
-    v_REGDOMAIN_t domainIdCurrentSoftap;
 
     tpChannelListInfo channel_list = (tpChannelListInfo) extra;
     wrqu->data.length = sizeof(tChannelListInfo);
@@ -1423,34 +1401,6 @@ int iw_softap_get_channel_list(struct net_device *dev,
         {
             channel_list->channels[num_channels] = rfChannels[i].channelNum; 
             num_channels++;
-        }
-    }
-
-    /* remove indoor channels if the domain is FCC, channels 36 - 48 */
-
-    temp_num_channels = num_channels;
-
-    if(eHAL_STATUS_SUCCESS != sme_getSoftApDomain(hHal,(v_REGDOMAIN_t *) &domainIdCurrentSoftap))
-    {
-        hddLog(LOG1,FL("Failed to get Domain ID, %d \n"),domainIdCurrentSoftap);
-        return -1;
-    }
-
-    if(REGDOMAIN_FCC == domainIdCurrentSoftap)
-    {
-        for(i = 0; i < temp_num_channels; i++)
-        {
-      
-           if((channel_list->channels[i] > 35) && 
-              (channel_list->channels[i] < 49))
-           {
-               vos_mem_move(&channel_list->channels[i], 
-                            &channel_list->channels[i+1], 
-                            temp_num_channels - (i-1));
-               num_channels--;
-               temp_num_channels--;
-               i--;
-           } 
         }
     }
 
@@ -2418,8 +2368,6 @@ static const struct iw_priv_args hostapd_private_args[] = {
       IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "" },
   { QCSAP_PARAM_MAX_ASSOC,
       IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "setMaxAssoc" },
-   { QCSAP_PARAM_HIDE_SSID,
-      IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0,  "hideSSID" },
   { QCSAP_IOCTL_GETPARAM,
       IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
       IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,    "getparam" },
@@ -2607,33 +2555,6 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
     
 #ifdef CONFIG_CFG80211
     wlan_hdd_set_monitor_tx_adapter( WLAN_HDD_GET_CTX(pAdapter), pAdapter );
-#endif
-#ifdef WLAN_FEATURE_P2P
-    /* If administrative interface is enabled then one interface being
-     * created for p2p device address. This will take one HW STA and 
-     * the max number of clients that can connect to softAP will be 
-     * reduced by one. So as soon as SoftAP interface got created remove 
-     * the session for p2p device address.
-     */
-    if ( VOS_IS_STATUS_SUCCESS( status ) && 
-            ( pAdapter->device_mode == WLAN_HDD_SOFTAP ) && 
-            ( !strncmp( pAdapter->dev->name, "wlan", 4 )) )
-    {
-        hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
-        if (pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated)
-        {
-            INIT_COMPLETION(pAdapter->session_close_comp_var);
-            if( eHAL_STATUS_SUCCESS == sme_CloseSession( pHddCtx->hHal,
-                        pAdapter->p2pSessionId,
-                        hdd_smeCloseSessionCallback, pAdapter ) )
-            {
-                //Block on a completion variable. Can't wait forever though.
-                wait_for_completion_interruptible_timeout(
-                        &pAdapter->session_close_comp_var,
-                        msecs_to_jiffies(WLAN_WAIT_TIME_SESSIONOPENCLOSE));
-            }
-        }
-    }
 #endif
     EXIT();
     return status;

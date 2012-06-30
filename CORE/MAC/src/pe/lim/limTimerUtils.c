@@ -48,8 +48,6 @@
 // Lim KeepAlive timer default (3000)ms
 #define LIM_KEEPALIVE_TIMER_MS                   3000
 
-//default beacon interval value used in HB timer interval calculation
-#define LIM_HB_TIMER_BEACON_INTERVAL             100
 /**
  * limCreateTimers()
  *
@@ -108,29 +106,6 @@ limCreateTimers(tpAniSirGlobal pMac)
 #endif
 
     PELOG2(limLog(pMac, LOG2, FL("Created MinChannelTimer\n"));)
-
-    /* Periodic probe request timer value is half of the Min channel
-     * timer. Probe request sends periodically till min/max channel
-     * timer expires
-     */
-
-    cfgValue = cfgValue/2 ;
-    if( cfgValue >= 1)
-    {
-        // Create periodic probe request timer and activate them later
-        if (tx_timer_create(&pMac->lim.limTimers.gLimPeriodicProbeReqTimer,
-                           "Periodic Probe Request Timer",
-                           limTimerHandler, SIR_LIM_PERIODIC_PROBE_REQ_TIMEOUT,
-                           cfgValue, 0,
-                           TX_NO_ACTIVATE) != TX_SUCCESS)
-        {
-           /// Could not start Periodic Probe Req timer.
-           // Log error
-           limLog(pMac, LOGP, FL("could not create periodic probe timer\n"));
-           return;
-        }
-     }
-
 
     if (wlan_cfgGetInt(pMac, WNI_CFG_ACTIVE_MAXIMUM_CHANNEL_TIME,
                   &cfgValue) != eSIR_SUCCESS)
@@ -632,24 +607,6 @@ limCreateTimers(tpAniSirGlobal pMac)
         return;
     }
 #endif
-
-#ifdef FEATURE_WLAN_CCX
-    cfgValue = 5000;
-    cfgValue = SYS_MS_TO_TICKS(cfgValue);
-
-    if (tx_timer_create(&pMac->lim.limTimers.gLimCcxTsmTimer,
-                                    "CCX TSM Stats TIMEOUT",
-                                    limTimerHandler, SIR_LIM_CCX_TSM_TIMEOUT,
-                                    cfgValue, 0,
-                                    TX_NO_ACTIVATE) != TX_SUCCESS)
-    {
-        // Could not create Join failure timer.
-        // Log error
-        limLog(pMac, LOGP, FL("could not create Join failure timer\n"));
-        return;
-    }
-#endif
-
 #ifdef WLAN_FEATURE_P2P
     cfgValue = 1000;
     cfgValue = SYS_MS_TO_TICKS(cfgValue);
@@ -664,6 +621,7 @@ limCreateTimers(tpAniSirGlobal pMac)
         limLog(pMac, LOGP, FL("could not create Join failure timer\n"));
         return;
     }
+
 
 #endif
     pMac->lim.gLimTimersCreated = 1;
@@ -951,27 +909,6 @@ limDeactivateAndChangeTimer(tpAniSirGlobal pMac, tANI_U32 timerId)
                 // Could not change min channel timer.
                 // Log error
                 limLog(pMac, LOGP, FL("Unable to change min channel timer\n"));
-            }
-
-            break;
-
-        case eLIM_PERIODIC_PROBE_REQ_TIMER:
-            if (tx_timer_deactivate(&pMac->lim.limTimers.gLimPeriodicProbeReqTimer)
-                                         != TX_SUCCESS)
-            {
-                // Could not deactivate min channel timer.
-                // Log error
-                limLog(pMac, LOGP,
-                       FL("Unable to deactivate periodic timer\n"));
-            }
-
-            val = SYS_MS_TO_TICKS(pMac->lim.gpLimMlmScanReq->minChannelTime)/2;
-            if (tx_timer_change(&pMac->lim.limTimers.gLimPeriodicProbeReqTimer,
-                                val, 0) != TX_SUCCESS)
-            {
-                // Could not change min channel timer.
-                // Log error
-                limLog(pMac, LOGP, FL("Unable to change periodic timer\n"));
             }
 
             break;
@@ -1580,15 +1517,6 @@ limDeactivateAndChangeTimer(tpAniSirGlobal pMac, tANI_U32 timerId)
             }
             break;
 #endif
-#ifdef FEATURE_WLAN_CCX
-         case eLIM_TSM_TIMER:
-             if (tx_timer_deactivate(&pMac->lim.limTimers.gLimCcxTsmTimer)
-                                                                != TX_SUCCESS)
-             {
-                 limLog(pMac, LOGE, FL("Unable to deactivate TSM timer\n"));
-             }
-             break;
-#endif
 #ifdef WLAN_FEATURE_P2P
         case eLIM_REMAIN_CHN_TIMER:
             if (tx_timer_deactivate(&pMac->lim.limTimers.gLimRemainOnChannelTimer) != TX_SUCCESS)
@@ -1640,20 +1568,12 @@ limHeartBeatDeactivateAndChangeTimer(tpAniSirGlobal pMac, tpPESession psessionEn
     if (tx_timer_deactivate(&pMac->lim.limTimers.gLimHeartBeatTimer) != TX_SUCCESS)
         limLog(pMac, LOGP, FL("Fail to deactivate HeartBeatTimer \n"));
 
-    /* HB Timer sessionisation: In case of 2 or more sessions, the HB interval keeps
-       changing. to avoid this problem, HeartBeat interval is made constant, by
-       fixing beacon interval to 100ms immaterial of the beacon interval of the session */
+    val = psessionEntry->beaconParams.beaconInterval;
+    PELOGW(limLog(pMac, LOGW, FL("session beaconInterval = %d\n"), val);)
 
-    //val = psessionEntry->beaconParams.beaconInterval;
-    val = LIM_HB_TIMER_BEACON_INTERVAL;
 
     if (wlan_cfgGetInt(pMac, WNI_CFG_HEART_BEAT_THRESHOLD, &val1) != eSIR_SUCCESS)
         limLog(pMac, LOGP, FL("Fail to get WNI_CFG_HEART_BEAT_THRESHOLD \n"));
-
-    PELOGW(limLog(pMac,LOGW,
-                 FL("HB Timer Int.=100ms * %d, Beacon Int.=%dms,Session Id=%d \n"),
-                 val1, psessionEntry->beaconParams.beaconInterval,
-                 psessionEntry->peSessionId);)
 
     // Change timer to reactivate it in future
     val = SYS_MS_TO_TICKS(val * val1);

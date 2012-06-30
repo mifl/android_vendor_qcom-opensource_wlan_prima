@@ -251,7 +251,7 @@ tSirRetStatus schSetFixedBeaconFields(tpAniSirGlobal pMac,tpPESession psessionEn
     }
 
     PopulateDot11fSuppRates( pMac, POPULATE_DOT11F_RATES_OPERATIONAL, &bcn1.SuppRates,psessionEntry);
-    PopulateDot11fDSParams( pMac, &bcn1.DSParams, psessionEntry->currentOperChannel, psessionEntry);
+    PopulateDot11fDSParams( pMac, &bcn1.DSParams, psessionEntry->currentOperChannel);
     PopulateDot11fIBSSParams( pMac, &bcn1.IBSSParams,psessionEntry);
 
     offset = sizeof( tAniBeaconStruct );
@@ -820,7 +820,7 @@ schProcessPreBeaconInd(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
     // If SME is not in normal mode, no need to generate beacon
     if (psessionEntry->limSmeState  != eLIM_SME_NORMAL_STATE)
     {
-        PELOGE(schLog(pMac, LOG1, FL("PreBeaconInd received in invalid state: %d\n"), psessionEntry->limSmeState);)
+        PELOGE(schLog(pMac, LOGE, FL("PreBeaconInd received in invalid state: %d\n"), psessionEntry->limSmeState);)
         goto end;
     }
 

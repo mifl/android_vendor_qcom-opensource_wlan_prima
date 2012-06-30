@@ -21,11 +21,14 @@
 
 /** ------------------------------------------------------------------------- * 
     ------------------------------------------------------------------------- *  
+
+  
     \file csrCmdProcess.c
   
     Implementation for processing various commands.
   
-   Copyright (C) 2006 Airgo Networks, Incorporated
+    Copyright (C) 2006 Airgo Networks, Incorporated
+  
  
    ========================================================================== */
 
@@ -52,9 +55,8 @@ eHalStatus csrMsgProcessor( tpAniSirGlobal pMac,  void *pMsgBuf )
     tSirSmeRsp *pSmeRsp = (tSirSmeRsp *)pMsgBuf;
 
     smsLog( pMac, LOG2, "  Message %d[0x%04X] received in curState %d and substate %d\n",
-                pSmeRsp->messageType, pSmeRsp->messageType, 
-                pMac->roam.curState[pSmeRsp->sessionId],
-                pMac->roam.curSubState[pSmeRsp->sessionId] );
+                pSmeRsp->messageType, pSmeRsp->messageType, pMac->roam.curState,
+                pMac->roam.curSubState );
 
     // Process the message based on the state of the roaming states...
     
@@ -62,7 +64,7 @@ eHalStatus csrMsgProcessor( tpAniSirGlobal pMac,  void *pMsgBuf )
     if(!pAdapter->fRttModeEnabled)
     {
 #endif//RTT    
-        switch (pMac->roam.curState[pSmeRsp->sessionId])
+        switch (pMac->roam.curState)
         {
         case eCSR_ROAMING_STATE_SCANNING: 
         {
@@ -101,12 +103,12 @@ eHalStatus csrMsgProcessor( tpAniSirGlobal pMac,  void *pMsgBuf )
             if( (eWNI_SME_SETCONTEXT_RSP == pSmeRsp->messageType) ||
                 (eWNI_SME_REMOVEKEY_RSP == pSmeRsp->messageType) )
             {
-                smsLog(pMac, LOGW, FL(" handling msg 0x%X CSR state is %d\n"), pSmeRsp->messageType, pMac->roam.curState[pSmeRsp->sessionId]);
+                smsLog(pMac, LOGW, FL(" handling msg 0x%X CSR state is %d\n"), pSmeRsp->messageType, pMac->roam.curState);
                 csrRoamCheckForLinkStatusChange(pMac, pSmeRsp);
             }
             else
             {
-                smsLog(pMac, LOGW, "  Message 0x%04X is not handled by CSR. CSR state is %d \n", pSmeRsp->messageType, pMac->roam.curState[pSmeRsp->sessionId]);
+                smsLog(pMac, LOGW, "  Message 0x%04X is not handled by CSR. CSR state is %d \n", pSmeRsp->messageType, pMac->roam.curState);
             }
             break;
         }
@@ -139,12 +141,13 @@ void csrFullPowerCallback(void *pv, eHalStatus status)
 
     (void)status;
     
-    while( NULL != ( pEntry = csrLLRemoveHead( &pMac->roam.roamCmdPendingList, eANI_BOOLEAN_TRUE ) ) )
+    csrLLLock(&pMac->roam.roamCmdPendingList);
+    while( NULL != ( pEntry = csrLLRemoveHead( &pMac->roam.roamCmdPendingList, eANI_BOOLEAN_FALSE ) ) )
     {
         pCommand = GET_BASE_ADDR( pEntry, tSmeCmd, Link );
         smePushCommand( pMac, pCommand, eANI_BOOLEAN_FALSE );
     }
-
+    csrLLUnlock(&pMac->roam.roamCmdPendingList);
 }
 
 

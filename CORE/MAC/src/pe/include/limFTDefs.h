@@ -69,9 +69,9 @@ typedef struct sSirFTPreAuthRsp
 {
    tANI_U16    messageType;      // eWNI_SME_FT_PRE_AUTH_RSP
    tANI_U16    length;
-   tANI_U8     smeSessionId;
    tSirMacAddr preAuthbssId;     // BSSID to preauth to
    tANI_U8     status;
+   tANI_U8     smeSessionId;
    tANI_U16    ft_ies_length;
    tANI_U8     ft_ies[MAX_FTIE_SIZE];
    tANI_U16    ric_ies_length;

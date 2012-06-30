@@ -19,8 +19,8 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limProcessDisassocFrame.cc contains the code
  * for processing Disassocation Frame.
@@ -274,6 +274,29 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
 
     pStaDs->mlmStaContext.cleanupTrigger = eLIM_PEER_ENTITY_DISASSOC;
     pStaDs->mlmStaContext.disassocReason = (tSirMacReasonCodes) reasonCode;
+
+    /* We received disassoc frame.  PE shall reset the 
+     * EDCA parameters to local values in the CFG and 
+     * send the update to HAL.
+     */
+    if ( (psessionEntry->limSystemRole == eLIM_STA_ROLE ) ||
+         (psessionEntry->limSystemRole == eLIM_BT_AMP_STA_ROLE ) )
+    {
+        schSetDefaultEdcaParams(pMac);
+        pStaDs = dphGetHashEntry(pMac, DPH_STA_HASH_INDEX_PEER, &psessionEntry->dph.dphHashTable);
+        if (pStaDs != NULL)
+        {
+            if (pStaDs->aniPeer == eANI_BOOLEAN_TRUE) 
+                limSendEdcaParams(pMac, psessionEntry->gLimEdcaParamsActive, pStaDs->bssId, eANI_BOOLEAN_TRUE);
+            else
+                limSendEdcaParams(pMac, psessionEntry->gLimEdcaParamsActive, pStaDs->bssId, eANI_BOOLEAN_FALSE);
+        }
+        else
+        {
+            limLog(pMac, LOGE, FL("Self entry missing in Hash Table \n"));
+            return;
+        }
+    }
 
     // Issue Disassoc Indication to SME.
     palCopyMemory( pMac->hHdd, (tANI_U8 *) &mlmDisassocInd.peerMacAddr,

@@ -20,7 +20,6 @@
  */
 
 /* 
- *
  * Airgo Networks, Inc proprietary. All rights reserved
  * aniParam.h: MAC parameter interface.
  * Author:  Kevin Nguyen

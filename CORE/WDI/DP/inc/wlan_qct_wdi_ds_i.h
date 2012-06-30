@@ -51,14 +51,13 @@
 /*The number of resources (BD headers) available for the HI priority DXE
   channel
   DXE will use 1 descriptor for the BD header and 1 for the data =>
-  This is true for LA but not EA. EA sends down 3~4 MDL chain per a packet.
-  Now we set it the same with free DXE decriptor number*/
-#define WDI_DS_HI_PRI_RES_NUM  (WLANDXE_HI_PRI_RES_NUM)
+  the number of resources available = half the DXE descriptors*/
+#define WDI_DS_HI_PRI_RES_NUM  (WLANDXE_HI_PRI_RES_NUM/2)
 
 /*The number of resources (BD headers) available for the Low priority DXE
   channel - see above
 */
-#define WDI_DS_LO_PRI_RES_NUM  (WLANDXE_LO_PRI_RES_NUM)
+#define WDI_DS_LO_PRI_RES_NUM  (WLANDXE_LO_PRI_RES_NUM/2)
 
 /*The number of BD headers available in the system for Tx must match the number
   of DXE descriptors available for actual transmission, otherwise we have to
@@ -157,15 +156,15 @@ typedef struct
 
 WPT_STATIC WPT_INLINE void WDI_GetBDPointers(wpt_packet *pFrame, void **pVirt, void **pPhys)
 {
-  *pVirt = WPAL_PACKET_GET_BD_POINTER(pFrame);
-  *pPhys = WPAL_PACKET_GET_BD_PHYS(pFrame);
+        *pVirt = pFrame->pBD;
+        *pPhys = pFrame->pBDPhys;
 }
 
 
 WPT_STATIC WPT_INLINE void WDI_SetBDPointers(wpt_packet *pFrame, void *pVirt, void *pPhys)
 {
-  WPAL_PACKET_SET_BD_POINTER(pFrame, pVirt);
-  WPAL_PACKET_SET_BD_PHYS(pFrame, pPhys);
+  pFrame->pBD = pVirt;
+  pFrame->pBDPhys = pPhys;
 }
 
 

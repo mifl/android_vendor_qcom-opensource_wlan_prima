@@ -812,7 +812,12 @@ limApplyConfiguration(tpAniSirGlobal pMac,tpPESession psessionEntry)
 
     psessionEntry->limSentCapsChangeNtf = false;
 
-    limGetPhyMode(pMac, &phyMode, psessionEntry);
+    if (wlan_cfgGetInt(pMac, WNI_CFG_PHY_MODE, &phyMode) != eSIR_SUCCESS)
+    {
+        limLog(pMac, LOGP, FL("could not retrieve PHY mode from CFG\n"));
+        return;
+    }
+
         
     // Set default keyId and keys
     limSetDefaultKeyIdAndKeys(pMac);
@@ -916,6 +921,10 @@ static void
 limUpdateConfig(tpAniSirGlobal pMac,tpPESession psessionEntry)
 {
     tANI_U32 val;
+
+    if (wlan_cfgGetInt(pMac, WNI_CFG_PHY_MODE, &pMac->lim.gLimPhyMode) != eSIR_SUCCESS)
+        limLog(pMac, LOGP, FL("cfg get failed\n"));
+
 
     #if 0
     if (wlan_cfgGetStr(pMac, WNI_CFG_STA_ID, pMac->lim.gLimMyMacAddr, &len) != eSIR_SUCCESS)

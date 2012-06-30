@@ -87,10 +87,7 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include "smeRrmInternal.h"
 #include "rrmGlobal.h"
 #endif
-#if defined FEATURE_WLAN_CCX
-#include "ccxApi.h"
-#include "ccxGlobal.h"
-#endif
+
 #ifdef WLAN_FEATURE_P2P
 #include "p2p_Api.h"
 #endif
@@ -138,11 +135,7 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #if defined WLAN_FEATURE_P2P
 #define P2P_WILDCARD_SSID "DIRECT-" //TODO Put it in proper place;
 #define P2P_WILDCARD_SSID_LEN 7
-
-#ifdef WLAN_FEATURE_CONCURRENT_P2P
-#define MAX_NO_OF_P2P_SESSIONS  5
-#endif //WLAN_FEATURE_CONCURRENT_P2P
-#endif //WLAN_FEATURE_P2P
+#endif
 
 // -------------------------------------------------------------------
 // Change channel generic scheme
@@ -207,7 +200,6 @@ typedef struct sLimTimers
     // Scan related timers
     TX_TIMER    gLimMinChannelTimer;
     TX_TIMER    gLimMaxChannelTimer;
-    TX_TIMER    gLimPeriodicProbeReqTimer;
 
     // CNF_WAIT timer
     TX_TIMER            *gpLimCnfWaitTimer;
@@ -234,9 +226,6 @@ typedef struct sLimTimers
     TX_TIMER           gLimFTPreAuthRspTimer;
 #endif
 
-#ifdef FEATURE_WLAN_CCX
-    TX_TIMER           gLimCcxTsmTimer;
-#endif
 #ifdef WLAN_FEATURE_P2P
     TX_TIMER           gLimRemainOnChannelTimer;
 #endif
@@ -542,11 +531,6 @@ typedef struct sAniSirLim
     tANI_U32 *gpLimResumeData;
 //end WLAN_SUSPEND_LINK Related
     tANI_U8    fScanDisabled;
-    //Can be set to invalid channel. If it is invalid, HAL
-    //should move to previous valid channel or stay in the
-    //current channel.
-    tANI_U16   gResumeChannel;
-    //TODO - Add CB state here.
 #endif // GEN4_SCAN
 
     // Change channel generic scheme
@@ -571,6 +555,10 @@ typedef struct sAniSirLim
     tLimProtStaParams  gLimOverlap11aParams;
     tLimProtStaParams gLimOverlapHt20Params;
     tLimProtStaParams gLimOverlapNonGfParams;
+
+  //  tANI_U32 gLimDot11Mode;
+    tSirRFBand gLimRFBand;
+
 
     //
     // ---------------- DPH -----------------------
@@ -1095,11 +1083,7 @@ typedef struct sAniSirGlobal
     tRrmContext rrm;
 #endif
 #ifdef WLAN_FEATURE_P2P
-#ifdef WLAN_FEATURE_CONCURRENT_P2P
-    tp2pContext p2pContext[MAX_NO_OF_P2P_SESSIONS];
-#else
     tp2pContext p2pContext;
-#endif
 #endif
 
 #if defined WLAN_FEATURE_VOWIFI_11R

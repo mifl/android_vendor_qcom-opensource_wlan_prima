@@ -122,6 +122,10 @@ typedef struct sPmcDeferredMsg
 } tPmcDeferredMsg;
 
 
+#ifdef FEATURE_WLAN_SCAN_PNO
+/*Pref netw found Cb declaration*/
+typedef void(*preferredNetworkFoundIndCallback)(void *callbackContext, tSirPrefNetworkFoundInd *pPrefNetworkFoundInd);
+#endif
 
 /* Current PMC information for a particular device. */
 typedef struct sPmcInfo
@@ -179,20 +183,11 @@ typedef struct sPmcInfo
 #ifdef FEATURE_WLAN_SCAN_PNO
     preferredNetworkFoundIndCallback  prefNetwFoundCB; /* routine to call for Preferred Network Found Indication */ 
     void *preferredNetworkFoundIndCallbackContext;/* value to be passed as parameter to routine specified above */
-#endif // FEATURE_WLAN_SCAN_PNO
+#endif // FEATURE_WLAN_SCAN_PNLO
 #ifdef WLAN_FEATURE_PACKET_FILTERING
     FilterMatchCountCallback  FilterMatchCountCB; /* routine to call for Packet Coalescing Filter Match Count */ 
     void *FilterMatchCountCBContext;/* value to be passed as parameter to routine specified above */
 #endif // WLAN_FEATURE_PACKET_FILTERING
-#ifdef WLAN_FEATURE_GTK_OFFLOAD
-    GTKOffloadGetInfoCallback  GtkOffloadGetInfoCB; /* routine to call for GTK Offload Information */ 
-    void *GtkOffloadGetInfoCBContext;        /* value to be passed as parameter to routine specified above */
-#endif // WLAN_FEATURE_GTK_OFFLOAD
-
-#ifdef WLAN_WAKEUP_EVENTS
-    void (*wakeReasonIndCB) (void *callbackContext, tpSirWakeReasonInd pWakeReasonInd);  /* routine to call for Wake Reason Indication */ 
-    void *wakeReasonIndCBContext;  /* value to be passed as parameter to routine specified above */
-#endif // WLAN_WAKEUP_EVENTS
 } tPmcInfo, *tpPmcInfo;
 
 
@@ -248,4 +243,6 @@ extern eHalStatus pmcIssueCommand( tpAniSirGlobal pMac, eSmeCommandType cmdType,
 extern eHalStatus pmcEnterImpsCheck( tpAniSirGlobal pMac );
 extern eHalStatus pmcEnterBmpsCheck( tpAniSirGlobal pMac );
 extern tANI_BOOLEAN pmcShouldBmpsTimerRun( tpAniSirGlobal pMac );
+
+
 #endif

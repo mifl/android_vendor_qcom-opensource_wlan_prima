@@ -88,7 +88,6 @@ typedef enum
    SME_QOS_CSR_HANDOFF_FAILURE,
 #ifdef WLAN_FEATURE_VOWIFI_11R
    SME_QOS_CSR_PREAUTH_SUCCESS_IND,
-   SME_QOS_CSR_SET_KEY_SUCCESS_IND,
 #endif
 }sme_QosCsrEventIndType;
 
@@ -241,9 +240,5 @@ v_U8_t sme_QosGetACMMask(tpAniSirGlobal pMac, tSirBssDescription *pSirBssDesc, t
 */
 sme_QosStatusType sme_QosTriggerUapsdChange( tpAniSirGlobal pMac );
 
-#ifdef FEATURE_WLAN_CCX
-v_U8_t sme_QosCCxRetrieveTspecInfo(tpAniSirGlobal pMac, v_U8_t sessionId, tTspecInfo *pTspecInfo);
-
-#endif
 
 #endif //#if !defined( __SMEQOSINTERNAL_H )
