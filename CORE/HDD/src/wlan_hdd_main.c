@@ -156,6 +156,9 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
 {
    struct net_device *dev = ndev;
    hdd_adapter_t *pAdapter = NULL;
+#ifdef WLAN_BTAMP_FEATURE
+   hdd_context_t *pHddCtx = NULL;
+#endif
 
    //Make sure that this callback corresponds to our device.
    if((strncmp( dev->name, "wlan", 4 )) && 
@@ -222,7 +225,15 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
                "%s: Scan is not Pending from user" , __FUNCTION__);
         }
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"%s: disabling AMP", __FUNCTION__);
-        WLANBAP_DeregisterFromHCI();
+#ifdef WLAN_BTAMP_FEATURE
+        pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
+        msleep(500);
+        if ( pHddCtx->isAmpAllowed )
+        {
+            WLANBAP_DeregisterFromHCI();
+            pHddCtx->isAmpAllowed = VOS_FALSE;
+        }
+#endif //WLAN_BTAMP_FEATURE
         break;
 
    default:

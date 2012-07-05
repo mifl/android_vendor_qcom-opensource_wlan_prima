@@ -925,6 +925,38 @@ eHalStatus sme_set11dinfo(tHalHandle hHal,  tpSmeConfigParams pSmeConfigParams)
     return status;
 }
 
+/*--------------------------------------------------------------------------
+
+  \brief sme_getSoftApDomain() - Get the current regulatory domain of softAp.
+
+  This is a synchronuous call
+
+  \param hHal - The handle returned by HostapdAdapter.
+  \Param v_REGDOMAIN_t - The current Regulatory Domain requested for SoftAp.
+
+  \return eHAL_STATUS_SUCCESS - SME successfully completed the request.
+
+          Other status means, failed to get the current regulatory domain.
+  \sa
+--------------------------------------------------------------------------*/
+
+eHalStatus sme_getSoftApDomain(tHalHandle hHal,  v_REGDOMAIN_t *domainIdSoftAp)
+{
+   eHalStatus status = eHAL_STATUS_FAILURE;
+   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+   if (NULL == domainIdSoftAp ) {
+      smsLog( pMac, LOGE, "Uninitialized domain Id");
+      return status;
+   }    
+
+   *domainIdSoftAp = pMac->scan.domainIdCurrent;
+   status = eHAL_STATUS_SUCCESS;
+    
+   return status;
+}
+
+
 eHalStatus sme_setRegInfo(tHalHandle hHal,  tANI_U8 *apCntryCode)
 {
    eHalStatus status = eHAL_STATUS_FAILURE;

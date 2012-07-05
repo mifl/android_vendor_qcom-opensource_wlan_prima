@@ -278,6 +278,23 @@ eHalStatus sme_UpdateChannelConfig(tHalHandle hHal);
 
 eHalStatus sme_set11dinfo(tHalHandle hHal,  tpSmeConfigParams pSmeConfigParams);
 
+/*--------------------------------------------------------------------------
+
+  \brief sme_getSoftApDomain() - Get the current regulatory domain of softAp.
+
+  This is a synchronuous call
+
+  \param hHal - The handle returned by HostapdAdapter.
+  \Param v_REGDOMAIN_t - The current Regulatory Domain requested for SoftAp.
+
+  \return eHAL_STATUS_SUCCESS - SME successfully completed the request.
+
+          Other status means, failed to get the current regulatory domain.
+  \sa
+--------------------------------------------------------------------------*/
+
+eHalStatus sme_getSoftApDomain(tHalHandle hHal,  v_REGDOMAIN_t *domainIdSoftAp);
+
 eHalStatus sme_setRegInfo(tHalHandle hHal,  tANI_U8 *apCntryCode);
 
 #endif
