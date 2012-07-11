@@ -143,7 +143,7 @@
 
 #define WDA_MAX_RETRIES_TILL_RING_EMPTY  100   /* MAX 1000msec wait */
 
-#define WDA_WAIT_MSEC_TILL_RING_EMPTY    10    /* 10msec wait per cycle */
+#define WDA_WAIT_MSEC_TILL_RING_EMPTY    100    /* 100 msec wait per cycle */
 /* extern declarations */
 extern void vos_WDAComplete_cback(v_PVOID_t pVosContext);
 

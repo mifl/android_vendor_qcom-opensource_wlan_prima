@@ -253,6 +253,12 @@ v_VOID_t vos_mem_set( v_VOID_t *ptr, v_SIZE_t numBytes, v_BYTE_t value )
 
 v_VOID_t vos_mem_zero( v_VOID_t *ptr, v_SIZE_t numBytes )
 {
+   if (0 == numBytes)
+   {
+      // special case where ptr can be NULL
+      return;
+   }
+
    if (ptr == NULL)
    {
       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s called with NULL parameter ptr", __FUNCTION__);
@@ -269,9 +275,18 @@ extern int csrCheckValidateLists(void * dest, const void *src, v_SIZE_t num, int
 
 v_VOID_t vos_mem_copy( v_VOID_t *pDst, const v_VOID_t *pSrc, v_SIZE_t numBytes )
 {
+   if (0 == numBytes)
+   {
+      // special case where pDst or pSrc can be NULL
+      return;
+   }
+
    if ((pDst == NULL) || (pSrc==NULL))
    {
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s called with NULL parameter", __FUNCTION__);
+      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                "%s called with NULL parameter, source:%p destination:%p",
+                __FUNCTION__, pSrc, pDst);
+      VOS_ASSERT(0);
       return;
    }
    //These two check function calls are to see if someone corrupt the list while doing mem copy.
@@ -282,9 +297,18 @@ v_VOID_t vos_mem_copy( v_VOID_t *pDst, const v_VOID_t *pSrc, v_SIZE_t numBytes )
 
 v_VOID_t vos_mem_move( v_VOID_t *pDst, const v_VOID_t *pSrc, v_SIZE_t numBytes )
 {
+   if (0 == numBytes)
+   {
+      // special case where pDst or pSrc can be NULL
+      return;
+   }
+
    if ((pDst == NULL) || (pSrc==NULL))
    {
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s called with NULL parameter", __FUNCTION__);
+      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                "%s called with NULL parameter, source:%p destination:%p",
+                __FUNCTION__, pSrc, pDst);
+      VOS_ASSERT(0);
       return;
    }
    memmove(pDst, pSrc, numBytes);
@@ -292,9 +316,18 @@ v_VOID_t vos_mem_move( v_VOID_t *pDst, const v_VOID_t *pSrc, v_SIZE_t numBytes )
 
 v_BOOL_t vos_mem_compare( v_VOID_t *pMemory1, v_VOID_t *pMemory2, v_U32_t numBytes )
 { 
+   if (0 == numBytes)
+   {
+      // special case where pMemory1 or pMemory2 can be NULL
+      return VOS_TRUE;
+   }
+
    if ((pMemory1 == NULL) || (pMemory2==NULL))
    {
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s called with NULL parameter", __FUNCTION__);
+      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                "%s called with NULL parameter, p1:%p p2:%p",
+                __FUNCTION__, pMemory1, pMemory2);
+      VOS_ASSERT(0);
       return VOS_FALSE;
    }
    return (memcmp(pMemory1, pMemory2, numBytes)?VOS_FALSE:VOS_TRUE);
