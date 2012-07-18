@@ -3547,6 +3547,14 @@ typedef struct sSirUpdateAPWPSIEsReq
     tSirAPWPSIEs   APWPSIEs;
 } tSirUpdateAPWPSIEsReq, *tpSirUpdateAPWPSIEsReq;
 
+typedef struct sSirUpdateParams
+{
+    tANI_U16       messageType;     
+    tANI_U16       length;
+    tANI_U8        sessionId;      // Session ID
+    tANI_U8        ssidHidden;     // Hide SSID
+} tSirUpdateParams, *tpSirUpdateParams;
+
 #define SIR_WPS_UUID_LEN 16
 #define SIR_WPS_PBC_WALK_TIME   120  // 120 Second
 

@@ -1153,13 +1153,18 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
         vos_mem_copy(pConfig->countryCode, &pIe[2], 3);
         sme_setRegInfo(hHal, pConfig->countryCode);
         sme_ResetCountryCodeInformation(hHal, &restartNeeded);
-        
-        if(VOS_STATUS_SUCCESS != wlan_hdd_validate_operation_channel(pHostapdAdapter,pConfig->channel))
+        /*
+         * If auto channel is configured i.e. channel is 0,
+         * so skip channel validation.
+        */
+        if( AUTO_CHANNEL_SELECT != pConfig->channel )
         {
-
-            hddLog(VOS_TRACE_LEVEL_ERROR,
-                    "%s: Invalid Channel [%d] \n", __func__, pConfig->channel);
-            return -EINVAL;
+            if(VOS_STATUS_SUCCESS != wlan_hdd_validate_operation_channel(pHostapdAdapter,pConfig->channel))
+            {
+                hddLog(VOS_TRACE_LEVEL_ERROR,
+                         "%s: Invalid Channel [%d] \n", __func__, pConfig->channel);
+                return -EINVAL;
+            }
         }
     }
     else 

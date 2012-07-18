@@ -169,6 +169,7 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WLAN_PRIV_SET_THREE_INT_GET_NONE   (SIOCIWFIRSTPRIV + 4)
 #define WE_SET_WLAN_DBG      1
 #define WE_SET_WDI_DBG       2
+#define WE_SET_SAP_CHANNELS  3
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_GET_CHAR_SET_NONE   (SIOCIWFIRSTPRIV + 5)
@@ -2029,6 +2030,27 @@ static int iw_get_rssi(struct net_device *dev,
    return 0;
 }
 
+/*
+ * Support for SoftAP channel range private command
+ */
+static int iw_softap_set_channel_range( struct net_device *dev,
+                                        int startChannel,
+                                        int endChannel,
+                                        int band)
+{
+    eHalStatus status;
+    int ret = 0;
+    hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
+    tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
+
+    status = WLANSAP_SetChannelRange(hHal, startChannel, endChannel, band);
+    if (VOS_STATUS_SUCCESS != status)
+    {
+        ret = -EINVAL;
+    }
+    return ret;
+}
+
 VOS_STATUS  wlan_hdd_enter_bmps(hdd_adapter_t *pAdapter, int mode)
 {
    struct statsContext context;
@@ -3055,7 +3077,7 @@ static int iw_setint_getnone(struct net_device *dev, struct iw_request_info *inf
             tSmeConfigParams smeConfig;;
             if((ENABLE_11D == set_value) || (DISABLE_11D == set_value)) {
                
-                sme_GetConfigParam(hHal,&smeConfig.csrConfig);
+                sme_GetConfigParam(hHal,&smeConfig);
                 smeConfig.csrConfig.Is11dSupportEnabled = (v_BOOL_t)set_value;
 
                 VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, ("11D state=%ld!!\n"),smeConfig.csrConfig.Is11dSupportEnabled);
@@ -3410,11 +3432,11 @@ static int iw_setnone_getint(struct net_device *dev, struct iw_request_info *inf
     {
         case WE_GET_11D_STATE:
         {
-           tCsrConfigParam configInfo;
+           tSmeConfigParams smeConfig;
            
-           sme_GetConfigParam(hHal,&configInfo);
+           sme_GetConfigParam(hHal,&smeConfig);
            
-           *value = configInfo.Is11dSupportEnabled;
+           *value = smeConfig.csrConfig.Is11dSupportEnabled;
 
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, ("11D state=%ld!!\n"),*value);
            
@@ -3497,8 +3519,8 @@ int iw_set_three_ints_getnone(struct net_device *dev, struct iw_request_info *in
 {    
     int *value = (int *)extra;
     int sub_cmd = value[0];
-    
-    
+    int ret = 0;
+
     switch(sub_cmd)
     {
         case WE_SET_WLAN_DBG:
@@ -3514,6 +3536,11 @@ int iw_set_three_ints_getnone(struct net_device *dev, struct iw_request_info *in
             break;
         }
 #endif // FEATURE_WLAN_INTEGRATED_SOC
+        case WE_SET_SAP_CHANNELS:
+        {
+            ret = iw_softap_set_channel_range( dev, value[1], value[2], value[3]);
+            break;
+        }
 
         default:  
         {
@@ -3521,8 +3548,7 @@ int iw_set_three_ints_getnone(struct net_device *dev, struct iw_request_info *in
             break;
         }
     }
-
-    return 0;
+    return ret;
 }
 
 static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *info,
@@ -5481,6 +5507,11 @@ static const struct iw_priv_args we_private_args[] = {
         0, 
         "setwdidbg" },
 #endif // FEATURE_WLAN_INTEGRATED_SOC
+
+    {   WE_SET_SAP_CHANNELS,
+        IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
+        0,
+        "setsapchannels" },
 
     /* handlers for main ioctl */
     {   WLAN_PRIV_GET_CHAR_SET_NONE,
