@@ -3653,6 +3653,12 @@ err_vosstop:
    vos_stop(pVosContext);
 
 err_vosclose:    
+   status = vos_sched_close( pVosContext );
+   if (!VOS_IS_STATUS_SUCCESS(status))    {
+      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
+         "%s: Failed to close VOSS Scheduler", __func__);
+      VOS_ASSERT( VOS_IS_STATUS_SUCCESS( status ) );
+   }
    vos_close(pVosContext ); 
 
 err_balstop:

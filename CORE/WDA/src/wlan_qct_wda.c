@@ -9183,27 +9183,37 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
    /* store the call back for the function of ackTxComplete */
    if( pAckTxComp )
    {
-      if( NULL == pWDA->pAckTxCbFunc )
-      {
-         txFlag |= HAL_TXCOMP_REQUESTED_MASK;
-         pWDA->pAckTxCbFunc = pAckTxComp;
-         if( VOS_STATUS_SUCCESS !=
-                 WDA_START_TIMER(&pWDA->wdaTimers.TxCompleteTimer) ) 
-         {
-            VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                                "Tx Complete Timer Start Failed ");
-            pWDA->pAckTxCbFunc = NULL;
-            return eHAL_STATUS_FAILURE;
-         }
-      }
-      else
-      {
-         /* Already TxComp is active no need to active again */
-         VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR, 
-                       "There is already one request pending for tx complete\n");
-         pCompFunc(pWDA->pVosContext, (vos_pkt_t *)pFrmBuf);
-         return eHAL_STATUS_FAILURE;
-      }
+       if( NULL != pWDA->pAckTxCbFunc )
+       {
+           /* Already TxComp is active no need to active again */
+           VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR, 
+                   "There is already one request pending for tx complete\n");
+           pWDA->pAckTxCbFunc( pMac, 0);
+           pWDA->pAckTxCbFunc = NULL;
+
+           if( VOS_STATUS_SUCCESS !=
+                   WDA_STOP_TIMER(&pWDA->wdaTimers.TxCompleteTimer))
+           {
+               VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                       "Tx Complete timeout Timer Stop Failed ");
+           }
+           else
+           {
+               VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                       "Tx Complete timeout Timer Stop Sucess ");
+           }
+       }
+
+       txFlag |= HAL_TXCOMP_REQUESTED_MASK;
+       pWDA->pAckTxCbFunc = pAckTxComp;
+       if( VOS_STATUS_SUCCESS !=
+               WDA_START_TIMER(&pWDA->wdaTimers.TxCompleteTimer) ) 
+       {
+           VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+                   "Tx Complete Timer Start Failed ");
+           pWDA->pAckTxCbFunc = NULL;
+           return eHAL_STATUS_FAILURE;
+       }
    } 
 
    /* Reset the event to be not signalled */
