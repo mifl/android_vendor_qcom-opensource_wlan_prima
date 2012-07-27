@@ -79,7 +79,8 @@ eHalStatus sme_ReportProbeReq( tHalHandle hHal, tANI_U8 flag );
 eHalStatus sme_updateP2pIe( tHalHandle hHal, void *p2pIe, 
                             tANI_U32 p2pIeLength );
 eHalStatus sme_sendAction( tHalHandle hHal, tANI_U8 sessionId,
-                           const tANI_U8 *pBuf, tANI_U32 len );
+                           const tANI_U8 *pBuf, tANI_U32 len,
+                           tANI_U16 wait, tANI_BOOLEAN noack);
 eHalStatus sme_CancelRemainOnChannel( tHalHandle hHal, tANI_U8 sessionId );
 eHalStatus sme_p2pOpen( tHalHandle hHal );
 eHalStatus sme_p2pClose( tHalHandle hHal );
@@ -88,7 +89,8 @@ eHalStatus p2pRemainOnChannel( tHalHandle hHal, tANI_U8 sessionId,
                                tANI_U8 channel, tANI_U32 duration,
                                remainOnChanCallback callback, void *pContext );
 eHalStatus p2pSendAction( tHalHandle hHal, tANI_U8 sessionId,
-                          const tANI_U8 *pBuf, tANI_U32 len );
+                          const tANI_U8 *pBuf, tANI_U32 len,
+                          tANI_U16 wait, tANI_BOOLEAN noack);
 eHalStatus p2pCancelRemainOnChannel( tHalHandle hHal, tANI_U8 sessionId );
 eHalStatus p2pSetPs( tHalHandle hHal, tP2pPsConfig *pNoA );
 #endif //__P2P_API_H__

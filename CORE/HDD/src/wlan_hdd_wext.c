@@ -2038,7 +2038,7 @@ static int iw_softap_set_channel_range( struct net_device *dev,
                                         int endChannel,
                                         int band)
 {
-    eHalStatus status;
+    VOS_STATUS status;
     int ret = 0;
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
     tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
@@ -2554,51 +2554,49 @@ static int iw_set_encode(struct net_device *dev,struct iw_request_info *info,
        if(!fKeyPresent) {
         
           for(i=0;i < CSR_MAX_NUM_KEY; i++) {
-         
-             if(pWextState->roamProfile.Keys.KeyMaterial[i])   
+
+             if(pWextState->roamProfile.Keys.KeyMaterial[i])
                 pWextState->roamProfile.Keys.KeyLength[i] = 0;
           }
        }
-       pHddStaCtx->conn_info.authType =  eCSR_AUTH_TYPE_OPEN_SYSTEM; 
-       pWextState->wpaVersion = IW_AUTH_WPA_VERSION_DISABLED; 
-       pWextState->roamProfile.EncryptionType.encryptionType[0] = eCSR_ENCRYPT_TYPE_NONE; 
+       pHddStaCtx->conn_info.authType =  eCSR_AUTH_TYPE_OPEN_SYSTEM;
+       pWextState->wpaVersion = IW_AUTH_WPA_VERSION_DISABLED;
+       pWextState->roamProfile.EncryptionType.encryptionType[0] = eCSR_ENCRYPT_TYPE_NONE;
        pWextState->roamProfile.mcEncryptionType.encryptionType[0] = eCSR_ENCRYPT_TYPE_NONE;
-       
+
        pHddStaCtx->conn_info.ucEncryptionType = eCSR_ENCRYPT_TYPE_NONE;
-       pHddStaCtx->conn_info.mcEncryptionType = eCSR_ENCRYPT_TYPE_NONE; 
-      
+       pHddStaCtx->conn_info.mcEncryptionType = eCSR_ENCRYPT_TYPE_NONE;
+
        if(eConnectionState_Associated == pHddStaCtx->conn_info.connState)
        {
            INIT_COMPLETION(pAdapter->disconnect_comp_var);
            status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter), pAdapter->sessionId, eCSR_DISCONNECT_REASON_UNSPECIFIED );
-           if(VOS_STATUS_SUCCESS == status)
+           if(eHAL_STATUS_SUCCESS == status)
                  wait_for_completion_interruptible_timeout(&pAdapter->disconnect_comp_var,
                      msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
        }
-   
        return status;
-   
    }
-   
-   if (wrqu->data.flags & (IW_ENCODE_OPEN | IW_ENCODE_RESTRICTED)) 
+
+   if (wrqu->data.flags & (IW_ENCODE_OPEN | IW_ENCODE_RESTRICTED))
    {
       hddLog(VOS_TRACE_LEVEL_INFO, "iwconfig wlan0 key on");
    
       pHddStaCtx->conn_info.authType = (encoderq->flags & IW_ENCODE_RESTRICTED) ? eCSR_AUTH_TYPE_SHARED_KEY : eCSR_AUTH_TYPE_OPEN_SYSTEM;
    
-   }   
+   }
    
       
    if(wrqu->data.length > 0)
    {
        hddLog(VOS_TRACE_LEVEL_INFO, "%s : wrqu->data.length : %d",__FUNCTION__,wrqu->data.length);
    
-       key_length = wrqu->data.length;        
+       key_length = wrqu->data.length;
    
        /* IW_ENCODING_TOKEN_MAX is the value that is set for wrqu->data.length by iwconfig.c when 'iwconfig wlan0 key on' is issued.*/
       
        if(5 == key_length)
-       {   
+       {
            hddLog(VOS_TRACE_LEVEL_INFO, "%s: Call with WEP40,key_len=%d",__FUNCTION__,key_length);
          
            if((IW_AUTH_KEY_MGMT_802_1X == pWextState->authKeyMgmt) && (eCSR_AUTH_TYPE_OPEN_SYSTEM == pHddStaCtx->conn_info.authType))
@@ -2639,7 +2637,7 @@ static int iw_set_encode(struct net_device *dev,struct iw_request_info *info,
           
        if((eConnectionState_NotConnected == pHddStaCtx->conn_info.connState) && 
             ((eCSR_AUTH_TYPE_OPEN_SYSTEM == pHddStaCtx->conn_info.authType) || 
-              (eCSR_AUTH_TYPE_SHARED_KEY == pHddStaCtx->conn_info.authType)))                                                                                    
+              (eCSR_AUTH_TYPE_SHARED_KEY == pHddStaCtx->conn_info.authType)))
        {
          
           vos_mem_copy(&pWextState->roamProfile.Keys.KeyMaterial[keyId][0],extra,key_length);
@@ -3023,7 +3021,7 @@ static int iw_set_mlme(struct net_device *dev,
                 INIT_COMPLETION(pAdapter->disconnect_comp_var);
                 status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter), pAdapter->sessionId,reason);
                 
-                if(VOS_STATUS_SUCCESS == status)
+                if(eHAL_STATUS_SUCCESS == status)
                     wait_for_completion_interruptible_timeout(&pAdapter->disconnect_comp_var,
                         msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
                 else
@@ -5075,7 +5073,7 @@ int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr)
              status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter), 
              pAdapter->sessionId, eCSR_DISCONNECT_REASON_UNSPECIFIED);
 
-             if ( VOS_STATUS_SUCCESS != status)
+             if ( eHAL_STATUS_SUCCESS != status)
              {
                  hddLog(VOS_TRACE_LEVEL_ERROR,
                          "%s csrRoamDisconnect failure, returned %d \n", 

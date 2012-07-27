@@ -129,6 +129,10 @@
 
 #define MAX_NO_OF_2_4_CHANNELS 14
 
+#define WLAN_HDD_PUBLIC_ACTION_FRAME 4
+#define WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET 24
+#define WLAN_HDD_PUBLIC_ACTION_FRAME_TYPE_OFFSET 30
+
 typedef struct hdd_tx_rx_stats_s
 {
    // start_xmit stats
@@ -349,6 +353,7 @@ typedef enum device_mode
 #ifdef ANI_MANF_DIAG
    ,WLAN_HDD_FTM,
 #endif
+   WLAN_HDD_P2P_DEVICE
 }device_mode_t;
 
 typedef enum rem_on_channel_request_type
@@ -368,6 +373,25 @@ typedef struct hdd_remain_on_chan_ctx
   rem_on_channel_request_type_t rem_on_chan_request;
 }hdd_remain_on_chan_ctx_t;
 
+typedef enum{
+    HDD_IDLE,
+    HDD_PD_REQ_ACK_PENDING,
+    HDD_GO_NEG_REQ_ACK_PENDING,
+    HDD_INVALID_STATE,
+}eP2PActionFrameState;
+
+typedef enum {
+    WLAN_HDD_GO_NEG_REQ,
+    WLAN_HDD_GO_NEG_RESP,
+    WLAN_HDD_GO_NEG_CNF,
+    WLAN_HDD_INVITATION_REQ,
+    WLAN_HDD_INVITATION_RESP,
+    WLAN_HDD_DEV_DIS_REQ,
+    WLAN_HDD_DEV_DIS_RESP,
+    WLAN_HDD_PROV_DIS_REQ,
+    WLAN_HDD_PROV_DIS_RESP,
+}tActionFrmType;
+
 typedef struct hdd_cfg80211_state_s 
 {
   tANI_U16 current_freq;
@@ -376,6 +400,7 @@ typedef struct hdd_cfg80211_state_s
   size_t len;
   struct sk_buff *skb;
   hdd_remain_on_chan_ctx_t* remain_on_chan_ctx;
+  eP2PActionFrameState actionFrmState;
 }hdd_cfg80211_state_t;
 
 #endif
@@ -564,12 +589,6 @@ struct hdd_adapter_s
    sHddMib_t  hdd_mib;
            
    tANI_U8 sessionId;
-#ifdef WLAN_FEATURE_P2P   
-   /** p2pSessionId required to open new SME session for P2P 
-    *  Device address which is different from STA MAC Address
-    */ 
-   tANI_U8 p2pSessionId;
-#endif
 
    /* Completion variable for session close */
    struct completion session_close_comp_var;

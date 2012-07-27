@@ -1134,7 +1134,7 @@ typedef struct
  @see
  @return pointer to the context 
 */
-WPT_INLINE void* WDI_GET_PAL_CTX( void );
+void* WDI_GET_PAL_CTX( void );
 
 /*---------------------------------------------------------------------------
                     MAIN DAL FSM Function Declarations

@@ -1328,7 +1328,7 @@ limMlmAddBss (
     }
 
 #ifdef WLAN_SOFTAP_FEATURE  
-    if( wlan_cfgGetInt ( pMac, WNI_CFG_SHORT_SLOT_TIME, &val ) != eSIR_SME_SUCCESS)
+    if( wlan_cfgGetInt ( pMac, WNI_CFG_SHORT_SLOT_TIME, &val ) != eSIR_SUCCESS)
     {
         limLog ( pMac, LOGP, FL(" Error : unable to fetch the WNI_CFG_SHORT_SLOT_TIME\n"));
         palFreeMemory(pMac->hHdd,(void *)pAddBssParams);
@@ -1589,7 +1589,7 @@ static tANI_U8 __limMlmScanAllowed(tpAniSirGlobal pMac)
 {
     int i;
 
-    if(pMac->lim.gLimMlmState != eLIM_SME_IDLE_STATE)
+    if(pMac->lim.gLimMlmState != eLIM_MLM_IDLE_STATE)
     {
         return FALSE;
     }
@@ -1994,25 +1994,6 @@ limProcessMlmAuthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
             limDeletePreAuthNode(pMac,
                                  pMac->lim.gpLimMlmAuthReq->peerMacAddr);
 
-        //assign appropriate sessionId to the timer object
-        pMac->lim.limTimers.gLimAuthFailureTimer.sessionId = sessionId;
-        
-        // Activate Auth failure timer
-        MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, 0, eLIM_AUTH_FAIL_TIMER));
-        if (tx_timer_activate(&pMac->lim.limTimers.gLimAuthFailureTimer)
-                                       != TX_SUCCESS)
-        {
-            /// Could not start Auth failure timer.
-            // Log error
-            limLog(pMac, LOGP,
-                   FL("could not start Auth failure timer\n"));
-
-            /// Return Auth confirm with Resources Unavailable
-            mlmAuthCnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
-
-            goto end;
-        }
-
         psessionEntry->limPrevMlmState = psessionEntry->limMlmState;
         psessionEntry->limMlmState = eLIM_MLM_WT_AUTH_FRAME2_STATE;
         MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, pMac->lim.gLimMlmState));
@@ -2026,6 +2007,22 @@ limProcessMlmAuthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                              &authFrameBody,
                              pMac->lim.gpLimMlmAuthReq->peerMacAddr,
                              LIM_NO_WEP_IN_FC,psessionEntry);
+
+        //assign appropriate sessionId to the timer object
+        pMac->lim.limTimers.gLimAuthFailureTimer.sessionId = sessionId;
+ 
+        // Activate Auth failure timer
+        MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, 0, eLIM_AUTH_FAIL_TIMER));
+        if (tx_timer_activate(&pMac->lim.limTimers.gLimAuthFailureTimer)
+                                       != TX_SUCCESS)
+        {
+            /// Could not start Auth failure timer.
+            // Log error
+            limLog(pMac, LOGP,
+                   FL("could not start Auth failure timer\n"));
+            // Cleanup as if auth timer expired
+            limProcessAuthFailureTimeout(pMac);
+        }
 
         return;
     }
@@ -2111,27 +2108,7 @@ limProcessMlmAssocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
          (psessionEntry->limMlmState == eLIM_MLM_AUTHENTICATED_STATE || psessionEntry->limMlmState == eLIM_MLM_JOINED_STATE) &&
          (palEqualMemory(pMac->hHdd,pMlmAssocReq->peerMacAddr, currentBssId, sizeof(tSirMacAddr))) )
     {
-        /// map the session entry pointer to the AssocFailureTimer 
-        pMac->lim.limTimers.gLimAssocFailureTimer.sessionId = pMlmAssocReq->sessionId;
 
-
-        /// Start association failure timer
-        MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, 0, eLIM_ASSOC_FAIL_TIMER));
-        if (tx_timer_activate(&pMac->lim.limTimers.gLimAssocFailureTimer)
-                                              != TX_SUCCESS)
-        {
-            /// Could not start Assoc failure timer.
-            // Log error
-            limLog(pMac, LOGP,
-                   FL("could not start Association failure timer\n"));
-
-            /// Return Assoc confirm with Resources Unavailable
-
-            mlmAssocCnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
-            mlmAssocCnf.protStatusCode = eSIR_MAC_UNSPEC_FAILURE_STATUS;
-
-            goto end;
-        }
 
         psessionEntry->limPrevMlmState = psessionEntry->limMlmState;
         psessionEntry->limMlmState = eLIM_MLM_WT_ASSOC_RSP_STATE;
@@ -2152,6 +2129,22 @@ limProcessMlmAssocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
            psessionEntry->selfMacAddr, NULL, NULL) != eSIR_SUCCESS)
             PELOGE(limLog(pMac, LOGE,  FL("Failed to set the LinkState\n"));)
     }
+        /// map the session entry pointer to the AssocFailureTimer 
+        pMac->lim.limTimers.gLimAssocFailureTimer.sessionId = pMlmAssocReq->sessionId;
+
+        /// Start association failure timer
+        MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, 0, eLIM_ASSOC_FAIL_TIMER));
+        if (tx_timer_activate(&pMac->lim.limTimers.gLimAssocFailureTimer)
+                                              != TX_SUCCESS)
+        {
+            /// Could not start Assoc failure timer.
+            // Log error
+            limLog(pMac, LOGP,
+                   FL("could not start Association failure timer\n"));
+            // Cleanup as if assoc timer expired
+            limProcessAssocFailureTimeout(pMac,LIM_ASSOC );
+           
+        }
 
         return;
     }
@@ -2756,7 +2749,7 @@ limProcessMlmDeauthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     limSendDeauthMgmtFrame(pMac, pMlmDeauthReq->reasonCode,
                            pMlmDeauthReq->peerMacAddr,psessionEntry);
 
-    if( (psessionEntry->limSystemRole == eSYSTEM_AP_ROLE))
+    if( (psessionEntry->limSystemRole == eLIM_AP_ROLE))
     {
       // Delay DEL STA for 300ms such that unicast deauth is 
       // delivered at TIM(100 for normal or 300ms for dynamic) 

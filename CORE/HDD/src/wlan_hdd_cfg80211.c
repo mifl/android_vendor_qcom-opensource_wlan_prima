@@ -2115,6 +2115,7 @@ static int wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
     else if ( (pAdapter->device_mode == WLAN_HDD_INFRA_STATION) 
 #ifdef WLAN_FEATURE_P2P
             || (pAdapter->device_mode == WLAN_HDD_P2P_CLIENT)
+            || (pAdapter->device_mode == WLAN_HDD_P2P_DEVICE)
 #endif
             )
     {
@@ -3007,7 +3008,6 @@ static eHalStatus hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
     //struct wireless_dev *wdev = dev->ieee80211_ptr;    
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR( dev );
     hdd_scaninfo_t *pScanInfo = &pAdapter->scan_info;
-    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
     struct cfg80211_scan_request *req = NULL;
     int ret = 0;
 
@@ -3108,10 +3108,6 @@ static eHalStatus hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
     if(pScanInfo->p2pSearch )
     {
         tANI_U8 sessionId = pAdapter->sessionId;
-        if (pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated)
-        { 
-            sessionId = pAdapter->p2pSessionId;
-        } 
         sme_ScanFlushResult(WLAN_HDD_GET_HAL_CTX(pAdapter), sessionId);
         pScanInfo->p2pSearch = 0;
     }
@@ -3130,7 +3126,6 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
         struct cfg80211_scan_request *request)
 {  
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR( dev ); 
-    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
     hdd_wext_state_t *pwextBuf = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
     hdd_config_t *cfg_param = (WLAN_HDD_GET_CTX(pAdapter))->cfg_ini;
     tCsrScanRequest scanRequest;
@@ -3283,7 +3278,8 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
             pScanInfo->scanAddIE.length = request->ie_len;
 
             if((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
-                (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode)
+                (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode)  ||
+                (WLAN_HDD_P2P_DEVICE == pAdapter->device_mode)
               )
             {
                pwextBuf->roamProfile.pAddIEScan = pScanInfo->scanAddIE.addIEdata;
@@ -3311,10 +3307,6 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
 
                     /* set requestType to P2P Discovery */
                     scanRequest.requestType = eCSR_SCAN_P2P_DISCOVERY;
-                    if (pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated)
-                    {
-                        sessionId = pAdapter->p2pSessionId;
-                    }
                     sme_ScanFlushResult( WLAN_HDD_GET_HAL_CTX(pAdapter),
                                           sessionId );
                 }
@@ -3325,20 +3317,9 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
 
     INIT_COMPLETION(pScanInfo->scan_req_completion_event);
 
-    if ((pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated) &&
-        (scanRequest.p2pSearch))
-    {
-        status = sme_ScanRequest( WLAN_HDD_GET_HAL_CTX(pAdapter),
-                              pAdapter->p2pSessionId, &scanRequest, &scanId,
-                              &hdd_cfg80211_scan_done_callback, dev );
-    }
-    else
-    {
-        status = sme_ScanRequest( WLAN_HDD_GET_HAL_CTX(pAdapter),
+    status = sme_ScanRequest( WLAN_HDD_GET_HAL_CTX(pAdapter),
                               pAdapter->sessionId, &scanRequest, &scanId,
                               &hdd_cfg80211_scan_done_callback, dev );
-    }
-    
     if (eHAL_STATUS_SUCCESS != status)
     {
         hddLog(VOS_TRACE_LEVEL_ERROR,

@@ -738,6 +738,7 @@ static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
                                  hdd_adapter_t *pAdapter)
 {
     eHalStatus halStatus = eHAL_STATUS_FAILURE;
+    VOS_STATUS vstatus;
     tpSirWlanSuspendParam wlanSuspendParam =
       vos_mem_malloc(sizeof(tSirWlanSuspendParam));
 
@@ -757,12 +758,12 @@ static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
            (eConnectionState_Associated == 
             (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState)) 
         {
-            halStatus = hdd_conf_hostarpoffload(pHddCtx, TRUE);
-            if (!VOS_IS_STATUS_SUCCESS(halStatus))
+            vstatus = hdd_conf_hostarpoffload(pHddCtx, TRUE);
+            if (!VOS_IS_STATUS_SUCCESS(vstatus))
             {
                 hddLog(VOS_TRACE_LEVEL_INFO,
                        "%s:Failed to enable ARPOFFLOAD Feature %d\n",
-                       __func__, halStatus);
+                       __func__, vstatus);
             }
         }
 
@@ -791,7 +792,7 @@ static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
 
 static void hdd_conf_resume_ind(hdd_context_t* pHddCtx)
 {
-    eHalStatus halStatus = eHAL_STATUS_FAILURE;
+    VOS_STATUS vstatus;
     tpSirWlanResumeParam wlanResumeParam =
       vos_mem_malloc(sizeof(tSirWlanResumeParam));
 
@@ -807,11 +808,11 @@ static void hdd_conf_resume_ind(hdd_context_t* pHddCtx)
 
     if(pHddCtx->cfg_ini->fhostArpOffload)
     {
-        halStatus = hdd_conf_hostarpoffload(pHddCtx, FALSE);
-        if (!VOS_IS_STATUS_SUCCESS(halStatus))
+        vstatus = hdd_conf_hostarpoffload(pHddCtx, FALSE);
+        if (!VOS_IS_STATUS_SUCCESS(vstatus))
         {
             hddLog(VOS_TRACE_LEVEL_INFO, "%s:Failed to disable ARPOFFLOAD "
-                  "Feature %d\n", __func__, halStatus);
+                  "Feature %d\n", __func__, vstatus);
         }
     }
     if (pHddCtx->dynamic_mcbc_filter.enableSuspend)
