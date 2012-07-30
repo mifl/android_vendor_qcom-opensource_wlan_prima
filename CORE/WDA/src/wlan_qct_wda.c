@@ -1531,7 +1531,7 @@ VOS_STATUS WDA_stop(v_PVOID_t pVosContext, tANI_U8 reason)
  */ 
 VOS_STATUS WDA_close(v_PVOID_t pVosContext)
 {
-   VOS_STATUS status;
+   VOS_STATUS status = VOS_STATUS_SUCCESS;
    WDI_Status wstatus = WDI_STATUS_SUCCESS;
    VOS_STATUS vstatus;
    tWDA_CbContext *wdaContext= (tWDA_CbContext *)VOS_GET_WDA_CTXT(pVosContext);

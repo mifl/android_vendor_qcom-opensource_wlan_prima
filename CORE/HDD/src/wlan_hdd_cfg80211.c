@@ -1681,6 +1681,7 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
     if( (pAdapter->device_mode == WLAN_HDD_INFRA_STATION)
 #ifdef WLAN_FEATURE_P2P
       || (pAdapter->device_mode == WLAN_HDD_P2P_CLIENT)
+      || (pAdapter->device_mode == WLAN_HDD_P2P_DEVICE)
 #endif
       )
     {

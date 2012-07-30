@@ -3461,7 +3461,7 @@ static int iw_setnone_getint(struct net_device *dev, struct iw_request_info *inf
         {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"%s: sending WLAN_MODULE_DOWN_IND", __FUNCTION__);
             send_btc_nlink_msg(WLAN_MODULE_DOWN_IND, 0);
-#ifdef WLAN_BTAMP_FEATURE 
+#ifdef WLAN_BTAMP_FEATURE
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"%s: Take down AMP PAL", __FUNCTION__);
             BSL_Deinit(vos_get_global_context(VOS_MODULE_ID_HDD, NULL));
 #endif
@@ -3782,6 +3782,8 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
            break;
         }
 #endif
+
+#ifdef WLAN_BTAMP_FEATURE
         case WE_ENABLE_AMP:
         {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"%s: enabling AMP", __FUNCTION__);
@@ -3794,6 +3796,7 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
             WLANBAP_DeregisterFromHCI();
             break;
         }
+#endif
 
         default:
         {
@@ -5555,6 +5558,7 @@ static const struct iw_priv_args we_private_args[] = {
         0,
         0,
         "exitAP" },
+#ifdef WLAN_BTAMP_FEATURE
     {   WE_ENABLE_AMP,
         0,
         0,
@@ -5563,6 +5567,7 @@ static const struct iw_priv_args we_private_args[] = {
         0,
         0,
         "disableAMP" },
+#endif
 
     /* handlers for main ioctl */
     {   WLAN_PRIV_SET_VAR_INT_GET_NONE,
