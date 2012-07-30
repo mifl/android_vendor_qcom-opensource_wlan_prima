@@ -289,8 +289,7 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb)
              msg.type));
 
       // Release the memory.
-      if (palFreeMemory( pMac->hHdd, (void*)(msg.bodyptr))
-            != eHAL_STATUS_SUCCESS)
+      if (palFreeMemory( pMac->hHdd, (void*)(msg.bodyptr)) != eSIR_SUCCESS)
       {
          WDALOGE( wdaLog(pMac, LOGE, FL("Buffer Allocation failed!\n")));
          return eSIR_FAILURE;

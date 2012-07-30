@@ -2122,7 +2122,6 @@ eHalStatus pmcIssueCommand( tpAniSirGlobal pMac, eSmeCommandType cmdType, void *
 tANI_BOOLEAN pmcProcessCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand )
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
-    VOS_STATUS vstatus;
     tANI_BOOLEAN fRemoveCmd = eANI_BOOLEAN_TRUE;
 
     do
@@ -2195,8 +2194,8 @@ tANI_BOOLEAN pmcProcessCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand )
                     /* Change PMC state */
                     pMac->pmc.pmcState = REQUEST_BMPS;
                     smsLog(pMac, LOGW, "PMC: Enter BMPS req done: Force XO Core ON\n");
-                    vstatus = vos_chipVoteXOCore(NULL, NULL, NULL, VOS_TRUE); 
-                    if ( !VOS_IS_STATUS_SUCCESS(vstatus) )
+                    status = vos_chipVoteXOCore(NULL, NULL, NULL, VOS_TRUE); 
+                    if ( !VOS_IS_STATUS_SUCCESS(status) )
                     {
                         smsLog(pMac, LOGE, "Could not turn XO Core ON. Can't go to BMPS\n");
                     }

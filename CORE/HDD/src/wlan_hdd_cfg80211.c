@@ -447,10 +447,6 @@ int wlan_hdd_cfg80211_register(struct device *dev,
                     | WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD
                     | WIPHY_FLAG_CUSTOM_REGULATORY;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
-    wiphy->flags |=   WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
-#endif
-
     wiphy->max_scan_ssids = MAX_SCAN_SSID; 
     
     wiphy->max_scan_ie_len = 200 ; //TODO: define a macro
@@ -660,16 +656,9 @@ void wlan_hdd_cfg80211_set_key_wapi(hdd_adapter_t* pAdapter, u8 key_index,
 }
 #endif /* FEATURE_WLAN_WAPI*/
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
 int wlan_hdd_cfg80211_alloc_new_beacon(hdd_adapter_t *pAdapter, 
                                        beacon_data_t **ppBeacon,
                                        struct beacon_parameters *params)
-#else
-int wlan_hdd_cfg80211_alloc_new_beacon(hdd_adapter_t *pAdapter, 
-                                       beacon_data_t **ppBeacon,
-                                       struct cfg80211_beacon_data *params,
-                                       int dtim_period)
-#endif
 {    
     int size;
     beacon_data_t *beacon = NULL;
@@ -710,17 +699,10 @@ int wlan_hdd_cfg80211_alloc_new_beacon(hdd_adapter_t *pAdapter,
     if( beacon == NULL )
         return -ENOMEM;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
     if(params->dtim_period || !old )
         beacon->dtim_period = params->dtim_period;
     else
         beacon->dtim_period = old->dtim_period;
-#else
-    if(dtim_period || !old )
-        beacon->dtim_period = dtim_period;
-    else
-        beacon->dtim_period = old->dtim_period;
-#endif
  
     beacon->head = ((u8 *) beacon) + sizeof(beacon_data_t);
     beacon->tail = beacon->head + head_len;
@@ -869,13 +851,8 @@ static void wlan_hdd_set_sapHwmode(hdd_adapter_t *pHostapdAdapter)
     }
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
 static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
                             struct beacon_parameters *params)
-#else
-static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
-                                     struct cfg80211_beacon_data *params)
-#endif
 {
     v_U8_t *genie;
     v_U8_t total_ielen = 0, ielen = 0;
@@ -1122,7 +1099,6 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
     vos_mem_free(genie);
     return 0;
 }
-
 /* 
  * FUNCTION: wlan_hdd_validate_operation_channel
  * called by wlan_hdd_cfg80211_start_bss() and
@@ -1166,16 +1142,8 @@ static VOS_STATUS wlan_hdd_validate_operation_channel(hdd_adapter_t *pAdapter,in
          
 }
 
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
 static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
                             struct beacon_parameters *params)
-#else
-static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
-                                       struct cfg80211_beacon_data *params,
-                                       const u8 *ssid, size_t ssid_len,
-                                       enum nl80211_hidden_ssid hidden_ssid)
-#endif
 {
     tsap_Config_t *pConfig;
     beacon_data_t *pBeacon = NULL;
@@ -1365,7 +1333,6 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
     pConfig->SSIDinfo.ssidHidden = VOS_FALSE;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
     if (params->ssid != NULL)
     {
         memcpy(pConfig->SSIDinfo.ssid.ssId, params->ssid, params->ssid_len);
@@ -1373,16 +1340,6 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
         if (params->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE)
             pConfig->SSIDinfo.ssidHidden = VOS_TRUE;
     }
-#else
-    if (ssid != NULL)
-    {
-        memcpy(pConfig->SSIDinfo.ssid.ssId, ssid, ssid_len);
-        pConfig->SSIDinfo.ssid.length = ssid_len;
-        if (hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE)
-            pConfig->SSIDinfo.ssidHidden = VOS_TRUE;
-    }
-#endif
-
     vos_mem_copy(pConfig->self_macaddr.bytes, 
                pHostapdAdapter->macAddressCurrent.bytes, sizeof(v_MACADDR_t));
     
@@ -1515,7 +1472,6 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
    return 0;
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
 static int wlan_hdd_cfg80211_add_beacon(struct wiphy *wiphy, 
                                         struct net_device *dev, 
                                         struct beacon_parameters *params)
@@ -1614,15 +1570,8 @@ static int wlan_hdd_cfg80211_set_beacon(struct wiphy *wiphy,
     return status;
 }
 
-#endif //(LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
 static int wlan_hdd_cfg80211_del_beacon(struct wiphy *wiphy,
                                         struct net_device *dev)
-#else
-static int wlan_hdd_cfg80211_stop_ap (struct wiphy *wiphy,
-                                      struct net_device *dev)
-#endif
 {
     hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_context_t *pHddCtx;
@@ -1716,95 +1665,6 @@ static int wlan_hdd_cfg80211_stop_ap (struct wiphy *wiphy,
     EXIT();
     return status;
 }
-
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3,3,0))
-
-static int wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy, 
-                                      struct net_device *dev, 
-                                      struct cfg80211_ap_settings *params)
-{
-    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-    int            status = VOS_STATUS_SUCCESS; 
-
-    ENTER();
-
-    hddLog(VOS_TRACE_LEVEL_INFO_HIGH, "device mode=%d\n", pAdapter->device_mode);
-
-    if ((pAdapter->device_mode == WLAN_HDD_SOFTAP) 
-#ifdef WLAN_FEATURE_P2P
-      || (pAdapter->device_mode == WLAN_HDD_P2P_GO)
-#endif
-       )
-    {
-        beacon_data_t  *old,*new;
-
-        old = pAdapter->sessionCtx.ap.beacon;
-   
-        if (old)
-            return -EALREADY;
-
-        status = wlan_hdd_cfg80211_alloc_new_beacon(pAdapter, &new, &params->beacon, params->dtim_period);
-
-        if(status != VOS_STATUS_SUCCESS) 
-        {
-             hddLog(VOS_TRACE_LEVEL_FATAL,
-                   "%s:Error!!! Allocating the new beacon\n",__func__);
-             return -EINVAL;
-        }
-        pAdapter->sessionCtx.ap.beacon = new;
-        status = wlan_hdd_cfg80211_start_bss(pAdapter, &params->beacon, params->ssid,
-                                             params->ssid_len, params->hidden_ssid);
-    }
-
-    EXIT();
-    return status;
-}
-
-
-static int wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy, 
-                                        struct net_device *dev,
-                                        struct cfg80211_beacon_data *params)
-{
-    hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev); 
-    int status=VOS_STATUS_SUCCESS;
-
-    ENTER();
-
-    hddLog(VOS_TRACE_LEVEL_INFO, "%s: device_mode = %d\n",
-                                __func__, pAdapter->device_mode);
-
-    if ((pAdapter->device_mode == WLAN_HDD_SOFTAP) 
-#ifdef WLAN_FEATURE_P2P
-     || (pAdapter->device_mode == WLAN_HDD_P2P_GO)
-#endif
-       ) 
-    {
-        beacon_data_t *old,*new;
-                
-        old = pAdapter->sessionCtx.ap.beacon;
-        
-        if (!old)
-            return -ENOENT;
-
-        status = wlan_hdd_cfg80211_alloc_new_beacon(pAdapter, &new, params, 0);
-
-        if(status != VOS_STATUS_SUCCESS) {
-            hddLog(VOS_TRACE_LEVEL_FATAL, 
-                   "%s: Error!!! Allocating the new beacon\n",__func__);
-            return -EINVAL;
-       }
-
-       pAdapter->sessionCtx.ap.beacon = new;
-
-       status = wlan_hdd_cfg80211_start_bss(pAdapter, params, NULL, 0, 0);
-    }
-
-    EXIT();
-    return status;
-}
-
-#endif //(LINUX_VERSION_CODE > KERNEL_VERSION(3,3,0))
-
 
 static int wlan_hdd_cfg80211_change_bss (struct wiphy *wiphy,
                                       struct net_device *dev,
@@ -3213,74 +3073,6 @@ static int wlan_hdd_cfg80211_update_bss( struct wiphy *wiphy,
 
     return 0; 
 }
-
-void
-hddPrintMacAddr(tCsrBssid macAddr, tANI_U8 logLevel)
-{
-    VOS_TRACE(VOS_MODULE_ID_HDD, logLevel, 
-           "%X:%X:%X:%X:%X:%X\n",
-           macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4],
-           macAddr[5]);
-} /****** end hddPrintMacAddr() ******/
-
-void
-hddPrintPmkId(tCsrBssid pmkId, tANI_U8 logLevel)
-{
-    VOS_TRACE(VOS_MODULE_ID_HDD, logLevel, 
-           "%X:%X:%X:%X:%X:%X:%X:%X:%X:%X:%X:%X:%X:%X:%X:%X\n",
-           pmkId[0], pmkId[1], pmkId[2], pmkId[3], pmkId[4],
-           pmkId[5], pmkId[6], pmkId[7], pmkId[8], pmkId[9],
-           pmkId[10], pmkId[11], pmkId[12], pmkId[13], pmkId[14],
-           pmkId[15]);
-} /****** end hddPrintPmkId() ******/
-
-//hddPrintMacAddr(tCsrBssid macAddr, tANI_U8 logLevel);
-//hddPrintMacAddr(macAddr, VOS_TRACE_LEVEL_FATAL);
-
-//void sirDumpBuf(tpAniSirGlobal pMac, tANI_U8 modId, tANI_U32 level, tANI_U8 *buf, tANI_U32 size);
-//sirDumpBuf(pMac, VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL, pmkid, 16);
-
-#define dump_bssid(bssid) \
-    { \
-        hddLog(VOS_TRACE_LEVEL_FATAL, "BSSID (MAC) address:\t"); \
-        hddPrintMacAddr(bssid, VOS_TRACE_LEVEL_FATAL);\
-        hddLog(VOS_TRACE_LEVEL_FATAL, "\n"); \
-    }
-
-#define dump_pmkid(pMac, pmkid) \
-    { \
-        hddLog(VOS_TRACE_LEVEL_FATAL, "PMKSA-ID:\t"); \
-        hddPrintPmkId(pmkid, VOS_TRACE_LEVEL_FATAL);\
-        hddLog(VOS_TRACE_LEVEL_FATAL, "\n"); \
-    }
-
-#ifdef FEATURE_WLAN_LFR
-/*
- * FUNCTION: wlan_hdd_cfg80211_pmksa_candidate_notify
- * This function is used to notify the supplicant of a new PMKSA candidate.
- */
-int wlan_hdd_cfg80211_pmksa_candidate_notify(
-                    hdd_adapter_t *pAdapter, tCsrRoamInfo *pRoamInfo, 
-                    int index, bool preauth )
-{
-    struct net_device *dev = pAdapter->dev;
-
-    ENTER();
-    printk("%s is going to notify supplicant of:", __func__);
-
-    if( NULL == pRoamInfo )
-    {
-        hddLog(VOS_TRACE_LEVEL_FATAL, "%s: pRoamInfo is NULL\n", __func__);
-        return -EINVAL;
-    }
-
-    dump_bssid(pRoamInfo->bssid);
-    cfg80211_pmksa_candidate_notify(dev, index,
-                                    pRoamInfo->bssid, preauth, GFP_KERNEL);
-
-    return 0; 
-}
-#endif //FEATURE_WLAN_LFR
 
 /*
  * FUNCTION: hdd_cfg80211_scan_done_callback
@@ -5262,22 +5054,13 @@ static int wlan_hdd_set_default_mgmt_key(struct wiphy *wiphy,
 {
     return 0;
 }
-#endif //LINUX_VERSION_CODE 
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
-static int wlan_hdd_set_txq_params(struct wiphy *wiphy,
-                   struct net_device *dev,
-                   struct ieee80211_txq_params *params)
-{
-    return 0;
-}
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
 static int wlan_hdd_set_txq_params(struct wiphy *wiphy,
                    struct ieee80211_txq_params *params)
 {
     return 0;
 }
-#endif //LINUX_VERSION_CODE
+#endif
 
 static int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
                                          struct net_device *dev, u8 *mac)
@@ -5355,7 +5138,7 @@ static int wlan_hdd_cfg80211_add_station(struct wiphy *wiphy,
 
 #ifdef FEATURE_WLAN_LFR
 static int wlan_hdd_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
-            struct cfg80211_pmksa *pmksa)
+				struct cfg80211_pmksa *pmksa)
 {
 #define MAX_PMKSAIDS_IN_CACHE 8
     static tPmkidCacheInfo PMKIDCache[MAX_PMKSAIDS_IN_CACHE]; // HDD Local cache
@@ -5442,7 +5225,7 @@ static int wlan_hdd_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *d
 
 
 static int wlan_hdd_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
-            struct cfg80211_pmksa *pmksa)
+				struct cfg80211_pmksa *pmksa)
 {
     // TODO: Implement this later.
     return 0;
@@ -5463,15 +5246,9 @@ static struct cfg80211_ops wlan_hdd_cfg80211_ops =
     .del_virtual_intf = wlan_hdd_del_virtual_intf,
     .change_virtual_intf = wlan_hdd_cfg80211_change_iface,
     .change_station = wlan_hdd_change_station,
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
     .add_beacon = wlan_hdd_cfg80211_add_beacon,
     .del_beacon = wlan_hdd_cfg80211_del_beacon,
     .set_beacon = wlan_hdd_cfg80211_set_beacon,
-#else
-    .start_ap = wlan_hdd_cfg80211_start_ap,
-    .change_beacon = wlan_hdd_cfg80211_change_beacon,
-    .stop_ap = wlan_hdd_cfg80211_stop_ap,
-#endif
     .change_bss = wlan_hdd_cfg80211_change_bss,
     .add_key = wlan_hdd_cfg80211_add_key,
     .get_key = wlan_hdd_cfg80211_get_key,
@@ -5499,12 +5276,7 @@ static struct cfg80211_ops wlan_hdd_cfg80211_ops =
      .get_station = wlan_hdd_cfg80211_get_station,
      .set_power_mgmt = wlan_hdd_cfg80211_set_power_mgmt,
      .del_station  = wlan_hdd_cfg80211_del_station,
-     .add_station  = wlan_hdd_cfg80211_add_station,
-#ifdef FEATURE_WLAN_LFR
-     .set_pmksa = wlan_hdd_cfg80211_set_pmksa,
-     .del_pmksa = wlan_hdd_cfg80211_del_pmksa,
-     .flush_pmksa = wlan_hdd_cfg80211_flush_pmksa,
-#endif
+     .add_station  = wlan_hdd_cfg80211_add_station
 };
 
 #endif // CONFIG_CFG80211

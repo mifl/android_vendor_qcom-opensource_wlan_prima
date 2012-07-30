@@ -244,7 +244,7 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
             )
     {
         //call sme API to start remain on channel.
-        if (VOS_STATUS_SUCCESS != WLANSAP_RemainOnChannel(
+        if (eHAL_STATUS_SUCCESS != WLANSAP_RemainOnChannel(
                           (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                           chan->hw_value, duration,
                           wlan_hdd_remain_on_channel_callback, pAdapter ))
@@ -258,7 +258,7 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
         }
 
 
-        if (VOS_STATUS_SUCCESS != WLANSAP_RegisterMgmtFrame(
+        if (eHAL_STATUS_SUCCESS != WLANSAP_RegisterMgmtFrame(
                     (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                     (SIR_MAC_MGMT_FRAME << 2) | ( SIR_MAC_MGMT_PROBE_REQ << 4),
                     NULL, 0 ))
@@ -384,14 +384,7 @@ int wlan_hdd_cfg80211_cancel_remain_on_channel( struct wiphy *wiphy,
     return 0;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
-int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
-                     struct ieee80211_channel *chan, bool offchan,
-                     enum nl80211_channel_type channel_type,
-                     bool channel_type_valid, unsigned int wait,
-                     const u8 *buf, size_t len,  bool no_cck,
-                     bool dont_wait_for_ack, u64 *cookie )
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
 int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
                      struct ieee80211_channel *chan, bool offchan,
                      enum nl80211_channel_type channel_type,
@@ -403,7 +396,7 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
                      enum nl80211_channel_type channel_type,
                      bool channel_type_valid,
                      const u8 *buf, size_t len, u64 *cookie )
-#endif //LINUX_VERSION_CODE
+#endif
 {
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR( dev );
     hdd_cfg80211_state_t *cfgState = WLAN_HDD_GET_CFG_STATE_PTR( pAdapter );
@@ -580,7 +573,7 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
               ( WLAN_HDD_P2P_GO == pAdapter->device_mode )
             )
      {
-        if( VOS_STATUS_SUCCESS !=
+        if( eHAL_STATUS_SUCCESS !=
              WLANSAP_SendAction( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                                   buf, len ) )
         {
@@ -916,9 +909,9 @@ int wlan_hdd_add_virtual_intf( struct wiphy *wiphy, char *name,
 
     if(hdd_get_adapter(pHddCtx, wlan_hdd_get_session_type(type)) != NULL)
     {
-       hddLog(VOS_TRACE_LEVEL_ERROR,"%s: Interface type %d already exists. Two"
+	  hddLog(VOS_TRACE_LEVEL_ERROR,"%s: Interface type %d already exists. Two"
                      "interfaces of same type are not supported currently.",__func__, type);
-       return NULL;
+	  return NULL;
     }
 
     if ( pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated )
@@ -1108,16 +1101,9 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
 
     //Indicate Frame Over Normal Interface
     hddLog( LOG1, FL("Indicate Frame over NL80211 Interface"));
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
-    cfg80211_rx_mgmt( pAdapter->dev, freq, 0,
-                      pbFrames, nFrameLength,
-                      GFP_ATOMIC );
-#else
     cfg80211_rx_mgmt( pAdapter->dev, freq,
                       pbFrames, nFrameLength,
                       GFP_ATOMIC );
-#endif //LINUX_VERSION_CODE
 }
 
 /*

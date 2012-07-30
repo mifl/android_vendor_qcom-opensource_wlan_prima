@@ -340,9 +340,7 @@ static int BSL_Close (struct hci_dev *hdev);
 static int BSL_Flush(struct hci_dev *hdev);
 static int BSL_IOControl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg);
 static int BSL_Write(struct sk_buff *skb);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
 static void BSL_Destruct(struct hci_dev *hdev);
-#endif
 
 
 /*----------------------------------------------------------------------------
@@ -3604,17 +3602,6 @@ static BOOL BslProcessACLDataTx
 
 } // BslProcessACLDataTx()
 
-
-static inline void *hci_get_drvdata(struct hci_dev *hdev)
-{
-    return hdev->driver_data;
-}
-
-static inline void hci_set_drvdata(struct hci_dev *hdev, void *data)
-{
-    hdev->driver_data = data;
-}
-
 /*---------------------------------------------------------------------------
  *   Function definitions
  *-------------------------------------------------------------------------*/
@@ -3776,8 +3763,7 @@ int BSL_Init ( v_PVOID_t  pvosGCtx )
     set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
 #endif //BUILD_FOR_BLUETOOTH_NEXT_2_6
     /* Save away the BSL driver pointer in the HCI device context */
-
-    hci_set_drvdata(hdev, pctx);
+    hdev->driver_data = pctx;
     /* Set the parent device for this HCI device.  This is our WLAN net_device */
     SET_HCIDEV_DEV(hdev, &pctx->p_dev->dev);
 
@@ -3785,12 +3771,10 @@ int BSL_Init ( v_PVOID_t  pvosGCtx )
     hdev->close    = BSL_Close;
     hdev->flush    = BSL_Flush;
     hdev->send     = BSL_Write;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
     hdev->destruct = BSL_Destruct;
-    hdev->owner = THIS_MODULE;
-#endif
     hdev->ioctl    = BSL_IOControl;
 
+    hdev->owner = THIS_MODULE;
 
     /* Timeout before it is safe to send the first HCI packet */
     msleep(1000);
@@ -3848,7 +3832,10 @@ int BSL_Deinit( v_PVOID_t  pvosGCtx )
     /* hci_unregister_dev is called again here, in case user didn't call it */
     /* Unregister device from BlueZ; fcn sends us HCI commands before it returns */
     /* And then the registered hdev->close fcn should be called by BlueZ (BSL_Close) */
-    hci_unregister_dev(hdev);
+    if (hci_unregister_dev(hdev) < 0)
+        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
+                   "Can't unregister HCI device %s", hdev->name);
+
     /* BSL_Close is called again here, in case BlueZ didn't call it */
     BSL_Close(hdev);
     hci_free_dev(hdev);
@@ -3876,7 +3863,7 @@ int BSL_Deinit( v_PVOID_t  pvosGCtx )
 static int BSL_Open( struct hci_dev *hdev )
 {
     VOS_STATUS VosStatus = VOS_STATUS_SUCCESS;
-    BslClientCtxType* pctx = (BslClientCtxType *)(hci_get_drvdata(hdev));
+    BslClientCtxType* pctx = (BslClientCtxType *)(hdev->driver_data);
     v_U16_t i;
     BOOL rval;
 
@@ -3972,7 +3959,7 @@ static int BSL_Close ( struct hci_dev *hdev )
         return FALSE;
     }
 
-    pctx = (BslClientCtxType *)(hci_get_drvdata(hdev));
+    pctx = (BslClientCtxType *)(hdev->driver_data);
 
     if ( pctx == NULL || !bBslInited)
     {
@@ -4051,13 +4038,11 @@ static int BSL_Flush(struct hci_dev *hdev)
   @return
   TRUE indicates success. FALSE indicates failure.
 */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
 static void BSL_Destruct(struct hci_dev *hdev)
 {
     VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "BSL_Destruct - not supported");
     return; //(TRUE);
 } // BSL_Destruct()
-#endif
 
 
 /**
@@ -4113,7 +4098,7 @@ static int BSL_Write(struct sk_buff *skb)
         return 0;
     }
 
-    pctx = (BslClientCtxType *)hci_get_drvdata(hdev);
+    pctx = (BslClientCtxType *)hdev->driver_data;
 
     // Sanity check inputs
     if ( pctx == NULL )
@@ -4269,7 +4254,7 @@ static void bslWriteFinish(struct work_struct *work)
 
 
     // Sanity check inputs
-    if ( pctx != (BslClientCtxType *)hci_get_drvdata(hdev));
+    if ( pctx != (BslClientCtxType *)hdev->driver_data)
     {
         VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s: pctx and hdev not consistent - bad i/p", __FUNCTION__);
         return; // -EFAULT; /* Bad address */
@@ -4428,7 +4413,7 @@ VOS_STATUS WLANBAP_RegisterWithHCI(hdd_adapter_t *pAdapter)
     set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
 #endif //BUILD_FOR_BLUETOOTH_NEXT_2_6
     /* Save away the BSL driver pointer in the HCI device context */
-    hci_set_drvdata(hdev, pctx);
+    hdev->driver_data = pctx;
     /* Set the parent device for this HCI device.  This is our WLAN net_device */
     SET_HCIDEV_DEV(hdev, &pctx->p_dev->dev);
 
@@ -4436,12 +4421,10 @@ VOS_STATUS WLANBAP_RegisterWithHCI(hdd_adapter_t *pAdapter)
     hdev->close    = BSL_Close;
     hdev->flush    = BSL_Flush;
     hdev->send     = BSL_Write;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
-    hdev->owner = THIS_MODULE;
     hdev->destruct = BSL_Destruct;
-#endif
     hdev->ioctl    = BSL_IOControl;
 
+    hdev->owner = THIS_MODULE;
 
     /* Timeout before it is safe to send the first HCI packet */
     msleep(1000);
@@ -4490,7 +4473,11 @@ VOS_STATUS WLANBAP_DeregisterFromHCI(void)
 
     /* Unregister device from BlueZ; fcn sends us HCI commands before it returns */
     /* And then the registered hdev->close fcn should be called by BlueZ (BSL_Close) */
-    hci_unregister_dev(hdev);
+    if (hci_unregister_dev(hdev) < 0)
+    {    
+        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
+                   "Can't unregister HCI device %s", hdev->name);
+    }
 
     /* BSL_Close is called again here, in case BlueZ didn't call it */
     BSL_Close(hdev);

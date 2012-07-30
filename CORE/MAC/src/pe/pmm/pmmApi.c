@@ -630,7 +630,7 @@ tSirRetStatus  pmmSendInitPowerSaveMsg(tpAniSirGlobal pMac,tpPESession psessionE
     pBmpsParams->bRssiFilterEnable = bRssiFilterEnable;
 
 
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX)
     // If there is a CCX assoc or 11r assoc we need to pick up the rssiFilterPeriod from the
     // FT config value.
     for(i =0; i < pMac->lim.maxBssId; i++)
@@ -1852,7 +1852,7 @@ void pmmEnterUapsdResponseHandler(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
         return;
     }
 
-    if(pUapsdRspMsg->status == eHAL_STATUS_SUCCESS)
+    if(pUapsdRspMsg->status == eSIR_SUCCESS)
     {
         PELOGW(pmmLog(pMac, LOGW,
             FL("pmmUapsd: Received successful response from HAL to enter UAPSD mode \n"));)

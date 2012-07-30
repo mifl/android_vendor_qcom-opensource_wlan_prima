@@ -2062,7 +2062,7 @@ static int iw_softap_set_channel_range( struct net_device *dev,
                                         int endChannel,
                                         int band)
 {
-    VOS_STATUS status;
+    eHalStatus status;
     int ret = 0;
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
     tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
@@ -2601,7 +2601,7 @@ static int iw_set_encode(struct net_device *dev,struct iw_request_info *info,
        {
            INIT_COMPLETION(pAdapter->disconnect_comp_var);
            status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter), pAdapter->sessionId, eCSR_DISCONNECT_REASON_UNSPECIFIED );
-           if(eHAL_STATUS_SUCCESS == status)
+           if(VOS_STATUS_SUCCESS == status)
                  wait_for_completion_interruptible_timeout(&pAdapter->disconnect_comp_var,
                      msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
        }
@@ -3074,7 +3074,7 @@ static int iw_set_mlme(struct net_device *dev,
                 INIT_COMPLETION(pAdapter->disconnect_comp_var);
                 status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter), pAdapter->sessionId,reason);
 
-                if(eHAL_STATUS_SUCCESS == status)
+                if(VOS_STATUS_SUCCESS == status)
                     wait_for_completion_interruptible_timeout(&pAdapter->disconnect_comp_var,
                         msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
                 else
@@ -3843,6 +3843,8 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     int sub_cmd = wrqu->data.flags;
     int ret = 0; /* sucess */
+    VOS_STATUS status;
+    hdd_context_t *pHddCtx;
 
     switch (sub_cmd)
     {
@@ -3892,7 +3894,6 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
            break;
         }
 #endif
-#ifdef WLAN_BTAMP_FEATURE
         case WE_ENABLE_AMP:
         {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"%s: enabling AMP", __FUNCTION__);
@@ -3901,11 +3902,7 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
         }
         case WE_DISABLE_AMP:
         {
-            hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
-            VOS_STATUS status;
-
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"%s: disabling AMP", __FUNCTION__);
-
             pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
             status = WLANBAP_StopAmp();
             if(VOS_STATUS_SUCCESS != status )
@@ -3924,7 +3921,6 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
 
             break;
         }
-#endif
 
         default:
         {
@@ -5327,7 +5323,7 @@ int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr)
              status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
              pAdapter->sessionId, eCSR_DISCONNECT_REASON_UNSPECIFIED);
 
-             if ( eHAL_STATUS_SUCCESS != status)
+             if ( VOS_STATUS_SUCCESS != status)
              {
                  hddLog(VOS_TRACE_LEVEL_ERROR,
                          "%s csrRoamDisconnect failure, returned %d \n",

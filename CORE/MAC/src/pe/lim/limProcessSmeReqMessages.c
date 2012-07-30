@@ -1458,13 +1458,10 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 #ifdef FEATURE_WLAN_CCX
             psessionEntry->isCCXconnection = pSmeJoinReq->isCCXconnection;
 #endif
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX
             psessionEntry->isFastTransitionEnabled = pSmeJoinReq->isFastTransitionEnabled;
 #endif
             
-#ifdef FEATURE_WLAN_LFR
-            psessionEntry->isFastRoamIniFeatureEnabled = pSmeJoinReq->isFastRoamIniFeatureEnabled;
-#endif
             if(psessionEntry->bssType == eSIR_INFRASTRUCTURE_MODE)
             {
                 psessionEntry->limSystemRole = eLIM_STA_ROLE;
@@ -1942,7 +1939,7 @@ __limProcessSmeReassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 
     if (psessionEntry->limSmeState != eLIM_SME_LINK_EST_STATE)
     {
-#if defined(WLAN_FEATURE_VOWIFI_11R) || defined(FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#if defined(WLAN_FEATURE_VOWIFI_11R) || defined(FEATURE_WLAN_CCX)
         if (psessionEntry->limSmeState == eLIM_SME_WT_REASSOC_STATE)
         {
             // May be from 11r FT pre-auth. So lets check it before we bail out
@@ -2205,7 +2202,6 @@ __limProcessSmeDisassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     tANI_U16                disassocTrigger, reasonCode;
     tLimMlmDisassocReq      *pMlmDisassocReq;
     tSirResultCodes         retCode = eSIR_SME_SUCCESS;
-    tSirRetStatus           status;
     tSirSmeDisassocReq      smeDisassocReq;
     tpPESession             psessionEntry = NULL; 
     tANI_U8                 sessionId;
@@ -2214,18 +2210,17 @@ __limProcessSmeDisassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 
     PELOG1(limLog(pMac, LOG1,FL("received DISASSOC_REQ message\n"));)
     
-    if (pMsgBuf == NULL)
+    if(pMsgBuf == NULL)
     {
-        limLog(pMac, LOGE, FL("Buffer is Pointing to NULL\n"));
+        limLog(pMac, LOGE,FL("Buffer is Pointing to NULL\n"));
         return;
     }
 
-    limGetSessionInfo(pMac, (tANI_U8 *)pMsgBuf,&smesessionId, &smetransactionId);
+    limGetSessionInfo(pMac,(tANI_U8 *)pMsgBuf,&smesessionId,&smetransactionId);
 
-    status = limDisassocReqSerDes(pMac, &smeDisassocReq, (tANI_U8 *) pMsgBuf);
+    retCode = limDisassocReqSerDes(pMac, &smeDisassocReq, (tANI_U8 *) pMsgBuf);
     
-    if ( (eSIR_FAILURE == status) ||
-         (!limIsSmeDisassocReqValid(pMac, &smeDisassocReq, psessionEntry)) )
+    if ( (retCode == eSIR_FAILURE) ||(!limIsSmeDisassocReqValid(pMac, &smeDisassocReq, psessionEntry)) )
     {
         PELOGE(limLog(pMac, LOGE,
                FL("received invalid SME_DISASSOC_REQ message\n"));)

@@ -1347,7 +1347,6 @@ WDI_Stop
 )
 {
   WDI_EventInfoType      wdiEventData;
-  WDI_ControlBlockType*  pWDICtx = &gWDICb;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*------------------------------------------------------------------------
@@ -1360,15 +1359,6 @@ WDI_Stop
 
     return WDI_STATUS_E_NOT_ALLOWED; 
   }
-
-  /*Access to the global state must be locked before cleaning */
-  wpalMutexAcquire(&pWDICtx->wptMutex);
-
-  /*Clear all pending request*/
-  WDI_ClearPendingRequests(pWDICtx);
-
-  /*We have completed cleaning unlock now*/
-  wpalMutexRelease(&pWDICtx->wptMutex);
 
   /* Free the global variables */
   wpalMemoryFree(gpHostWlanFeatCaps);
@@ -6313,7 +6303,7 @@ WDI_ProcessStopReq
   wpt_uint8*             pSendBuffer         = NULL; 
   wpt_uint16             usDataOffset        = 0;
   wpt_uint16             usSendSize          = 0;
-  wpt_status             status;
+
   tHalMacStopReqMsg      halStopReq; 
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -6366,8 +6356,7 @@ WDI_ProcessStopReq
      WDI_STATableStop(pWDICtx);
 
      /* Reset the event to be not signalled */
-     status = wpalEventReset(&pWDICtx->setPowerStateEvent);
-     if (eWLAN_PAL_STATUS_SUCCESS != status)
+     if(WDI_STATUS_SUCCESS != wpalEventReset(&pWDICtx->setPowerStateEvent) )
      {
         WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "WDI Init failed to reset power state event");
@@ -6380,9 +6369,8 @@ WDI_ProcessStopReq
      /*
       * Wait for the event to be set once the ACK comes back from DXE 
       */
-     status = wpalEventWait(&pWDICtx->setPowerStateEvent, 
-                            WDI_SET_POWER_STATE_TIMEOUT);
-     if (eWLAN_PAL_STATUS_SUCCESS != status)
+     if(WDI_STATUS_SUCCESS != wpalEventWait(&pWDICtx->setPowerStateEvent, 
+                                            WDI_SET_POWER_STATE_TIMEOUT))
      {
         WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
                   "WDI Init failed to wait on an event");
@@ -11411,7 +11399,6 @@ WDI_ProcessEnterImpsReq
   WDI_EventInfoType*     pEventData
 )
 {
-   wpt_status               wptStatus; 
    WDI_EnterImpsRspCb       wdiEnterImpsRspCb = NULL;
    wpt_uint8*               pSendBuffer         = NULL; 
    wpt_uint16               usDataOffset        = 0;
@@ -11447,8 +11434,7 @@ WDI_ProcessEnterImpsReq
    }
 
    /* Reset the event to be not signalled */
-   wptStatus = wpalEventReset(&pWDICtx->setPowerStateEvent);
-   if ( eWLAN_PAL_STATUS_SUCCESS != wptStatus ) 
+   if(WDI_STATUS_SUCCESS != wpalEventReset(&pWDICtx->setPowerStateEvent) )
    {
       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
                 "WDI Init failed to reset an event");
@@ -11463,9 +11449,8 @@ WDI_ProcessEnterImpsReq
    /*
     * Wait for the event to be set once the ACK comes back from DXE 
     */
-   wptStatus = wpalEventWait(&pWDICtx->setPowerStateEvent, 
-                             WDI_SET_POWER_STATE_TIMEOUT);
-   if ( eWLAN_PAL_STATUS_SUCCESS != wptStatus ) 
+   if(WDI_STATUS_SUCCESS != wpalEventWait(&pWDICtx->setPowerStateEvent, 
+                                          WDI_SET_POWER_STATE_TIMEOUT))
    {
       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
                 "WDI Init failed to wait on an event");
@@ -11562,8 +11547,6 @@ WDI_ProcessEnterBmpsReq
    wpt_uint16               usDataOffset        = 0;
    wpt_uint16               usSendSize          = 0;
    tHalEnterBmpsReqParams   enterBmpsReq;
-   wpt_status               wptStatus; 
-
    /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*-------------------------------------------------------------------------
@@ -11596,8 +11579,7 @@ WDI_ProcessEnterBmpsReq
    }
 
    /* Reset the event to be not signalled */
-   wptStatus = wpalEventReset(&pWDICtx->setPowerStateEvent);
-   if ( eWLAN_PAL_STATUS_SUCCESS != wptStatus )
+   if(WDI_STATUS_SUCCESS != wpalEventReset(&pWDICtx->setPowerStateEvent) )
    {
       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
                 "WDI Init failed to reset an event");
@@ -11612,9 +11594,8 @@ WDI_ProcessEnterBmpsReq
 /*
     * Wait for the event to be set once the ACK comes back from DXE 
     */
-   wptStatus = wpalEventWait(&pWDICtx->setPowerStateEvent, 
-                             WDI_SET_POWER_STATE_TIMEOUT);
-   if ( eWLAN_PAL_STATUS_SUCCESS != wptStatus )
+   if(WDI_STATUS_SUCCESS != wpalEventWait(&pWDICtx->setPowerStateEvent, 
+                                          WDI_SET_POWER_STATE_TIMEOUT))
    {
       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
                 "WDI Init failed to wait on an event");
@@ -14999,7 +14980,7 @@ WDI_ProcessAddBASessionRsp
 
   wdiBASessionRsp.wdiStatus = WDI_HAL_2_WDI_STATUS(halBASessionRsp.status);
 
-  if ( WDI_STATUS_SUCCESS == wdiBASessionRsp.wdiStatus )
+  if ( eHAL_STATUS_SUCCESS == wdiBASessionRsp.wdiStatus )
   {
     wdiBASessionRsp.ucBaDialogToken = halBASessionRsp.baDialogToken;
     wdiBASessionRsp.ucBaTID = halBASessionRsp.baTID;
@@ -15917,7 +15898,7 @@ WDI_ProcessAddBARsp
 
   wdiAddBARsp.wdiStatus = WDI_HAL_2_WDI_STATUS(halAddBARsp.status);
 
-  if ( WDI_STATUS_SUCCESS == wdiAddBARsp.wdiStatus )
+  if ( eHAL_STATUS_SUCCESS == wdiAddBARsp.wdiStatus )
   {
     wdiAddBARsp.ucBaDialogToken = halAddBARsp.baDialogToken;
   }

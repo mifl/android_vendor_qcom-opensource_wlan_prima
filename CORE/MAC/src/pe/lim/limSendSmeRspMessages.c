@@ -2225,7 +2225,7 @@ limSendSmeIBSSPeerInd(
     tSirMsgQ                  mmhMsg;
     tSmeIbssPeerInd *pNewPeerInd;
     
-    if(eHAL_STATUS_SUCCESS !=
+    if(eSIR_SUCCESS !=
         palAllocateMemory(pMac->hHdd,(void * *) &pNewPeerInd,(sizeof(tSmeIbssPeerInd) + beaconLen)))
     {
         PELOGE(limLog(pMac, LOGE, FL("Failed to allocate memory"));)
@@ -2424,7 +2424,7 @@ void limSendSmeMaxAssocExceededNtf(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
     tSirMsgQ         mmhMsg;
     tSmeMaxAssocInd *pSmeMaxAssocInd;
 
-    if(eHAL_STATUS_SUCCESS !=
+    if(eSIR_SUCCESS !=
             palAllocateMemory(pMac->hHdd,(void **)&pSmeMaxAssocInd, sizeof(tSmeMaxAssocInd)))
     {
         PELOGE(limLog(pMac, LOGE, FL("Failed to allocate memory"));)
