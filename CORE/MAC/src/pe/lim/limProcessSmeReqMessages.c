@@ -2200,6 +2200,19 @@ __limProcessSmeDisassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                     limLog(pMac, LOG1, FL("Rcvd SME_DISASSOC_REQ while in SME_WT_DEAUTH_STATE. \n"));
                     break;
 
+                case eLIM_SME_WT_DISASSOC_STATE:
+                    /* PE Recieved a Disassoc frame. Normally it gets DISASSOC_CNF but it
+                     * received DISASSOC_REQ. Which means host is also trying to disconnect.
+                     * PE can continue processing DISASSOC_REQ and send the response instead
+                     * of failing the request. SME will anyway ignore DEAUTH_IND that was sent
+                     * for disassoc frame.
+                     *
+                     * It will send a disassoc, which is ok. However, we can use the global flag
+                     * sendDisassoc to not send disassoc frame.
+                     */
+                    limLog(pMac, LOG1, FL("Rcvd SME_DISASSOC_REQ while in SME_WT_DISASSOC_STATE. \n"));
+                    break;
+
                 case eLIM_SME_JOIN_FAILURE_STATE: {
                     /** Return Success as we are already in Disconnected State*/
                      if (pMac->lim.gLimRspReqd) {
@@ -4672,16 +4685,61 @@ __limProcessSmeRegisterMgmtFrameReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     VOS_STATUS vosStatus;
     tpSirRegisterMgmtFrame pSmeReq = (tpSirRegisterMgmtFrame)pMsgBuf;
     tpLimMgmtFrameRegistration pLimMgmtRegistration = NULL, pNext = NULL;
+    tANI_BOOLEAN match = VOS_FALSE;
 
     PELOG1(limLog(pMac, LOG1, 
            FL("%s: registerFrame %d, frameType %d, matchLen %d\n", 
            __func__, pSmeReq->registerFrame, pSmeReq->frameType, 
        pSmeReq->matchLen)));
 
+
+    vos_list_peek_front(&pMac->lim.gLimMgmtFrameRegistratinQueue,
+            (vos_list_node_t**)&pLimMgmtRegistration);
+
+    while(pLimMgmtRegistration != NULL)
+    {
+        if (pLimMgmtRegistration->frameType == pSmeReq->frameType)
+        {
+            if(pSmeReq->matchLen)
+            {
+                if (pLimMgmtRegistration->matchLen == pSmeReq->matchLen)
+                {
+                    if (palEqualMemory(pMac, pLimMgmtRegistration->matchData, 
+                                pSmeReq->matchData, pLimMgmtRegistration->matchLen))
+                    {
+                        /* found match! */   
+                        match = VOS_TRUE;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                /* found match! */   
+                match = VOS_TRUE;
+                break;
+            }
+        }
+        vosStatus = vos_list_peek_next (
+                &pMac->lim.gLimMgmtFrameRegistratinQueue,
+                (vos_list_node_t*) pLimMgmtRegistration,
+                (vos_list_node_t**) &pNext );
+
+        pLimMgmtRegistration = pNext;
+        pNext = NULL; 
+
+    }
+
+    if (match)
+    {
+        vos_list_remove_node(&pMac->lim.gLimMgmtFrameRegistratinQueue,
+                (vos_list_node_t*)pLimMgmtRegistration);
+        palFreeMemory(pMac,pLimMgmtRegistration);
+    }
     if(pSmeReq->registerFrame)
     {
         palAllocateMemory(pMac, (void**)&pLimMgmtRegistration,
-                        sizeof(tLimMgmtFrameRegistration) + pSmeReq->matchLen);
+                sizeof(tLimMgmtFrameRegistration) + pSmeReq->matchLen);
         if(pLimMgmtRegistration != NULL)
         {
             palZeroMemory(pMac, (void*)pLimMgmtRegistration, 
@@ -4697,54 +4755,6 @@ __limProcessSmeRegisterMgmtFrameReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
      
             vos_list_insert_front(&pMac->lim.gLimMgmtFrameRegistratinQueue,
                               &pLimMgmtRegistration->node);
-        }
-    }
-    else
-    {
-        tANI_BOOLEAN match = VOS_FALSE;
-
-        vos_list_peek_front(&pMac->lim.gLimMgmtFrameRegistratinQueue,
-                   (vos_list_node_t**)&pLimMgmtRegistration);
-
-        while(pLimMgmtRegistration != NULL)
-        {
-            if (pLimMgmtRegistration->frameType == pSmeReq->frameType)
-            {
-                if(pSmeReq->matchLen)
-                {
-                    if (pLimMgmtRegistration->matchLen == pSmeReq->matchLen)
-                    {
-                        if (palEqualMemory(pMac, pLimMgmtRegistration->matchData, 
-                          pSmeReq->matchData, pLimMgmtRegistration->matchLen))
-                        {
-                            /* found match! */   
-                            match = VOS_TRUE;
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    /* found match! */   
-                    match = VOS_TRUE;
-                    break;
-                }
-            }
-            vosStatus = vos_list_peek_next (
-                                 &pMac->lim.gLimMgmtFrameRegistratinQueue,
-                                   (vos_list_node_t*) pLimMgmtRegistration,
-                                 (vos_list_node_t**) &pNext );
-
-            pLimMgmtRegistration = pNext;
-            pNext = NULL; 
-
-        }
-
-        if (match)
-        {
-            vos_list_remove_node(&pMac->lim.gLimMgmtFrameRegistratinQueue,
-                                (vos_list_node_t*)pLimMgmtRegistration);
-            palFreeMemory(pMac,pLimMgmtRegistration);
         }
     }
 
