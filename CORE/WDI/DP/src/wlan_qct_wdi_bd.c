@@ -151,7 +151,6 @@ WDI_Status WDI_DS_MemPoolCreate(WDI_DS_BdMemPoolType *memPool, wpt_uint8 chunkSi
                                                                   wpt_uint8 numChunks)
 {
   wpt_uint8 staLoop;
-
   //Allocate all the max size and align them to a double word boundary. The first 8 bytes are control bytes.
   memPool->numChunks = 0;
   memPool->chunkSize = chunkSize + 16 - (chunkSize%8);

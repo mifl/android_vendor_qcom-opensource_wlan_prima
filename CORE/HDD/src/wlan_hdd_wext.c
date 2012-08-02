@@ -19,6 +19,27 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * Copyright (c) 2012, Code nurora Forum. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+*/
+
 /** ------------------------------------------------------------------------ *
     ------------------------------------------------------------------------ *
 
@@ -169,14 +190,13 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WLAN_PRIV_SET_THREE_INT_GET_NONE   (SIOCIWFIRSTPRIV + 4)
 #define WE_SET_WLAN_DBG      1
 #define WE_SET_WDI_DBG       2
-#define WE_SET_SAP_CHANNELS  3
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_GET_CHAR_SET_NONE   (SIOCIWFIRSTPRIV + 5)
 #define WE_WLAN_VERSION      1
 #define WE_GET_STATS         2
 #define WE_GET_CFG           3
-#define WE_GET_CHANNEL_LIST  5
+#define WE_GET_CHANNEL_LIST  4
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_NONE_GET_NONE   (SIOCIWFIRSTPRIV + 6)
@@ -2030,27 +2050,6 @@ static int iw_get_rssi(struct net_device *dev,
    return 0;
 }
 
-/*
- * Support for SoftAP channel range private command
- */
-static int iw_softap_set_channel_range( struct net_device *dev,
-                                        int startChannel,
-                                        int endChannel,
-                                        int band)
-{
-    eHalStatus status;
-    int ret = 0;
-    hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
-    tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
-
-    status = WLANSAP_SetChannelRange(hHal, startChannel, endChannel, band);
-    if (VOS_STATUS_SUCCESS != status)
-    {
-        ret = -EINVAL;
-    }
-    return ret;
-}
-
 VOS_STATUS  wlan_hdd_enter_bmps(hdd_adapter_t *pAdapter, int mode)
 {
    struct statsContext context;
@@ -2226,7 +2225,7 @@ void* wlan_hdd_change_country_code_callback(void *pAdapter)
   
     complete(&call_back_pAdapter->change_country_code);
 
-    return NULL;
+   return NULL;
 }
 
 static int iw_set_priv(struct net_device *dev,
@@ -2234,13 +2233,27 @@ static int iw_set_priv(struct net_device *dev,
                        union iwreq_data *wrqu, char *extra)
 {
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-    char *cmd = (char*)wrqu->data.pointer;
     int cmd_len = wrqu->data.length;
+    char* cmd = (char *)kmalloc(cmd_len+1, GFP_KERNEL); 
     int ret = 0;
     int status = 0;
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 
     ENTER();
+
+    if(cmd == NULL){
+        hddLog(VOS_TRACE_LEVEL_FATAL, "%s Malloc failed for buff of size %d - ignoring ioctl!",
+                __FUNCTION__, cmd_len);
+        status = -ENOMEM;
+        goto cleanup_and_return;
+    }
+
+    if(copy_from_user(cmd, (char*)(wrqu->data.pointer), cmd_len)) {
+        hddLog(VOS_TRACE_LEVEL_FATAL, "%s -- copy_from_user --data pointer failed! bailing",
+                __FUNCTION__);
+        status = -EFAULT;
+        goto cleanup_and_return;
+    }
 
     if (ioctl_debug)
     {
@@ -2257,7 +2270,7 @@ static int iw_set_priv(struct net_device *dev,
 
        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
                  "%s:LOGP in Progress. Ignore!!!",__func__);
-       return status;
+       goto cleanup_and_return; 
     }
 
     if(strncmp(cmd, "CSCAN",5) == 0 )
@@ -2283,7 +2296,7 @@ static int iw_set_priv(struct net_device *dev,
         {
             hddLog(VOS_TRACE_LEVEL_FATAL, "%s: START CMD Status %d", __func__, status);
         }
-        goto done;
+        goto done; 
     }
     else if( strcasecmp(cmd, "stop") == 0 ) 
     {
@@ -2297,7 +2310,7 @@ static int iw_set_priv(struct net_device *dev,
         wrqu.data.length = strlcpy(buf, "STOP", sizeof(buf));
         wireless_send_event(pAdapter->dev, IWEVCUSTOM, &wrqu, buf);
         status = VOS_STATUS_SUCCESS;
-        goto done;
+        goto done; 
     }
     else if (strcasecmp(cmd, "macaddr") == 0)
     {
@@ -2331,7 +2344,7 @@ static int iw_set_priv(struct net_device *dev,
         init_completion(&pAdapter->change_country_code);
 
         status = (int)sme_ChangeCountryCode(pHddCtx->hHal,
-                                            (void *)(tSmeChangeCountryCallback)wlan_hdd_change_country_code_callback,
+                                             (void *)(tSmeChangeCountryCallback)wlan_hdd_change_country_code_callback,
                                             country_code,
                                             pAdapter,
                                             pHddCtx->pvosContext);
@@ -2348,9 +2361,10 @@ static int iw_set_priv(struct net_device *dev,
 
         if( 0 != status )
         {
-            VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                       "%s: SME Change Country code fail \n",__func__);
-            return VOS_STATUS_E_FAILURE;
+             VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                        "%s: SME Change Country code fail \n",__func__);
+             status = VOS_STATUS_E_FAILURE;
+             goto cleanup_and_return;
         }
     }
     else if( strncasecmp(cmd, "rssi", 4) == 0 )
@@ -2363,7 +2377,7 @@ static int iw_set_priv(struct net_device *dev,
         
         sscanf(ptr,"%d",&mode);
         wlan_hdd_enter_bmps(pAdapter, mode);
-        
+        goto done; 
         /*TODO:Set the power mode*/
     }
     else if (strncasecmp(cmd, "getpower", 8) == 0 ) {
@@ -2381,38 +2395,45 @@ static int iw_set_priv(struct net_device *dev,
     }
     else if( strncasecmp(cmd, "btcoexmode", 10) == 0 ) {
         hddLog( VOS_TRACE_LEVEL_INFO, "btcoexmode\n"); 
+        goto done;  
         /*TODO: set the btcoexmode*/
     }
     else if( strcasecmp(cmd, "btcoexstat") == 0 ) {
         
         hddLog(VOS_TRACE_LEVEL_INFO, "BtCoex Status\n"); 
+        goto done;  
         /*TODO: Return the btcoex status*/
     }
     else if( strcasecmp(cmd, "rxfilter-start") == 0 ) {
         
         hddLog(VOS_TRACE_LEVEL_INFO, "Rx Data Filter Start command\n"); 
+        goto done;  
         
         /*TODO: Enable Rx data Filter*/        
     }
     else if( strcasecmp(cmd, "rxfilter-stop") == 0 ) {
         
         hddLog(VOS_TRACE_LEVEL_INFO, "Rx Data Filter Stop command\n"); 
+        goto done;  
         
         /*TODO: Disable Rx data Filter*/        
     }
     else if( strcasecmp(cmd, "rxfilter-statistics") == 0 ) {
        
         hddLog( VOS_TRACE_LEVEL_INFO, "Rx Data Filter Statistics command\n"); 
+        goto done;  
         /*TODO: rxfilter-statistics*/ 
     }
     else if( strncasecmp(cmd, "rxfilter-add", 12) == 0 ) {
         
         hddLog( VOS_TRACE_LEVEL_INFO, "rxfilter-add\n"); 
+        goto done;  
         /*TODO: rxfilter-add*/ 
     }
     else if( strncasecmp(cmd, "rxfilter-remove",15) == 0 ) {
         
         hddLog( VOS_TRACE_LEVEL_INFO, "rxfilter-remove\n"); 
+        goto done;    
         /*TODO: rxfilter-remove*/
     }
 #ifdef FEATURE_WLAN_SCAN_PNO
@@ -2420,20 +2441,20 @@ static int iw_set_priv(struct net_device *dev,
         
         hddLog( VOS_TRACE_LEVEL_INFO, "pno\n"); 
         status = iw_set_pno(dev, info, wrqu, extra, 3);
-        return status;
+        goto cleanup_and_return; 
     }
     else if( strncasecmp(cmd, "rssifilter",10) == 0 ) {
         
         hddLog( VOS_TRACE_LEVEL_INFO, "rssifilter\n"); 
         status = iw_set_rssi_filter(dev, info, wrqu, extra, 10);
-        return status;
-    }
+        goto cleanup_and_return;     
+        }
 #endif /*FEATURE_WLAN_SCAN_PNO*/
     else if( strncasecmp(cmd, "powerparams",11) == 0 ) {
       hddLog( VOS_TRACE_LEVEL_INFO, "powerparams\n"); 
       status = iw_set_power_params(dev, info, wrqu, extra, 11);
-      return status;
-    }
+      goto cleanup_and_return; 
+      }
     else if( 0 == strncasecmp(cmd, "CONFIG-TX-TRACKING", 18) ) {
         tSirTxPerTrackingParam tTxPerTrackingParam;
         char *ptr = (char*)(cmd + 18);
@@ -2445,7 +2466,8 @@ static int iw_set_priv(struct net_device *dev,
         if (0 == tTxPerTrackingParam.ucTxPerTrackingPeriod)
         {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN, "Period input is not correct");
-            return VOS_STATUS_E_FAILURE;
+            status = VOS_STATUS_E_FAILURE;
+            goto cleanup_and_return;
         }
 
         // use default value 5 is the input is not reasonable. in unit of 10%
@@ -2470,6 +2492,10 @@ static int iw_set_priv(struct net_device *dev,
     else {
         hddLog( VOS_TRACE_LEVEL_WARN, "Unsupported GUI command %s", cmd);
     }
+    
+    if(copy_to_user((char*)(wrqu->data.pointer), cmd, cmd_len)) {
+        hddLog( VOS_TRACE_LEVEL_FATAL, "%s: COPY to user failed ... ignoring",__FUNCTION__);
+    }
 done:
     /* many of the commands write information back into the command
        string using snprintf().  check the return value here in one
@@ -2484,6 +2510,10 @@ done:
     {
        pr_info("%s: rsp [%s] len [%d] status %d\n",
                __FUNCTION__, cmd, wrqu->data.length, status);
+    }
+cleanup_and_return:
+    if(cmd != NULL) {
+        kfree(cmd);
     }
     return status;
    
@@ -3060,16 +3090,31 @@ static int iw_setint_getnone(struct net_device *dev, struct iw_request_info *inf
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
     hdd_wext_state_t  *pWextState =  WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);   
-    int *value = (int *)extra;
-    int sub_cmd = value[0];
-    int set_value = value[1];
+    int cmd_len = wrqu->data.length;
+    int *value = (int *) kmalloc(cmd_len+1, GFP_KERNEL);  
+    int sub_cmd;
+    int set_value;
     int ret = 0; /* success */
     int enable_pbm, enable_mp;
 #ifdef CONFIG_HAS_EARLYSUSPEND
     v_U8_t nEnableSuspendOld;
 #endif
     INIT_COMPLETION(pWextState->completion_var);
+
+    if(value == NULL)
+        return -ENOMEM;
     
+    if(copy_from_user((char *) value, (char*)(wrqu->data.pointer), cmd_len)) {
+        hddLog(VOS_TRACE_LEVEL_FATAL, "%s -- copy_from_user --data pointer failed! bailing",
+                __FUNCTION__);
+        kfree(value);
+        return -EFAULT;
+    }
+
+    sub_cmd = value[0];
+    set_value = value[1];
+    kfree(value);
+
     switch(sub_cmd)
     {
         case WE_SET_11D_STATE:
@@ -3077,7 +3122,7 @@ static int iw_setint_getnone(struct net_device *dev, struct iw_request_info *inf
             tSmeConfigParams smeConfig;;
             if((ENABLE_11D == set_value) || (DISABLE_11D == set_value)) {
                
-                sme_GetConfigParam(hHal,&smeConfig);
+                sme_GetConfigParam(hHal,&smeConfig.csrConfig);
                 smeConfig.csrConfig.Is11dSupportEnabled = (v_BOOL_t)set_value;
 
                 VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, ("11D state=%ld!!\n"),smeConfig.csrConfig.Is11dSupportEnabled);
@@ -3432,11 +3477,11 @@ static int iw_setnone_getint(struct net_device *dev, struct iw_request_info *inf
     {
         case WE_GET_11D_STATE:
         {
-           tSmeConfigParams smeConfig;
+           tCsrConfigParam configInfo;
            
-           sme_GetConfigParam(hHal,&smeConfig);
+           sme_GetConfigParam(hHal,&configInfo);
            
-           *value = smeConfig.csrConfig.Is11dSupportEnabled;
+           *value = configInfo.Is11dSupportEnabled;
 
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, ("11D state=%ld!!\n"),*value);
            
@@ -3519,8 +3564,8 @@ int iw_set_three_ints_getnone(struct net_device *dev, struct iw_request_info *in
 {    
     int *value = (int *)extra;
     int sub_cmd = value[0];
-    int ret = 0;
-
+    
+    
     switch(sub_cmd)
     {
         case WE_SET_WLAN_DBG:
@@ -3536,11 +3581,6 @@ int iw_set_three_ints_getnone(struct net_device *dev, struct iw_request_info *in
             break;
         }
 #endif // FEATURE_WLAN_INTEGRATED_SOC
-        case WE_SET_SAP_CHANNELS:
-        {
-            ret = iw_softap_set_channel_range( dev, value[1], value[2], value[3]);
-            break;
-        }
 
         default:  
         {
@@ -3548,7 +3588,8 @@ int iw_set_three_ints_getnone(struct net_device *dev, struct iw_request_info *in
             break;
         }
     }
-    return ret;
+
+    return 0;
 }
 
 static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *info,
@@ -3680,6 +3721,7 @@ static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *i
             wrqu->data.length = strlen(extra)+1;
             break;
         }
+
 
         case WE_GET_CHANNEL_LIST:
         {
@@ -4501,9 +4543,10 @@ static int iw_set_keepalive_params(struct net_device *dev, struct iw_request_inf
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 static int iw_set_packet_filter_params(struct net_device *dev, struct iw_request_info *info,
         union iwreq_data *wrqu, char *extra)
-{   
+{
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-    tpPacketFilterCfg pRequest = (tpPacketFilterCfg)wrqu->data.pointer;
+    tpPacketFilterCfg pRequest = (tpPacketFilterCfg)kmalloc(sizeof(tPacketFilterCfg), GFP_KERNEL);
+    int retVal=0;
     tSirRcvPktFilterCfgType    packetFilterSetReq;
     tSirRcvFltPktClearParam    packetFilterClrReq;
     int i=0;
@@ -4512,9 +4555,22 @@ static int iw_set_packet_filter_params(struct net_device *dev, struct iw_request
     {
          hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Packet Filtering Disabled. Returning ",
            __FUNCTION__ );    
-        return 0;
+        goto done; 
     }
 
+    if(pRequest == NULL) {
+        hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Out of memory - cant alloc %d bytes",
+                sizeof(tpPacketFilterCfg),__FUNCTION__);
+        retVal = -ENOMEM;
+        goto done;
+    }
+
+    if(copy_from_user(pRequest, wrqu->data.pointer, sizeof(tPacketFilterCfg))) {
+        hddLog(VOS_TRACE_LEVEL_FATAL, "%s -- copy_from_user -- data pointer failed! bailing",
+                __FUNCTION__);
+        retVal = -EFAULT;
+        goto done;
+    }
     /* Debug display of request components. */
     hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Packet Filter Request : FA %d params %d", 
            __FUNCTION__, pRequest->filterAction, pRequest->numParams);    
@@ -4530,7 +4586,8 @@ static int iw_set_packet_filter_params(struct net_device *dev, struct iw_request
             {
               hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Number of Params exceed Max limit %d\n",
                      __func__, pRequest->numParams);
-              return -EINVAL;
+              retVal = -EINVAL;
+              goto done;
             }
             packetFilterSetReq.numFieldParams = pRequest->numParams;
             packetFilterSetReq.coalesceTime = 0;
@@ -4570,7 +4627,7 @@ static int iw_set_packet_filter_params(struct net_device *dev, struct iw_request
             {
               hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Failure to execute Set Filter\n",
                      __func__);
-              return -EINVAL;
+              retVal = -EINVAL; 
             }
 
             break;
@@ -4585,17 +4642,20 @@ static int iw_set_packet_filter_params(struct net_device *dev, struct iw_request
             {
               hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Failure to execute Clear Filter\n",
                      __func__);
-              return -EINVAL;
+              retVal = -EINVAL; 
             }
             break;
 
         default :
             hddLog(VOS_TRACE_LEVEL_INFO_HIGH, "%s: Packet Filter Request: Invalid %d\n",
                __FUNCTION__, pRequest->filterAction);
-            return -EINVAL;
+            retVal = -EINVAL; 
     }
-
-    return 0;
+done:
+    if(pRequest != NULL) {
+        kfree(pRequest);
+    }
+    return retVal;
 }
 #endif
 static int iw_get_statistics(struct net_device *dev,
@@ -4762,6 +4822,7 @@ void found_pref_network_cb (void *callbackContext,
   hdd_adapter_t* pAdapter = (hdd_adapter_t*)callbackContext;
   union iwreq_data wrqu;
   char buf[MAX_PNO_NOTIFY_LEN+1];
+  int bp = 0;
 
   hddLog(VOS_TRACE_LEVEL_WARN, "A preferred network was found: %s with rssi: -%d", 
          pPrefNetworkFoundInd->ssId.ssId, pPrefNetworkFoundInd->rssi);
@@ -4770,7 +4831,18 @@ void found_pref_network_cb (void *callbackContext,
   memset(&wrqu, 0, sizeof(wrqu));
   memset(buf, 0, sizeof(buf));
   
-  snprintf(buf, MAX_PNO_NOTIFY_LEN, "QCOM: Found preferred network: %s with RSSI of -%u", 
+  // stop PNO
+  bp = strlcpy(buf, "0 ", sizeof(buf));
+  buf[bp++] = '\0';
+  wrqu.data.pointer = buf;
+  wrqu.data.length = strlen(buf);
+  iw_set_pno(pAdapter->dev, NULL, &wrqu, NULL, 0);
+  //printk("PNO Callback: Stopping PNO \n");
+
+  // send event to supplicant
+  memset(&wrqu, 0, sizeof(wrqu));
+  memset(buf, 0, sizeof(buf));
+  snprintf(buf, MAX_PNO_NOTIFY_LEN, "PNOFOUND : Found preferred network: %s with RSSI of -%u",
            pPrefNetworkFoundInd->ssId.ssId,
           (unsigned int)pPrefNetworkFoundInd->rssi);
   
@@ -4960,7 +5032,28 @@ VOS_STATUS iw_set_pno(struct net_device *dev, struct iw_request_info *info,
   }
 
   /*no scan timers provided on LA*/
-  pnoRequest.scanTimers.ucScanTimersCount = 0; 
+  /* A set value represents the amount of time that PNO will wait between
+     two consecutive scan procedures.
+     If the desired is for a uniform timer that fires always at the exact same
+     interval - one single value is to be set
+
+     If there is a desire for a more complex - telescopic like timer multiple
+     values can be set - once PNO reaches the end of the array it will
+     continue scanning at intervals presented by the last value
+
+     uTimerRepeat
+     How many times it should repeat that wait value
+     0 - keep using this timer until PNO is disabled/
+     e.g:   2 3
+            4 0
+    - it will wait 2s between consecutive scans for 3 times
+    - after that it will wait 4s between consecutive scans until disabled
+  */
+  pnoRequest.scanTimers.ucScanTimersCount = 2;
+  pnoRequest.scanTimers.aTimerValues[0].uTimerRepeat = 7;
+  pnoRequest.scanTimers.aTimerValues[0].uTimerValue = 45;
+  pnoRequest.scanTimers.aTimerValues[1].uTimerRepeat = 0;
+  pnoRequest.scanTimers.aTimerValues[1].uTimerValue = 480;
 
   sme_SetPreferredNetworkList(WLAN_HDD_GET_HAL_CTX(pAdapter), &pnoRequest, 
                                 pAdapter->sessionId, 
@@ -5507,11 +5600,6 @@ static const struct iw_priv_args we_private_args[] = {
         0, 
         "setwdidbg" },
 #endif // FEATURE_WLAN_INTEGRATED_SOC
-
-    {   WE_SET_SAP_CHANNELS,
-        IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
-        0,
-        "setsapchannels" },
 
     /* handlers for main ioctl */
     {   WLAN_PRIV_GET_CHAR_SET_NONE,

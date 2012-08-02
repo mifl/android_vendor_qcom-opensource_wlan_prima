@@ -63,7 +63,6 @@
 //   18 BD/PDUs containing the remaining 2232 bytes of the payload
 //     2346 - 114 = 2232; 2232 / 124 = 18
 //   So 21 BD/PDUs are required
-
 //The size of AMSDU frame per spec can be a max of 3839 bytes 
 // in BD/PDUs that means 30 (one BD = 128 bytes) 
 // we must add the size of the 802.11 header to that 

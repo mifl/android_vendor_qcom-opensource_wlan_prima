@@ -1246,11 +1246,8 @@ error:
         }
     }
 
-    /* If it is not duplicate Assoc request then only make to Null */
-    if(pStaDs!= NULL &&
-          (pStaDs->mlmStaContext.mlmState != eLIM_MLM_WT_ADD_STA_RSP_STATE))
+    if(pStaDs!= NULL)
         psessionEntry->parsedAssocReq[pStaDs->assocId] = NULL;
-
     return;
 
 } /*** end limProcessAssocReqFrame() ***/

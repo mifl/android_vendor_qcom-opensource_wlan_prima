@@ -84,8 +84,6 @@ typedef struct
 
 } moduleTraceInfo;
 
-#define VOS_DEFAULT_TRACE_LEVEL \
-   ((1<<VOS_TRACE_LEVEL_FATAL)|(1<<VOS_TRACE_LEVEL_ERROR))
 
 // Array of static data that contains all of the per module trace
 // information.  This includes the trace level for the module and
@@ -111,7 +109,7 @@ moduleTraceInfo gVosTraceInfo[ VOS_MODULE_ID_MAX ] =
    [VOS_MODULE_ID_WDA]        = { (1<<VOS_TRACE_LEVEL_FATAL), "WDA" },
 #endif
    [VOS_MODULE_ID_SYS]        = { (1<<VOS_TRACE_LEVEL_FATAL), "SYS" },
-   [VOS_MODULE_ID_VOSS]       = { VOS_DEFAULT_TRACE_LEVEL, "VOS" },
+   [VOS_MODULE_ID_VOSS]       = { (1<<VOS_TRACE_LEVEL_FATAL), "VOS" },
 #ifdef WLAN_SOFTAP_FEATURE
    [VOS_MODULE_ID_SAP]        = { (1<<VOS_TRACE_LEVEL_FATAL), "SAP" },
    [VOS_MODULE_ID_HDD_SOFTAP] = { (1<<VOS_TRACE_LEVEL_FATAL), "HSP" },

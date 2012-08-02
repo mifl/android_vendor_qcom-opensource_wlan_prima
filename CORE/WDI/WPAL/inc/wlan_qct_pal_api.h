@@ -295,4 +295,13 @@ wpt_status wpalDriverReInit(void);
 ---------------------------------------------------------------------------*/
 wpt_status wpalRivaSubystemRestart(void);
 
+/*---------------------------------------------------------------------------
+    wpalWlanReload -  Initiate Riva SSR
+
+    Param:
+       None
+    Return:
+       eWLAN_PAL_STATUS_SUCCESS - when everything is OK
+---------------------------------------------------------------------------*/
+void wpalWlanReload(void);
 #endif // __WLAN_QCT_PAL_API_H

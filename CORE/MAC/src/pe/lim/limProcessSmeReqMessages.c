@@ -20,6 +20,27 @@
  */
 
 /*
+ * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+*/
+
+/*
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limProcessSmeReqMessages.cc contains the code
  * for processing SME request messages.
@@ -1158,7 +1179,8 @@ __limProcessSmeScanReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                       sizeof(tSirMacAddr));
         pMlmScanReq->numSsid = pScanReq->numSsid;
 
-		i = 0;
+        i=0;
+                   
         while (i < pMlmScanReq->numSsid)
         {
             palCopyMemory( pMac->hHdd, (tANI_U8 *) &pMlmScanReq->ssId[i],
@@ -2189,6 +2211,7 @@ __limProcessSmeDisassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                       MTRACE(macTrace(pMac, TRACE_CODE_SME_STATE, 0, pMac->lim.gLimSmeState));
                     break;
 
+                case eLIM_SME_WT_DISASSOC_STATE:
                 case eLIM_SME_WT_DEAUTH_STATE:
                     /* PE shall still process the DISASSOC_REQ and proceed with 
                      * link tear down even if it had already sent a DEAUTH_IND to
@@ -2198,19 +2221,6 @@ __limProcessSmeDisassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                     psessionEntry->limSmeState= eLIM_SME_WT_DISASSOC_STATE;
                     MTRACE(macTrace(pMac, TRACE_CODE_SME_STATE, 0, pMac->lim.gLimSmeState));
                     limLog(pMac, LOG1, FL("Rcvd SME_DISASSOC_REQ while in SME_WT_DEAUTH_STATE. \n"));
-                    break;
-
-                case eLIM_SME_WT_DISASSOC_STATE:
-                    /* PE Recieved a Disassoc frame. Normally it gets DISASSOC_CNF but it
-                     * received DISASSOC_REQ. Which means host is also trying to disconnect.
-                     * PE can continue processing DISASSOC_REQ and send the response instead
-                     * of failing the request. SME will anyway ignore DEAUTH_IND that was sent
-                     * for disassoc frame.
-                     *
-                     * It will send a disassoc, which is ok. However, we can use the global flag
-                     * sendDisassoc to not send disassoc frame.
-                     */
-                    limLog(pMac, LOG1, FL("Rcvd SME_DISASSOC_REQ while in SME_WT_DISASSOC_STATE. \n"));
                     break;
 
                 case eLIM_SME_JOIN_FAILURE_STATE: {
@@ -4736,6 +4746,7 @@ __limProcessSmeRegisterMgmtFrameReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                 (vos_list_node_t*)pLimMgmtRegistration);
         palFreeMemory(pMac,pLimMgmtRegistration);
     }
+
     if(pSmeReq->registerFrame)
     {
         palAllocateMemory(pMac, (void**)&pLimMgmtRegistration,

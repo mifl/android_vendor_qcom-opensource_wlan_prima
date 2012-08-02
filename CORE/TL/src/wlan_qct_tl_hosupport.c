@@ -1702,7 +1702,7 @@ VOS_STATUS WLANTL_HSInit
 
    DESCRIPTION 
     
-   PARAMETERS 
+  PARAMETERS 
 
    RETURN VALUE
 
@@ -1726,10 +1726,11 @@ VOS_STATUS WLANTL_HSDeInit
    status = vos_timer_destroy( &tlCtxt->hoSupport.currentTraffic.trafficTimer );
    if ( !VOS_IS_STATUS_SUCCESS( status ) )
    {
-      TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"WLANTL_HSStop: Timer Destroy Fail Status %d", status));
+      TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"WLANTL_HSStop: Timer Destroy Fail status %d", status));
    }
    return status;   
 }
+
 
 
 /*==========================================================================

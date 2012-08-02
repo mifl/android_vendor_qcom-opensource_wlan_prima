@@ -11,7 +11,28 @@ LOCAL_MODULE       := WCNSS_qcom_wlan_nv.bin
 LOCAL_MODULE_TAGS  := optional
 LOCAL_MODULE_CLASS := ETC
 LOCAL_MODULE_PATH  := $(PRODUCT_OUT)/persist
+LOCAL_SRC_FILES    := ../../../../../../../../$(WIFI_DRIVER_NV_BASE_FILE)
+include $(BUILD_PREBUILT)
+
+# calibration data will need to be overlay'd per product
+include $(CLEAR_VARS)
+LOCAL_MODULE       := WCNSS_qcom_wlan_nv_calibration.bin
+LOCAL_MODULE_TAGS  := optional
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH  := $(TARGET_OUT_ETC)/firmware/wlan/prima
+LOCAL_SRC_FILES    := ../../../../../../../../$(WIFI_DRIVER_CAL_FILE)
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE       := WCNSS_qcom_wlan_nv_regulatory.bin
+LOCAL_MODULE_TAGS  := optional
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH  := $(TARGET_OUT_ETC)/firmware/wlan/prima
+ifdef WIFI_DRIVER_REG_FILE
+LOCAL_SRC_FILES    := ../../../../../../../../$(WIFI_DRIVER_REG_FILE)
+else
 LOCAL_SRC_FILES    := ../../../firmware_bin/$(LOCAL_MODULE)
+endif
 include $(BUILD_PREBUILT)
 
 include $(CLEAR_VARS)
@@ -26,7 +47,19 @@ include $(CLEAR_VARS)
 LOCAL_MODULE       := WCNSS_qcom_cfg.ini
 LOCAL_MODULE_TAGS  := optional
 LOCAL_MODULE_CLASS := ETC
-LOCAL_MODULE_PATH  := $(PRODUCT_OUT)/persist
+LOCAL_MODULE_PATH  := $(TARGET_OUT_ETC)/firmware/wlan/prima/inis
+ifdef WLAN_CONFIG
+LOCAL_SRC_FILES    := ../../../firmware_bin/$(WLAN_CONFIG)
+else
+LOCAL_SRC_FILES    := ../../../firmware_bin/$(LOCAL_MODULE)
+endif
+include $(BUILD_PREBUILT)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE       := WCNSS_qcom_cfg.ini.es1
+LOCAL_MODULE_TAGS  := optional
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_PATH  := $(TARGET_OUT_ETC)/firmware/wlan/prima/inis
 LOCAL_SRC_FILES    := ../../../firmware_bin/$(LOCAL_MODULE)
 include $(BUILD_PREBUILT)
 
@@ -45,7 +78,7 @@ KBUILD_OPTIONS += BOARD_PLATFORM=$(TARGET_BOARD_PLATFORM)
 include $(CLEAR_VARS)
 LOCAL_MODULE              := prima_wlan.ko
 LOCAL_MODULE_KBUILD_NAME  := wlan.ko
-LOCAL_MODULE_TAGS         := eng
+LOCAL_MODULE_TAGS         := optional
 LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(TARGET_OUT)/lib/modules/prima
 include $(DLKM_DIR)/AndroidKernelModule.mk
