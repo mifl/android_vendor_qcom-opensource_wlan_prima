@@ -19,6 +19,27 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+*/
+
 /*===========================================================================
 
                        W L A N _ Q C T _ WDA . C
@@ -479,8 +500,29 @@ VOS_STATUS WDA_start(v_PVOID_t pVosContext)
    }
 
    /* wait for WDI start to invoke our callback */
-   status = vos_wait_single_event( &wdaContext->wdaWdiEvent,
-                                   WDA_WDI_START_TIMEOUT );
+   /*status = vos_wait_single_event( &wdaContext->wdaWdiEvent,
+                                   WDA_WDI_START_TIMEOUT ); */
+   if(in_interrupt()) {
+       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
+               "%s cannot be called from interrupt context!!!", __FUNCTION__);
+       VOS_ASSERT(0);
+       status = VOS_STATUS_E_FAULT;
+   } else if(NULL == &wdaContext->wdaWdiEvent) {
+       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
+               "Null event used at *s!!!", __FUNCTION__);
+       VOS_ASSERT(0);
+       status = VOS_STATUS_E_FAULT;
+   } else if ( LINUX_EVENT_COOKIE != wdaContext->wdaWdiEvent.cookie ) {
+       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
+           "Uninitialized event used at %s", __FUNCTION__);
+       VOS_ASSERT(0);
+       status = VOS_STATUS_E_INVAL;
+   } else {
+       long ret;
+       ret = wait_for_completion_timeout(&(wdaContext->wdaWdiEvent.complete),
+               msecs_to_jiffies(WDA_WDI_START_TIMEOUT));
+       status = ( 0 >= ret ) ? VOS_STATUS_E_TIMEOUT : VOS_STATUS_SUCCESS;
+   }
    if ( !VOS_IS_STATUS_SUCCESS(status) )
    {
       if ( VOS_STATUS_E_TIMEOUT == status )
@@ -2083,6 +2125,15 @@ VOS_STATUS  WDA_ProcessInitScanReq(tWDA_CbContext *pWDA,
       return VOS_STATUS_E_NOMEM;
    }
 
+   if(NULL == initScanParams) 
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
+                           "%s: initScanParams is NULL", __FUNCTION__); 
+      VOS_ASSERT(0);
+      return VOS_STATUS_E_INVAL;
+   }
+
+
    pWdaParams = (tWDA_ReqParams *)vos_mem_malloc(sizeof(tWDA_ReqParams)) ;
    if(NULL == pWdaParams)
    {
@@ -2468,6 +2519,15 @@ VOS_STATUS  WDA_ProcessFinishScanReq(tWDA_CbContext *pWDA,
       VOS_ASSERT(0);
       return VOS_STATUS_E_NOMEM;
    }
+   
+   if(NULL == finishScanParams) 
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                           "%s: finishScanParams is NULL", __FUNCTION__); 
+      VOS_ASSERT(0);
+      return VOS_STATUS_E_INVAL;
+   }
+   
    pWdaParams = (tWDA_ReqParams *)vos_mem_malloc(sizeof(tWDA_ReqParams)) ;
    if(NULL == pWdaParams)
    {
@@ -9178,43 +9238,61 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
       return VOS_STATUS_E_FAILURE;
    }
    
-   /* store the call back function in WDA context */
-   pWDA->pTxCbFunc = pCompFunc;
    /* store the call back for the function of ackTxComplete */
    if( pAckTxComp )
    {
-       if( NULL != pWDA->pAckTxCbFunc )
-       {
-           /* Already TxComp is active no need to active again */
-           VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR, 
-                   "There is already one request pending for tx complete\n");
-           pWDA->pAckTxCbFunc( pMac, 0);
-           pWDA->pAckTxCbFunc = NULL;
+      if( NULL == pWDA->pAckTxCbFunc )
+      {
+         txFlag |= HAL_TXCOMP_REQUESTED_MASK;
+         pWDA->pAckTxCbFunc = pAckTxComp;
+         if( VOS_STATUS_SUCCESS !=
+                 WDA_START_TIMER(&pWDA->wdaTimers.TxCompleteTimer) ) 
+         {
+            VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+                                "Tx Complete Timer Start Failed ");
+            pWDA->pAckTxCbFunc = NULL;
+            return eHAL_STATUS_FAILURE;
+         }
+      }
+      else
+      {
+         /* Already TxComp is active no need to active again */
+         VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR, 
+                       "There is already one request pending for tx complete\n");
+#if 1
+         pWDA->pAckTxCbFunc( pMac, 0);
+         pWDA->pAckTxCbFunc = NULL;
 
-           if( VOS_STATUS_SUCCESS !=
-                   WDA_STOP_TIMER(&pWDA->wdaTimers.TxCompleteTimer))
-           {
-               VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-                       "Tx Complete timeout Timer Stop Failed ");
-           }
-           else
-           {
-               VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-                       "Tx Complete timeout Timer Stop Sucess ");
-           }
-       }
-
-       txFlag |= HAL_TXCOMP_REQUESTED_MASK;
-       pWDA->pAckTxCbFunc = pAckTxComp;
-       if( VOS_STATUS_SUCCESS !=
-               WDA_START_TIMER(&pWDA->wdaTimers.TxCompleteTimer) ) 
-       {
-           VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                   "Tx Complete Timer Start Failed ");
-           pWDA->pAckTxCbFunc = NULL;
-           return eHAL_STATUS_FAILURE;
-       }
+         if( VOS_STATUS_SUCCESS !=
+                           WDA_STOP_TIMER(&pWDA->wdaTimers.TxCompleteTimer))
+         {
+            VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                                "Tx Complete timeout Timer Stop Failed ");
+         }
+         else
+         {
+             VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                                             "Tx Complete timeout Timer Stop Sucess ");
+         }
+         txFlag |= HAL_TXCOMP_REQUESTED_MASK;
+         pWDA->pAckTxCbFunc = pAckTxComp;
+         if( VOS_STATUS_SUCCESS !=
+                 WDA_START_TIMER(&pWDA->wdaTimers.TxCompleteTimer) ) 
+         {
+            VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+                                "Tx Complete Timer Start Failed ");
+            pWDA->pAckTxCbFunc = NULL;
+            return eHAL_STATUS_FAILURE;
+         }
+#else
+         pCompFunc(pWDA->pVosContext, (vos_pkt_t *)pFrmBuf);
+         return eHAL_STATUS_FAILURE;
+#endif
+      }
    } 
+
+   /* store the call back function in WDA context */
+   pWDA->pTxCbFunc = pCompFunc;
 
    /* Reset the event to be not signalled */
    status = vos_event_reset(&pWDA->txFrameEvent);
@@ -9471,6 +9549,10 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
                      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
                                 "TX Ring could not empty, not normal" );
                      VOS_ASSERT(0);
+                     if(VOS_STA_MODE == vos_get_conparam())
+                     {
+                        vos_wlanReload();
+                     }
                      break;
                  }
                  vos_sleep(WDA_WAIT_MSEC_TILL_RING_EMPTY);
@@ -9503,6 +9585,10 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
                      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
                                 "TX Ring could not empty, not normal" );
                      VOS_ASSERT(0);
+                     if(VOS_STA_MODE == vos_get_conparam())
+                     {
+                        vos_wlanReload();
+                     }
                      break;
                  }
                  vos_sleep(WDA_WAIT_MSEC_TILL_RING_EMPTY);
@@ -10728,15 +10814,15 @@ eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId)
 /*
  * FUNCTION: WDA_PNOScanReqCallback
  * 
- */ 
+ */
 void WDA_PNOScanReqCallback(WDI_Status status, void* pUserData)
 {
-   tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData; 
+   tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData;
 
    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
                                           "<------ %s " ,__FUNCTION__);
 
-    if(NULL == pWdaParams)
+   if(NULL == pWdaParams)
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
               "%s: pWdaParams received NULL", __FUNCTION__);
@@ -10747,20 +10833,20 @@ void WDA_PNOScanReqCallback(WDI_Status status, void* pUserData)
    if( pWdaParams != NULL )
    {
       if( pWdaParams->wdaWdiApiMsgParam != NULL )
-      {
+   {
          vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
-      }
+   }
 
       if( pWdaParams->wdaMsgParam != NULL)
-      {
+   {
          vos_mem_free(pWdaParams->wdaMsgParam);
-      }
+   }
 
-      vos_mem_free(pWdaParams) ;
+   vos_mem_free(pWdaParams);
    }
 
    return ;
-}
+} 
 
 /*
  * FUNCTION: WDA_PNOScanReqCallback

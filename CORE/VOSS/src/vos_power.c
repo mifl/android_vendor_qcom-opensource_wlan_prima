@@ -1370,7 +1370,6 @@ VOS_STATUS vos_chipVoteXOCore
   v_BOOL_t              force_enable
 )
 {
-#ifdef FEATURE_WLAN_NON_INTEGRATED_SOC
     static v_BOOL_t is_vote_on;
 
 #if defined(MSM_PLATFORM_8660) || defined(MSM_PLATFORM_7x30)
@@ -1412,9 +1411,6 @@ VOS_STATUS vos_chipVoteXOCore
 success:
    VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN, "XO CORE ON vote %s successfully!",
                 force_enable ? "enable" : "disable");
-
-#endif /* FEATURE_WLAN_NON_INTEGRATED_SOC */
-
    return VOS_STATUS_SUCCESS;
 }
 

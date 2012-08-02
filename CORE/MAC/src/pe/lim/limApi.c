@@ -850,20 +850,18 @@ limCleanup(tpAniSirGlobal pMac)
 #endif
 
 #ifdef WLAN_FEATURE_P2P
-//Before destroying the list making sure all the nodes have been deleted.
-//Which should be the normal case, but a memory leak has been reported.
-
+    //Before destroying the list making sure all the nodes have been deleted.
+    //Which should be the normal case, but a memory leak has been reported.
     tpLimMgmtFrameRegistration pLimMgmtRegistration = NULL;
-    
     while(vos_list_remove_front(&pMac->lim.gLimMgmtFrameRegistratinQueue,
-    		(vos_list_node_t**)&pLimMgmtRegistration) == VOS_STATUS_SUCCESS)
+				(vos_list_node_t**)&pLimMgmtRegistration) == VOS_STATUS_SUCCESS)
     {
-        VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,
-        		FL("Fixing leak! Deallocating pLimMgmtRegistration node"));
+      VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,
+		FL("Fixing leak! Deallocating pLimMgmtRegistration node"));
 
-    	palFreeMemory(pMac, pLimMgmtRegistration);
+      palFreeMemory(pMac, pLimMgmtRegistration);
     }
-
+ 
     vos_list_destroy(&pMac->lim.gLimMgmtFrameRegistratinQueue);
 #endif
 
@@ -1084,6 +1082,7 @@ tSirRetStatus peOpen(tpAniSirGlobal pMac, tMacOpenParameters *pMacOpenParam)
 #ifdef WLAN_FEATURE_P2P
     pMac->lim.actionFrameSessionId = 0xff;
 #endif
+
 
     return eSIR_SUCCESS;
 }

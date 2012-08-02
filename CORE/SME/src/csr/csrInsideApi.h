@@ -77,7 +77,7 @@
 #define CSR_SCAN_AGING_TIME_CONNECT_NO_PS 150        //150 seconds
 #define CSR_SCAN_AGING_TIME_CONNECT_W_PS 600         //600 seconds
 #define CSR_JOIN_FAILURE_TIMEOUT_DEFAULT ( 3000 )
-#define CSR_JOIN_FAILURE_TIMEOUT_MIN   (300)  //minimal value
+#define CSR_JOIN_FAILURE_TIMEOUT_MIN   (1000)  //minimal value
 //These are going against the signed RSSI (tANI_S8) so it is between -+127
 #define CSR_BEST_RSSI_VALUE         (-30)   //RSSI >= this is in CAT4
 #define CSR_DEFAULT_RSSI_DB_GAP     30 //every 30 dbm for one category
@@ -899,13 +899,6 @@ eHalStatus csrRoamStopJoinRetryTimer(tpAniSirGlobal pMac, tANI_U32 sessionId);
   ---------------------------------------------------------------------------*/
 void csrRoamFTPreAuthRspProcessor( tHalHandle hHal, tpSirFTPreAuthRsp pFTPreAuthRsp );
 #endif
-
-#ifdef FEATURE_WLAN_CCX
-void csrCcxSendAdjacentApRepMsg(tpAniSirGlobal pMac, tCsrRoamSession *pSession);
-#endif
-
-eHalStatus csrGetDefaultCountryCodeFrmNv(tpAniSirGlobal pMac, tANI_U8 *pCountry);
-eHalStatus csrGetCurrentCountryCode(tpAniSirGlobal pMac, tANI_U8 *pCountry);
 
 #endif
 

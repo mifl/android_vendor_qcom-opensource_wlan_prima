@@ -114,11 +114,6 @@
     .flags = flag, \
 }
 
-#define g_ht_capability \
-             IEEE80211_HT_CAP_SGI_20 |        \
-             IEEE80211_HT_CAP_GRN_FLD |       \
-             IEEE80211_HT_CAP_DSSSCCK40 |     \
-             IEEE80211_HT_CAP_LSIG_TXOP_PROT
 
 static const u32 hdd_cipher_suites[] = 
 {
@@ -228,7 +223,10 @@ static struct ieee80211_supported_band wlan_hdd_band_2_4_GHZ =
     .bitrates = g_mode_rates,
     .n_bitrates = g_mode_rates_size,
     .ht_cap.ht_supported   = 1,
-    .ht_cap.cap            = g_ht_capability,
+    .ht_cap.cap            =  IEEE80211_HT_CAP_SGI_20
+                            | IEEE80211_HT_CAP_GRN_FLD
+                            | IEEE80211_HT_CAP_DSSSCCK40
+                            | IEEE80211_HT_CAP_LSIG_TXOP_PROT,
     .ht_cap.ampdu_factor   = IEEE80211_HT_MAX_AMPDU_64K,
     .ht_cap.ampdu_density  = IEEE80211_HT_MPDU_DENSITY_16,
     .ht_cap.mcs.rx_mask    = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
@@ -245,7 +243,10 @@ static struct ieee80211_supported_band wlan_hdd_band_p2p_2_4_GHZ =
     .bitrates = g_mode_rates,
     .n_bitrates = g_mode_rates_size,
     .ht_cap.ht_supported   = 1,
-    .ht_cap.cap            = g_ht_capability,
+    .ht_cap.cap            =  IEEE80211_HT_CAP_SGI_20
+                            | IEEE80211_HT_CAP_GRN_FLD
+                            | IEEE80211_HT_CAP_DSSSCCK40
+                            | IEEE80211_HT_CAP_LSIG_TXOP_PROT,
     .ht_cap.ampdu_factor   = IEEE80211_HT_MAX_AMPDU_64K,
     .ht_cap.ampdu_density  = IEEE80211_HT_MPDU_DENSITY_16,
     .ht_cap.mcs.rx_mask    = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
@@ -262,7 +263,13 @@ static struct ieee80211_supported_band wlan_hdd_band_5_GHZ =
     .bitrates = a_mode_rates,
     .n_bitrates = a_mode_rates_size,
     .ht_cap.ht_supported   = 1,
-    .ht_cap.cap            = g_ht_capability,
+    .ht_cap.cap            = IEEE80211_HT_CAP_SGI_20
+                             | IEEE80211_HT_CAP_GRN_FLD
+                             | IEEE80211_HT_CAP_DSSSCCK40
+                             | IEEE80211_HT_CAP_LSIG_TXOP_PROT
+                             | IEEE80211_HT_CAP_SGI_40
+                             | IEEE80211_HT_CAP_SUP_WIDTH_20_40,
+
     .ht_cap.ampdu_factor   = IEEE80211_HT_MAX_AMPDU_64K,
     .ht_cap.ampdu_density  = IEEE80211_HT_MPDU_DENSITY_16,
     .ht_cap.mcs.rx_mask    = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
@@ -452,7 +459,26 @@ int wlan_hdd_cfg80211_register(struct device *dev,
             wiphy->bands[IEEE80211_BAND_2GHZ] = &wlan_hdd_band_2_4_GHZ;
             wiphy->bands[IEEE80211_BAND_5GHZ] = &wlan_hdd_band_5_GHZ;
     }
-    /*Initialise the supported cipher suite details*/
+
+
+
+    if( !pCfg->ShortGI20MhzEnable )
+    {
+        wlan_hdd_band_2_4_GHZ.ht_cap.cap     &= ~IEEE80211_HT_CAP_SGI_20;
+        wlan_hdd_band_5_GHZ.ht_cap.cap       &= ~IEEE80211_HT_CAP_SGI_20;
+        wlan_hdd_band_p2p_2_4_GHZ.ht_cap.cap &= ~IEEE80211_HT_CAP_SGI_20;
+    }
+
+    if( !pCfg->ShortGI40MhzEnable )
+    {
+        wlan_hdd_band_5_GHZ.ht_cap.cap       &= ~IEEE80211_HT_CAP_SGI_40;
+    }
+
+    if( !pCfg->nChannelBondingMode5GHz )
+    {
+        wlan_hdd_band_5_GHZ.ht_cap.cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+     }
+  /*Initialise the supported cipher suite details*/
     wiphy->cipher_suites = hdd_cipher_suites;
     wiphy->n_cipher_suites = ARRAY_SIZE(hdd_cipher_suites);
 
@@ -1153,18 +1179,13 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
         vos_mem_copy(pConfig->countryCode, &pIe[2], 3);
         sme_setRegInfo(hHal, pConfig->countryCode);
         sme_ResetCountryCodeInformation(hHal, &restartNeeded);
-        /*
-         * If auto channel is configured i.e. channel is 0,
-         * so skip channel validation.
-        */
-        if( AUTO_CHANNEL_SELECT != pConfig->channel )
+        
+        if(VOS_STATUS_SUCCESS != wlan_hdd_validate_operation_channel(pHostapdAdapter,pConfig->channel))
         {
-            if(VOS_STATUS_SUCCESS != wlan_hdd_validate_operation_channel(pHostapdAdapter,pConfig->channel))
-            {
-                hddLog(VOS_TRACE_LEVEL_ERROR,
-                         "%s: Invalid Channel [%d] \n", __func__, pConfig->channel);
-                return -EINVAL;
-            }
+
+            hddLog(VOS_TRACE_LEVEL_ERROR,
+                    "%s: Invalid Channel [%d] \n", __func__, pConfig->channel);
+            return -EINVAL;
         }
     }
     else 
@@ -3099,6 +3120,9 @@ static eHalStatus hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
      * cfg80211_scan_done informing NL80211 about completion
      * of scanning
      */
+    // can fetch scan results before kerenel ages it out if slept immediately
+    // and sleep duration is more than the ageout time.
+    hdd_prevent_suspend_after_scan(HZ/4);
     cfg80211_scan_done(req, false);
     complete(&pAdapter->abortscan_event_var);
     pAdapter->request = NULL;
@@ -3127,7 +3151,7 @@ static eHalStatus hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
  * later, scan dump command can be used to recieve scan results
  */
 int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
-        struct cfg80211_scan_request *request)
+                            struct cfg80211_scan_request *request )
 {  
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR( dev ); 
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
@@ -3143,7 +3167,6 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
 #endif
 
     ENTER();
-
     hddLog(VOS_TRACE_LEVEL_INFO, "%s: device_mode = %d\n",
                                    __func__,pAdapter->device_mode);
 #ifdef WLAN_BTAMP_FEATURE
@@ -3188,25 +3211,33 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
          * Becasue of this, driver is assuming that this is not wildcard scan and so
          * is not aging out the scan results.
          */
-        if ('\0' == request->ssids->ssid[0])
-        {
-            request->n_ssids = 0;
+        if (NULL == request->ssids) {
+            request->n_ssids = -1;
+        }
+        else if ('\0' == request->ssids->ssid[0]) {
+             request->n_ssids = 0;
         }
 
-        if (0 < request->n_ssids)
+        if (-1 == request->n_ssids)
+        {
+            scanRequest.scanType = eSIR_PASSIVE_SCAN;
+            scanRequest.minChnTime = cfg_param->nPassiveMinChnTime;
+            scanRequest.maxChnTime = cfg_param->nPassiveMaxChnTime;
+            hddLog(VOS_TRACE_LEVEL_INFO, "requesting PASSIVE SCAN");
+        }
+        else if (0 < request->n_ssids)
         {
             tCsrSSIDInfo *SsidInfo;
             int j;
             scanRequest.SSIDs.numOfSSIDs = request->n_ssids;
             /* Allocate num_ssid tCsrSSIDInfo structure */
             SsidInfo = scanRequest.SSIDs.SSIDList =
-                      ( tCsrSSIDInfo *)vos_mem_malloc(
-                              request->n_ssids*sizeof(tCsrSSIDInfo));
+                           ( tCsrSSIDInfo *)vos_mem_malloc(request->n_ssids*sizeof(tCsrSSIDInfo));
 
             if(NULL == scanRequest.SSIDs.SSIDList)
             {
                 hddLog(VOS_TRACE_LEVEL_ERROR,
-                               "memory alloc failed SSIDInfo buffer");
+                       "memory alloc failed SSIDInfo buffer");
                 return -ENOMEM;
             }
 
@@ -3218,24 +3249,28 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
                 vos_mem_copy(SsidInfo->SSID.ssId, &request->ssids[j].ssid[0],
                              SsidInfo->SSID.length);
                 SsidInfo->SSID.ssId[SsidInfo->SSID.length] = '\0';
-                hddLog(VOS_TRACE_LEVEL_INFO_HIGH, "SSID number %d:  %s",
-                                                   j, SsidInfo->SSID.ssId);
-            }
-            /* set the scan type to active */
-            scanRequest.scanType = eSIR_ACTIVE_SCAN;
+                hddLog(VOS_TRACE_LEVEL_INFO_HIGH, "SSID number %d: %s",
+                                                j, SsidInfo->SSID.ssId);
+          }
+          /* set the scan type to active */
+          scanRequest.scanType = eSIR_ACTIVE_SCAN;
+          scanRequest.minChnTime = cfg_param->nActiveMinChnTime;
+          scanRequest.maxChnTime = cfg_param->nActiveMaxChnTime;
         }
         else if(WLAN_HDD_P2P_GO == pAdapter->device_mode)
         {
             /* set the scan type to active */
             scanRequest.scanType = eSIR_ACTIVE_SCAN;
+            scanRequest.minChnTime = cfg_param->nActiveMinChnTime;
+            scanRequest.maxChnTime = cfg_param->nActiveMaxChnTime;
         }
-        else
+        else 
         {
-            /*Set the scan type to default type, in this case it is ACTIVE*/
-            scanRequest.scanType = pScanInfo->scan_mode;
+            /* set the scan type to active */
+            scanRequest.scanType = eSIR_ACTIVE_SCAN;
+            scanRequest.minChnTime = cfg_param->nActiveMinChnTime;
+            scanRequest.maxChnTime = cfg_param->nActiveMaxChnTime;
         }
-        scanRequest.minChnTime = cfg_param->nActiveMinChnTime; 
-        scanRequest.maxChnTime = cfg_param->nActiveMaxChnTime;
     }
     else
     {
@@ -3322,7 +3357,6 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
 #endif
         }
     }
-
     INIT_COMPLETION(pScanInfo->scan_req_completion_event);
 
     if ((pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated) &&
@@ -3338,7 +3372,7 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
                               pAdapter->sessionId, &scanRequest, &scanId,
                               &hdd_cfg80211_scan_done_callback, dev );
     }
-    
+
     if (eHAL_STATUS_SUCCESS != status)
     {
         hddLog(VOS_TRACE_LEVEL_ERROR,

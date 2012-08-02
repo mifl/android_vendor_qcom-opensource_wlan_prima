@@ -19,6 +19,27 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+*/
+
 /*===========================================================================
 
                        W L A N _ Q C T _ W D I. C
@@ -733,7 +754,6 @@ static char *WDI_getReqMsgString(wpt_uint16 wdiReqMsgId)
     CASE_RETURN_STRING( WDI_ADD_STA_SELF_REQ );
     CASE_RETURN_STRING( WDI_DEL_STA_SELF_REQ );
     CASE_RETURN_STRING( WDI_FTM_CMD_REQ );
-    CASE_RETURN_STRING( WDI_START_INNAV_MEAS_REQ );
     CASE_RETURN_STRING( WDI_HOST_RESUME_REQ );
     CASE_RETURN_STRING( WDI_KEEP_ALIVE_REQ);
   #ifdef FEATURE_WLAN_SCAN_PNO
@@ -829,7 +849,6 @@ static char *WDI_getRespMsgString(wpt_uint16 wdiRespMsgId)
     CASE_RETURN_STRING( WDI_ADD_STA_SELF_RESP );
     CASE_RETURN_STRING( WDI_DEL_STA_SELF_RESP );
     CASE_RETURN_STRING( WDI_FTM_CMD_RESP );
-    CASE_RETURN_STRING( WDI_START_INNAV_MEAS_RESP );
     CASE_RETURN_STRING( WDI_HOST_RESUME_RESP );
     CASE_RETURN_STRING( WDI_KEEP_ALIVE_RESP);
   #ifdef FEATURE_WLAN_SCAN_PNO
@@ -1479,7 +1498,7 @@ WDI_Close
 WDI_Status
 WDI_Shutdown
 (
- wpt_boolean closeTransport
+wpt_boolean closeTransport
 )
 {
    WDI_EventInfoType      wdiEventData;
@@ -1537,7 +1556,6 @@ WDI_Shutdown
       /* Close control transport, called from module unload */
       WCTS_CloseTransport(gWDICb.wctsHandle);
    }
-
    /*destroy the BSS sessions pending Queue */
    for ( i = 0; i < WDI_MAX_BSS_SESSIONS; i++ )
    {
@@ -18411,10 +18429,12 @@ WDI_ResponseTimerCB
             " - catastrophic failure", 
             WDI_getRespMsgString(pWDICtx->wdiExpectedResponse),
             pWDICtx->wdiExpectedResponse);
+
   /* WDI timeout means Riva is not responding or SMD communication to Riva
    * is not happening. The only possible way to recover from this error
    * is to initiate SSR from APPS */
   wpalRivaSubystemRestart();
+
   }
   else
   {

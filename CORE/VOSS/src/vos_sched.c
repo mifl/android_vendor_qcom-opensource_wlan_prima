@@ -447,24 +447,10 @@ VosMCThread
                   ("Servicing the VOS MC WDI Message queue"));
 
         pMsgWrapper = vos_mq_get(&pSchedContext->wdiMcMq);
-
-        if (pMsgWrapper == NULL)
-        {
-           VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-               "%s: pMsgWrapper is NULL", __FUNCTION__);
-           VOS_ASSERT(0);
-           break;
-        }
+        VOS_ASSERT(NULL != pMsgWrapper);
 
         pWdiMsg = (wpt_msg *)pMsgWrapper->pVosMsg->bodyptr;
-
-        if(pWdiMsg == NULL || pWdiMsg->callback == NULL)
-        {
-           VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-               "%s: WDI Msg or Callback is NULL", __FUNCTION__);
-           VOS_ASSERT(0);
-           break;
-        }
+        VOS_ASSERT(pWdiMsg->callback);
 
         pWdiMsg->callback(pWdiMsg);
 
@@ -972,25 +958,11 @@ static int VosTXThread ( void * Arg )
                   "%s: Servicing the VOS TX WDI Message queue",__func__);
 
         pMsgWrapper = vos_mq_get(&pSchedContext->wdiTxMq);
-
-        if (pMsgWrapper == NULL)
-        {
-           VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-               "%s: pMsgWrapper is NULL", __FUNCTION__);
-           VOS_ASSERT(0);
-           break;
-        }
+        VOS_ASSERT(NULL != pMsgWrapper);
 
         pWdiMsg = (wpt_msg *)pMsgWrapper->pVosMsg->bodyptr;
+        VOS_ASSERT(pWdiMsg->callback);
 
-        if(pWdiMsg == NULL || pWdiMsg->callback == NULL)
-        {
-           VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-               "%s: WDI Msg or Callback is NULL", __FUNCTION__);
-           VOS_ASSERT(0);
-           break;
-        }
-        
         pWdiMsg->callback(pWdiMsg);
 
         // return message to the Core
@@ -1298,7 +1270,7 @@ VOS_STATUS vos_sched_close ( v_PVOID_t pVosContext )
 
 VOS_STATUS vos_watchdog_close ( v_PVOID_t pVosContext )
 {
-    VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO_HIGH,
+    VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
         "%s: vos_watchdog closing now", __FUNCTION__);
     if (gpVosWatchdogContext == NULL)
     {

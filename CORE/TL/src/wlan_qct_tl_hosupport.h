@@ -236,7 +236,6 @@ VOS_STATUS WLANTL_HSDeInit
    v_PVOID_t   pAdapter
 );
 
-
 /*==========================================================================
 
    FUNCTION

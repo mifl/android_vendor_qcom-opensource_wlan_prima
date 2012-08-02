@@ -88,6 +88,9 @@ struct statsContext
    unsigned int magic;
 };
 #define SAP_24GHZ_CH_COUNT (14) 
+
+#define MIN_MTU_SIZE 256     
+
 /*--------------------------------------------------------------------------- 
  *   Function definitions
  *-------------------------------------------------------------------------*/
@@ -185,6 +188,10 @@ int hdd_hostapd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 int hdd_hostapd_change_mtu(struct net_device *dev, int new_mtu)
 {
+    if ( (new_mtu  < MIN_MTU_SIZE)  || (new_mtu > IEEE80211_MAX_DATA_LEN - 26) )
+        return EINVAL;
+
+    dev->mtu = new_mtu;
     return 0;
 }
 
@@ -679,15 +686,13 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
             break;
 
         case eSAP_MAX_ASSOC_EXCEEDED:
-            snprintf(maxAssocExceededEvent, IW_CUSTOM_MAX, "Peer %02x:%02x:%02x:%02x:%02x:%02x denied"
-                    " assoc due to Maximum Mobile Hotspot connections reached. Please disconnect"
-                    " one or more devices to enable the new device connection",
-                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[0],
-                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[1],
-                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[2],
-                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[3],
-                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[4],
-                    pSapEvent->sapevt.sapMaxAssocExceeded.macaddr.bytes[5]);
+            /* 
+             * Redefining the Custom Message
+             * IW_CUSTOM_MAX will inform when STA is denied when assoc due to Maximum Mobile
+             * Hotspot connections reached. Please disconnect one or more devices to enable
+             * the new device connection, and we dont require the MAC address of the STA
+             */
+            snprintf(maxAssocExceededEvent, IW_CUSTOM_MAX, "eSAP_MAX_ASSOC_EXCEEDED");
             we_event = IWEVCUSTOM; /* Discovered a new node (AP mode). */
             wrqu.data.pointer = maxAssocExceededEvent;
             wrqu.data.length = strlen(maxAssocExceededEvent);
@@ -839,7 +844,7 @@ static iw_softap_setparam(struct net_device *dev,
 {
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
     tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
-    int *value = (int *)extra;
+    int *value = (int *)(wrqu->data.pointer);
     int sub_cmd = value[0];
     int set_value = value[1];
     eHalStatus status;
@@ -985,7 +990,7 @@ int iw_softap_modify_acl(struct net_device *dev, struct iw_request_info *info,
 {
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
     v_CONTEXT_t pVosContext = (WLAN_HDD_GET_CTX(pHostapdAdapter))->pvosContext; 
-    v_BYTE_t *value = (v_BYTE_t*)extra;
+    char *value = (char *)(wrqu->data.pointer);
     v_U8_t pPeerStaMac[VOS_MAC_ADDR_SIZE];
     int listType, cmd, i;
     int ret = 0; /* success */
@@ -1026,6 +1031,44 @@ static iw_softap_getchannel(struct net_device *dev,
 
     return 0;
 }
+
+int
+static iw_softap_set_tx_power(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu, char *extra)
+{
+    hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
+    tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
+    int cmd_len = wrqu->data.length;
+    int *value = (int *) kmalloc(cmd_len+1, GFP_KERNEL);
+    int set_value;
+    tSirMacAddr bssid = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+    tSirMacAddr selfMac = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+
+    if(value == NULL)
+        return -ENOMEM;
+
+    if(copy_from_user((char *) value, (char*)(wrqu->data.pointer), cmd_len)) {
+        hddLog(VOS_TRACE_LEVEL_FATAL, "%s -- copy_from_user --data pointer failed! bailing",
+            __FUNCTION__);
+        kfree(value);
+        return -EFAULT;
+    }
+
+    set_value = value[0];
+    kfree(value);
+
+    if( sme_SetMaxTxPower(hHal, bssid, selfMac, set_value) !=
+               eHAL_STATUS_SUCCESS )
+    {
+         hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Setting maximum tx power failed",
+         __func__);
+         return -EIO;
+    }
+
+    return 0;
+}
+
 
 #define IS_BROADCAST_MAC(x) (((x[0] & x[1] & x[2] & x[3] & x[4] & x[5]) == 0xff) ? 1 : 0)
 
@@ -1092,10 +1135,14 @@ static iw_softap_disassoc_sta(struct net_device *dev,
      * data is passed in extra (less than 16 octets); however in android wifi framework
      * data is placed in wrqu->data.pointer.
      */
+/*
     if ((v_U8_t*)wrqu == (v_U8_t*)extra)
         peerMacAddr = (v_U8_t *)(extra);
     else
         peerMacAddr = (v_U8_t *)(wrqu->data.pointer);
+*/
+
+    peerMacAddr = (v_U8_t *)(wrqu->data.pointer);
 
     hddLog(LOG1, "data %02x:%02x:%02x:%02x:%02x:%02x",
             peerMacAddr[0], peerMacAddr[1], peerMacAddr[2],
@@ -1365,7 +1412,7 @@ static int iw_softap_set_channel_range(struct net_device *dev,
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
     tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
 
-    int *value = (int *)extra;
+    int *value = (int *)(wrqu->data.pointer); 
     int startChannel = value[0];
     int endChannel = value[1];
     int band = value[2];
@@ -1381,7 +1428,6 @@ static int iw_softap_set_channel_range(struct net_device *dev,
     }
     return ret;
 }
-
 int iw_softap_get_channel_list(struct net_device *dev, 
                           struct iw_request_info *info,
                           union iwreq_data *wrqu, char *extra)
@@ -1414,15 +1460,15 @@ int iw_softap_get_channel_list(struct net_device *dev,
 
     if(eHAL_STATUS_SUCCESS != sme_getSoftApDomain(hHal,(v_REGDOMAIN_t *) &domainIdCurrentSoftap))
     {
-        hddLog(LOG1,FL("Failed to get Domain ID, %d \n"),domainIdCurrentSoftap);
-        return -1;
+             hddLog(LOG1,FL("Failed to get Domain ID, %d \n"),domainIdCurrentSoftap);
+             return -1;
     }
 
     if(REGDOMAIN_FCC == domainIdCurrentSoftap)
     {
         for(i = 0; i < temp_num_channels; i++)
         {
-      
+
            if((channel_list->channels[i] > 35) && 
               (channel_list->channels[i] < 49))
            {
@@ -1432,21 +1478,21 @@ int iw_softap_get_channel_list(struct net_device *dev,
                num_channels--;
                temp_num_channels--;
                i--;
-           } 
+           }
         }
     }
 
-    hddLog(LOG1,FL(" number of channels %d\n"), num_channels); 
+    hddLog(LOG1,FL(" number of channels %d\n"), num_channels);
+   if (num_channels > IW_MAX_FREQUENCIES)
+   {
+      num_channels = IW_MAX_FREQUENCIES;
+   }
+  
+   channel_list->num_channels = num_channels;
 
-    if (num_channels > IW_MAX_FREQUENCIES)
-    {
-        num_channels = IW_MAX_FREQUENCIES;
-    }
+   EXIT();
 
-    channel_list->num_channels = num_channels;
-    EXIT();
-
-    return 0;
+   return 0;
 }
 
 static 
@@ -2476,6 +2522,11 @@ static const struct iw_priv_args hostapd_private_args[] = {
         IW_PRIV_TYPE_BYTE | sizeof(tChannelListInfo),
         "getChannelList" },
 
+    /* handlers for main ioctl */
+    {   QCSAP_IOCTL_SET_TX_POWER,
+        IW_PRIV_TYPE_INT| IW_PRIV_SIZE_FIXED | 1,
+        0,
+        "" },
 };
 static const iw_handler hostapd_private[] = {
    [QCSAP_IOCTL_SETPARAM - SIOCIWFIRSTPRIV] = iw_softap_setparam,  //set priv ioctl
@@ -2496,7 +2547,8 @@ static const iw_handler hostapd_private[] = {
    [QCSAP_IOCTL_SET_CHANNEL_RANGE - SIOCIWFIRSTPRIV] = iw_softap_set_channel_range,
    [QCSAP_IOCTL_MODIFY_ACL - SIOCIWFIRSTPRIV]   = iw_softap_modify_acl,
    [QCSAP_IOCTL_GET_CHANNEL_LIST - SIOCIWFIRSTPRIV]   = iw_softap_get_channel_list,
-   [QCSAP_IOCTL_PRIV_GET_SOFTAP_LINK_SPEED - SIOCIWFIRSTPRIV]     = iw_get_softap_linkspeed
+   [QCSAP_IOCTL_PRIV_GET_SOFTAP_LINK_SPEED - SIOCIWFIRSTPRIV]     = iw_get_softap_linkspeed,
+   [QCSAP_IOCTL_SET_TX_POWER - SIOCIWFIRSTPRIV]   = iw_softap_set_tx_power,  
 };
 const struct iw_handler_def hostapd_handler_def = {
    .num_standard     = sizeof(hostapd_handler) / sizeof(hostapd_handler[0]),
@@ -2636,6 +2688,7 @@ hdd_adapter_t* hdd_wlan_create_ap_dev( hdd_context_t *pHddCtx, tSirMacAddr macAd
 
         pWlanHostapdDev->destructor = free_netdev;
 #ifdef CONFIG_CFG80211
+        spin_lock_init(&pHostapdAdapter->cfg80211State.p2p_lock);
         pWlanHostapdDev->ieee80211_ptr = &pHostapdAdapter->wdev ;
         pHostapdAdapter->wdev.wiphy = pHddCtx->wiphy;  
         pHostapdAdapter->wdev.netdev =  pWlanHostapdDev;
