@@ -2186,7 +2186,7 @@ int wlan_hdd_ftm_get_nv_field
       case NV_COMMON_MAC_ADDR:
          memcpy((void *)&nvField->fieldData,
              &nvFieldDataBuffer.macAddr[0],
-             NV_FIELD_MAC_ADDR_SIZE* VOS_MAX_CONCURRENCY_PERSONA); //IKLOCSEN-752 - Return All MACs
+             NV_FIELD_MAC_ADDR_SIZE);
          break;
 
       case NV_COMMON_MFG_SERIAL_NUMBER:
@@ -2234,10 +2234,7 @@ int wlan_hdd_ftm_set_nv_field
    sHalNv            *nvContents = NULL;
    v_U8_t             macLoop;
    v_U8_t            *pNVMac;
-   /* IKLOCSEN-715 START Support WLAN Multi MAC Programming */
-   v_U8_t             macOctet;
-   v_BOOL_t           isBlankMac = VOS_FALSE;
-   /* IKLOCSEN-715 STOP Support WLAN Multi MAC Programming */
+   v_U8_t             lastByteMAC;
 
    nvStatus = vos_nv_getNVBuffer((void **)&nvContents, &nvSize);
    if((VOS_STATUS_SUCCESS != nvStatus) || (NULL == nvContents))
@@ -2274,33 +2271,27 @@ int wlan_hdd_ftm_set_nv_field
          break;
 
       case NV_COMMON_MAC_ADDR:
+         /* If Last byte is larger than 252 (0xFC), return Error,
+          * Since 3MACs should be derived from first MAC */
+         if(QWLAN_MAX_MAC_LAST_BYTE_VALUE <
+            nvField->fieldData.macAddr[VOS_MAC_ADDRESS_LEN - 1])
+         {
+            VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                       "Last Byte of the seed MAC is too large 0x%x",
+                        nvField->fieldData.macAddr[VOS_MAC_ADDRESS_LEN - 1]);
+            return -1;
+         }
+
          pNVMac = (v_U8_t *)nvContents->fields.macAddr;
-         /* IKLOCSEN-715 START Support WLAN Multi MAC Programming */
+         lastByteMAC = nvField->fieldData.macAddr[VOS_MAC_ADDRESS_LEN - 1];
          for(macLoop = 0; macLoop < VOS_MAX_CONCURRENCY_PERSONA; macLoop++)
          {
-            isBlankMac = VOS_TRUE;
-            for(macOctet = 0; macOctet < VOS_MAC_ADDRESS_LEN ; macOctet++) {
-                if(nvField->fieldData.macAddr[(macLoop*NV_FIELD_MAC_ADDR_SIZE) + macOctet] !=0){
-                    isBlankMac = VOS_FALSE;
-                    break;
-                }
-            }
-            if(isBlankMac == VOS_FALSE) {
-                // MAC to be programmed!
-                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
-                        "Writing MAC #%x, MAC = 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x",
-                        macLoop, nvField->fieldData.macAddr[macLoop*VOS_MAC_ADDRESS_LEN],
-                        nvField->fieldData.macAddr[macLoop*VOS_MAC_ADDRESS_LEN+1],
-                        nvField->fieldData.macAddr[macLoop*VOS_MAC_ADDRESS_LEN+2],
-                        nvField->fieldData.macAddr[macLoop*VOS_MAC_ADDRESS_LEN+3],
-                        nvField->fieldData.macAddr[macLoop*VOS_MAC_ADDRESS_LEN+4],
-                        nvField->fieldData.macAddr[macLoop*VOS_MAC_ADDRESS_LEN+5]);
-                vos_mem_copy(pNVMac + (macLoop * NV_FIELD_MAC_ADDR_SIZE),
-                        &nvField->fieldData.macAddr[macLoop*VOS_MAC_ADDRESS_LEN],
-                        NV_FIELD_MAC_ADDR_SIZE);
-            }
+            nvField->fieldData.macAddr[VOS_MAC_ADDRESS_LEN - 1] =
+                                               lastByteMAC + macLoop;
+            vos_mem_copy(pNVMac + (macLoop * NV_FIELD_MAC_ADDR_SIZE),
+                         &nvField->fieldData.macAddr[0],
+                         NV_FIELD_MAC_ADDR_SIZE);
          }
-         /* IKLOCSEN-715 STOP Support WLAN Multi MAC Programming */
          break;
 
       case NV_COMMON_MFG_SERIAL_NUMBER:
@@ -3965,8 +3956,6 @@ static VOS_STATUS wlan_ftm_priv_set_mac_address(hdd_adapter_t *pAdapter,char *bu
     int macAddr[VOS_MAC_ADDRESS_LEN];
     v_U8_t *pMacAddress;
     v_U8_t  ii;
-    v_U8_t  pLoop;
-
     hdd_context_t *pHddCtx = (hdd_context_t *)pAdapter->pHddCtx;
 
     if(pHddCtx->ftm.ftm_state != WLAN_FTM_STARTED)
@@ -3980,9 +3969,7 @@ static VOS_STATUS wlan_ftm_priv_set_mac_address(hdd_adapter_t *pAdapter,char *bu
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL, "%s:pMsgBuf is NULL",__func__);
         return VOS_STATUS_E_NOMEM;
     }
-#if 0
     init_completion(&pHddCtx->ftm.ftm_comp_var);
-#endif
     pMsgBuf->msgId = PTT_MSG_SET_NV_FIELD;
     pMsgBuf->msgBodyLength = sizeof(tMsgPttSetNvField) + PTT_HEADER_LENGTH;
 
@@ -3993,29 +3980,15 @@ static VOS_STATUS wlan_ftm_priv_set_mac_address(hdd_adapter_t *pAdapter,char *bu
     sscanf(buf,"%02x:%02x:%02x:%02x:%02x:%02x",&macAddr[0],(int*)&macAddr[1],(int*)&macAddr[2],(int*)&macAddr[3],(int*)&macAddr[4],(int*)&macAddr[5]);
 
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "MacAddress = %02x:%02x:%02x:%02x:%02x:%02x",MAC_ADDR_ARRAY(macAddr));
-    printk(KERN_INFO "MacAddress = %02x:%02x:%02x:%02x:%02x:%02x\n",MAC_ADDR_ARRAY(macAddr));
 
 
     pMacAddress = &pMsgBody->SetNvField.fieldData.macAddr[0];
 
-    for(ii = 0; ii < VOS_MAC_ADDRESS_LEN; ii++) {
-        for(pLoop = 0; pLoop < VOS_MAX_CONCURRENCY_PERSONA; pLoop++) {
-           pMacAddress[ pLoop*VOS_MAX_CONCURRENCY_PERSONA + ii] = (v_U8_t)macAddr[ii];
-        }
-    }
+    for(ii = 0; ii < VOS_MAC_ADDRESS_LEN; ii++)
+       pMacAddress[ii] = (v_U8_t)macAddr[ii];
 
 
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "pMacAddress = %02x:%02x:%02x:%02x:%02x:%02x",MAC_ADDR_ARRAY(pMacAddress));
-   printk(KERN_INFO "pMacAddress = %02x:%02x:%02x:%02x:%02x:%02x\n",MAC_ADDR_ARRAY(pMacAddress));
-
-   if (wlan_hdd_process_ftm_host_cmd(pHddCtx, pMsgBuf) < 0)
-   {
-       printk(KERN_INFO "wlan_hdd_process_ftm_host_cmd PTT_MSG_SET_NV_FIELD failed\n");
-       status = VOS_STATUS_E_FAILURE;
-        goto done;
-   }
-#if 0
-
     status = wlan_ftm_postmsg((v_U8_t*)pMsgBuf,pMsgBuf->msgBodyLength);
 
     if(status != VOS_STATUS_SUCCESS)
@@ -4036,7 +4009,6 @@ static VOS_STATUS wlan_ftm_priv_set_mac_address(hdd_adapter_t *pAdapter,char *bu
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "NV_COMMON_MAC_ADDR Success!!!\n");
 
     init_completion(&pHddCtx->ftm.ftm_comp_var);
-#endif
     memset( pMsgBuf,0,sizeof(tPttMsgbuffer));
 
     pMsgBuf->msgId = PTT_MSG_STORE_NV_TABLE;
@@ -4045,15 +4017,6 @@ static VOS_STATUS wlan_ftm_priv_set_mac_address(hdd_adapter_t *pAdapter,char *bu
     pMsgBody = &pMsgBuf->msgBody;
 
     pMsgBody->StoreNvTable.nvTable = NV_FIELDS_IMAGE;
-
-   if (wlan_hdd_process_ftm_host_cmd(pHddCtx, pMsgBuf) < 0)
-   {
-       printk(KERN_INFO "wlan_hdd_process_ftm_host_cmd PTT_MSG_STORE_NV_TABLE failed\n");
-       status = VOS_STATUS_E_FAILURE;
-        goto done;
-   }
-
-#if 0
 
     status = wlan_ftm_postmsg((v_U8_t*)pMsgBuf,pMsgBuf->msgBodyLength);
 
@@ -4065,7 +4028,6 @@ static VOS_STATUS wlan_ftm_priv_set_mac_address(hdd_adapter_t *pAdapter,char *bu
     }
 
     wait_for_completion_interruptible_timeout(&pHddCtx->ftm.ftm_comp_var, msecs_to_jiffies(WLAN_FTM_COMMAND_TIME_OUT));
-#endif
 done:
     vos_mem_free((v_VOID_t * )pMsgBuf);
 
@@ -4392,7 +4354,7 @@ static int iw_ftm_get_char_setnone(struct net_device *dev, struct iw_request_inf
 }
 #endif//ANI_MANF_DIAG
 
-VOS_STATUS wlan_write_to_efs (v_U8_t *pData, v_U16_t data_len, v_U16_t table)
+VOS_STATUS wlan_write_to_efs (v_U8_t *pData, v_U16_t data_len)
 {
 #if defined(ANI_MANF_DIAG) && defined(MSM_PLATFORM)
     tAniHdr *wmsg = NULL;
@@ -4421,17 +4383,8 @@ VOS_STATUS wlan_write_to_efs (v_U8_t *pData, v_U16_t data_len, v_U16_t table)
 
     /* EfS command Code */
     *(v_U32_t*)pBuf = 0x000000EF;
-    
-    pBuf += sizeof(v_U32_t);
 
-    if(table == 1)
-    {
-           pData[7] = 8;
-    }
-    else if(table == 2)
-    {
-    	   pData[7] = 9;
-    }
+    pBuf += sizeof(v_U32_t);
 
     memcpy(pBuf, pData,data_len);
 
@@ -4485,7 +4438,7 @@ static int iw_ftm_setnone_getnone(struct net_device *dev, struct iw_request_info
             pTempBuf += sizeof(v_U32_t);
             memcpy(pTempBuf,&nvDefaults,sizeof(sHalNv));
 
-            wlan_write_to_efs(pu8buf,size,0);
+            wlan_write_to_efs(pu8buf,size);
             vos_mem_free(pu8buf);
         }
 

@@ -2001,7 +2001,7 @@ sirConvertAssocRespFrame2Struct(tpAniSirGlobal pMac,
     pAssocRsp->statusCode = ar.Status.status;
     pAssocRsp->aid        = ar.AID.associd;
 
-     if ( ! ar.SuppRates.present )
+    if ( ! ar.SuppRates.present )
     {
         pAssocRsp->suppRatesPresent = 0;
         PELOGW(limLog(pMac, LOGW, FL("Mandatory IE Supported Rates not present!\n"));)

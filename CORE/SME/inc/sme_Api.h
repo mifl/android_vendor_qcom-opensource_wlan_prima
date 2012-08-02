@@ -19,27 +19,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
-*/
-
 #if !defined( __SME_API_H )
 #define __SME_API_H
 
@@ -726,7 +705,7 @@ eHalStatus sme_RoamGetPMKIDCache(tHalHandle hHal, tANI_U8 sessionId, tANI_U32 *p
     \param pParam - caller allocated memory
     \return eHalStatus     
   ---------------------------------------------------------------------------*/
-eHalStatus sme_GetConfigParam(tHalHandle hHal, tCsrConfigParam *pParam);
+eHalStatus sme_GetConfigParam(tHalHandle hHal, tSmeConfigParams *pParam);
 
 /* ---------------------------------------------------------------------------
     \fn sme_GetStatistics
@@ -1952,4 +1931,72 @@ eHalStatus sme_GetFreqBand(tHalHandle hHal, eCsrBand *pBand);
     -------------------------------------------------------------------------*/
 eHalStatus sme_SetMaxTxPower(tHalHandle hHal, tSirMacAddr pBssid, 
                              tSirMacAddr pSelfMacAddress, v_S7_t dB);
+
+#ifdef WLAN_SOFTAP_FEATURE
+/* ---------------------------------------------------------------------------
+
+    \fn sme_HideSSID
+
+    \brief Enable/Disables hidden SSID dynamically. Note: this setting will
+    not persist over reboots.
+
+    \param hHal
+    \param sessionId 
+    \param ssidHidden 0 - Broadcast SSID, 1 - Disable broadcast SSID
+    \- return eHalStatus
+
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_HideSSID(tHalHandle hHal, v_U8_t sessionId, v_U8_t ssidHidden);
+#endif
+
+/* ---------------------------------------------------------------------------
+
+    \fn sme_SetTmLevel
+    \brief  Set Thermal Mitigation Level to RIVA
+    \param  hHal - The handle returned by macOpen.
+    \param  newTMLevel - new Thermal Mitigation Level
+    \param  tmMode - Thermal Mitigation handle mode, default 0
+    \return eHalStatus     
+  ---------------------------------------------------------------------------*/
+eHalStatus sme_SetTmLevel(tHalHandle hHal, v_U16_t newTMLevel, v_U16_t tmMode);
+
+/*---------------------------------------------------------------------------
+
+  \brief sme_featureCapsExchange() - SME interface to exchange capabilities between
+  Host and FW.
+
+  \param  hHal - HAL handle for device
+
+  \return NONE
+
+---------------------------------------------------------------------------*/
+void sme_featureCapsExchange(tHalHandle hHal);
+
+/*---------------------------------------------------------------------------
+
+  \brief sme_GetDefaultCountryCodeFrmNv() - SME interface to get the default 
+         country code
+  Host and FW.
+
+  \param  hHal - HAL handle for device
+  \param  pCountry - pointer to country code
+
+  \return Sucess or failure
+
+  ---------------------------------------------------------------------------*/
+eHalStatus sme_GetDefaultCountryCodeFrmNv(tHalHandle hHal, tANI_U8 *pCountry);
+
+/*---------------------------------------------------------------------------
+
+  \brief sme_GetCurrentCountryCode() - SME interface to get the current operating
+          country code.
+
+  \param  hHal - HAL handle for device
+  \param  pCountry - pointer to country code
+
+  \return Success or failure
+
+  ---------------------------------------------------------------------------*/
+eHalStatus sme_GetCurrentCountryCode(tHalHandle hHal, tANI_U8 *pCountry);
+
 #endif //#if !defined( __SME_API_H )

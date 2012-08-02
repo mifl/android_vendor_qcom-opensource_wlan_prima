@@ -201,17 +201,18 @@ VOS_STATUS vos_lock_acquire ( vos_lock_t* lock )
       }
       // Acquire a Lock
       rc = mutex_lock_interruptible( &lock->m_lock ); 
-      if (rc)
+      if (rc) 
       {
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                 "%s: unable to lock mutex (rc = %d)", __FUNCTION__, rc);
          return VOS_STATUS_E_FAILURE;
       }
+ 
       
 #ifdef VOS_NESTED_LOCK_DEBUG
       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,"%s: %x %d", __func__, lock, current->pid);
 #endif
-      if ( LOCK_DESTROYED != lock->state )
+      if ( LOCK_DESTROYED != lock->state ) 
       {
          lock->processID = current->pid;
          lock->refcount++;
@@ -271,12 +272,13 @@ VOS_STATUS vos_lock_release ( vos_lock_t *lock )
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s: uninitialized lock",__FUNCTION__);
          return VOS_STATUS_E_INVAL;
       }
+
       if (in_interrupt())
       {
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s cannot be called from interrupt context!!!", __FUNCTION__);
-         return VOS_STATUS_E_FAULT;
+         return VOS_STATUS_E_FAULT; 
       }
-        
+
       // CurrentThread = GetCurrentThreadId(); 
       // Check thread ID of caller against thread ID
       // of the thread which acquire the lock
@@ -351,29 +353,32 @@ VOS_STATUS vos_lock_destroy( vos_lock_t *lock )
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s: NULL pointer passed in", __FUNCTION__);
          return VOS_STATUS_E_FAULT; 
       }
+
       if ( LINUX_LOCK_COOKIE != lock->cookie )
       {
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s: uninitialized lock", __FUNCTION__);
          return VOS_STATUS_E_INVAL;
       }
+
       if (in_interrupt())
       {
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s cannot be called from interrupt context!!!", __FUNCTION__);
-         return VOS_STATUS_E_FAULT;
+         return VOS_STATUS_E_FAULT; 
       }
+
       // check if lock is released
       if (!mutex_trylock(&lock->m_lock))
       {
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, "%s: lock is not released", __FUNCTION__);
          return VOS_STATUS_E_BUSY;
       }
-
       lock->cookie = 0;
       lock->state = LOCK_DESTROYED;
       lock->processID = 0;
       lock->refcount = 0;
 
       mutex_unlock(&lock->m_lock);
+
          
       return VOS_STATUS_SUCCESS;
 }

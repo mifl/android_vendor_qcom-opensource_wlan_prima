@@ -72,7 +72,7 @@
 #include "wlan_qct_wda.h"
 #include "wlan_hdd_main.h"
 #include <linux/vmalloc.h>
-#include <linux/wcnss_wlan.h>
+
 
 #ifdef WLAN_SOFTAP_FEATURE
 #include "sapApi.h"
@@ -147,15 +147,7 @@ VOS_STATUS vos_preOpen ( v_CONTEXT_t *pVosContext )
 
    /* Allocate the VOS Context */
    *pVosContext = NULL;
-   {
-      size_t vosCtxSize;
-      wcnss_get_wlan_vos_memory((void **)&gpVosContext, &vosCtxSize);
-      if (vosCtxSize < sizeof(VosContextType)) 
-      {
-	VOS_ASSERT(0);
-	return VOS_STATUS_E_RESOURCES;
-      }
-   }
+   gpVosContext = (VosContextType*) kmalloc(sizeof(VosContextType), GFP_KERNEL);
 
    if (NULL == gpVosContext)
    {
@@ -211,8 +203,8 @@ VOS_STATUS vos_preClose( v_CONTEXT_t *pVosContext )
    }
 
    /* Free the VOS Context */
-   //if(gpVosContext != NULL)
-   //   kfree(gpVosContext);
+   if(gpVosContext != NULL)
+      kfree(gpVosContext);
 
    *pVosContext = gpVosContext = NULL;
 
@@ -626,8 +618,6 @@ VOS_STATUS vos_preStart( v_CONTEXT_t vosContext )
          VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
            "%s: WDA_preStart reporting other error", __func__);
       }
-      macStop(gpVosContext->pMACContext, HAL_STOP_TYPE_SYS_DEEP_SLEEP);
-      ccmStop(gpVosContext->pMACContext);
       VOS_ASSERT( 0 );
       return VOS_STATUS_E_FAILURE;
    }
@@ -893,7 +883,7 @@ VOS_STATUS vos_start( v_CONTEXT_t vosContext )
   }
 
 #endif
-  VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+  VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
             "%s: VOSS Start is successful!!", __func__);
 
   return VOS_STATUS_SUCCESS;
@@ -2378,53 +2368,5 @@ VOS_STATUS vos_wlanReInit(void)
 {
    VOS_STATUS vstatus;
    vstatus = vos_watchdog_wlan_re_init();
-   return vstatus;
-}
-/**
-  @brief vos_wlanReload() - This API will reload WLAN driver.
-
-  This function is called if driver detects any fatal state which 
-  can be recovered by a WLAN module reload ( Android framwork initiated ).
-  Note that this API will not initiate any RIVA subsystem restart.
-
-  @param
-       NONE
-  @return
-       VOS_STATUS_SUCCESS   - Operation completed successfully.
-       VOS_STATUS_E_FAILURE - Operation failed.
-
-*/
-VOS_STATUS vos_wlanReload(void)
-{
-   VOS_STATUS vstatus;
-   hdd_context_t *pHddCtx = NULL;
-   v_CONTEXT_t pVosContext        = NULL;
-
-   /* Check whether driver load unload is in progress */
-   if(vos_is_load_unload_in_progress( VOS_MODULE_ID_VOSS, NULL)) 
-   {
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, 
-               "%s: Driver load/unload is in progress, retry later.", __func__);
-      return VOS_STATUS_E_AGAIN;
-   }
-
-   /* Get the Global VOSS Context */
-   pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
-   if(!pVosContext) {
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL, 
-               "%s: Global VOS context is Null", __func__);
-      return VOS_STATUS_E_FAILURE;
-   }
-    
-   /* Get the HDD context */
-   pHddCtx = (hdd_context_t *)vos_get_context(VOS_MODULE_ID_HDD, pVosContext );
-   if(!pHddCtx) {
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL, 
-               "%s: HDD context is Null", __func__);
-      return VOS_STATUS_E_FAILURE;
-   }
-
-   /* Reload the driver */
-   vstatus = wlan_hdd_reload_driver(pHddCtx);
    return vstatus;
 }

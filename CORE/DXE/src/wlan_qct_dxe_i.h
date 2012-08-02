@@ -602,7 +602,6 @@ typedef struct
    wpt_uint32                      dxeCookie;
    wpt_packet                     *freeRXPacket;
    wpt_boolean                     rxPalPacketUnavailable;
-   wpt_boolean                     driverReloadInProcessing;
 } WLANDXE_CtrlBlkType;
 
 /*==========================================================================

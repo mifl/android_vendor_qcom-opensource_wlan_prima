@@ -107,7 +107,6 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
                      const u8 *buf, size_t len, u64 *cookie );
 #endif
 
-void wlan_hdd_cancel_existing_remain_on_channel(struct net_device *dev);
 #endif // WLAN_FEATURE_P2P
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))

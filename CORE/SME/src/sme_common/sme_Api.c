@@ -19,27 +19,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
-*/
-
 /**=========================================================================
 
   \file  smeApi.c
@@ -969,13 +948,14 @@ eHalStatus sme_getSoftApDomain(tHalHandle hHal,  v_REGDOMAIN_t *domainIdSoftAp)
    if (NULL == domainIdSoftAp ) {
       smsLog( pMac, LOGE, "Uninitialized domain Id");
       return status;
-   }
+   }    
 
    *domainIdSoftAp = pMac->scan.domainIdCurrent;
    status = eHAL_STATUS_SUCCESS;
-
+    
    return status;
 }
+
 
 eHalStatus sme_setRegInfo(tHalHandle hHal,  tANI_U8 *apCntryCode)
 {
@@ -1452,6 +1432,7 @@ eHalStatus sme_ProcessMsg(tHalHandle hHal, vos_msg_t* pMsg)
                 }
                 break;
 #ifdef WLAN_FEATURE_P2P
+          //Handle the eWNI_SME_INNAV_MEAS_RSP:
           case eWNI_SME_REMAIN_ON_CHN_RSP:
                 if(pMsg->bodyptr)
                 {
@@ -2700,6 +2681,7 @@ eHalStatus sme_RoamGetPMKIDCache(tHalHandle hHal, tANI_U8 sessionId, tANI_U32 *p
     \param pParam - caller allocated memory
     \return eHalStatus
   ---------------------------------------------------------------------------*/
+#if 0
 eHalStatus sme_GetConfigParam(tHalHandle hHal, tCsrConfigParam *pParam)
 {
    eHalStatus status = eHAL_STATUS_FAILURE;
@@ -2714,7 +2696,37 @@ eHalStatus sme_GetConfigParam(tHalHandle hHal, tCsrConfigParam *pParam)
 
    return (status);
 }
+#endif
 
+eHalStatus sme_GetConfigParam(tHalHandle hHal, tSmeConfigParams *pParam)
+{
+   eHalStatus status = eHAL_STATUS_FAILURE;
+   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+   status = sme_AcquireGlobalLock( &pMac->sme );
+   if ( HAL_STATUS_SUCCESS( status ) )
+   {
+      status = csrGetConfigParam(pMac, &pParam->csrConfig);
+      if (status != eHAL_STATUS_SUCCESS)
+      {
+         smsLog( pMac, LOGE, "%s csrGetConfigParam failed\n", __FUNCTION__);
+         sme_ReleaseGlobalLock( &pMac->sme );
+         return status;
+      }
+#if defined WLAN_FEATURE_P2P_INTERNAL
+      status = p2pGetConfigParam(pMac, &pParam->p2pConfig);
+      if (status != eHAL_STATUS_SUCCESS)
+      {
+         smsLog( pMac, LOGE, "%s p2pGetConfigParam failed\n", __FUNCTION__);
+         sme_ReleaseGlobalLock( &pMac->sme );
+         return status;
+      }
+#endif
+      sme_ReleaseGlobalLock( &pMac->sme );
+   }
+
+   return (status);
+}
 /* ---------------------------------------------------------------------------
     \fn sme_CfgSetInt
     \brief a wrapper function that HDD calls to set parameters in CFG.
@@ -5190,7 +5202,8 @@ eHalStatus sme_updateP2pIe(tHalHandle hHal, void *p2pIe, tANI_U32 p2pIeLength)
   ---------------------------------------------------------------------------*/
 
 eHalStatus sme_sendAction(tHalHandle hHal, tANI_U8 sessionId,
-        const tANI_U8 *pBuf, tANI_U32 len, tANI_U16 wait)
+                          const tANI_U8 *pBuf, tANI_U32 len,
+                          tANI_U16 wait)
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
     tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -6018,3 +6031,149 @@ eHalStatus sme_SetMaxTxPower(tHalHandle hHal, tSirMacAddr pBssid,
 
     return eHAL_STATUS_SUCCESS;
 }
+
+#ifdef WLAN_SOFTAP_FEATURE
+/* ---------------------------------------------------------------------------
+
+    \fn sme_HideSSID
+
+    \brief hide/show SSID dynamically. Note: this setting will
+    not persist over reboots.
+
+    \param hHal
+    \param sessionId
+    \param ssidHidden 0 - Broadcast SSID, 1 - Disable broadcast SSID
+    \- return eHalStatus
+
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_HideSSID(tHalHandle hHal, v_U8_t sessionId, v_U8_t ssidHidden)
+{
+    eHalStatus status   = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+    tANI_U16 len;
+
+    if ( eHAL_STATUS_SUCCESS == ( status = sme_AcquireGlobalLock( &pMac->sme ) ) )
+    {
+        tpSirUpdateParams pMsg;
+        tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
+        
+        if( !pSession->sessionActive ) 
+            VOS_ASSERT(0);
+
+        /* Create the message and send to lim */
+        len = sizeof(tSirUpdateParams); 
+        status = palAllocateMemory( pMac->hHdd, (void **)&pMsg, len );
+        if(HAL_STATUS_SUCCESS(status))
+        {
+            palZeroMemory(pMac->hHdd, pMsg, sizeof(tSirUpdateParams) );
+            pMsg->messageType     = eWNI_SME_HIDE_SSID_REQ;
+            pMsg->length          = len;
+            /* Data starts from here */
+            pMsg->sessionId       = sessionId;
+            pMsg->ssidHidden      = ssidHidden; 
+            status = palSendMBMessage(pMac->hHdd, pMsg);
+        }
+        sme_ReleaseGlobalLock( &pMac->sme );
+    }
+   return status;
+}
+#endif
+
+#if 0
+/* ---------------------------------------------------------------------------
+
+    \fn sme_SetTmLevel
+    \brief  Set Thermal Mitigation Level to RIVA
+    \param  hHal - The handle returned by macOpen.
+    \param  newTMLevel - new Thermal Mitigation Level
+    \param  tmMode - Thermal Mitigation handle mode, default 0
+    \return eHalStatus     
+  ---------------------------------------------------------------------------*/
+eHalStatus sme_SetTmLevel(tHalHandle hHal, v_U16_t newTMLevel, v_U16_t tmMode)
+{
+    eHalStatus          status    = eHAL_STATUS_SUCCESS;
+    VOS_STATUS          vosStatus = VOS_STATUS_SUCCESS;
+    tpAniSirGlobal      pMac      = PMAC_STRUCT(hHal);
+    vos_msg_t           vosMessage;
+    tAniSetTmLevelReq  *setTmLevelReq = NULL;
+
+    if ( eHAL_STATUS_SUCCESS == ( status = sme_AcquireGlobalLock( &pMac->sme ) ) )
+    {
+        setTmLevelReq = (tAniSetTmLevelReq *)vos_mem_malloc(sizeof(tAniSetTmLevelReq));
+        if(NULL == setTmLevelReq)
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Not able to allocate memory for sme_SetTmLevel", __FUNCTION__);
+           return eHAL_STATUS_FAILURE;
+        }
+
+        setTmLevelReq->tmMode     = tmMode;
+        setTmLevelReq->newTmLevel = newTMLevel;
+
+        /* serialize the req through MC thread */
+        vosMessage.bodyptr = setTmLevelReq;
+        vosMessage.type    = WDA_SET_TM_LEVEL_REQ;
+        vosStatus = vos_mq_post_message( VOS_MQ_ID_WDA, &vosMessage );
+        if ( !VOS_IS_STATUS_SUCCESS(vosStatus) )
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Post Set TM Level MSG fail", __FUNCTION__);
+           vos_mem_free(setTmLevelReq);
+           status = eHAL_STATUS_FAILURE;
+        }
+        sme_ReleaseGlobalLock( &pMac->sme );
+    }
+    return(status);
+}
+/*---------------------------------------------------------------------------
+
+  \brief sme_featureCapsExchange() - SME interface to exchange capabilities between
+  Host and FW.
+
+  \param  hHal - HAL handle for device
+
+  \return NONE
+
+---------------------------------------------------------------------------*/
+void sme_featureCapsExchange( tHalHandle hHal)
+{
+    v_CONTEXT_t vosContext = vos_get_global_context(VOS_MODULE_ID_SME, NULL);
+    WDA_featureCapsExchange(vosContext);
+}
+
+#endif 
+
+/* ---------------------------------------------------------------------------
+
+    \fn sme_GetDefaultCountryCode
+
+    \brief Get the default country code from NV
+
+    \param  hHal
+    \param  pCountry
+    \- return eHalStatus
+
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_GetDefaultCountryCodeFrmNv(tHalHandle hHal, tANI_U8 *pCountry)
+{
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    return csrGetDefaultCountryCodeFrmNv(pMac, pCountry);
+}
+
+/* ---------------------------------------------------------------------------
+
+    \fn sme_GetCurrentCountryCode
+
+    \brief Get the current country code
+
+    \param  hHal
+    \param  pCountry
+    \- return eHalStatus
+
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_GetCurrentCountryCode(tHalHandle hHal, tANI_U8 *pCountry)
+{
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    return csrGetCurrentCountryCode(pMac, pCountry);
+}
+

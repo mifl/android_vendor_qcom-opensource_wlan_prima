@@ -397,8 +397,8 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
         PELOGE(limLog(pMac, LOGE, FL("Parse error Assoc resp subtype %d, length=%d\n"), frameLen,subType);)
         return;
     }
-	
-	if(!pAssocRsp->suppRatesPresent)
+
+    if(!pAssocRsp->suppRatesPresent)
     {
         PELOGE(limLog(pMac, LOGW, FL("assoc response does not have supported rate set"));)
         palCopyMemory(pMac->hHdd, &pAssocRsp->supportedRates,

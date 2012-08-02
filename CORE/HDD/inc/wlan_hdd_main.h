@@ -53,7 +53,6 @@
 #ifdef ANI_MANF_DIAG
 #include <wlan_hdd_ftm.h>
 #endif
-
 /*--------------------------------------------------------------------------- 
   Preprocessor definitions and constants
   -------------------------------------------------------------------------*/
@@ -63,10 +62,9 @@
 /** Number of Tx Queues */  
 #define NUM_TX_QUEUES 4
 /** Queue length specified to OS in the net_device */
-#define NET_DEV_TX_QUEUE_LEN 1000
+#define NET_DEV_TX_QUEUE_LEN 100
 /** HDD's internal Tx Queue Length. Needs to be a power of 2 */
-#define HDD_TX_QUEUE_MAX_LEN 1024
- 
+#define HDD_TX_QUEUE_MAX_LEN 128
 /** HDD internal Tx Queue Low Watermark. Net Device TX queue is disabled
  *  when HDD queue becomes full. This Low watermark is used to enable
  *  the Net Device queue again */
@@ -130,6 +128,10 @@
 #define MAX_EXIT_ATTEMPTS_DURING_LOGP 20
 
 #define MAX_NO_OF_2_4_CHANNELS 14
+
+#define WLAN_HDD_PUBLIC_ACTION_FRAME 4
+#define WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET 24
+#define WLAN_HDD_PUBLIC_ACTION_FRAME_TYPE_OFFSET 30
 
 typedef struct hdd_tx_rx_stats_s
 {
@@ -395,11 +397,9 @@ typedef struct hdd_cfg80211_state_s
   u64 action_cookie;
   tANI_U8 *buf;
   size_t len;
-  spinlock_t p2p_lock;
   struct sk_buff *skb;
   hdd_remain_on_chan_ctx_t* remain_on_chan_ctx;
   eP2PActionFrameState actionFrmState;
-//  tANI_U8 ignore_ack_cnt;
 }hdd_cfg80211_state_t;
 
 #endif
@@ -623,7 +623,6 @@ struct hdd_adapter_s
 #endif
    /* Completion variable for action frame */
    struct completion tx_action_cnf_event;
-
    /* Completion variable for remain on channel ready */
    struct completion rem_on_chan_ready_event;
 #endif
@@ -741,14 +740,6 @@ struct hdd_context_s
    
    /** Pointer for nv data */
    const struct firmware *nv;
-
-#ifdef WLAN_NV_OTA_UPGRADE
-   /** Pointer for nv data cal */
-   const struct firmware *nv_cal;
-
-   /** Pointer for nv data reg */
-   const struct firmware *nv_reg;
-#endif
    
    /** Pointer to the parent device */
    struct device *parent_dev;
@@ -903,6 +894,4 @@ void hdd_prevent_suspend(void);
 void hdd_allow_suspend(void);
 v_U8_t hdd_is_ssr_required(void);
 void hdd_set_ssr_required(v_U8_t value);
-void hdd_prevent_suspend_after_scan(long hz); 
-VOS_STATUS wlan_hdd_reload_driver(hdd_context_t *pHddCtx);
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )

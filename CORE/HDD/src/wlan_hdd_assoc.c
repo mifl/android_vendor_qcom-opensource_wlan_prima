@@ -93,6 +93,7 @@ v_U8_t ccpRSNOui05[ HDD_RSN_OUI_SIZE ] = { 0x00, 0x0F, 0xAC, 0x05 }; // WEP-104
 #define BEACON_FRAME_IES_OFFSET 12
 
 
+void hdd_ResetCountryCodeAfterDisAssoc(hdd_adapter_t *pAdapter);
 
 static inline v_VOID_t hdd_connSetConnectionState( hdd_station_ctx_t *pHddStaCtx, eConnectionState connState )
 {         
@@ -946,8 +947,6 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
     }  
     else 
     {
-        char country_code[3] = SME_INVALID_COUNTRY_CODE;
-        eHalStatus status = eHAL_STATUS_SUCCESS;
         hdd_context_t* pHddCtx = (hdd_context_t*)pAdapter->pHddCtx;
 
 #ifdef CONFIG_CFG80211
@@ -972,19 +971,11 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
         netif_tx_disable(dev);
         netif_carrier_off(dev);
 
-        /* Association failed; Reset the country code information 
-         * so that it re-initialize the valid channel list*/
-        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
-                "%s: Association failed and resetting the country code"
-                "to default \n",__func__);
-
-        status = (int)sme_ChangeCountryCode(pHddCtx->hHal, NULL, 
-                                            &country_code[0], pAdapter,
-                                            pHddCtx->pvosContext);
-        if( 0 != status )
+        if (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode)
         {
-            VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                    "%s: SME Change Country code to default failed \n",__func__);
+            /* Association failed; Reset the country code information 
+             * so that it re-initialize the valid channel list*/
+            hdd_ResetCountryCodeAfterDisAssoc(pAdapter);
         }
     }
 
@@ -1343,7 +1334,7 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
     hdd_adapter_t *pAdapter = (hdd_adapter_t *)pContext;
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
             "CSR Callback: status= %d result= %d roamID=%ld", 
-            roamStatus, roamResult, roamId ); 
+                    roamStatus, roamResult, roamId ); 
 
     /*Sanity check*/
     if (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)
@@ -1390,13 +1381,9 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
         case eCSR_ROAM_LOSTLINK:
         case eCSR_ROAM_DISASSOCIATED:
             {
-                char country_code[3] = SME_INVALID_COUNTRY_CODE;
-                eHalStatus status = eHAL_STATUS_SUCCESS;
+#if 0
                 hdd_context_t* pHddCtx = (hdd_context_t*)pAdapter->pHddCtx;
-                if(pRoamInfo)
-                {
-                    printk("[WLAN VOSS] Lost Link with reason code %d \n", (int) pRoamInfo->reasonCode);
-                }
+#endif
                 VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                         "****eCSR_ROAM_DISASSOCIATED****");
                 halStatus = hdd_DisConnectHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
@@ -1405,47 +1392,42 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
                     hdd_conf_mcastbcast_filter((WLAN_HDD_GET_CTX(pAdapter)), FALSE);
                     (WLAN_HDD_GET_CTX(pAdapter))->hdd_mcastbcast_filter_set = FALSE;
                 }
-               
-                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
-                        "%s: Disconnected from the AP and "
-                        "resetting the country code to default\n",__func__);
-                /*reset the country code of previous connection*/
-                status = (int)sme_ChangeCountryCode(pHddCtx->hHal, NULL,
-                        &country_code[0], pAdapter,
-                        pHddCtx->pvosContext
-                        );
-                if( 0 != status )
+#if 0
+#if WLAN_FEATURE_PACKET_FILTERING    
+                if (pHddCtx->cfg_ini->isMcAddrListFilter)
                 {
-                    VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                            "%s: SME Change Country code to default failed \n",__func__);
+                    /*Multicast addr filtering is enabled*/
+                    if(pHddCtx->mc_addr_list.isFilterApplied)
+                    {
+                        /*Filter applied during suspend mode*/
+                        /*Clear it here*/
+                        wlan_hdd_set_mc_addr_list(pHddCtx, FALSE);
+                    }
                 }
+#endif
+#endif
+                if (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode)
+                {
+                    /* Disconnected from current AP. Reset the country code information
+                     * so that it re-initialize the valid channel list*/
+                    hdd_ResetCountryCodeAfterDisAssoc(pAdapter);
+                }
+
             }
             break;
         case eCSR_ROAM_IBSS_LEAVE:
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                     "****eCSR_ROAM_IBSS_LEAVE****");
-            if(pRoamInfo)
-            {
-                printk("[WLAN VOSS] IBSS leaving with reason code %d \n", (int) pRoamInfo->reasonCode);
-            }
             halStatus = hdd_DisConnectHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
             break;
         case eCSR_ROAM_ASSOCIATION_COMPLETION:
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                     "****eCSR_ROAM_ASSOCIATION_COMPLETION****");
-            if(pRoamInfo)
-            {
-                printk("[WLAN VOSS] Association Completion with reason code %d \n", (int) pRoamInfo->reasonCode);
-            }
             halStatus = hdd_AssociationCompletionHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
             break;
         case eCSR_ROAM_ASSOCIATION_FAILURE:
             halStatus = hdd_AssociationCompletionHandler( pAdapter, 
                     pRoamInfo, roamId, roamStatus, roamResult );
-            if(pRoamInfo)
-            {
-                printk("[WLAN VOSS] Association Failure with reason code %d \n", (int) pRoamInfo->reasonCode);
-            }
             break;
         case eCSR_ROAM_IBSS_IND:
             halStatus = roamRoamIbssIndicationHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
@@ -2415,3 +2397,62 @@ int iw_get_ap_address(struct net_device *dev,
     EXIT();
     return 0;
 }
+
+
+/**---------------------------------------------------------------------------
+
+  \brief hdd_ResetCountryCodeAfterDisAssoc -
+  This function reset the country code to default
+  \param  - pAdapter - Pointer to HDD adaptor
+  \return - nothing
+
+  --------------------------------------------------------------------------*/
+void hdd_ResetCountryCodeAfterDisAssoc(hdd_adapter_t *pAdapter)
+{
+    hdd_context_t* pHddCtx = (hdd_context_t*)pAdapter->pHddCtx;
+    tSmeConfigParams smeConfig;
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tANI_U8 defaultCountryCode[3] = SME_INVALID_COUNTRY_CODE;
+    tANI_U8 currentCountryCode[3] = SME_INVALID_COUNTRY_CODE;
+
+    sme_GetConfigParam(pHddCtx->hHal, &smeConfig);
+
+    VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+            "%s: 11d is %s\n",__func__,
+            smeConfig.csrConfig.Is11dSupportEnabled ? "Enabled" : "Disabled");
+    /* Reset country code only when 11d is enabled
+    */
+    if (smeConfig.csrConfig.Is11dSupportEnabled)
+    {
+        sme_GetDefaultCountryCodeFrmNv(pHddCtx->hHal, &defaultCountryCode[0]);
+        sme_GetCurrentCountryCode(pHddCtx->hHal, &currentCountryCode[0]);
+
+        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+                "%s: Default country code: %c%c%c, Current Country code: %c%c%c \n",
+                __func__,
+                defaultCountryCode[0], defaultCountryCode[1], defaultCountryCode[2],
+                currentCountryCode[0], currentCountryCode[1], currentCountryCode[2]);
+        /* Reset country code only when there is a mismatch
+         * between current country code and default country code
+         */
+        if ((defaultCountryCode[0] != currentCountryCode[0]) ||
+                (defaultCountryCode[1] != currentCountryCode[1]) ||
+                (defaultCountryCode[2] != currentCountryCode[2]))
+        {
+            VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+                    "%s: Disconnected from the AP/Assoc failed and "
+                    "resetting the country code to default\n",__func__);
+            /*reset the country code of previous connection*/
+            status = (int)sme_ChangeCountryCode(pHddCtx->hHal, NULL,
+                    &defaultCountryCode[0], pAdapter,
+                    pHddCtx->pvosContext
+                    );
+            if( 0 != status )
+            {
+                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                        "%s: failed to Reset the Country Code\n",__func__);
+            }
+        }
+    }
+}
+

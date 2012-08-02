@@ -176,7 +176,7 @@ WDI_Status WDI_DS_TxPacket(void *pContext,
   pvBDHeader = WDI_DS_MemPoolAlloc(pMemPool, &physBDHeader, ucBdPoolType);
   if(NULL == pvBDHeader)
     return WDI_STATUS_E_FAILURE;
-      
+
   WDI_SetBDPointers(pFrame, pvBDHeader, physBDHeader);
 
   alignment = 0;

@@ -19,27 +19,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
-*/
-
 /*========================================================================
 
   \file  wlan_hdd_main.c
@@ -162,7 +141,6 @@ int wlan_hdd_ftm_start(hdd_context_t *pAdapter);
 static struct wake_lock wlan_wake_lock;
 /* set when SSR is needed after unload */
 static v_U8_t      isSsrRequired;
-static struct wake_lock wlan_wake_lock_scan;
 
 //internal function declaration
 v_U16_t hdd_select_queue(struct net_device *dev,
@@ -252,7 +230,7 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
         msleep(500);
         if ( pHddCtx->isAmpAllowed )
         {
-        WLANBAP_DeregisterFromHCI();
+            WLANBAP_DeregisterFromHCI();
             pHddCtx->isAmpAllowed = VOS_FALSE;
         }
 #endif //WLAN_BTAMP_FEATURE
@@ -688,26 +666,6 @@ VOS_STATUS hdd_release_firmware(char *pFileName,v_VOID_t *pCtx)
           status = VOS_STATUS_E_FAILURE;
 
    }
-#ifdef WLAN_NV_OTA_UPGRADE 
-   else if (!strcmp(WLAN_NV_FILE_REGULATORY,pFileName)) {
-       if(pHddCtx->nv_reg) {
-          release_firmware(pHddCtx->nv_reg);
-          pHddCtx->nv_reg = NULL;
-       }
-       else
-          status = VOS_STATUS_E_FAILURE;
-
-   }
-   else if (!strcmp(WLAN_NV_FILE_CALIBRATION,pFileName)) {
-       if(pHddCtx->nv_cal) {
-          release_firmware(pHddCtx->nv_cal);
-          pHddCtx->nv_cal = NULL;
-       }
-       else
-          status = VOS_STATUS_E_FAILURE;
-
-   }
-#endif
 
    EXIT();
    return status;
@@ -771,40 +729,6 @@ VOS_STATUS hdd_request_firmware(char *pfileName,v_VOID_t *pCtx,v_VOID_t **ppfw_d
                  __func__, *pSize);
        }
    }
-#ifdef WLAN_NV_OTA_UPGRADE 
-   else if(!strcmp(WLAN_NV_FILE_REGULATORY, pfileName)) {
-
-       status = request_firmware(&pHddCtx->nv_reg, pfileName, pHddCtx->parent_dev);
-
-       if(status || !pHddCtx->nv_reg || !pHddCtx->nv_reg->data) {
-           hddLog(VOS_TRACE_LEVEL_FATAL, "%s: nv %s download failed",
-                  __func__, pfileName);
-           retval = VOS_STATUS_E_FAILURE;
-       }
-       else {
-         *ppfw_data = (v_VOID_t *)pHddCtx->nv_reg->data;
-         *pSize = pHddCtx->nv_reg->size;
-          hddLog(VOS_TRACE_LEVEL_INFO, "%s: nv file size = %d",
-                 __func__, *pSize);
-       }
-   }
-   else if(!strcmp(WLAN_NV_FILE_CALIBRATION, pfileName)) {
-
-       status = request_firmware(&pHddCtx->nv_cal, pfileName, pHddCtx->parent_dev);
-
-       if(status || !pHddCtx->nv_cal || !pHddCtx->nv_cal->data) {
-           hddLog(VOS_TRACE_LEVEL_FATAL, "%s: nv %s download failed",
-                  __func__, pfileName);
-           retval = VOS_STATUS_E_FAILURE;
-       }
-       else {
-         *ppfw_data = (v_VOID_t *)pHddCtx->nv_cal->data;
-         *pSize = pHddCtx->nv_cal->size;
-          hddLog(VOS_TRACE_LEVEL_INFO, "%s: nv file size = %d",
-                 __func__, *pSize);
-       }
-   }
-#endif
 
    EXIT();
    return retval;
@@ -1129,7 +1053,6 @@ hdd_adapter_t* hdd_alloc_station_adapter( hdd_context_t *pHddCtx, tSirMacAddr ma
       init_completion(&pAdapter->offchannel_tx_event);
 #endif
 #ifdef CONFIG_CFG80211
-      spin_lock_init(&pAdapter->cfg80211State.p2p_lock);
       init_completion(&pAdapter->tx_action_cnf_event);
 #endif
       init_completion(&pHddCtx->mc_sus_event_var);
@@ -3064,11 +2987,6 @@ void hdd_allow_suspend(void)
     wake_unlock(&wlan_wake_lock);
 }
 
-void hdd_prevent_suspend_after_scan(long hz)
-{
-  wake_lock_timeout(&wlan_wake_lock_scan, hz);
-}
-
 /**---------------------------------------------------------------------------
 
   \brief hdd_wlan_startup() - HDD init function
@@ -3425,11 +3343,11 @@ int hdd_wlan_startup(struct device *dev )
 #ifdef FEATURE_WLAN_INTEGRATED_SOC
    /* retrieve and display WCNSS version information */
    do {
+      tSirVersionType versionCompiled;
       tSirVersionType versionReported;
       tSirVersionString versionString;
       VOS_STATUS vstatus;
-#if 0
-      tSirVersionType versionCompiled;
+
       vstatus = sme_GetWcnssWlanCompiledVersion(pHddCtx->hHal,
                                                 &versionCompiled);
       if (!VOS_IS_STATUS_SUCCESS(vstatus))
@@ -3439,7 +3357,7 @@ int hdd_wlan_startup(struct device *dev )
                 __FUNCTION__);
          break;
       }
-#endif
+
       vstatus = sme_GetWcnssWlanReportedVersion(pHddCtx->hHal,
                                                 &versionReported);
       if (!VOS_IS_STATUS_SUCCESS(vstatus))
@@ -3449,7 +3367,7 @@ int hdd_wlan_startup(struct device *dev )
                 __FUNCTION__);
          break;
       }
-#if 0
+
       if ((versionCompiled.major != versionReported.major) ||
           (versionCompiled.minor != versionReported.minor) ||
           (versionCompiled.version != versionReported.version) ||
@@ -3469,7 +3387,6 @@ int hdd_wlan_startup(struct device *dev )
                 (int)versionCompiled.revision);
       }
       else
-#endif
       {
          pr_info("%s: WCNSS WLAN version %u.%u.%u.%u\n",
                  WLAN_MODULE_NAME,
@@ -3742,7 +3659,7 @@ err_vosclose:
          "%s: Failed to close VOSS Scheduler", __func__);
       VOS_ASSERT( VOS_IS_STATUS_SUCCESS( status ) );
    }
-   vos_close(pVosContext );
+   vos_close(pVosContext ); 
 
 err_balstop:
 #ifdef ANI_BUS_TYPE_SDIO
@@ -3822,7 +3739,6 @@ static int __init hdd_module_init ( void)
    ENTER();
 
    wake_lock_init(&wlan_wake_lock, WAKE_LOCK_SUSPEND, "wlan");
-   wake_lock_init(&wlan_wake_lock_scan, WAKE_LOCK_SUSPEND, "wlan_scan"); 
 
    pr_info("%s: loading driver v%s\n", WLAN_MODULE_NAME,
            QWLAN_VERSIONSTR TIMER_MANAGER_STR MEMORY_DEBUG_STR);
@@ -4001,7 +3917,6 @@ static int __init hdd_module_init ( void)
 #endif
 
       wake_lock_destroy(&wlan_wake_lock);
-      wake_lock_destroy(&wlan_wake_lock_scan); 
       pr_err("%s: driver load failure\n", WLAN_MODULE_NAME);
    }
    else
@@ -4087,7 +4002,6 @@ static void __exit hdd_module_exit(void)
 
 done:
    wake_lock_destroy(&wlan_wake_lock);
-   wake_lock_destroy(&wlan_wake_lock_scan);
    pr_info("%s: driver unloaded\n", WLAN_MODULE_NAME);
 }
 
@@ -4313,50 +4227,6 @@ void wlan_hdd_clear_concurrency_mode(hdd_context_t *pHddCtx, tVOS_CON_MODE mode)
    }
    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s: concurrency_mode = 0x%x NumberofSessions for mode %d = %d",
     __func__,pHddCtx->concurrency_mode,mode,pHddCtx->no_of_sessions[mode]);
-}
-/**---------------------------------------------------------------------------
- *
- *   \brief wlan_hdd_reload_driver
- *
- *   This function sends an even to supplicant to reload the WLAN driver. 
- *
- *
- *   \param  - pHddCtx
- *
- *   \return - VOS_STATUS_SUCCESS: Success
- *             VOS_STATUS_E_EMPTY: Adapter is Empty
- * --------------------------------------------------------------------------*/
-
-VOS_STATUS wlan_hdd_reload_driver(hdd_context_t *pHddCtx) 
-{
-   VOS_STATUS status = VOS_STATUS_SUCCESS;
-
-   hdd_adapter_list_node_t *pAdapterNode = NULL;
-   status =  hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
-   if( (status == VOS_STATUS_SUCCESS) && pAdapterNode && pAdapterNode->pAdapter)
-   {
-      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL, "HDD: reloading the driver(INTF:%s)",
-            pAdapterNode->pAdapter->dev->name);
-      /* 
-       * CFG80211 event to reload the driver
-       * 
-       * 'cfg80211_send_unprot_deauth' sends a NL80211_CMD_UNPROT_DEAUTHENTICATE
-       * event to supplicant at any state of SME(Linux Kernel) state machine.
-       *
-       * By default, if we pass a zero length buffer this API doesn't do anything.
-       *
-       * Till we find a better way to reload the driver, we have to hack supplicant
-       * code to send a 'HANGED' message to framework when it receives UNPROT DEAUTH 
-       * message with NULL buffer.
-       *
-       *
-       */
-      
-      /* void cfg80211_send_unprot_deauth(net_device, buffer, length ) */
-      cfg80211_send_unprot_deauth(pAdapterNode->pAdapter->dev, NULL, 0);  
-   }
-
-  return status;
 }
 
 //Register the module init/exit functions

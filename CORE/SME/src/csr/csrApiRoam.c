@@ -2187,11 +2187,11 @@ eHalStatus csrRoamPrepareBssConfig(tpAniSirGlobal pMac, tCsrRoamProfile *pProfil
         }
         //Join timeout
         // if we find a BeaconInterval in the BssDescription, then set the Join Timeout to 
-        // be 10 x the BeaconInterval.                          
+        // be 3 x the BeaconInterval.                          
         if ( pBssDesc->beaconInterval )
         {
             //Make sure it is bigger than the minimal
-            pBssConfig->uJoinTimeOut = CSR_ROAM_MAX(10 * pBssDesc->beaconInterval, CSR_JOIN_FAILURE_TIMEOUT_MIN);
+            pBssConfig->uJoinTimeOut = CSR_ROAM_MAX(3 * pBssDesc->beaconInterval, CSR_JOIN_FAILURE_TIMEOUT_MIN);
         }
         else 
         {
@@ -14214,3 +14214,61 @@ eHalStatus csrRoamStopJoinRetryTimer(tpAniSirGlobal pMac, tANI_U32 sessionId)
     return eHAL_STATUS_SUCCESS;
 }
 #endif
+
+#if 0
+/*
+  pBuf points to the beginning of the message
+  LIM packs disassoc rsp as below,
+      messageType - 2 bytes
+      messageLength - 2 bytes
+      sessionId - 1 byte
+      transactionId - 2 bytes (tANI_U16)
+      reasonCode - 4 bytes (sizeof(tSirResultCodes))
+      peerMacAddr - 6 bytes
+      The rest is conditionally defined of (WNI_POLARIS_FW_PRODUCT == AP) and not used
+*/
+static void csrSerDesUnpackDiassocRsp(tANI_U8 *pBuf, tSirSmeDisassocRsp *pRsp)
+{
+   if(pBuf && pRsp)
+   {
+      pBuf += 4; //skip type and length
+      pRsp->sessionId  = *pBuf++;
+      pal_get_U16( pBuf, (tANI_U16 *)&pRsp->transactionId );
+      pBuf += 2;
+      pal_get_U32( pBuf, (tANI_U32 *)&pRsp->statusCode );
+      pBuf += 4;
+      vos_mem_copy(pRsp->peerMacAddr, pBuf, 6);
+   }
+}
+#endif
+eHalStatus csrGetDefaultCountryCodeFrmNv(tpAniSirGlobal pMac, tANI_U8 *pCountry)
+{
+   static uNvTables nvTables;
+   eHalStatus status = eHAL_STATUS_SUCCESS;
+   VOS_STATUS vosStatus = vos_nv_readDefaultCountryTable( &nvTables );
+
+   /* read the country code from NV and use it */
+   if ( VOS_IS_STATUS_SUCCESS(vosStatus) )
+   {
+      palCopyMemory( pMac->hHdd, pCountry,
+            nvTables.defaultCountryTable.countryCode,
+            WNI_CFG_COUNTRY_CODE_LEN );
+      return status;
+   }
+   else
+   {
+      palCopyMemory( pMac->hHdd, pCountry,
+            "XXX",
+            WNI_CFG_COUNTRY_CODE_LEN );
+      status = eHAL_STATUS_FAILURE;
+      return status;
+   }
+}
+
+eHalStatus csrGetCurrentCountryCode(tpAniSirGlobal pMac, tANI_U8 *pCountry)
+{
+   palCopyMemory( pMac->hHdd, pCountry,
+         pMac->scan.countryCode11d,
+         WNI_CFG_COUNTRY_CODE_LEN );
+   return eHAL_STATUS_SUCCESS;
+}

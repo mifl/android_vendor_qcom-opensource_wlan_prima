@@ -293,7 +293,7 @@ typedef enum
 #define CFG_BLOCK_ACK_AUTO_SETUP_DEFAULT       ( 1 )
 
 #define CFG_SCAN_RESULT_AGE_COUNT_NAME         "gScanResultAgeCount"
-#define CFG_SCAN_RESULT_AGE_COUNT_MIN          ( 1 )
+#define CFG_SCAN_RESULT_AGE_COUNT_MIN          ( 2 )
 #define CFG_SCAN_RESULT_AGE_COUNT_MAX          ( 100 )
 #define CFG_SCAN_RESULT_AGE_COUNT_DEFAULT      ( 3 )
 

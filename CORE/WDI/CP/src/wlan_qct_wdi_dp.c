@@ -741,6 +741,7 @@ WDI_FillTxBd
         pBd->staIndex = ucStaId;
         
         *staIndex = ucStaId;
+
         pSta += ucStaId;  // Go to the curresponding station's station table
 
         if(ucType == WDI_MAC_MGMT_FRAME)

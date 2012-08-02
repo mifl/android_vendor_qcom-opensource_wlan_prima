@@ -236,10 +236,6 @@ WLANBAP_RoamCallback
             /* bapRoamCompleteCallback with eCSR_ROAM_LOSTLINK */
             VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, CSR roamStatus = %s (%d)", __FUNCTION__, "eCSR_ROAM_LOSTLINK", roamStatus);   
 
-            if(pCsrRoamInfo) {
-                printk("[WLAN BAP] Lost link with reason code %d \n", (int)pCsrRoamInfo->reasonCode );
-            }
-
             if (roamResult != eCSR_ROAM_RESULT_NONE) {
                 /* Fill in the event structure */ 
                 bapEvent.event = eWLAN_BAP_MAC_READY_FOR_CONNECTIONS; 

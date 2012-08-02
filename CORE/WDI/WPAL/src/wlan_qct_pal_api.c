@@ -376,17 +376,3 @@ wpt_status wpalRivaSubystemRestart(void)
     }
     return eWLAN_PAL_STATUS_E_FAILURE;
 }
-
-/*---------------------------------------------------------------------------
-    wpalWlanReload -  Initiate Riva SSR
-
-    Param:
-       None
-    Return:
-       eWLAN_PAL_STATUS_SUCCESS - when everything is OK
----------------------------------------------------------------------------*/
-void wpalWlanReload(void)
-{
-   vos_wlanReload();
-   return;
-}
