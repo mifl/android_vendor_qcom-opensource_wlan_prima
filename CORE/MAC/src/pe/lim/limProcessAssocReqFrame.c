@@ -860,6 +860,7 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
             }
             limPrintMacAddr(pMac, pHdr->sa, LOG1);
             limPrintMlmState(pMac, LOG1, (tLimMlmStates) pStaDs->mlmStaContext.mlmState);
+
             goto error;
         } // if (pStaDs->mlmStaContext.mlmState != eLIM_MLM_LINK_ESTABLISHED_STATE)
 
@@ -1246,8 +1247,11 @@ error:
         }
     }
 
-    if(pStaDs!= NULL)
+    /* If it is not duplicate Assoc request then only make to Null */
+    if ((pStaDs != NULL) &&
+          (pStaDs->mlmStaContext.mlmState != eLIM_MLM_WT_ADD_STA_RSP_STATE))
         psessionEntry->parsedAssocReq[pStaDs->assocId] = NULL;
+
     return;
 
 } /*** end limProcessAssocReqFrame() ***/

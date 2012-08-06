@@ -2202,6 +2202,19 @@ __limProcessSmeDisassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                     limLog(pMac, LOG1, FL("Rcvd SME_DISASSOC_REQ while in SME_WT_DEAUTH_STATE. \n"));
                     break;
 
+                case eLIM_SME_WT_DISASSOC_STATE:
+                    /* PE Recieved a Disassoc frame. Normally it gets DISASSOC_CNF but it
+                     * received DISASSOC_REQ. Which means host is also trying to disconnect.
+                     * PE can continue processing DISASSOC_REQ and send the response instead
+                     * of failing the request. SME will anyway ignore DEAUTH_IND that was sent
+                     * for disassoc frame.
+                     *
+                     * It will send a disassoc, which is ok. However, we can use the global flag
+                     * sendDisassoc to not send disassoc frame.
+                     */
+                    limLog(pMac, LOG1, FL("Rcvd SME_DISASSOC_REQ while in SME_WT_DISASSOC_STATE. \n"));
+                    break;
+
                 case eLIM_SME_JOIN_FAILURE_STATE: {
                     /** Return Success as we are already in Disconnected State*/
                      if (pMac->lim.gLimRspReqd) {
