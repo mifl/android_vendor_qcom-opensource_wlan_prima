@@ -99,6 +99,9 @@ extern void hdd_suspend_wlan(struct early_suspend *wlan_suspend);
 extern void hdd_resume_wlan(struct early_suspend *wlan_suspend);
 #endif
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+#define MAX_OEM_DATA_RSP_LEN 1024
+#endif
 
 #define HDD_FINISH_ULA_TIME_OUT    800
 
@@ -214,6 +217,11 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WAPI_CERT_AKM_SUITE 0x01721400
 #endif
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+/* Private ioctls for setting the measurement configuration */
+#define WLAN_PRIV_SET_OEM_DATA_REQ (SIOCIWFIRSTPRIV + 17)
+#define WLAN_PRIV_GET_OEM_DATA_RSP (SIOCIWFIRSTPRIV + 19)
+#endif
 
 #ifdef WLAN_FEATURE_VOWIFI_11R
 #define WLAN_PRIV_SET_FTIES             (SIOCIWFIRSTPRIV + 20)
@@ -5331,6 +5339,10 @@ static const iw_handler we_private[] = {
    [WLAN_PRIV_ADD_TSPEC             - SIOCIWFIRSTPRIV]   = iw_add_tspec,
    [WLAN_PRIV_DEL_TSPEC             - SIOCIWFIRSTPRIV]   = iw_del_tspec,
    [WLAN_PRIV_GET_TSPEC             - SIOCIWFIRSTPRIV]   = iw_get_tspec,
+#ifdef FEATURE_OEM_DATA_SUPPORT
+   [WLAN_PRIV_SET_OEM_DATA_REQ - SIOCIWFIRSTPRIV] = iw_set_oem_data_req, //oem data req Specifc
+   [WLAN_PRIV_GET_OEM_DATA_RSP - SIOCIWFIRSTPRIV] = iw_get_oem_data_rsp, //oem data req Specifc
+#endif
 
 #ifdef FEATURE_WLAN_WAPI
    [WLAN_PRIV_SET_WAPI_MODE             - SIOCIWFIRSTPRIV]  = iw_qcom_set_wapi_mode,
@@ -5599,6 +5611,21 @@ static const struct iw_priv_args we_private_args[] = {
         IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
         "getTspec" },
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+    /* handlers for main ioctl - OEM DATA */
+    {
+        WLAN_PRIV_SET_OEM_DATA_REQ,
+        IW_PRIV_TYPE_BYTE | sizeof(struct iw_oem_data_req) | IW_PRIV_SIZE_FIXED,
+        0,
+        "set_oem_data_req" },
+
+    /* handlers for main ioctl - OEM DATA */
+    {
+        WLAN_PRIV_GET_OEM_DATA_RSP,
+        0,
+        IW_PRIV_TYPE_BYTE | MAX_OEM_DATA_RSP_LEN,
+        "get_oem_data_rsp" },
+#endif
 
 #ifdef FEATURE_WLAN_WAPI
    /* handlers for main ioctl SET_WAPI_MODE */

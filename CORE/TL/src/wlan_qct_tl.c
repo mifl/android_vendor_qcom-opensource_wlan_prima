@@ -746,6 +746,14 @@ WLANTL_Close
     pmcDeregisterDeviceStateUpdateInd( smeContext, WLANTL_PowerStateChangedCB );
   }
 
+#if defined WLAN_FEATURE_NEIGHBOR_ROAMING
+  if(VOS_STATUS_SUCCESS != WLANTL_HSDeInit(pvosGCtx))
+  {
+    TLLOGW(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_WARN,
+               "Handoff Support module DeInit fail"));
+  }
+#endif
+
   /*------------------------------------------------------------------------
     Cleanup TL control block.
    ------------------------------------------------------------------------*/
