@@ -823,6 +823,18 @@ struct hdd_context_s
    /** P2P Device MAC Address for the adapter  */
    v_MACADDR_t p2pDeviceAddress;
 #endif
+
+   /* 
+    * Framework initiated driver restarting 
+    *    hdd_reload_timer   : Restart retry timer
+    *    isRestartInProgress: Restart in progress
+    *    hdd_restart_retries: Restart retries
+    *
+    */
+   vos_timer_t hdd_restart_timer;
+   atomic_t isRestartInProgress;
+   u_int8_t hdd_restart_retries;
+   
 };
 
 
@@ -889,4 +901,5 @@ void hdd_prevent_suspend(void);
 void hdd_allow_suspend(void);
 v_U8_t hdd_is_ssr_required(void);
 void hdd_set_ssr_required(v_U8_t value);
+VOS_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx);
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )
