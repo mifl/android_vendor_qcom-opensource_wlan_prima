@@ -1833,11 +1833,11 @@ static int iw_get_ap_frag_threshold(struct net_device *dev,
 static int iw_get_ap_freq(struct net_device *dev, struct iw_request_info *info,
              struct iw_freq *fwrq, char *extra)
 {
-   v_U32_t status = 0,channel,freq;
+   v_U32_t status = FALSE, channel = 0, freq = 0;
    hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
    tHalHandle hHal;
    hdd_hostapd_state_t *pHostapdState;
-   hdd_ap_ctx_t *pHddApCtx = WLAN_HDD_GET_AP_CTX_PTR(pHostapdAdapter);  
+   hdd_ap_ctx_t *pHddApCtx = WLAN_HDD_GET_AP_CTX_PTR(pHostapdAdapter);
 
    ENTER();
 
@@ -1860,18 +1860,30 @@ static int iw_get_ap_freq(struct net_device *dev, struct iw_request_info *info,
        else
        {
           status = hdd_wlan_get_freq(channel, &freq);
-          fwrq->m = freq;
-          fwrq->e = 0;
+          if( TRUE == status)
+          {
+              /* Set Exponent parameter as 6 (MHZ) in struct iw_freq
+               * iwlist & iwconfig command shows frequency into proper
+               * format (2.412 GHz instead of 246.2 MHz)*/
+              fwrq->m = freq;
+              fwrq->e = MHZ;
+          }
        }
     }
     else
     {
        channel = pHddApCtx->operatingChannel;
        status = hdd_wlan_get_freq(channel, &freq);
-       fwrq->m = freq;
-       fwrq->e = 0;
+       if( TRUE == status)
+       {
+          /* Set Exponent parameter as 6 (MHZ) in struct iw_freq
+           * iwlist & iwconfig command shows frequency into proper
+           * format (2.412 GHz instead of 246.2 MHz)*/
+           fwrq->m = freq;
+           fwrq->e = MHZ;
+       }
     }
-   return status;
+   return 0;
 }
 
 static int iw_softap_setwpsie(struct net_device *dev,
@@ -2641,20 +2653,11 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
             ( pAdapter->device_mode == WLAN_HDD_SOFTAP ) && 
             ( !strncmp( pAdapter->dev->name, "wlan", 4 )) )
     {
-        hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
-        if (pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated)
-        {
-            INIT_COMPLETION(pAdapter->session_close_comp_var);
-            if( eHAL_STATUS_SUCCESS == sme_CloseSession( pHddCtx->hHal,
-                        pAdapter->p2pSessionId,
-                        hdd_smeCloseSessionCallback, pAdapter ) )
-            {
-                //Block on a completion variable. Can't wait forever though.
-                wait_for_completion_interruptible_timeout(
-                        &pAdapter->session_close_comp_var,
-                        msecs_to_jiffies(WLAN_WAIT_TIME_SESSIONOPENCLOSE));
-            }
-        }
+       /* TODO: Revisit this later, either unregister p2p0 
+                interface here or make change in wifi.c file to pass 
+                information, that driver is getting loaded for SAP interface, 
+                in that case, during load time don't start p2p0 interface 
+        */
     }
 #endif
     EXIT();

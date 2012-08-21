@@ -398,6 +398,11 @@ static eSmeCommandType smeIsFullPowerNeeded( tpAniSirGlobal pMac, tSmeCmd *pComm
         fFullPowerNeeded = ( ( eSmeCommandAddTs == pCommand->command ) ||
                     ( eSmeCommandDelTs ==  pCommand->command ) );
         if( fFullPowerNeeded ) break;
+#ifdef FEATURE_OEM_DATA_SUPPORT
+        fFullPowerNeeded = (pmcState == IMPS && 
+                                       eSmeCommandOemDataReq == pCommand->command);
+        if(fFullPowerNeeded) break;
+#endif
 #ifdef WLAN_FEATURE_P2P
         fFullPowerNeeded = (pmcState == IMPS && 
                             eSmeCommandRemainOnChannel == pCommand->command);
@@ -619,6 +624,12 @@ tANI_BOOLEAN smeProcessCommand( tpAniSirGlobal pMac )
                             csrProcessDelStaSessionCommand( pMac, pCommand );
                             break;
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+                        case eSmeCommandOemDataReq:
+                            csrLLUnlock(&pMac->sme.smeCmdActiveList);
+                            oemData_ProcessOemDataReqCommand(pMac, pCommand);
+                            break;
+#endif
 #if defined WLAN_FEATURE_P2P
                         case eSmeCommandRemainOnChannel:
                             csrLLUnlock(&pMac->sme.smeCmdActiveList);
@@ -868,6 +879,14 @@ eHalStatus sme_Open(tHalHandle hHal)
       if ( ! HAL_STATUS_SUCCESS( status ) ) {
          smsLog( pMac, LOGE,
                  "btcOpen open failed during initialization with status=%d", status );
+         break;
+      }
+#endif
+#ifdef FEATURE_OEM_DATA_SUPPORT
+      status = oemData_OemDataReqOpen(pMac);
+      if ( ! HAL_STATUS_SUCCESS( status ) ) {
+         smsLog(pMac, LOGE,
+                "oemData_OemDataReqOpen failed during initialization with status=%d", status );
          break;
       }
 #endif
@@ -1447,6 +1466,21 @@ eHalStatus sme_ProcessMsg(tHalHandle hHal, vos_msg_t* pMsg)
              break;
 #endif
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+          //Handle the eWNI_SME_OEM_DATA_RSP:
+          case eWNI_SME_OEM_DATA_RSP:
+                if(pMsg->bodyptr)
+                {
+                        status = sme_HandleOemDataRsp(pMac, pMsg->bodyptr);
+                        vos_mem_free(pMsg->bodyptr);
+                }
+                else
+                {
+                        smsLog( pMac, LOGE, "Empty rsp message for oemData_ (eWNI_SME_OEM_DATA_RSP), nothing to process\n");
+                }
+                smeProcessPendingQueue( pMac );
+                break;
+#endif
 
           case eWNI_SME_ADD_STA_SELF_RSP:
                 if(pMsg->bodyptr)
@@ -1471,7 +1505,6 @@ eHalStatus sme_ProcessMsg(tHalHandle hHal, vos_msg_t* pMsg)
                 }
                 break;
 #ifdef WLAN_FEATURE_P2P
-          //Handle the eWNI_SME_INNAV_MEAS_RSP:
           case eWNI_SME_REMAIN_ON_CHN_RSP:
                 if(pMsg->bodyptr)
                 {
@@ -1783,6 +1816,14 @@ eHalStatus sme_Close(tHalHandle hHal)
    status = sme_QosClose(pMac);
    if ( ! HAL_STATUS_SUCCESS( status ) ) {
       smsLog( pMac, LOGE, "Qos close failed during sme close with status=%d\n",
+              status );
+      fail_status = status;
+   }
+#endif
+#ifdef FEATURE_OEM_DATA_SUPPORT
+   status = oemData_OemDataReqClose(hHal);
+   if ( ! HAL_STATUS_SUCCESS( status ) ) {
+       smsLog( pMac, LOGE, "OEM DATA REQ close failed during sme close with status=%d\n", 
               status );
       fail_status = status;
    }
@@ -4698,6 +4739,99 @@ eHalStatus sme_ScanGetBKIDCandidateList(tHalHandle hHal, tANI_U32 sessionId,
 }
 #endif /* FEATURE_WLAN_WAPI */
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+
+/*****************************************************************************
+ OEM DATA related modifications and function additions
+ *****************************************************************************/
+
+/* ---------------------------------------------------------------------------
+    \fn sme_getOemDataRsp
+    \brief a wrapper function to obtain the OEM DATA RSP
+    \param pOemDataRsp - A pointer to the response object
+    \param pContext - a pointer passed in for the callback
+    \return eHalStatus     
+  ---------------------------------------------------------------------------*/
+eHalStatus sme_getOemDataRsp(tHalHandle hHal, 
+        tOemDataRsp **pOemDataRsp)
+{
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
+    do
+    {
+        //acquire the lock for the sme object
+        status = sme_AcquireGlobalLock(&pMac->sme);
+
+        if(!HAL_STATUS_SUCCESS(status))
+        {
+            break;
+        }
+
+        if(pMac->oemData.pOemDataRsp != NULL)
+        {
+            *pOemDataRsp = pMac->oemData.pOemDataRsp;
+        }
+        else
+        {
+            status = eHAL_STATUS_FAILURE;
+        }
+
+        //release the lock for the sme object
+        sme_ReleaseGlobalLock( &pMac->sme );
+
+    } while(0);
+
+    return status;
+}
+
+/* ---------------------------------------------------------------------------
+    \fn sme_OemDataReq
+    \brief a wrapper function for OEM DATA REQ
+    \param sessionId - session id to be used.
+    \param pOemDataReqId - pointer to an object to get back the request ID
+    \param callback - a callback function that is called upon finish
+    \param pContext - a pointer passed in for the callback
+    \return eHalStatus     
+  ---------------------------------------------------------------------------*/
+eHalStatus sme_OemDataReq(tHalHandle hHal, 
+        tANI_U8 sessionId,
+        tOemDataReqConfig *pOemDataReqConfig, 
+        tANI_U32 *pOemDataReqID, 
+        oemData_OemDataReqCompleteCallback callback, 
+        void *pContext)
+{
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
+    do
+    {
+        //acquire the lock for the sme object
+        status = sme_AcquireGlobalLock(&pMac->sme);
+        if(HAL_STATUS_SUCCESS(status))
+        {
+            tANI_U32 lOemDataReqId = pMac->oemData.oemDataReqID++; //let it wrap around
+
+            if(pOemDataReqID)
+            {
+               *pOemDataReqID = lOemDataReqId;
+            }
+            else
+               return eHAL_STATUS_FAILURE;
+
+            status = oemData_OemDataReq(hHal, sessionId, pOemDataReqConfig, pOemDataReqID, callback, pContext);
+
+            //release the lock for the sme object
+            sme_ReleaseGlobalLock( &pMac->sme );
+        }
+    } while(0);
+
+    smsLog(pMac, LOGW, "exiting function %s\n", __FUNCTION__);
+
+    return(status);
+}
+
+#endif /*FEATURE_OEM_DATA_SUPPORT*/
 
 /*--------------------------------------------------------------------------
 
@@ -5324,7 +5458,8 @@ eHalStatus sme_updateP2pIe(tHalHandle hHal, void *p2pIe, tANI_U32 p2pIeLength)
   ---------------------------------------------------------------------------*/
 
 eHalStatus sme_sendAction(tHalHandle hHal, tANI_U8 sessionId,
-                          const tANI_U8 *pBuf, tANI_U32 len)
+                          const tANI_U8 *pBuf, tANI_U32 len,
+                          tANI_U16 wait, tANI_BOOLEAN noack)
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
     tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -5333,7 +5468,7 @@ eHalStatus sme_sendAction(tHalHandle hHal, tANI_U8 sessionId,
     status = sme_AcquireGlobalLock(&pMac->sme);
     if(HAL_STATUS_SUCCESS(status))
     {
-        p2pSendAction(hHal, sessionId, pBuf, len);
+        p2pSendAction(hHal, sessionId, pBuf, len, wait, noack);
         //release the lock for the sme object
         sme_ReleaseGlobalLock( &pMac->sme );
     }
@@ -6350,39 +6485,3 @@ void sme_featureCapsExchange( tHalHandle hHal)
     v_CONTEXT_t vosContext = vos_get_global_context(VOS_MODULE_ID_SME, NULL);
     WDA_featureCapsExchange(vosContext);
 }
-
-
-/* ---------------------------------------------------------------------------
-
-    \fn sme_GetDefaultCountryCode
-
-    \brief Get the default country code from NV
-
-    \param  hHal
-    \param  pCountry
-    \- return eHalStatus
-
-  -------------------------------------------------------------------------------*/
-eHalStatus sme_GetDefaultCountryCodeFrmNv(tHalHandle hHal, tANI_U8 *pCountry)
-{
-    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-    return csrGetDefaultCountryCodeFrmNv(pMac, pCountry);
-}
-
-/* ---------------------------------------------------------------------------
-
-    \fn sme_GetCurrentCountryCode
-
-    \brief Get the current country code
-
-    \param  hHal
-    \param  pCountry
-    \- return eHalStatus
-
-  -------------------------------------------------------------------------------*/
-eHalStatus sme_GetCurrentCountryCode(tHalHandle hHal, tANI_U8 *pCountry)
-{
-    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-    return csrGetCurrentCountryCode(pMac, pCountry);
-}
-

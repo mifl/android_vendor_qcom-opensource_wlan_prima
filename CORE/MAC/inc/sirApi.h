@@ -293,6 +293,9 @@ typedef enum eSirResultCodes
     eSIR_SME_CHANNEL_SWITCH_DISABLED,    // either 11h is disabled or channelSwitch is currently active
     eSIR_SME_HAL_SEND_MESSAGE_FAIL,      // Failed to send a message to HAL
 #endif // GEN4_SCAN
+#ifdef FEATURE_OEM_DATA_SUPPORT
+    eSIR_SME_HAL_OEM_DATA_REQ_START_FAILED,
+#endif
     eSIR_SME_STOP_BSS_FAILURE,           // Failed to stop the bss
     eSIR_SME_STA_ASSOCIATED,
     eSIR_SME_INVALID_PMM_STATE,
@@ -1138,6 +1141,30 @@ typedef struct sSirSmeScanReq
       -----------------------------*/
 } tSirSmeScanReq, *tpSirSmeScanReq;
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+
+#ifndef OEM_DATA_REQ_SIZE
+#define OEM_DATA_REQ_SIZE 70
+#endif
+#ifndef OEM_DATA_RSP_SIZE
+#define OEM_DATA_RSP_SIZE 968
+#endif
+
+typedef struct sSirOemDataReq
+{
+    tANI_U16              messageType; //eWNI_SME_OEM_DATA_REQ
+    tSirMacAddr           selfMacAddr;
+    tANI_U8               oemDataReq[OEM_DATA_REQ_SIZE];
+} tSirOemDataReq, *tpSirOemDataReq;
+
+typedef struct sSirOemDataRsp
+{
+    tANI_U16             messageType;
+    tANI_U16             length;
+    tANI_U8              oemDataRsp[OEM_DATA_RSP_SIZE];
+} tSirOemDataRsp, *tpSirOemDataRsp;
+    
+#endif //FEATURE_OEM_DATA_SUPPORT
 
 /// Definition for response message to previously issued scan request
 typedef struct sSirSmeScanRsp
@@ -1283,11 +1310,8 @@ typedef struct sSirSmeJoinReq
     tCCXTspecInfo       ccxTspecInfo;
 #endif
     
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX
     tAniBool            isFastTransitionEnabled;
-#endif
-#ifdef FEATURE_WLAN_LFR
-    tAniBool            isFastRoamIniFeatureEnabled;
 #endif
     
 #if (WNI_POLARIS_FW_PACKAGE == ADVANCED) && (WNI_POLARIS_FW_PRODUCT == AP)
@@ -1489,11 +1513,8 @@ typedef struct sSirSmeReassocReq
     tAniBool            isCCXconnection;
     tCCXTspecInfo       ccxTspecInfo;
 #endif
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX
     tAniBool            isFastTransitionEnabled;
-#endif
-#ifdef FEATURE_WLAN_LFR
-    tAniBool            isFastRoamIniFeatureEnabled;
 #endif
 
 #if (WNI_POLARIS_FW_PACKAGE == ADVANCED) && (WNI_POLARIS_FW_PRODUCT == AP)
@@ -2993,7 +3014,7 @@ typedef struct sSirDeltsRsp
     tSirDeltsReqInfo        rsp;
 } tSirDeltsRsp, *tpSirDeltsRsp;
 
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX
 
 #define SIR_QOS_NUM_TSPEC_MAX 2
 #define SIR_QOS_NUM_AC_MAX 4
