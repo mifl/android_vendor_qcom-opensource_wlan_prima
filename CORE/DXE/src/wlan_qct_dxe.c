@@ -2543,6 +2543,7 @@ static wpt_status dxeTXCompFrame
 
    if( currentCtrlBlk == channelEntry->headCtrlBlk )
    {
+      wpalMutexRelease(&channelEntry->dxeChannelLock);
       return eWLAN_PAL_STATUS_E_EMPTY;
    }
 
@@ -2573,6 +2574,7 @@ static wpt_status dxeTXCompFrame
          status = wpalUnlockPacket(currentCtrlBlk->xfrFrame);
          if (eWLAN_PAL_STATUS_SUCCESS != status)
          {
+            wpalMutexRelease(&channelEntry->dxeChannelLock);
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "dxeRXFrameReady unable to unlock packet");
             return status;
@@ -3492,6 +3494,7 @@ wpt_status WLANDXE_TxFrame
    status = dxeTXPushFrame(currentChannel, pPacket);
    if(eWLAN_PAL_STATUS_SUCCESS != status)
    {
+      wpalMutexRelease(&currentChannel->dxeChannelLock);
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WLANDXE_TxFrame TX Push Frame fail");
       return status;

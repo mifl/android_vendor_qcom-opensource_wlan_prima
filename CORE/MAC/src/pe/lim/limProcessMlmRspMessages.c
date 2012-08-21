@@ -1820,6 +1820,8 @@ limHandleSmeJoinResult(tpAniSirGlobal pMac, tSirResultCodes resultCode, tANI_U16
             pStaDs->mlmStaContext.protStatusCode = protStatusCode;
             //Done: 7-27-2009. JIM_FIX_ME: at the end of limCleanupRxPath, make sure PE is sending eWNI_SME_JOIN_RSP to SME
             limCleanupRxPath(pMac, pStaDs, psessionEntry);
+            palFreeMemory( pMac->hHdd, psessionEntry->pLimJoinReq);
+            psessionEntry->pLimJoinReq = NULL;
             return;
         }
     }
@@ -2036,6 +2038,10 @@ void limProcessStaMlmDelBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPESessi
     else
     {
         limLog( pMac, LOGP, FL( "DEL BSS failed!\n" ) );
+        if( NULL != pDelBssParams )
+        {
+            palFreeMemory( pMac->hHdd, (void *) pDelBssParams );
+    	}
         return;
     }
    end:
@@ -2123,6 +2129,8 @@ void limProcessBtAmpApMlmDelBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPES
     if(psessionEntry == NULL)
     {
         limLog(pMac, LOGE,FL("Session entry passed is NULL\n"));
+        if(pDelBss != NULL)
+            palFreeMemory( pMac->hHdd, (void *) pDelBss );
         return;
     }
 
@@ -2191,6 +2199,8 @@ void limProcessMlmDelStaRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     if((psessionEntry = peFindSessionBySessionId(pMac,pDeleteStaParams->sessionId))==NULL)
     {
         limLog(pMac, LOGP,FL("Session Does not exist for given sessionID\n"));
+        if(pDeleteStaParams != NULL)
+            palFreeMemory( pMac->hHdd, (void *) pDeleteStaParams );
         return;
     }
 
@@ -2636,6 +2646,8 @@ limProcessApMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ)
     if((psessionEntry = peFindSessionBySessionId(pMac,pAddBssParams->sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given sessionId\n"));)
+        if( NULL != pAddBssParams )
+            palFreeMemory( pMac->hHdd, (void *) pAddBssParams );
         return;
     }
     /* Update PE session Id*/
@@ -3252,6 +3264,8 @@ void limProcessMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     if((psessionEntry = peFindSessionBySessionId(pMac,pAddBssParams->sessionId))== NULL)
     {
         limLog( pMac, LOGE, FL( "Session Does not exist for given sessionId\n" ));
+            if( NULL != pAddBssParams )
+                palFreeMemory( pMac->hHdd, (void *) pAddBssParams );
         return;
     }
     /* update PE session Id*/
@@ -3338,6 +3352,7 @@ void limProcessMlmSetStaKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     if((psessionEntry = peFindSessionBySessionId(pMac, sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given sessionId\n"));)
+        palFreeMemory( pMac->hHdd, (void *) limMsgQ->bodyptr );
         return;
     }
     if( eLIM_MLM_WT_SET_STA_KEY_STATE != psessionEntry->limMlmState )
@@ -3392,6 +3407,7 @@ void limProcessMlmSetBssKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     if((psessionEntry = peFindSessionBySessionId(pMac, sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given sessionId\n"));)
+        palFreeMemory( pMac->hHdd, (void *) limMsgQ->bodyptr );
         return;
     }
     if( eLIM_MLM_WT_SET_BSS_KEY_STATE == psessionEntry->limMlmState )
@@ -3803,17 +3819,7 @@ static void limProcessSwitchChannelJoinReq(tpAniSirGlobal pMac, tpPESession pses
         goto error;
     }
 
-    // Activate Join failure timer
-    MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, 0, eLIM_JOIN_FAIL_TIMER));
-    if (tx_timer_activate(&pMac->lim.limTimers.gLimJoinFailureTimer) != TX_SUCCESS)
-    {
-        limLog(pMac, LOGP, FL("could not activate Join failure timer\n"));
-        psessionEntry->limMlmState = psessionEntry->limPrevMlmState;
-         MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, pMac->lim.gLimMlmState));
-        //memory is freed up below.
-        psessionEntry->pLimMlmJoinReq = NULL;
-        goto error;
-    }
+   
     /* eSIR_BTAMP_AP_MODE stroed as bss type in session Table when join req is received, is to be veified   */
     if(psessionEntry->bssType == eSIR_BTAMP_AP_MODE)
     {
@@ -3856,6 +3862,19 @@ static void limProcessSwitchChannelJoinReq(tpAniSirGlobal pMac, tpPESession pses
            psessionEntry->pLimMlmJoinReq->bssDescription.bssId, psessionEntry->currentOperChannel/*chanNum*/,
            psessionEntry->selfMacAddr, psessionEntry->dot11mode,
            psessionEntry->pLimJoinReq->addIEScan.length, psessionEntry->pLimJoinReq->addIEScan.addIEdata);
+
+    // Sending mgmt frame is a blocking call activate Join failure timer now
+    MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, 0, eLIM_JOIN_FAIL_TIMER));
+    if (tx_timer_activate(&pMac->lim.limTimers.gLimJoinFailureTimer) != TX_SUCCESS)
+    {
+        limLog(pMac, LOGP, FL("could not activate Join failure timer\n"));
+        psessionEntry->limMlmState = psessionEntry->limPrevMlmState;
+         MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, pMac->lim.gLimMlmState));
+        //memory is freed up below.
+        psessionEntry->pLimMlmJoinReq = NULL;
+        goto error;
+    }
+
     return;
 error:  
     if(NULL != psessionEntry)
@@ -4262,6 +4281,7 @@ pMlmAddBACnf = (tpLimMlmAddBACnf) pMsgBuf;
   if((psessionEntry = peFindSessionBySessionId(pMac,pMlmAddBACnf->sessionId))== NULL)
   {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given BSSId\n"));)
+        palFreeMemory( pMac->hHdd, (void *) pMsgBuf );
         return;
   }
   // First, extract the DPH entry
@@ -4359,6 +4379,7 @@ void limProcessMlmDelBACnf( tpAniSirGlobal pMac,
     if((psessionEntry = peFindSessionBySessionId(pMac, pMlmDelBACnf->sessionId))== NULL)
    {
         limLog(pMac, LOGP,FL("Session Does not exist for given sessionID\n"));
+        palFreeMemory( pMac->hHdd, (void *) pMsgBuf );
         return;
    }
     // First, extract the DPH entry
@@ -4367,6 +4388,7 @@ void limProcessMlmDelBACnf( tpAniSirGlobal pMac,
     {
         limLog( pMac, LOGE,
             FL( "STA context not found - ignoring DELBA CNF from HAL\n" ));
+        palFreeMemory( pMac->hHdd, (void *) pMsgBuf );
         return;
     }
     if(NULL == pMlmDelBACnf)
@@ -4382,6 +4404,7 @@ void limProcessMlmDelBACnf( tpAniSirGlobal pMac,
         limLog( pMac, LOGE,
         FL( "Received unexpected DELBA CNF when STA BA state is %d\n" ),
         curBaState );
+        palFreeMemory( pMac->hHdd, (void *) pMsgBuf );
         return;
     }
     // Restore STA BA state
@@ -4416,6 +4439,7 @@ void limProcessMlmHalBADeleteInd( tpAniSirGlobal pMac,
     if((psessionEntry = peFindSessionByBssid(pMac,pBADeleteParams->bssId,&sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given BSSId\n"));)
+        palFreeMemory( pMac->hHdd, (void *) limMsgQ->bodyptr );
         return;
     }
     // First, extract the DPH entry

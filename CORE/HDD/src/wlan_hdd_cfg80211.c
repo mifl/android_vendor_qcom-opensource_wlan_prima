@@ -85,7 +85,7 @@
 #define a_mode_rates_size (8)
 #define FREQ_BASE_80211G          (2407)
 #define FREQ_BAND_DIFF_80211G     (5)
-#define MAX_SCAN_SSID 2
+#define MAX_SCAN_SSID 9
 #define GET_IE_LEN_IN_BSS_DESC(lenInBss) ( lenInBss + sizeof(lenInBss) - \
         ((int) OFFSET_OF( tSirBssDescription, ieFields)))
 
@@ -838,6 +838,7 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
     v_U8_t *pIe = NULL;
     v_U8_t addIE[1] = {0};
     beacon_data_t *pBeacon = pHostapdAdapter->sessionCtx.ap.beacon;
+    int ret = 0;
 
     genie = vos_mem_malloc(MAX_GENIE_LEN);
 
@@ -859,7 +860,8 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
         else 
         {
             hddLog( VOS_TRACE_LEVEL_ERROR, "**Wps Ie Length is too big***\n");
-            return -EINVAL;
+            ret = -EINVAL;
+            goto done;
         }
         total_ielen = ielen;
     }
@@ -875,7 +877,8 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
         }
         else {
            hddLog( VOS_TRACE_LEVEL_ERROR, "**Wps Ie + P2p Ie + Wfd Ie Length is too big***\n");
-           return -EINVAL;
+           ret = -EINVAL;
+           goto done;
         }
         total_ielen += ielen; 
     }
@@ -895,7 +898,8 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
         {
             hddLog( VOS_TRACE_LEVEL_ERROR, 
                     "**Wps Ie+ P2pIE Length is too big***\n");
-            return -EINVAL;
+            ret = -EINVAL;
+            goto done;
         }
         total_ielen += ielen;
     }
@@ -907,7 +911,8 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
     {
         hddLog(LOGE,
                "Could not pass on WNI_CFG_PROBE_RSP_BCN_ADDNIE_DATA to CCM");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto done;
     }
 
     if (ccmCfgSetInt((WLAN_HDD_GET_CTX(pHostapdAdapter))->hHal,
@@ -918,7 +923,8 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
     {
         hddLog(LOGE,
             "Could not pass on WNI_CFG_PROBE_RSP_BCN_ADDNIE_FLAG to CCM");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto done;
     }
 
     // Added for ProResp IE
@@ -958,7 +964,8 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
             {
                  hddLog(LOGE,
                        "Could not pass on WNI_CFG_PROBE_RSP_ADDNIE_DATA1 to CCM");
-                 return -EINVAL;
+                 ret = -EINVAL;
+                 goto done;
             }
             rem_probe_resp_ie_len += probe_rsp_ie_len[0];
         }
@@ -973,7 +980,8 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
             {
                  hddLog(LOGE,
                        "Could not pass on WNI_CFG_PROBE_RSP_ADDNIE_DATA2 to CCM");
-                 return -EINVAL;
+                 ret = -EINVAL;
+                 goto done;
             }
             rem_probe_resp_ie_len += probe_rsp_ie_len[1];
         }
@@ -988,7 +996,8 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
             {
                  hddLog(LOGE,
                        "Could not pass on WNI_CFG_PROBE_RSP_ADDNIE_DATA3 to CCM");
-                 return -EINVAL;
+                 ret = -EINVAL;
+                 goto done;
             }
             rem_probe_resp_ie_len += probe_rsp_ie_len[2];
         }
@@ -1023,7 +1032,8 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
         {
            hddLog(LOGE,
              "Could not pass on WNI_CFG_PROBE_RSP_ADDNIE_FLAG to CCM");
-           return -EINVAL;
+           ret = -EINVAL;
+           goto done;
         }
     }
     else
@@ -1046,7 +1056,8 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
        {
             hddLog(LOGE,
                   "Could not pass on WNI_CFG_ASSOC_RSP_ADDNIE_DATA to CCM");
-            return -EINVAL;
+            ret = -EINVAL;
+            goto done;
        }
 
        if (ccmCfgSetInt((WLAN_HDD_GET_CTX(pHostapdAdapter))->hHal,
@@ -1057,7 +1068,8 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
        {
           hddLog(LOGE,
             "Could not pass on WNI_CFG_ASSOC_RSP_ADDNIE_FLAG to CCM");
-          return -EINVAL;
+          ret = -EINVAL;
+          goto done;
        }
     }
     else
@@ -1075,6 +1087,7 @@ static int wlan_hdd_cfg80211_update_apies(hdd_adapter_t* pHostapdAdapter,
         }
     }
 
+done:
     vos_mem_free(genie);
     return 0;
 }
@@ -1526,8 +1539,22 @@ static int wlan_hdd_cfg80211_del_beacon(struct wiphy *wiphy,
                                         struct net_device *dev)
 {
     hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
-    hdd_context_t *pHddCtx;
+    hdd_context_t  *pHddCtx    = NULL;
+    hdd_scaninfo_t *pScanInfo  = NULL;
+    hdd_adapter_t  *staAdapter = NULL;
     VOS_STATUS status = 0;
+
+    staAdapter = hdd_get_adapter(pAdapter->pHddCtx, WLAN_HDD_INFRA_STATION);
+
+    if (!staAdapter)
+    {
+        staAdapter = hdd_get_adapter(pAdapter->pHddCtx, WLAN_HDD_P2P_CLIENT);
+    }
+
+    if (staAdapter != NULL)
+    {
+        pScanInfo =  &staAdapter->scan_info;
+    }
 
     ENTER();
 
@@ -1547,6 +1574,23 @@ static int wlan_hdd_cfg80211_del_beacon(struct wiphy *wiphy,
 
     hddLog(VOS_TRACE_LEVEL_INFO, "%s: device_mode = %d\n",
                               __func__,pAdapter->device_mode);
+
+    if ((pScanInfo != NULL) && pScanInfo->mScanPending)
+    {
+        INIT_COMPLETION(staAdapter->abortscan_event_var);
+        hdd_abort_mac_scan(staAdapter->pHddCtx);
+        status = wait_for_completion_interruptible_timeout(
+                           &staAdapter->abortscan_event_var,
+                           msecs_to_jiffies(WLAN_WAIT_TIME_ABORTSCAN));
+        if (!status)
+        {
+            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
+                         "%s: Timeout occured while waiting for abortscan" ,
+                         __FUNCTION__);
+            VOS_ASSERT(pScanInfo->mScanPending);
+            return 0;
+        }
+    }
 
     if ((pAdapter->device_mode == WLAN_HDD_SOFTAP)
 #ifdef WLAN_FEATURE_P2P

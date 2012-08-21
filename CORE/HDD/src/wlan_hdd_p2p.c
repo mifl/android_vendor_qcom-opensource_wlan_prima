@@ -418,23 +418,21 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
             else if ((subType == SIR_MAC_MGMT_DISASSOC) ||
                     (subType == SIR_MAC_MGMT_DEAUTH))
             {
-                /* Deauth/Disassoc received from supplicant, If we simply 
-                 * transmit the frame over air, driver doesn't come to know 
-                 * about the deauth/disassoc. Because of this reason the 
-                 * supplicant and driver will be out of sync.
-                 * Drop the frame here and initiate the disassoc procedure 
-                 * from driver, the core stack will take care of sending
-                 * disassoc frame and indicating corresponding events to supplicant.
+                /* During EAP failure or P2P Group Remove supplicant
+                 * is sending del_station command to driver. From
+                 * del_station function, Driver will send deauth frame to
+                 * p2p client. No need to send disassoc frame from here.
+                 * so Drop the frame here and send tx indication back to
+                 * supplicant.
                  */
                 tANI_U8 dstMac[ETH_ALEN] = {0};
                 memcpy(&dstMac, &buf[WLAN_HDD_80211_FRM_DA_OFFSET], ETH_ALEN);
-                hddLog(VOS_TRACE_LEVEL_INFO, 
+                hddLog(VOS_TRACE_LEVEL_INFO,
                         "%s: Deauth/Disassoc received for STA:"
-                        "%02x:%02x:%02x:%02x:%02x:%02x", 
-                        __func__, 
-                        dstMac[0], dstMac[1], dstMac[2], 
+                        "%02x:%02x:%02x:%02x:%02x:%02x",
+                        __func__,
+                        dstMac[0], dstMac[1], dstMac[2],
                         dstMac[3], dstMac[4], dstMac[5]);
-                hdd_softap_sta_disassoc(pAdapter, (v_U8_t *)&dstMac);
                 goto err_rem_channel;
             }
         }

@@ -233,6 +233,7 @@ eHalStatus csrRoamStopWaitForKeyTimer(tpAniSirGlobal pMac);
 static void csrRoamWaitForKeyTimeOutHandler(void *pv);
  
 static eHalStatus CsrInit11dInfo(tpAniSirGlobal pMac, tCsr11dinfo *ps11dinfo);
+static eHalStatus csrInitChannelPowerList( tpAniSirGlobal pMac, tCsr11dinfo *ps11dinfo);
 static eHalStatus csrRoamFreeConnectedInfo( tpAniSirGlobal pMac, tCsrRoamConnectedInfo *pConnectedInfo );
 eHalStatus csrSendMBSetContextReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, 
            tSirMacAddr peerMacAddr, tANI_U8 numKeys, tAniEdType edType, 
@@ -1061,12 +1062,6 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         pMac->roam.configParam.Is11dSupportEnabled = pParam->Is11dSupportEnabled;
         pMac->roam.configParam.Is11dSupportEnabledOriginal = pParam->Is11dSupportEnabled;
         pMac->roam.configParam.Is11hSupportEnabled = pParam->Is11hSupportEnabled;
-        //if 11h is enabled, so should 11d
-        if(pMac->roam.configParam.Is11hSupportEnabled)
-        {
-            pMac->roam.configParam.Is11dSupportEnabled = eANI_BOOLEAN_TRUE;
-            pMac->roam.configParam.Is11dSupportEnabledOriginal = eANI_BOOLEAN_TRUE;
-        }
         pMac->roam.configParam.channelBondingMode24GHz = pParam->channelBondingMode24GHz;
         pMac->roam.configParam.channelBondingMode5GHz = pParam->channelBondingMode5GHz;
         pMac->roam.configParam.RTSThreshold = pParam->RTSThreshold;
@@ -1177,6 +1172,15 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         {
             pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
         }
+
+        /* Initialize the power + channel information if 11h is enabled.
+        If 11d is enabled this information has already been initialized */
+        if( csrIs11hSupported( pMac ) && !csrIs11dSupported( pMac ) )
+        {
+            csrInitChannelPowerList(pMac, &pParam->Csr11dinfo);
+        }
+
+
 #ifdef WLAN_FEATURE_VOWIFI_11R 
         palCopyMemory( pMac->hHdd, &pMac->roam.configParam.csr11rConfig, &pParam->csr11rConfig, sizeof(tCsr11rConfigParams) );
         smsLog( pMac, LOG1, "IsFtSupported = %d\n", pMac->roam.configParam.csr11rConfig.IsFTSupportEnabled);
@@ -1650,6 +1654,50 @@ static eHalStatus CsrInit11dInfo(tpAniSirGlobal pMac, tCsr11dinfo *ps11dinfo)
   {
     // Apply the base channel list, power info, and set the Country code...
     csrApplyChannelPowerCountryInfo( pMac, &pMac->scan.base20MHzChannels, pMac->scan.countryCodeCurrent );
+  }
+
+  return (status);
+}
+
+/* Initialize the Channel + Power List in the local cache and in the CFG */
+eHalStatus csrInitChannelPowerList( tpAniSirGlobal pMac, tCsr11dinfo *ps11dinfo)
+{
+  eHalStatus status = eHAL_STATUS_FAILURE;
+  tANI_U8  index;
+  tANI_U32 count=0;
+  tSirMacChanInfo *pChanInfo;
+  tSirMacChanInfo *pChanInfoStart;
+
+  if(!ps11dinfo || !pMac)
+  {
+    return (status);
+  }
+
+  if(HAL_STATUS_SUCCESS(palAllocateMemory(pMac->hHdd, (void **)&pChanInfo, sizeof(tSirMacChanInfo) * WNI_CFG_VALID_CHANNEL_LIST_LEN)))
+  {
+    palZeroMemory(pMac->hHdd, pChanInfo, sizeof(tSirMacChanInfo) * WNI_CFG_VALID_CHANNEL_LIST_LEN);
+    pChanInfoStart = pChanInfo;
+
+    for(index = 0; index < ps11dinfo->Channels.numChannels; index++)
+    {
+      pChanInfo->firstChanNum = ps11dinfo->ChnPower[index].firstChannel;
+      pChanInfo->numChannels  = ps11dinfo->ChnPower[index].numChannels;
+      pChanInfo->maxTxPower   = CSR_ROAM_MIN( ps11dinfo->ChnPower[index].maxtxPower, pMac->roam.configParam.nTxPowerCap );
+      pChanInfo++;
+      count++;
+    }
+    if(count)
+    {
+      csrSaveToChannelPower2G_5G( pMac, count * sizeof(tSirMacChanInfo), pChanInfoStart );
+    }
+    palFreeMemory(pMac->hHdd, pChanInfoStart);
+  }
+
+  //Only apply them to CFG when not in STOP state. Otherwise they will be applied later
+  if( HAL_STATUS_SUCCESS(status) && ( !CSR_IS_ROAM_STOP(pMac) ) )
+  {
+    // Store the channel+power info in the global place: Cfg
+    csrApplyPower2Current( pMac );
   }
 
   return (status);
@@ -2188,11 +2236,11 @@ eHalStatus csrRoamPrepareBssConfig(tpAniSirGlobal pMac, tCsrRoamProfile *pProfil
         }
         //Join timeout
         // if we find a BeaconInterval in the BssDescription, then set the Join Timeout to 
-        // be 3 x the BeaconInterval.                          
+        // be 10 x the BeaconInterval.                          
         if ( pBssDesc->beaconInterval )
         {
             //Make sure it is bigger than the minimal
-            pBssConfig->uJoinTimeOut = CSR_ROAM_MAX(3 * pBssDesc->beaconInterval, CSR_JOIN_FAILURE_TIMEOUT_MIN);
+            pBssConfig->uJoinTimeOut = CSR_ROAM_MAX(10 * pBssDesc->beaconInterval, CSR_JOIN_FAILURE_TIMEOUT_MIN);
         }
         else 
         {

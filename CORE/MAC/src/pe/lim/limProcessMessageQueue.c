@@ -1101,6 +1101,8 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
 #endif
     if(pMac->gDriverType == eDRIVER_TYPE_MFG)
     {
+        palFreeMemory(pMac->hHdd, (tANI_U8 *)limMsg->bodyptr);
+        limMsg->bodyptr = NULL;
         return;
     }
 #ifdef WLAN_DEBUG    
