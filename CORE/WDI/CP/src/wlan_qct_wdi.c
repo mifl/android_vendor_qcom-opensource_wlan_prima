@@ -7690,7 +7690,7 @@ WDI_ProcessSetBssKeyReq
   wpt_uint16                   usDataOffset        = 0;
   wpt_uint16                   usSendSize          = 0;
   WDI_Status                   wdiStatus           = WDI_STATUS_SUCCESS; 
-  tSetBssKeyReqMsg             halSetBssKeyReqMsg  = {{0}};
+  tSetBssKeyReqMsg             halSetBssKeyReqMsg;
   wpt_uint8                    keyIndex            = 0;
 
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -7707,6 +7707,7 @@ WDI_ProcessSetBssKeyReq
      return WDI_STATUS_E_FAILURE; 
   }
 
+  wpalMemoryZero( &halSetBssKeyReqMsg, sizeof(tSetBssKeyReqMsg) );
   pwdiSetBSSKeyParams = (WDI_SetBSSKeyReqParamsType*)pEventData->pEventData;
   wdiSetBSSKeyRspCb   = (WDI_SetBSSKeyRspCb)pEventData->pCBfnc;
   /*-------------------------------------------------------------------------
@@ -7960,7 +7961,7 @@ WDI_ProcessSetStaKeyReq
   WDI_Status                   wdiStatus           = WDI_STATUS_SUCCESS; 
   wpt_macAddr                  macBSSID;
   wpt_uint8                    ucCurrentBSSSesIdx; 
-  tSetStaKeyReqMsg             halSetStaKeyReqMsg  = {{0}};
+  tSetStaKeyReqMsg             halSetStaKeyReqMsg;
   wpt_uint8                    keyIndex            = 0;
 
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -7977,6 +7978,7 @@ WDI_ProcessSetStaKeyReq
      return WDI_STATUS_E_FAILURE; 
   }
 
+   wpalMemoryZero( &halSetStaKeyReqMsg, sizeof(tSetStaKeyReqMsg) );
    pwdiSetSTAKeyParams = (WDI_SetSTAKeyReqParamsType*)pEventData->pEventData;
    wdiSetSTAKeyRspCb   = (WDI_SetSTAKeyRspCb)pEventData->pCBfnc;
   /*-------------------------------------------------------------------------
@@ -8271,7 +8273,7 @@ WDI_ProcessSetStaBcastKeyReq
   WDI_Status                   wdiStatus           = WDI_STATUS_SUCCESS; 
   wpt_macAddr                  macBSSID;
   wpt_uint8                    ucCurrentBSSSesIdx; 
-  tSetStaKeyReqMsg             halSetStaKeyReqMsg  = {{0}};
+  tSetStaKeyReqMsg             halSetStaKeyReqMsg;
   wpt_uint8                    keyIndex            = 0;
 
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -8288,6 +8290,7 @@ WDI_ProcessSetStaBcastKeyReq
      return WDI_STATUS_E_FAILURE; 
   }
 
+   wpalMemoryZero( &halSetStaKeyReqMsg, sizeof(tSetStaKeyReqMsg) );
    pwdiSetSTAKeyParams = (WDI_SetSTAKeyReqParamsType*)pEventData->pEventData;
    wdiSetSTAKeyRspCb   = (WDI_SetSTAKeyRspCb)pEventData->pCBfnc;
   /*-------------------------------------------------------------------------
@@ -15532,7 +15535,14 @@ WDI_ProcessTriggerBARsp
      WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
                  "%s: Invalid parameters", __FUNCTION__);
      WDI_ASSERT(0);
-     return WDI_STATUS_E_FAILURE; 
+     if( NULL != pEventData )
+     {
+       if( NULL != pEventData->pEventData)
+       {
+         wpalMemoryFree(pEventData->pEventData);
+       }
+     }
+     return WDI_STATUS_E_FAILURE;
   }
 
   wdiTriggerBARspCb = (WDI_TriggerBARspCb)pWDICtx->pfncRspCB;
@@ -18565,6 +18575,18 @@ WDI_PALCtrlMsgCB
   {
     WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
               "Invalid message received on serialize ctrl context API"); 
+    if( pMsg != NULL )
+    {
+      if( pEventData != NULL )
+      {
+        if( pEventData->pEventData != NULL )
+        {
+          wpalMemoryFree(pEventData->pEventData);
+        }
+        wpalMemoryFree(pEventData);
+      }
+      wpalMemoryFree(pMsg);
+    }
     WDI_ASSERT(0);
     return; 
   }

@@ -210,7 +210,7 @@ int hdd_hostapd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        goto exit;
     }
 
-    if ((!ifr) && (!ifr->ifr_data))
+    if ((!ifr) || (!ifr->ifr_data))
     {
         ret = -EINVAL;
         goto exit;

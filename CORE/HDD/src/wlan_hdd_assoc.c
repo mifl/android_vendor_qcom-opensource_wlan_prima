@@ -1346,6 +1346,12 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
             roamStatus, roamResult, roamId ); 
 
     /*Sanity check*/
+    if(pAdapter == NULL)
+    {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
+          "pAdapter is NULL"); 
+       return eHAL_STATUS_FAILURE;
+    }
     if (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)
     {
        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,

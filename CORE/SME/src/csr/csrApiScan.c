@@ -2321,8 +2321,14 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac )
                     csrLearnCountryInformation( pMac, &pBssDescription->Result.BssDescriptor, 
                              pIesLocal, eANI_BOOLEAN_FALSE );
                 }
-
             }
+        }
+        else if( csrIs11hSupported( pMac ) && pIesLocal->Country.present &&
+                 !pMac->roam.configParam.fSupplicantCountryCodeHasPriority )
+        {
+             /* If 11h is supported, store the power information received in the Country IE */
+            csrSaveToChannelPower2G_5G( pMac, pIesLocal->Country.num_triplets * sizeof(tSirMacChanInfo),
+                                        (tSirMacChanInfo *)(&pIesLocal->Country.triplets[0]) );
         }
 
         // append to main list
@@ -2336,7 +2342,7 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac )
     //Tush: If we can find the current 11d info in any of the scan results, or
     // a good enough AP with the 11d info from the scan results then no need to
     // get into ambiguous state
-    if(pMac->scan.fAmbiguous11dInfoFound) 
+    if(pMac->scan.fAmbiguous11dInfoFound)
     {
       if((pMac->scan.fCurrent11dInfoMatch) || (cand_Bss_rssi != -128))
       {
@@ -2447,7 +2453,7 @@ void csrPurgeChannelPower( tpAniSirGlobal pMac, tDblLinkList *pChannelList )
  * Save the channelList into the ultimate storage as the final stage of channel 
  * Input: pCountryInfo -- the country code (e.g. "USI"), channel list, and power limit are all stored inside this data structure
  */
-void csrSaveToChannelPower2G_5G( tpAniSirGlobal pMac, tANI_U32 tableSize, tSirMacChanInfo *channelTable )
+eHalStatus csrSaveToChannelPower2G_5G( tpAniSirGlobal pMac, tANI_U32 tableSize, tSirMacChanInfo *channelTable )
 {
     tANI_U32 i = tableSize / sizeof( tSirMacChanInfo );
     tSirMacChanInfo *pChannelInfo;
@@ -2468,15 +2474,23 @@ void csrSaveToChannelPower2G_5G( tpAniSirGlobal pMac, tANI_U32 tableSize, tSirMa
             pChannelSet->numChannels = pChannelInfo->numChannels;
 
             // Now set the inter-channel offset based on the frequency band the channel set lies in
-            if( CSR_IS_CHANNEL_24GHZ(pChannelSet->firstChannel) )
+            if( (CSR_IS_CHANNEL_24GHZ(pChannelSet->firstChannel)) &&
+                    ((pChannelSet->firstChannel + pChannelSet->numChannels) <= CSR_MAX_24GHz_CHANNEL_NUMBER) )
             {
                 pChannelSet->interChannelOffset = 1;
                 f2GHzInfoFound = TRUE;
             }
-            else
+            else if ( (CSR_IS_CHANNEL_5GHZ(pChannelSet->firstChannel)) &&
+                    ((pChannelSet->firstChannel + (pChannelSet->numChannels * 4)) <= CSR_MAX_5GHz_CHANNEL_NUMBER) )
             {
                 pChannelSet->interChannelOffset = 4;
                 f2GHzInfoFound = FALSE;
+            }
+            else
+            {
+                smsLog( pMac, LOGW, FL("Invalid Channel Present in Country IE"),
+                        pChannelSet->firstChannel);
+                return eHAL_STATUS_FAILURE;
             }
             pChannelSet->txPower = CSR_ROAM_MIN( pChannelInfo->maxTxPower, pMac->roam.configParam.nTxPowerCap );
 
@@ -2526,7 +2540,7 @@ void csrSaveToChannelPower2G_5G( tpAniSirGlobal pMac, tANI_U32 tableSize, tSirMa
         pChannelInfo++;                // move to next entry
     }
 
-    return;
+    return eHAL_STATUS_SUCCESS;
 }
 
 
@@ -3185,8 +3199,12 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
         smsLog(pMac, LOGE, FL("  %d sets each one is %d\n"), pIesLocal->Country.num_triplets, sizeof(tSirMacChanInfo));
         // save the channel/power information from the Channel IE.
         //sizeof(tSirMacChanInfo) has to be 3
-        csrSaveToChannelPower2G_5G( pMac, pIesLocal->Country.num_triplets * sizeof(tSirMacChanInfo), 
-                                        (tSirMacChanInfo *)(&pIesLocal->Country.triplets[0]) );
+        if (eHAL_STATUS_SUCCESS != csrSaveToChannelPower2G_5G( pMac, pIesLocal->Country.num_triplets * sizeof(tSirMacChanInfo),
+                    (tSirMacChanInfo *)(&pIesLocal->Country.triplets[0]) ))
+        {
+            fRet = eANI_BOOLEAN_FALSE;
+            return fRet;
+        }
         // set the indicator of the channel where the country IE was found...
         pMac->scan.channelOf11dInfo = pSirBssDesc->channelId;
         // Populate both band channel lists based on what we found in the country information...
@@ -3234,7 +3252,15 @@ static void csrSaveScanResults( tpAniSirGlobal pMac )
 
     // Now check if we gathered any domain/country specific information
     // If so, we should update channel list and apply Tx power settings
-    csrApplyCountryInformation( pMac, FALSE );
+    if( csrIs11dSupported(pMac) )
+    {
+        csrApplyCountryInformation( pMac, FALSE );
+    }
+    else if( csrIs11hSupported(pMac) && !pMac->roam.configParam.fSupplicantCountryCodeHasPriority)
+    {
+        // If llh is enabled, store the channel + power information gathered  in the cfg
+        csrApplyPower2Current( pMac );
+    }
 }
 
 

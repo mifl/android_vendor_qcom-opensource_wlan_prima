@@ -1651,6 +1651,7 @@ limProcessMlmScanReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     {
         PELOGE(limLog(pMac, LOGE,
                FL("Sending START_SCAN from LIM while one req is pending\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMsgBuf);
         return;
     }
 
@@ -2091,6 +2092,7 @@ limProcessMlmAssocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     if( (psessionEntry = peFindSessionBySessionId(pMac,pMlmAssocReq->sessionId) )== NULL) 
     {
         limLog(pMac, LOGP,FL("Session Does not exist for given sessionID\n"));
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmAssocReq);
         return;
     }
 
@@ -2219,6 +2221,7 @@ limProcessMlmReassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     if((psessionEntry = peFindSessionBySessionId(pMac,pMlmReassocReq->sessionId)) == NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("Session Does not exist for given sessionId\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmReassocReq);
         return;
     }
     
@@ -2373,6 +2376,7 @@ limProcessMlmDisassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     
         PELOGE(limLog(pMac, LOGE,
                   FL("session does not exist for given sessionId\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmDisassocReq);
         return;
     }
 
@@ -2558,6 +2562,7 @@ limProcessMlmDeauthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     {
     
         PELOGE(limLog(pMac, LOGE, FL("session does not exist for given sessionId\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmDeauthReq);
         return;
     }
 
@@ -2651,6 +2656,7 @@ limProcessMlmDeauthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
             break;
 
         case eLIM_STA_IN_IBSS_ROLE:
+            palFreeMemory( pMac->hHdd, (tANI_U8 *) pMlmDeauthReq);
 
             return;
 
@@ -2998,6 +3004,7 @@ tLimMlmRemoveKeyCnf  mlmRemoveKeyCnf;
     {
         PELOGE(limLog(pMac, LOGE,
                     FL("session does not exist for given sessionId\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMsgBuf );
         return;
     }
 
@@ -3657,6 +3664,7 @@ tpLimMlmAddBACnf pMlmAddBACnf;
   {
       PELOGE(limLog(pMac, LOGE,
                FL("session does not exist for given sessionId\n"));)
+      palFreeMemory( pMac->hHdd, (tANI_U8 *) pMsgBuf );
       return;
   }
   
@@ -3749,6 +3757,7 @@ tpLimMlmAddBARsp pMlmAddBARsp;
     {
         PELOGE(limLog(pMac, LOGE,
                   FL("session does not exist for given session ID\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMsgBuf );
         return;
     }
   
@@ -3810,6 +3819,7 @@ void limProcessMlmDelBAReq( tpAniSirGlobal pMac,
     if((psessionEntry = peFindSessionBySessionId(pMac,pMlmDelBAReq->sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given bssId\n"));)
+        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMsgBuf );
         return;
     }
 

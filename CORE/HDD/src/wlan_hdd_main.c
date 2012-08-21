@@ -321,7 +321,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
       goto exit; 
    }
 
-   if ((!ifr) && (!ifr->ifr_data))
+   if ((!ifr) || (!ifr->ifr_data))
    {
        ret = -EINVAL;
        goto exit; 
@@ -2688,15 +2688,18 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
        hdd_adapter_t* pAdapter = hdd_get_adapter(pHddCtx,
                                     WLAN_HDD_INFRA_STATION);
 
-       INIT_COMPLETION(pAdapter->session_close_comp_var);
-       if( eHAL_STATUS_SUCCESS == sme_CloseSession( pHddCtx->hHal,
-                                     pAdapter->p2pSessionId,
-                                     hdd_smeCloseSessionCallback, pAdapter ) )
+       if( NULL != pAdapter )
        {
-           //Block on a completion variable. Can't wait forever though.
-           wait_for_completion_interruptible_timeout(
-                      &pAdapter->session_close_comp_var,
-                      msecs_to_jiffies(WLAN_WAIT_TIME_SESSIONOPENCLOSE));
+           INIT_COMPLETION(pAdapter->session_close_comp_var);
+           if( eHAL_STATUS_SUCCESS == sme_CloseSession( pHddCtx->hHal,
+                                         pAdapter->p2pSessionId,
+                                         hdd_smeCloseSessionCallback, pAdapter ) )
+           {
+               //Block on a completion variable. Can't wait forever though.
+               wait_for_completion_interruptible_timeout(
+                          &pAdapter->session_close_comp_var,
+                          msecs_to_jiffies(WLAN_WAIT_TIME_SESSIONOPENCLOSE));
+           }
        }
    }
 #endif   
@@ -4013,7 +4016,6 @@ static void __exit hdd_module_exit(void)
 {
    hdd_context_t *pHddCtx = NULL;
    v_CONTEXT_t pVosContext = NULL;
-   int attempts = 0;
 
    pr_info("%s: unloading driver v%s\n", WLAN_MODULE_NAME, QWLAN_VERSIONSTR);
 
@@ -4035,13 +4037,10 @@ static void __exit hdd_module_exit(void)
    }
    else
    {
+      /* module exit should never proceed if SSR is not completed */
       while(isWDresetInProgress()){
-         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL, "%s:Reset in Progress by LOGP. Block rmmod for 500ms!!!",__func__);
-         VOS_ASSERT(0);
-         msleep(500);
-         attempts++;
-         if(attempts==MAX_EXIT_ATTEMPTS_DURING_LOGP)
-           break;
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL, "%s:SSR in Progress; block rmmod for 1 second!!!",__func__);
+         msleep(1000);
        }
 
       pHddCtx->isLoadUnloadInProgress = TRUE;
