@@ -222,9 +222,24 @@ tpPESession peFindSessionByBssid(tpAniSirGlobal pMac,  tANI_U8*  bssid,    tANI_
 void peDeleteSession(tpAniSirGlobal pMac, tpPESession psessionEntry)
 {
     tANI_U16 i = 0;
+    tANI_U16 n;
+    TX_TIMER *timer_ptr;
 
     limLog(pMac, LOGW, FL("Trying to delete a session %d.\n "), psessionEntry->peSessionId);
 
+    for (n = 0; n < pMac->lim.maxStation; n++)
+    {
+        timer_ptr = &pMac->lim.limTimers.gpLimCnfWaitTimer[n];
+
+        if(psessionEntry->peSessionId == timer_ptr->sessionId)
+        {
+            if(VOS_TRUE == tx_timer_running(timer_ptr))
+            {
+                tx_timer_deactivate(timer_ptr);
+            }
+        }
+    }
+    
     if(psessionEntry->pLimStartBssReq != NULL)
     {
         palFreeMemory( pMac->hHdd, psessionEntry->pLimStartBssReq );

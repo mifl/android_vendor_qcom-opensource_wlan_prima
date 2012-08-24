@@ -9631,6 +9631,13 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
                      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
                                 "TX Ring could not empty, not normal" );
                      VOS_ASSERT(0);
+                     /* STA mode, stall detected, reload driver */
+                     if(VOS_STA_MODE == vos_get_conparam())
+                     {
+                        vos_mem_free(pMsg->bodyptr);
+                        vos_wlanRestart();
+                        return VOS_STATUS_E_FAILURE;
+                     }
                      break;
                  }
                  vos_sleep(WDA_WAIT_MSEC_TILL_RING_EMPTY);
@@ -9663,6 +9670,13 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
                      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
                                 "TX Ring could not empty, not normal" );
                      VOS_ASSERT(0);
+                     /* STA mode, stall detected, reload driver */
+                     if(VOS_STA_MODE == vos_get_conparam())
+                     {
+                        vos_mem_free(pMsg->bodyptr);
+                        vos_wlanRestart();
+                        return VOS_STATUS_E_FAILURE;
+                     }
                      break;
                  }
                  vos_sleep(WDA_WAIT_MSEC_TILL_RING_EMPTY);
