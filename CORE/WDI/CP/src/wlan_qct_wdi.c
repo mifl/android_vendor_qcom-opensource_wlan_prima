@@ -89,7 +89,6 @@
 /*===========================================================================
    WLAN DAL Control Path Internal Data Definitions and Declarations 
  ===========================================================================*/
-#define WDI_SET_POWER_STATE_TIMEOUT  10000 /* in msec a very high upper limit */
 #define WDI_WCTS_ACTION_TIMEOUT       2000 /* in msec a very high upper limit */
 
 
@@ -1303,6 +1302,7 @@ WDI_Stop
 )
 {
   WDI_EventInfoType      wdiEventData;
+  WDI_ControlBlockType*  pWDICtx = &gWDICb;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*------------------------------------------------------------------------
@@ -1315,6 +1315,15 @@ WDI_Stop
 
     return WDI_STATUS_E_NOT_ALLOWED; 
   }
+
+  /*Access to the global state must be locked before cleaning */
+  wpalMutexAcquire(&pWDICtx->wptMutex);
+
+  /*Clear all pending request*/
+  WDI_ClearPendingRequests(pWDICtx);
+
+  /*We have completed cleaning unlock now*/
+  wpalMutexRelease(&pWDICtx->wptMutex);
 
   /*------------------------------------------------------------------------
     Fill in Event data and post to the Main FSM

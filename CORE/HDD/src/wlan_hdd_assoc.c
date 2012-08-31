@@ -958,7 +958,11 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
 #ifdef CONFIG_CFG80211
         hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 #endif
-        pr_info("wlan: connection failed\n");
+        pr_info("wlan: connection failed with %02x:%02x:%02x:%02x:%02x:%02x"
+                " reason:%d and Status:%d\n", pWextState->req_bssId[0],
+                pWextState->req_bssId[1], pWextState->req_bssId[2],
+                pWextState->req_bssId[3], pWextState->req_bssId[4],
+                pWextState->req_bssId[5], roamResult, roamStatus);
 
         /*Handle all failure conditions*/
         hdd_connSetConnectionState( pHddStaCtx, eConnectionState_NotConnected);

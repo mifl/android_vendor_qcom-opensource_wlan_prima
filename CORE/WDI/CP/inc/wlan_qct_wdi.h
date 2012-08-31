@@ -130,6 +130,14 @@ of NV fragment is nt possbile.The next multiple of 1Kb is 3K */
 /*Version string max length (including NUL) */
 #define WDI_VERSION_LENGTH  64
 
+
+/*WDI Response timeout - how long will WDI wait for a response from the device
+    - it should be large enough to allow any other failure mechanism to kick
+      in before we get to a timeout (ms units)*/
+#define WDI_RESPONSE_TIMEOUT   10000
+
+#define WDI_SET_POWER_STATE_TIMEOUT  10000 /* in msec a very high upper limit */
+
 /*============================================================================
  *     GENERIC STRUCTURES 
   

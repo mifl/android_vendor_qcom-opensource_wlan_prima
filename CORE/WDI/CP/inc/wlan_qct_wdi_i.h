@@ -85,11 +85,6 @@ when        who    what, where, why
 #define WDI_ERR_RSP_TIMEOUT                3 
 #define WDI_ERR_DEV_INTERNAL_FAILURE       4
 
-/*WDI Response timeout - how long will WDI wait for a response from the device     
-    - it should be large enough to allow any other failure mechanism to kick 
-      in before we get to a timeout (ms units)*/
-#define WDI_RESPONSE_TIMEOUT   10000
-
 /*In prima 12 HW stations are supported including BCAST STA(staId 0)
  and SELF STA(staId 1) so total ASSOC stations which can connect to Prima
  SoftAP = 12 - 1(Self STa) - 1(Bcast Sta) = 10 Stations. */

@@ -3422,7 +3422,7 @@ free_mem:
  * This function is used to start the association process 
  */
 int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter, 
-        const u8 *ssid, size_t ssid_len, const u8 *bssid)
+        const u8 *ssid, size_t ssid_len, const u8 *bssid, u8 operatingChannel)
 {
     int status = 0;
     hdd_wext_state_t *pWextState;
@@ -3553,6 +3553,12 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
         }
 #endif /* FEATURE_WLAN_WAPI */
         pRoamProfile->csrPersona = pAdapter->device_mode;
+
+        if( operatingChannel )
+        {
+           pRoamProfile->ChannelInfo.ChannelList = &operatingChannel;
+           pRoamProfile->ChannelInfo.numOfChannels = 1;
+        }
 
         status = sme_RoamConnect( WLAN_HDD_GET_HAL_CTX(pAdapter), 
                             pAdapter->sessionId, pRoamProfile, &roamId);
@@ -4079,7 +4085,8 @@ static int wlan_hdd_cfg80211_connect( struct wiphy *wiphy,
     }
 
     status = wlan_hdd_cfg80211_connect_start(pAdapter, req->ssid, 
-                                                req->ssid_len, req->bssid);
+                                                req->ssid_len, req->bssid,
+                                                req->channel->hw_value);
 
     if (0 > status)
     {
@@ -4364,7 +4371,7 @@ static int wlan_hdd_cfg80211_join_ibss( struct wiphy *wiphy,
 
     /* Issue connect start */
     status = wlan_hdd_cfg80211_connect_start(pAdapter, params->ssid, 
-            params->ssid_len, params->bssid);
+            params->ssid_len, params->bssid, 0);
 
     if (0 > status)
     {
