@@ -966,18 +966,7 @@ VOS_STATUS vos_stop( v_CONTEXT_t vosContext )
         VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
          "%s: WDA_stop reporting other error", __func__ );
      }
-     /* if WDA stop failed, call WDA shutdown to cleanup WDA/WDI */
-     vosStatus = WDA_shutdown( vosContext, VOS_TRUE );
-     if (VOS_IS_STATUS_SUCCESS( vosStatus ) )
-     {
-        hdd_set_ssr_required( VOS_TRUE );
-     }
-     else
-     {
-        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
-                               "%s: Failed to shutdown WDA", __func__ );
-        VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
-     }
+     WDA_stopFailed(vosContext);
   }
 #endif
 
@@ -1075,12 +1064,30 @@ VOS_STATUS vos_close( v_CONTEXT_t vosContext )
   }
 
 #ifdef FEATURE_WLAN_INTEGRATED_SOC
-  vosStatus = WDA_close( vosContext );
-  if (!VOS_IS_STATUS_SUCCESS(vosStatus))
+  if ( TRUE == WDA_needShutdown(vosContext ))
   {
-     VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-         "%s: Failed to close WDA", __func__);
-     VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
+     /* if WDA stop failed, call WDA shutdown to cleanup WDA/WDI */
+     vosStatus = WDA_shutdown( vosContext, VOS_TRUE );
+     if (VOS_IS_STATUS_SUCCESS( vosStatus ) )
+     {
+        hdd_set_ssr_required( VOS_TRUE );
+     }
+     else
+     {
+        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
+                               "%s: Failed to shutdown WDA", __func__ );
+        VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
+     }
+  } 
+  else 
+  {
+     vosStatus = WDA_close( vosContext );
+     if (!VOS_IS_STATUS_SUCCESS(vosStatus))
+     {
+        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+            "%s: Failed to close WDA", __func__);
+        VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
+     }
   }
   
   /* Let DXE return packets in WDA_close and then free them here */

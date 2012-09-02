@@ -1730,7 +1730,10 @@ static wpt_status dxeRXFrameReady
             descCtrl       = currentDesc->descCtrl.ctrl;
          }
 
-         if(invalidatedFound)
+          /* Invalidated descriptor found, and that is not head descriptor
+           * This means HW/SW descriptor miss match happen, and we may recover with just resync
+           * Try re-sync here */
+         if((invalidatedFound) && (0 != descLoop))
          {
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "Found New Sync location with HW, handle frames from there");
@@ -1739,6 +1742,16 @@ static wpt_status dxeRXFrameReady
                      "re-sync routed %d frames to upper layer", (int)frameCount);
             frameCount = 0;
          }
+         /* Successive Empty interrupt
+          * But this case, first descriptor also invalidated, then it means head descriptor 
+          * is linked with already handled RX frame, then could not unlock RX frame
+          * This is just Out of RX buffer pool, not need to anything here */
+         else if((invalidatedFound) && (0 == descLoop))
+         {
+            HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
+                     "Out of RX Low resource, and INT came in, do nothing till get RX resource");
+         }
+         /* Critical error, reload driver */
          else
          {
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
@@ -1926,6 +1939,7 @@ void dxeRXEventHandler
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "RX Ready WLAN Driver re-loading in progress");
+      return;
    }
 
    if((WLANDXE_POWER_STATE_IMPS == dxeCtxt->hostPowerState) ||
@@ -1992,7 +2006,8 @@ void dxeRXEventHandler
       {
          /* Error Happen during transaction, Handle it */
       }
-      else if(WLANDXE_CH_STAT_INT_DONE_MASK & chHighStat)
+      else if((WLANDXE_CH_STAT_INT_DONE_MASK & chHighStat) ||
+              (WLANDXE_CH_STAT_INT_ED_MASK & chHighStat))
       {
          /* Handle RX Ready for high priority channel */
          status = dxeRXFrameReady(dxeCtxt,
@@ -2702,7 +2717,7 @@ static wpt_status dxeTXCompFrame
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeTXCompFrame TXCompCB is not registered");
-      return eWLAN_PAL_STATUS_E_EMPTY;
+      return eWLAN_PAL_STATUS_SUCCESS;
    }
 
    wpalMutexAcquire(&channelEntry->dxeChannelLock);
@@ -2713,7 +2728,7 @@ static wpt_status dxeTXCompFrame
    if( currentCtrlBlk == channelEntry->headCtrlBlk )
    {
       wpalMutexRelease(&channelEntry->dxeChannelLock);
-      return eWLAN_PAL_STATUS_E_EMPTY;
+      return eWLAN_PAL_STATUS_SUCCESS;
    }
 
    /*  */
@@ -2826,7 +2841,8 @@ void dxeTXEventHandler
             "%s Enter", __FUNCTION__);
 
    dxeCtxt = (WLANDXE_CtrlBlkType *)(msgContent->pContext);
-
+   dxeCtxt->ucTxMsgCnt = 0;
+   
    if(eWLAN_PAL_TRUE == dxeCtxt->driverReloadInProcessing)
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
@@ -2844,7 +2860,6 @@ void dxeTXEventHandler
       {
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                   "dxeTXEventHandler IMPS COMP interrupt fail");
-         return;         
       }
       if((dxeCtxt->txCompletedFrames) &&
          (eWLAN_PAL_FALSE == dxeCtxt->txIntEnable))
@@ -2869,8 +2884,6 @@ void dxeTXEventHandler
       return;
    }
 
-   dxeCtxt->ucTxMsgCnt = 0;   
-   
    /* Disable device interrupt */
    /* Read whole interrupt mask register and exclusive only this channel int */
    status = wpalReadRegister(WLANDXE_INT_SRC_RAW_ADDRESS,
@@ -3106,6 +3119,7 @@ static void dxeTXISR
    /* Return from here if the RIVA is in IMPS, to avoid register access */
    if(WLANDXE_POWER_STATE_DOWN == dxeCtxt->hostPowerState)
    {
+      dxeCtxt->txIntEnable = eWLAN_PAL_FALSE;
       /* Disable interrupt at here,
          IMPS or IMPS Pending state should not access RIVA register */
       status = wpalDisableInterrupt(DXE_INTERRUPT_TX_COMPLE);
@@ -4146,6 +4160,7 @@ wpt_status WLANDXE_SetPowerState
             if(eWLAN_PAL_TRUE == pDxeCtrlBlk->txIntDisabledByIMPS)
             {
                pDxeCtrlBlk->txIntDisabledByIMPS = eWLAN_PAL_FALSE;
+               pDxeCtrlBlk->txIntEnable =  eWLAN_PAL_TRUE;
                /* Enable RX interrupt at here, if new PS is not IMPS */
                status = wpalEnableInterrupt(DXE_INTERRUPT_TX_COMPLE);
                if(eWLAN_PAL_STATUS_SUCCESS != status)

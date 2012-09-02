@@ -9602,87 +9602,11 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
       }
       case WDA_DELETE_BSS_REQ:
       {
-         wpt_uint8  staIdx;
-         wpt_uint8  bssIdx = ((tDeleteBssParams *)pMsg->bodyptr)->bssIdx;
-         wpt_uint8  reservedResourceBySta;
-         wpt_uint16  waitLoop = 0;
-
-         if (WDI_DS_GetStaIdxFromBssIdx(pWDA->pWdiContext, bssIdx, &staIdx))
-         {
-            VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-                       "%s: Get STA index from BSS index Fail", __FUNCTION__);
-            VOS_ASSERT(0) ;
-         }
-         while (1) 
-         {
-             reservedResourceBySta = WDI_DS_GetReservedResCountPerSTA(pWDA->pWdiContext, WDI_DATA_POOL_ID, staIdx);
-             /* Wait till reserved resource by STA must be none */
-             if (reservedResourceBySta == 0)
-             {
-                 VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                            "STA %d BSS %d TX RING empty %d", staIdx, bssIdx );
-                 break;
-
-             }
-             else
-             {
-                 if(waitLoop > WDA_MAX_RETRIES_TILL_RING_EMPTY)
-                 {
-                     VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
-                                "TX Ring could not empty, not normal" );
-                     VOS_ASSERT(0);
-                     /* STA mode, stall detected, reload driver */
-                     if(VOS_STA_MODE == vos_get_conparam())
-                     {
-                        vos_mem_free(pMsg->bodyptr);
-                        vos_wlanRestart();
-                        return VOS_STATUS_E_FAILURE;
-                     }
-                     break;
-                 }
-                 vos_sleep(WDA_WAIT_MSEC_TILL_RING_EMPTY);
-                 waitLoop++;
-             }
-         }
          WDA_ProcessDelBssReq(pWDA, (tDeleteBssParams *)pMsg->bodyptr) ;
          break ;
       }
       case WDA_DELETE_STA_REQ:
       {
-         tDeleteStaParams *delSta = (tDeleteStaParams *)pMsg->bodyptr;
-         wpt_uint8 reservedResourceBySta;
-         wpt_uint16  waitLoop = 0;
-
-         while (1) 
-         {
-             reservedResourceBySta = WDI_DS_GetReservedResCountPerSTA(pWDA->pWdiContext, WDI_DATA_POOL_ID, delSta->staIdx);
-             /* Wait till reserved resource by STA must be none */
-             if (reservedResourceBySta == 0)
-             {
-                 VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                            "STA %d TX RING empty %d", delSta->staIdx );
-                 break;
-             }
-             else
-             {
-                 if(waitLoop > WDA_MAX_RETRIES_TILL_RING_EMPTY)
-                 {
-                     VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
-                                "TX Ring could not empty, not normal" );
-                     VOS_ASSERT(0);
-                     /* STA mode, stall detected, reload driver */
-                     if(VOS_STA_MODE == vos_get_conparam())
-                     {
-                        vos_mem_free(pMsg->bodyptr);
-                        vos_wlanRestart();
-                        return VOS_STATUS_E_FAILURE;
-                     }
-                     break;
-                 }
-                 vos_sleep(WDA_WAIT_MSEC_TILL_RING_EMPTY);
-                 waitLoop++;
-             }
-         }
          WDA_ProcessDelStaReq(pWDA, (tDeleteStaParams *)pMsg->bodyptr) ;
          break ;
       }
@@ -12073,3 +11997,25 @@ VOS_STATUS WDA_shutdown(v_PVOID_t pVosContext, wpt_boolean closeTransport)
 
    return status;
 }
+/*
+ * FUNCTION: WDA_stopFailed
+ * WDA stop failed
+ */
+
+void WDA_stopFailed(v_PVOID_t pVosContext)
+{
+   tWDA_CbContext *pWDA = (tWDA_CbContext *)VOS_GET_WDA_CTXT(pVosContext);
+   pWDA->needShutdown  = TRUE;
+}
+/*
+ * FUNCTION: WDA_needShutdown
+ * WDA needs a shutdown
+ */
+
+v_BOOL_t WDA_needShutdown(v_PVOID_t pVosContext)
+{
+   tWDA_CbContext *pWDA = (tWDA_CbContext *)VOS_GET_WDA_CTXT(pVosContext);
+   return pWDA->needShutdown;   
+}
+
+
