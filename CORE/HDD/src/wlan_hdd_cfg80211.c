@@ -4106,9 +4106,18 @@ static int wlan_hdd_cfg80211_connect( struct wiphy *wiphy,
         return status;
     }
 
-    status = wlan_hdd_cfg80211_connect_start(pAdapter, req->ssid, 
-                                                req->ssid_len, req->bssid,
-                                                req->channel->hw_value);
+    if ( req->channel )
+    {
+        status = wlan_hdd_cfg80211_connect_start(pAdapter, req->ssid,
+                                                  req->ssid_len, req->bssid,
+                                                  req->channel->hw_value);
+    }
+    else
+    {
+        status = wlan_hdd_cfg80211_connect_start(pAdapter, req->ssid,
+                                                  req->ssid_len, req->bssid,
+                                                  0);
+    }
 
     if (0 > status)
     {
