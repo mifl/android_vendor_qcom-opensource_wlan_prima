@@ -995,6 +995,7 @@ limSendSmeDisassocNtf(tpAniSirGlobal pMac,
             /* Update SME session Id and Transaction Id */
             pSirSmeDisassocInd->sessionId = smesessionId;
             pSirSmeDisassocInd->transactionId = smetransactionId;
+            pSirSmeDisassocInd->reasonCode = reasonCode;
 #endif
             pBuf = (tANI_U8 *) &pSirSmeDisassocInd->statusCode;
 
@@ -1101,6 +1102,7 @@ limSendSmeDisassocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESession pses
     pSirSmeDisassocInd->sessionId     =  psessionEntry->smeSessionId;
     pSirSmeDisassocInd->transactionId =  psessionEntry->transactionId;
     pSirSmeDisassocInd->statusCode    =  pStaDs->mlmStaContext.disassocReason;
+    pSirSmeDisassocInd->reasonCode    =  pStaDs->mlmStaContext.disassocReason;
     
     palCopyMemory( pMac->hHdd, pSirSmeDisassocInd->bssId , psessionEntry->bssId , sizeof(tSirMacAddr));
  
@@ -1171,6 +1173,7 @@ limSendSmeDeauthInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession psess
     palCopyMemory( pMac->hHdd, pSirSmeDeauthInd->bssId, psessionEntry->bssId, sizeof(tSirMacAddr));
     //peerMacAddr
     palCopyMemory( pMac->hHdd, pSirSmeDeauthInd->peerMacAddr, pStaDs->staAddr, sizeof(tSirMacAddr));
+    pSirSmeDeauthInd->reasonCode = pStaDs->mlmStaContext.disassocReason;
 #else
     //statusCode
     pBuf  = (tANI_U8 *) &pSirSmeDeauthInd->statusCode;
@@ -1323,6 +1326,7 @@ limSendSmeDeauthNtf(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr, tSirResultCode
 #else
             pSirSmeDeauthInd->messageType = eWNI_SME_DEAUTH_IND;
             pSirSmeDeauthInd->length      = sizeof(tSirSmeDeauthInd);
+            pSirSmeDeauthInd->reasonCode = eSIR_MAC_UNSPEC_FAILURE_REASON;
 #endif
             // status code
             pBuf  = (tANI_U8 *) &pSirSmeDeauthInd->statusCode;

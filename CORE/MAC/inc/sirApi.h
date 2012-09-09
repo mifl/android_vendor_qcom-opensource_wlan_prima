@@ -1927,6 +1927,7 @@ typedef struct sSirSmeDisassocInd
 #ifdef WLAN_SOFTAP_FEATURE
     tANI_U16            staId;
 #endif
+    tANI_U32            reasonCode;
 } tSirSmeDisassocInd, *tpSirSmeDisassocInd;
 
 /// Definition for Disassociation confirm
@@ -1989,6 +1990,7 @@ typedef struct sSirSmeDeauthInd
 #ifdef WLAN_SOFTAP_FEATURE
     tANI_U16            staId;
 #endif
+    tANI_U32            reasonCode;
 } tSirSmeDeauthInd, *tpSirSmeDeauthInd;
 
 /// Definition for Deauthentication confirm

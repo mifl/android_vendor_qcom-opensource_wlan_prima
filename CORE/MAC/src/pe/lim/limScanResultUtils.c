@@ -619,6 +619,8 @@ limLookupNaddHashEntry(tpAniSirGlobal pMac,
             (palEqualMemory( pMac->hHdd,(tANI_U8 *) pBssDescr->bssDescription.bssId,
                       (tANI_U8 *) ptemp->bssDescription.bssId,
                       sizeof(tSirMacAddr))) &&   //matching BSSID
+            (pBssDescr->bssDescription.channelId ==
+                                      ptemp->bssDescription.channelId) &&
             ((pSirCapTemp->ess) ||    //we are done for infrastructure
             //For IBSS, matching SSID, nwType and channelId
             ((palEqualMemory( pMac->hHdd,((tANI_U8 *) &pBssDescr->bssDescription.ieFields + 1),

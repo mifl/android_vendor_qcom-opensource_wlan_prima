@@ -1705,6 +1705,7 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
     struct wireless_dev *wdev;
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR( ndev );
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
+    hdd_adapter_t  *pP2pAdapter = NULL;
     tCsrRoamProfile *pRoamProfile = NULL;
     eCsrRoamBssType LastBSSType;
     hdd_config_t *pConfig = pHddCtx->cfg_ini;
@@ -1790,6 +1791,26 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                 hddLog(VOS_TRACE_LEVEL_INFO_HIGH,
                       "%s: setting interface Type to %s", __func__,
                       (type == NL80211_IFTYPE_AP) ? "SoftAP" : "P2pGo");
+
+                if (NL80211_IFTYPE_AP == type)
+                {
+                     /* As Loading WLAN Driver one interface being created for p2p device
+                      * address. This will take one HW STA and the max number of clients
+                      * that can connect to softAP will be reduced by one. so while changing
+                      * the interface type to NL80211_IFTYPE_AP (SoftAP) remove p2p0
+                      * interface as it is not required in SoftAP mode.
+                      */
+
+                    // Get P2P Adapter
+                    pP2pAdapter = hdd_get_adapter(pHddCtx, WLAN_HDD_P2P_DEVICE);
+
+                    if (pP2pAdapter)
+                    {
+                        hdd_stop_adapter(pHddCtx, pP2pAdapter);
+                        hdd_deinit_adapter(pHddCtx, pP2pAdapter);
+                        hdd_close_adapter(pHddCtx, pP2pAdapter, VOS_TRUE);
+                    }
+                }
 
                 //De-init the adapter.
                 hdd_stop_adapter( pHddCtx, pAdapter );
@@ -4180,10 +4201,10 @@ static int wlan_hdd_cfg80211_disconnect( struct wiphy *wiphy,
 
                 case WLAN_REASON_PREV_AUTH_NOT_VALID:
                 case WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA:
+                case WLAN_REASON_DEAUTH_LEAVING:
                     reasonCode = eCSR_DISCONNECT_REASON_DEAUTH;
                     break;
 
-                case WLAN_REASON_DEAUTH_LEAVING:
                 default:
                     reasonCode = eCSR_DISCONNECT_REASON_UNSPECIFIED;
                     break;
