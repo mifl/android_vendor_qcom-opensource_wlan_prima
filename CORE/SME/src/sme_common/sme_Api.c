@@ -3516,7 +3516,13 @@ eHalStatus sme_RoamSetKey(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamSetKey *pS
       smsLog(pMac, LOG2, "\n sessionId=%d roamId=%d\n", sessionId, roamId);       
 
       pSession = CSR_GET_SESSION(pMac, sessionId);
-      
+
+      if(!pSession)
+      {
+         smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+         return eHAL_STATUS_FAILURE;
+      }
+
       if(CSR_IS_INFRA_AP(&pSession->connectedProfile))
       {
          if(pSetKey->keyDirection == eSIR_TX_DEFAULT)
@@ -5151,6 +5157,12 @@ eHalStatus sme_RegisterMgmtFrame(tHalHandle hHal, tANI_U8 sessionId,
         tSirRegisterMgmtFrame *pMsg;
         tANI_U16 len;
         tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
+
+        if(!pSession)
+        {
+            smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+            return eHAL_STATUS_FAILURE;
+        }
         
         if( !pSession->sessionActive ) 
             VOS_ASSERT(0);
@@ -5197,6 +5209,12 @@ eHalStatus sme_DeregisterMgmtFrame(tHalHandle hHal, tANI_U8 sessionId,
         tSirRegisterMgmtFrame *pMsg;
         tANI_U16 len;
         tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
+
+        if(!pSession)
+        {
+            smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+            return eHAL_STATUS_FAILURE;
+        }
         
         if( !pSession->sessionActive ) 
             VOS_ASSERT(0);
@@ -6190,6 +6208,12 @@ eHalStatus sme_HideSSID(tHalHandle hHal, v_U8_t sessionId, v_U8_t ssidHidden)
     {
         tpSirUpdateParams pMsg;
         tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
+
+        if(!pSession)
+        {
+            smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+            return eHAL_STATUS_FAILURE;
+        }
         
         if( !pSession->sessionActive ) 
             VOS_ASSERT(0);
