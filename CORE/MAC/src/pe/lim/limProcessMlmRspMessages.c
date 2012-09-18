@@ -610,9 +610,7 @@ limProcessMlmAuthCnf(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                 MTRACE(macTrace(pMac, TRACE_CODE_SME_STATE, 0, pMac->lim.gLimSmeState));
                 psessionEntry->limMlmState = eLIM_MLM_IDLE_STATE;
                 MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, 0, pMac->lim.gLimMlmState));
-                if(limSetLinkState(pMac, eSIR_LINK_IDLE_STATE,psessionEntry->bssId,
-                    psessionEntry->selfMacAddr, NULL, NULL) != eSIR_SUCCESS)
-                   PELOGE(limLog(pMac, LOGE,  FL("Failed to set the LinkState.\n"));)
+
 #if defined(ANI_AP_CLIENT_SDK)
                 if (psessionEntry->limSystemRole == eLIM_STA_ROLE)
                 {
