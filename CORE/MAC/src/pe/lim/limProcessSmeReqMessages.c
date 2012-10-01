@@ -551,7 +551,7 @@ __limHandleSmeStartBssRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 
         /*Store Persona */
         psessionEntry->pePersona = pSmeStartBssReq->bssPersona;
-        VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_ERROR,FL("PE PERSONA=%d\n"),
+        VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,FL("PE PERSONA=%d"),
             psessionEntry->pePersona);
 
         psessionEntry->maxTxPower = cfgGetRegulatoryMaxTransmitPower( pMac, 

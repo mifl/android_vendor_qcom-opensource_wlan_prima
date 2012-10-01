@@ -2340,7 +2340,7 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
     if (psessionEntry->pLimJoinReq->bssDescription.mdiePresent)
     {
 #if defined WLAN_FEATURE_VOWIFI_11R_DEBUG
-        limLog( pMac, LOGE, FL("mdie = %02x %02x %02x\n"), 
+        limLog( pMac, LOG1, FL("mdie = %02x %02x %02x"), 
                 (unsigned int)psessionEntry->pLimJoinReq->bssDescription.mdie[0],
                 (unsigned int)psessionEntry->pLimJoinReq->bssDescription.mdie[1],
                 (unsigned int)psessionEntry->pLimJoinReq->bssDescription.mdie[2]);
@@ -2350,7 +2350,7 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
     else 
     {
         // No 11r IEs dont send any MDIE
-        limLog( pMac, LOGE, FL("mdie not present\n")); 
+        limLog( pMac, LOG1, FL("mdie not present")); 
     }
 #endif
 

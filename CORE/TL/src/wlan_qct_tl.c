@@ -5281,7 +5281,7 @@ WLANTL_STATxConn
 
   if (( VOS_STATUS_SUCCESS != vosStatus ) || ( NULL == vosDataBuff ))
   {
-    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+    TLLOG1(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
                "WLAN TL:No more data at HDD status %d", vosStatus));
     *pvosDataBuff = NULL;
 

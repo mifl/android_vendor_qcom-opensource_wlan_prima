@@ -86,7 +86,7 @@ VOS_STATUS csrNeighborRoamIssueNeighborRptRequest(tpAniSirGlobal pMac);
 {\
     pMac->roam.neighborRoamInfo.prevNeighborRoamState = pMac->roam.neighborRoamInfo.neighborRoamState;\
     pMac->roam.neighborRoamInfo.neighborRoamState = newState;\
-    smsLog(pMac, LOGE, FL("Neighbor Roam Transition from state %d ==> %d"), pMac->roam.neighborRoamInfo.prevNeighborRoamState, newState);\
+    smsLog(pMac, LOG1, FL("Neighbor Roam Transition from state %d ==> %d"), pMac->roam.neighborRoamInfo.prevNeighborRoamState, newState);\
 }
 
 /* ---------------------------------------------------------------------------
@@ -2004,7 +2004,7 @@ eHalStatus csrNeighborRoamIndicateConnect(tpAniSirGlobal pMac, tANI_U8 sessionId
     eHalStatus  status = eHAL_STATUS_SUCCESS;
     VOS_STATUS  vstatus;
 
-    smsLog(pMac, LOGE, FL("Connect indication received with session id %d in state %d"), sessionId, pNeighborRoamInfo->neighborRoamState);
+    smsLog(pMac, LOG2, FL("Connect indication received with session id %d in state %d"), sessionId, pNeighborRoamInfo->neighborRoamState);
 
     switch (pNeighborRoamInfo->neighborRoamState)
     {
@@ -2017,21 +2017,21 @@ eHalStatus csrNeighborRoamIndicateConnect(tpAniSirGlobal pMac, tANI_U8 sessionId
             }
             /* Fall through if the status is SUCCESS */
         case eCSR_NEIGHBOR_ROAM_STATE_INIT:
-            /* Reset all the data structures here */ 
+            /* Reset all the data structures here */
             csrNeighborRoamResetInitStateControlInfo(pMac);
 
             CSR_NEIGHBOR_ROAM_STATE_TRANSITION(eCSR_NEIGHBOR_ROAM_STATE_CONNECTED)
 
             pNeighborRoamInfo->csrSessionId = sessionId;
-            vos_mem_copy(pNeighborRoamInfo->currAPbssid, 
+            vos_mem_copy(pNeighborRoamInfo->currAPbssid,
                         pMac->roam.roamSession[sessionId].connectedProfile.bssid, sizeof(tCsrBssid));
             pNeighborRoamInfo->neighborScanTimerInfo.pMac = pMac;
             pNeighborRoamInfo->neighborScanTimerInfo.sessionId = sessionId;
-            
+
 #ifdef WLAN_FEATURE_VOWIFI_11R
             /* Now we can clear the preauthDone that was saved as we are connected afresh */
             csrNeighborRoamFreeRoamableBSSList(pMac, &pMac->roam.neighborRoamInfo.FTRoamInfo.preAuthDoneList);
-            
+
             if (pMac->roam.roamSession[sessionId].connectedProfile.MDID.mdiePresent)
                 pNeighborRoamInfo->is11rAssoc = eANI_BOOLEAN_TRUE;
             else
@@ -2050,10 +2050,10 @@ eHalStatus csrNeighborRoamIndicateConnect(tpAniSirGlobal pMac, tANI_U8 sessionId
             NEIGHBOR_ROAM_DEBUG(pMac, LOG2, FL("Registering neighbor lookup DOWN event with TL, RSSI = %d"), pNeighborRoamInfo->currentNeighborLookupThreshold);
             /* Register Neighbor Lookup threshold callback with TL for DOWN event only */
             vstatus = WLANTL_RegRSSIIndicationCB(pMac->roam.gVosContext, (v_S7_t)pNeighborRoamInfo->currentNeighborLookupThreshold * (-1),
-                                            WLANTL_HO_THRESHOLD_DOWN, 
-                                            csrNeighborRoamNeighborLookupDOWNCallback, 
+                                            WLANTL_HO_THRESHOLD_DOWN,
+                                            csrNeighborRoamNeighborLookupDOWNCallback,
                                             VOS_MODULE_ID_SME, pMac);
-            
+
             if(!VOS_IS_STATUS_SUCCESS( vstatus))
             {
                //err msg
@@ -2061,7 +2061,7 @@ eHalStatus csrNeighborRoamIndicateConnect(tpAniSirGlobal pMac, tANI_U8 sessionId
                status = eHAL_STATUS_FAILURE;
             }
 
-            
+
             break;
         default:
             smsLog(pMac, LOGE, FL("Connect event received in invalid state %d..Ignoring..."), pNeighborRoamInfo->neighborRoamState);
