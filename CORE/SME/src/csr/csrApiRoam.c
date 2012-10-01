@@ -5456,7 +5456,7 @@ eHalStatus csrRoamConnect(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrRoamProfi
                         break;
                     }
                     status = csrScanGetResult(pMac, pScanFilter, &hBSSList);
-                    smsLog(pMac, LOGE, "************ csrScanGetResult Status ********* %d\n", status);
+                    smsLog(pMac, LOG1, "************ csrScanGetResult Status ********* %d\n", status);
                     if(HAL_STATUS_SUCCESS(status))
                     {
 
@@ -6915,7 +6915,7 @@ void csrRoamJoinedStateMsgProcessor( tpAniSirGlobal pMac, void *pMsgBuf )
     switch (pSirMsg->messageType) 
     {
        case eWNI_SME_GET_STATISTICS_RSP:
-          smsLog( pMac, LOGW, FL("Stats rsp from PE\n"));
+          smsLog( pMac, LOG2, FL("Stats rsp from PE\n"));
           csrRoamStatsRspProcessor( pMac, pSirMsg );
           break;
 #ifdef WLAN_SOFTAP_FEATURE
@@ -8295,12 +8295,12 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
             break;
 
         case eWNI_SME_GET_STATISTICS_RSP:
-            smsLog( pMac, LOGW, FL("Stats rsp from PE\n"));
+            smsLog( pMac, LOG2, FL("Stats rsp from PE\n"));
             csrRoamStatsRspProcessor( pMac, pSirMsg );
             break;
 
         case eWNI_SME_GET_RSSI_REQ:
-            smsLog( pMac, LOGW, FL("GetRssiReq from self\n"));
+            smsLog( pMac, LOG2, FL("GetRssiReq from self\n"));
             csrUpdateRssi( pMac, pSirMsg );
             break;
 
@@ -12606,7 +12606,7 @@ void csrRoamStatsRspProcessor(tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg)
          switch(counter)
          {
          case eCsrSummaryStats:
-            smsLog( pMac, LOG1, FL("csrRoamStatsRspProcessor:summary stats\n"));
+            smsLog( pMac, LOG2, FL("csrRoamStatsRspProcessor:summary stats\n"));
             status = palCopyMemory(pMac->hHdd, (tANI_U8 *)&pMac->roam.summaryStatsInfo, 
                                    pStats, sizeof(tCsrSummaryStatsInfo));
             if(!HAL_STATUS_SUCCESS(status))
@@ -12618,7 +12618,7 @@ void csrRoamStatsRspProcessor(tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg)
             break;
 
          case eCsrGlobalClassAStats:
-            smsLog( pMac, LOG1, FL("csrRoamStatsRspProcessor:ClassA stats\n"));
+            smsLog( pMac, LOG2, FL("csrRoamStatsRspProcessor:ClassA stats\n"));
             status = palCopyMemory(pMac->hHdd, (tANI_U8 *)&pMac->roam.classAStatsInfo, 
                                    pStats, sizeof(tCsrGlobalClassAStatsInfo));
             if(!HAL_STATUS_SUCCESS(status))
@@ -12630,7 +12630,7 @@ void csrRoamStatsRspProcessor(tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg)
             break;
 
          case eCsrGlobalClassBStats:
-            smsLog( pMac, LOG1, FL("csrRoamStatsRspProcessor:ClassB stats\n"));
+            smsLog( pMac, LOG2, FL("csrRoamStatsRspProcessor:ClassB stats\n"));
             status = palCopyMemory(pMac->hHdd, (tANI_U8 *)&pMac->roam.classBStatsInfo, 
                                    pStats, sizeof(tCsrGlobalClassBStatsInfo));
             if(!HAL_STATUS_SUCCESS(status))
@@ -12642,7 +12642,7 @@ void csrRoamStatsRspProcessor(tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg)
             break;
 
          case eCsrGlobalClassCStats:
-            smsLog( pMac, LOG1, FL("csrRoamStatsRspProcessor:ClassC stats\n"));
+            smsLog( pMac, LOG2, FL("csrRoamStatsRspProcessor:ClassC stats\n"));
             status = palCopyMemory(pMac->hHdd, (tANI_U8 *)&pMac->roam.classCStatsInfo, 
                                    pStats, sizeof(tCsrGlobalClassCStatsInfo));
             if(!HAL_STATUS_SUCCESS(status))
@@ -12654,7 +12654,7 @@ void csrRoamStatsRspProcessor(tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg)
             break;
 
          case eCsrPerStaStats:
-            smsLog( pMac, LOG1, FL("csrRoamStatsRspProcessor:PerSta stats\n"));
+            smsLog( pMac, LOG2, FL("csrRoamStatsRspProcessor:PerSta stats\n"));
             status = palCopyMemory(pMac->hHdd, (tANI_U8 *)&pMac->roam.perStaStatsInfo[pSmeStatsRsp->staId], 
                                    pStats, sizeof(tCsrPerStaStatsInfo));
             if(!HAL_STATUS_SUCCESS(status))
@@ -12728,7 +12728,7 @@ tListElem * csrRoamFindInPeStatsReqList(tpAniSirGlobal pMac, tANI_U32  statsMask
    if(!pEntry)
    {
       //list empty
-      smsLog(pMac, LOGW, "csrRoamFindInPeStatsReqList: List empty, no request to PE\n");
+      smsLog(pMac, LOG2, "csrRoamFindInPeStatsReqList: List empty, no request to PE\n");
       return NULL;
    }
 
@@ -12738,7 +12738,7 @@ tListElem * csrRoamFindInPeStatsReqList(tpAniSirGlobal pMac, tANI_U32  statsMask
 
       if(pTempStaEntry->statsMask == statsMask)
       {
-         smsLog(pMac, LOGW, "csrRoamFindInPeStatsReqList: match found\n");
+         smsLog(pMac, LOG3, "csrRoamFindInPeStatsReqList: match found\n");
          break;
       }
 
@@ -12760,7 +12760,7 @@ tListElem * csrRoamChecknUpdateClientReqList(tpAniSirGlobal pMac, tCsrStatsClien
    if(!pEntry)
    {
       //list empty
-      smsLog(pMac, LOGW, "csrRoamChecknUpdateClientReqList: List empty, no request from "
+      smsLog(pMac, LOG2, "csrRoamChecknUpdateClientReqList: List empty, no request from "
              "upper layer client(s)\n");
       return NULL;
    }
@@ -12772,7 +12772,7 @@ tListElem * csrRoamChecknUpdateClientReqList(tpAniSirGlobal pMac, tCsrStatsClien
       if((pTempStaEntry->requesterId == pStaEntry->requesterId) && 
          (pTempStaEntry->statsMask == pStaEntry->statsMask))
       {
-         smsLog(pMac, LOGW, "csrRoamChecknUpdateClientReqList: match found\n");
+         smsLog(pMac, LOG3, "csrRoamChecknUpdateClientReqList: match found\n");
          if(update)
          {
          pTempStaEntry->periodicity = pStaEntry->periodicity;
@@ -12798,7 +12798,7 @@ tListElem * csrRoamCheckClientReqList(tpAniSirGlobal pMac, tANI_U32 statsMask)
    if(!pEntry)
    {
       //list empty
-      smsLog(pMac, LOGW, "csrRoamCheckClientReqList: List empty, no request from "
+      smsLog(pMac, LOG2, "csrRoamCheckClientReqList: List empty, no request from "
              "upper layer client(s)\n");
       return NULL;
    }
@@ -12809,8 +12809,7 @@ tListElem * csrRoamCheckClientReqList(tpAniSirGlobal pMac, tANI_U32 statsMask)
 
       if((pTempStaEntry->statsMask & ~(1 << eCsrGlobalClassDStats))  == statsMask)
       {
-         smsLog(pMac, LOGW, "csrRoamCheckClientReqList: match found\n");
-
+         smsLog(pMac, LOG3, "csrRoamCheckClientReqList: match found\n");
          break;
       }
 
@@ -13552,7 +13551,7 @@ void csrRoamReportStatistics(tpAniSirGlobal pMac, tANI_U32 statsMask,
          switch(counter)
          {
          case eCsrSummaryStats:
-            smsLog( pMac, LOG1, FL("csrRoamReportStatistics:summary stats\n"));
+            smsLog( pMac, LOG2, FL("csrRoamReportStatistics:summary stats\n"));
             status = palCopyMemory(pMac->hHdd, pStats, (tANI_U8 *)&pMac->roam.summaryStatsInfo, 
                                    sizeof(tCsrSummaryStatsInfo));
             if(!HAL_STATUS_SUCCESS(status))
@@ -13563,7 +13562,7 @@ void csrRoamReportStatistics(tpAniSirGlobal pMac, tANI_U32 statsMask,
             break;
 
          case eCsrGlobalClassAStats:
-            smsLog( pMac, LOG1, FL("csrRoamReportStatistics:ClassA stats\n"));
+            smsLog( pMac, LOG2, FL("csrRoamReportStatistics:ClassA stats\n"));
             status = palCopyMemory(pMac->hHdd, pStats, (tANI_U8 *)&pMac->roam.classAStatsInfo, 
                                    sizeof(tCsrGlobalClassAStatsInfo));
             if(!HAL_STATUS_SUCCESS(status))
@@ -13575,7 +13574,7 @@ void csrRoamReportStatistics(tpAniSirGlobal pMac, tANI_U32 statsMask,
             break;
 
          case eCsrGlobalClassBStats:
-            smsLog( pMac, LOG1, FL("csrRoamReportStatistics:ClassB stats\n"));
+            smsLog( pMac, LOG2, FL("csrRoamReportStatistics:ClassB stats\n"));
             status = palCopyMemory(pMac->hHdd, pStats, (tANI_U8 *)&pMac->roam.classBStatsInfo, 
                                    sizeof(tCsrGlobalClassBStatsInfo));
             if(!HAL_STATUS_SUCCESS(status))
@@ -13587,7 +13586,7 @@ void csrRoamReportStatistics(tpAniSirGlobal pMac, tANI_U32 statsMask,
             break;
 
          case eCsrGlobalClassCStats:
-            smsLog( pMac, LOG1, FL("csrRoamReportStatistics:ClassC stats\n"));
+            smsLog( pMac, LOG2, FL("csrRoamReportStatistics:ClassC stats\n"));
             status = palCopyMemory(pMac->hHdd, pStats, (tANI_U8 *)&pMac->roam.classCStatsInfo, 
                                    sizeof(tCsrGlobalClassCStatsInfo));
             if(!HAL_STATUS_SUCCESS(status))
@@ -13599,7 +13598,7 @@ void csrRoamReportStatistics(tpAniSirGlobal pMac, tANI_U32 statsMask,
             break;
 
          case eCsrGlobalClassDStats:
-            smsLog( pMac, LOG1, FL("csrRoamReportStatistics:ClassD stats\n"));
+            smsLog( pMac, LOG2, FL("csrRoamReportStatistics:ClassD stats\n"));
             status = palCopyMemory(pMac->hHdd, pStats, (tANI_U8 *)&pMac->roam.classDStatsInfo, 
                                    sizeof(tCsrGlobalClassDStatsInfo));
             if(!HAL_STATUS_SUCCESS(status))
@@ -13611,7 +13610,7 @@ void csrRoamReportStatistics(tpAniSirGlobal pMac, tANI_U32 statsMask,
             break;
 
          case eCsrPerStaStats:
-            smsLog( pMac, LOG1, FL("csrRoamReportStatistics:PerSta stats\n"));
+            smsLog( pMac, LOG2, FL("csrRoamReportStatistics:PerSta stats\n"));
             status = palCopyMemory(pMac->hHdd, pStats, (tANI_U8 *)&pMac->roam.perStaStatsInfo[staId], 
                                    sizeof(tCsrPerStaStatsInfo));
             if(!HAL_STATUS_SUCCESS(status))

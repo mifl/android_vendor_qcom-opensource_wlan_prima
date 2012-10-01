@@ -688,10 +688,10 @@ limHandle80211Frames(tpAniSirGlobal pMac, tpSirMsgQ limMsg, tANI_U8 *pDeferMsg)
 
     pHdr = WDA_GET_RX_MAC_HEADER(pRxPacketInfo);
     fc = pHdr->fc;
-    limLog( pMac, LOG1, FL("ProtVersion %d, Type %d, Subtype %d rateIndex=%d\n"),
+
+    limLog( pMac, LOG4, FL("ProtVersion %d, Type %d, Subtype %d rateIndex=%d\n"),
             fc.protVer, fc.type, fc.subType, WDA_GET_RX_MAC_RATE_IDX(pRxPacketInfo));
    
-
     /* Added For BT-AMP Support */
     if((psessionEntry = peFindSessionByBssid(pMac,pHdr->bssId,&sessionId))== NULL)
         {

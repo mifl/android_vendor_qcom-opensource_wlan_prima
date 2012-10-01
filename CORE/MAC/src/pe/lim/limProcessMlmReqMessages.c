@@ -823,9 +823,9 @@ limSendHalStartScanReq(tpAniSirGlobal pMac, tANI_U8 channelNum, tLimLimHalScanSt
         SET_LIM_PROCESS_DEFD_MESGS(pMac, false);
 
         MTRACE(macTraceMsgTx(pMac, 0, msg.type));
-        PELOGW(limLog(pMac, LOGW, FL("Channel %d\n"), channelNum);)
+        limLog(pMac, LOG1, FL("Channel %d\n"), channelNum);
 
-            rc = wdaPostCtrlMsg(pMac, &msg);
+        rc = wdaPostCtrlMsg(pMac, &msg);
         if (rc == eSIR_SUCCESS) {
             return;
         }
