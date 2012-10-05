@@ -5656,7 +5656,7 @@ static eHalStatus sme_QosDeleteExistingFlows(tpAniSirGlobal pMac,
    pEntry = csrLLPeekHead( &sme_QosCb.flow_list, VOS_TRUE );
    if(!pEntry)
    {
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_WARN,
                 "%s: %d: Flow List empty, nothing to delete",
                 __FUNCTION__, __LINE__);
       return eHAL_STATUS_FAILURE;
@@ -5876,7 +5876,7 @@ static eHalStatus sme_QosDeleteBufferedRequests(tpAniSirGlobal pMac,
    pEntry = csrLLPeekHead( &pSession->bufferedCommandList, VOS_TRUE );
    if(!pEntry)
    {
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
+      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_WARN, 
                 "%s: %d: Buffered List empty, nothing to delete on session %d",
                 __FUNCTION__, __LINE__,
                 sessionId);
@@ -5885,7 +5885,7 @@ static eHalStatus sme_QosDeleteBufferedRequests(tpAniSirGlobal pMac,
    while( pEntry )
    {
       pNextEntry = csrLLNext( &pSession->bufferedCommandList, pEntry, VOS_TRUE );
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
+      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, 
                 "%s: %d: deleting entry from buffered List",
                 __FUNCTION__, __LINE__);
       //delete the entry from Flow List
