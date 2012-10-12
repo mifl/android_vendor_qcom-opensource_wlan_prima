@@ -261,6 +261,7 @@ void csrRoamJoinRetryTimerHandler(void *pv);
 extern void SysProcessMmhMsg(tpAniSirGlobal pMac, tSirMsgQ* pMsg);
 extern void btampEstablishLogLinkHdlr(void* pMsg);
 static void csrSerDesUnpackDiassocRsp(tANI_U8 *pBuf, tSirSmeDisassocRsp *pRsp);
+void csrReinitPreauthCmd(tpAniSirGlobal pMac, tSmeCmd *pCommand);
 
 //Initialize global variables
 static void csrRoamInitGlobals(tpAniSirGlobal pMac)
