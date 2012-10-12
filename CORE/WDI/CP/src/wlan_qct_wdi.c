@@ -24606,10 +24606,9 @@ wpt_uint8 WDI_getFwWlanFeatCaps(wpt_uint8 feat_enum_value)
 void WDI_TransportChannelDebug
 (
    wpt_boolean  displaySnapshot,
-   wpt_boolean  toggleStallDetect,
-   wpt_boolean  fullChannelsDump
+   wpt_boolean  toggleStallDetect
 )
 {
-   WDTS_ChannelDebug(displaySnapshot, toggleStallDetect, fullChannelsDump);
+   WDTS_ChannelDebug(displaySnapshot, toggleStallDetect);
    return;
 }

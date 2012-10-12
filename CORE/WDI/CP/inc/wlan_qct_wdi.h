@@ -8836,8 +8836,7 @@ void WDI_GetWcnssCompiledApiVersion
 void WDI_TransportChannelDebug
 (
    wpt_boolean  displaySnapshot,
-   wpt_boolean  toggleStallDetect,
-   wpt_boolean  fullChannelsDump
+   wpt_boolean  toggleStallDetect
 );
 
 #ifdef __cplusplus
