@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -671,7 +671,6 @@ struct hdd_adapter_s
 #endif
    }sessionCtx;
 
-   hdd_scaninfo_t scan_info;
 #ifdef CONFIG_CFG80211
    hdd_cfg80211_state_t cfg80211State;
 #endif
@@ -835,6 +834,7 @@ struct hdd_context_s
    atomic_t isRestartInProgress;
    u_int8_t hdd_restart_retries;
    
+   hdd_scaninfo_t scan_info;
 };
 
 

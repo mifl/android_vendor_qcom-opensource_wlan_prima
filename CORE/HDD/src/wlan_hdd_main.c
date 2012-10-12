@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -169,9 +169,7 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
 {
    struct net_device *dev = ndev;
    hdd_adapter_t *pAdapter = NULL;
-#ifdef WLAN_BTAMP_FEATURE
    hdd_context_t *pHddCtx = NULL;
-#endif
 
    //Make sure that this callback corresponds to our device.
    if((strncmp( dev->name, "wlan", 4 )) && 
@@ -185,6 +183,7 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
 #endif
 
    pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
+   pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
 
    if(NULL == pAdapter)
    {
@@ -217,7 +216,7 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
         break;
 
    case NETDEV_GOING_DOWN:
-        if( pAdapter->scan_info.mScanPending != FALSE )
+        if( pHddCtx->scan_info.mScanPending != FALSE )
         { 
            int result;
            INIT_COMPLETION(pAdapter->abortscan_event_var);
@@ -239,7 +238,6 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
         }
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"%s: disabling AMP", __FUNCTION__);
 #ifdef WLAN_BTAMP_FEATURE
-        pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
         msleep(500);
         if ( pHddCtx->isAmpAllowed )
         {
@@ -1071,7 +1069,7 @@ hdd_adapter_t* hdd_alloc_station_adapter( hdd_context_t *pHddCtx, tSirMacAddr ma
       init_completion(&pHddCtx->mc_sus_event_var);
       init_completion(&pHddCtx->tx_sus_event_var);
 
-      init_completion(&pAdapter->scan_info.scan_req_completion_event);
+      init_completion(&pHddCtx->scan_info.scan_req_completion_event);
 
       pAdapter->isLinkUpSvcNeeded = FALSE; 
       //Init the net_device structure
@@ -1924,8 +1922,8 @@ VOS_STATUS hdd_start_all_adapters( hdd_context_t *pHddCtx )
             hdd_init_station_mode(pAdapter);
             /* Open the gates for HDD to receive Wext commands */
             pAdapter->isLinkUpSvcNeeded = FALSE; 
-            pAdapter->scan_info.mScanPending = FALSE;
-            pAdapter->scan_info.waitScanResult = FALSE;
+            pHddCtx->scan_info.mScanPending = FALSE;
+            pHddCtx->scan_info.waitScanResult = FALSE;
 
             //Trigger the initial scan
             hdd_wlan_initial_scan(pAdapter);
@@ -3562,8 +3560,8 @@ int hdd_wlan_startup(struct device *dev )
 
    pHddCtx->isLoadUnloadInProgress = FALSE;
 
-   vos_event_init(&pAdapter->scan_info.scan_finished_event);
-   pAdapter->scan_info.scan_pending_option = WEXT_SCAN_PENDING_GIVEUP;
+   vos_event_init(&pHddCtx->scan_info.scan_finished_event);
+   pHddCtx->scan_info.scan_pending_option = WEXT_SCAN_PENDING_GIVEUP;
 
    vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    hdd_allow_suspend();

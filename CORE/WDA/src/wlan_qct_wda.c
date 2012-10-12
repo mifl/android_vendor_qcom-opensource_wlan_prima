@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -3736,6 +3736,7 @@ void WDA_UpdateBSSParams(tWDA_CbContext *pWDA,
    wdiBssParams->ucllbCoexist  = wdaBssParams->llbCoexist ;
    wdiBssParams->ucllgCoexist  = wdaBssParams->llgCoexist ;
    wdiBssParams->ucHT20Coexist = wdaBssParams->ht20Coexist ;
+   wdiBssParams->ucObssProtEnabled = wdaBssParams->obssProtEnabled ;
 
    wdiBssParams->ucllnNonGFCoexist = wdaBssParams->llnNonGFCoexist ;
    wdiBssParams->ucTXOPProtectionFullSupport =

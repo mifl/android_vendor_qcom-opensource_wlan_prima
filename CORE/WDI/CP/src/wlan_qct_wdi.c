@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -16137,6 +16137,18 @@ WDI_ProcessEnterImpsRsp
 
   wdiStatus   =   WDI_HAL_2_WDI_STATUS(halStatus); 
 
+  /* If IMPS req failed, riva is not power collapsed Put the DXE in FULL state. 
+   * Other module states are taken care by PMC.
+   * TODO: How do we take care of the case where IMPS is success, but riva power collapse fails??
+   */
+  if (wdiStatus != WDI_STATUS_SUCCESS) {
+
+	  WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+		 "WDI PRocess Enter IMPS RSP failed With HAL Status Code: %d",halStatus);
+	  /* Call Back is not required as we are putting the DXE in FULL
+	   * and riva is already in full (IMPS RSP Failed)*/
+	  WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
+  }
   /*Notify UMAC*/
   wdiEnterImpsRspCb( wdiStatus, pWDICtx->pRspCBUserData);
 
@@ -16236,6 +16248,20 @@ WDI_ProcessEnterBmpsRsp
   halStatus = *((eHalStatus*)pEventData->pEventData);
   wdiStatus   =   WDI_HAL_2_WDI_STATUS(halStatus); 
 
+  /* If BMPS req failed, riva is not power collapsed put the DXE in FULL state. 
+   * Other module states are taken care by PMC.
+   * TODO: How do we take care of the case where BMPS is success, but riva power collapse fails??
+   */
+   if (wdiStatus != WDI_STATUS_SUCCESS) {	  
+
+	  WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+		 "WDI PRocess Enter BMPS RSP failed With HAL Status Code: %d",halStatus); 
+	  /* Call Back is not required as we are putting the DXE in FULL
+	   * and riva is already in FULL (BMPS RSP Failed)*/
+	  WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
+	  pWDICtx->bInBmps = eWLAN_PAL_FALSE;
+   }
+  
   /*Notify UMAC*/
   wdiEnterBmpsRspCb( wdiStatus, pWDICtx->pRspCBUserData);
 
@@ -20731,6 +20757,7 @@ WDI_CopyWDIConfigBSSToHALConfigBSS
   phalConfigBSS->currentExtChannel  = pwdiConfigBSS->ucCurrentExtChannel;
   phalConfigBSS->action             = pwdiConfigBSS->wdiAction;
   phalConfigBSS->htCapable          = pwdiConfigBSS->ucHTCapable;
+  phalConfigBSS->obssProtEnabled    = pwdiConfigBSS->ucObssProtEnabled;
   phalConfigBSS->rmfEnabled         = pwdiConfigBSS->ucRMFEnabled;
 
   phalConfigBSS->htOperMode = 

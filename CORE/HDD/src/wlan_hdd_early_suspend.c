@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2082,7 +2082,7 @@ err_bap_stop:
 #endif
    hdd_close_all_adapters(pHddCtx);
 #ifdef WLAN_BTAMP_FEATURE
-   WLANBAP_Stop(pVosContext);
+  WLANBAP_Stop(pVosContext);
 
 err_bap_close:
    WLANBAP_Close(pVosContext);

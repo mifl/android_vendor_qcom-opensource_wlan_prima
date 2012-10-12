@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2314,17 +2314,17 @@ static int iw_set_priv(struct net_device *dev,
     }
     else if (strcasecmp(cmd, "scan-active") == 0)
     {
-        pAdapter->scan_info.scan_mode = eSIR_ACTIVE_SCAN; 
+        pHddCtx->scan_info.scan_mode = eSIR_ACTIVE_SCAN; 
         ret = snprintf(cmd, cmd_len, "OK");
     }
     else if (strcasecmp(cmd, "scan-passive") == 0)
     {
-        pAdapter->scan_info.scan_mode = eSIR_PASSIVE_SCAN;
+        pHddCtx->scan_info.scan_mode = eSIR_PASSIVE_SCAN;
         ret = snprintf(cmd, cmd_len, "OK");
     }
     else if( strcasecmp(cmd, "scan-mode") == 0 ) 
     {
-        ret = snprintf(cmd, cmd_len, "ScanMode = %u", pAdapter->scan_info.scan_mode);
+        ret = snprintf(cmd, cmd_len, "ScanMode = %u", pHddCtx->scan_info.scan_mode);
     }
     else if( strcasecmp(cmd, "linkspeed") == 0 ) 
     {
@@ -5752,7 +5752,7 @@ int hdd_set_wext(hdd_adapter_t *pAdapter)
 {
     hdd_wext_state_t *pwextBuf;
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-
+    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     pwextBuf = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
    
     // Now configure the roaming profile links. To SSID and bssid.
@@ -5783,7 +5783,7 @@ int hdd_set_wext(hdd_adapter_t *pAdapter)
     pwextBuf->wpaVersion = IW_AUTH_WPA_VERSION_DISABLED;
 
     /*Set the default scan mode*/
-    pAdapter->scan_info.scan_mode = eSIR_ACTIVE_SCAN;
+    pHddCtx->scan_info.scan_mode = eSIR_ACTIVE_SCAN;
 
     hdd_clearRoamProfileIe(pAdapter);
 

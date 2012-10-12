@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -5885,9 +5885,8 @@ eHalStatus sme_ReceiveFilterSetFilter(tHalHandle hHal, tpSirRcvPktFilterCfgType 
                "filterId = %d", __FUNCTION__,
                pRcvPktFilterCfg->filterType, pRcvPktFilterCfg->filterId);
   
-    allocSize = sizeof(tSirRcvPktFilterCfgType) + 
-                      ((pRcvPktFilterCfg->numFieldParams - 1) * 
-                      sizeof(tSirRcvPktFilterFieldParams));
+    allocSize = sizeof(tSirRcvPktFilterCfgType);
+    
     pRequestBuf = vos_mem_malloc(allocSize);
     if (NULL == pRequestBuf)
     {
