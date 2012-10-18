@@ -300,8 +300,8 @@ typedef enum
 
 #define WDA_TX_PACKET_FREED      0X0
 
-/* Approximate amount of time to wait for WDA to stop WDI */
-#define WDA_STOP_TIMEOUT (WDI_RESPONSE_TIMEOUT + WDI_SET_POWER_STATE_TIMEOUT + 5)
+/* Approximate amount of time to wait for WDA to stop WDI considering 1 pendig req too*/
+#define WDA_STOP_TIMEOUT ( (WDI_RESPONSE_TIMEOUT * 2) + WDI_SET_POWER_STATE_TIMEOUT + 5)
 /*--------------------------------------------------------------------------
   Functions
  --------------------------------------------------------------------------*/
@@ -419,6 +419,7 @@ typedef struct
    /* set, when BT AMP session is going on */
    v_BOOL_t             wdaAmpSessionOn;
    v_U32_t              VosPacketToFree;
+   v_BOOL_t             needShutdown;
 } tWDA_CbContext ; 
 
 typedef struct
@@ -465,6 +466,17 @@ VOS_STATUS WDA_close(v_PVOID_t pVosContext);
  * Shutdown will not close the control transport, added by SSR
  */
 VOS_STATUS WDA_shutdown(v_PVOID_t pVosContext, wpt_boolean closeTransport);
+
+/*
+ * FUNCTION: WDA_stopFailed
+ * WDA stop is failed
+ */
+void WDA_stopFailed(v_PVOID_t pVosContext);
+/*
+ * FUNCTION: WDA_needShutdown
+ * WDA requires a shutdown rather than a close
+ */
+v_BOOL_t WDA_needShutdown(v_PVOID_t pVosContext);
 
 /*
  * FUNCTION: WDA_McProcessMsg
@@ -1174,6 +1186,12 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_SIGNAL_BTAMP_EVENT         SIR_HAL_SIGNAL_BTAMP_EVENT
 
 #ifdef ANI_CHIPSET_VOLANS
+#ifdef FEATURE_OEM_DATA_SUPPORT
+/* PE <-> HAL OEM_DATA RELATED MESSAGES */
+#define WDA_START_OEM_DATA_REQ         SIR_HAL_START_OEM_DATA_REQ 
+#define WDA_START_OEM_DATA_RSP         SIR_HAL_START_OEM_DATA_RSP
+#define WDA_FINISH_OEM_DATA_REQ        SIR_HAL_FINISH_OEM_DATA_REQ
+#endif
 #endif
 
 #define WDA_SET_MAX_TX_POWER_REQ       SIR_HAL_SET_MAX_TX_POWER_REQ
@@ -2022,4 +2040,27 @@ tANI_U8 WDA_getHostWlanFeatCaps(tANI_U8 featEnumValue);
 ============================================================================*/
 tANI_U8 WDA_getFwWlanFeatCaps(tANI_U8 featEnumValue);
 
+/*==========================================================================
+  FUNCTION   WDA_TransportChannelDebug
+
+  DESCRIPTION 
+    Display Transport Channel debugging information
+    User may request to display DXE channel snapshot
+    Or if host driver detects any abnormal stcuk may display
+
+  PARAMETERS
+    displaySnapshot : Dispaly DXE snapshot option
+    enableStallDetect : Enable stall detect feature
+                        This feature will take effect to data performance
+                        Not integrate till fully verification
+
+  RETURN VALUE
+    NONE
+
+===========================================================================*/
+void WDA_TransportChannelDebug
+(
+   v_BOOL_t   displaySnapshot,
+   v_BOOL_t   toggleStallDetect
+);
 #endif

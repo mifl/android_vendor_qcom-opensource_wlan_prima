@@ -59,6 +59,13 @@ eHalStatus p2pProcessRemainOnChannelCmd(tpAniSirGlobal pMac, tSmeCmd *p2pRemaino
     tSirRemainOnChnReq* pMsg;
     tANI_U16 len;
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, p2pRemainonChn->sessionId );
+
+    if(!pSession)
+    {
+       smsLog(pMac, LOGE, FL("  session %d not found "), p2pRemainonChn->sessionId);
+       return eHAL_STATUS_FAILURE;
+    }
+
 #ifdef WLAN_FEATURE_P2P_INTERNAL
     tANI_U8 P2PsessionId = getP2PSessionIdFromSMESessionId(pMac, p2pRemainonChn->sessionId);
     tp2pContext *p2pContext = &pMac->p2pContext[P2PsessionId];
@@ -766,7 +773,7 @@ eHalStatus p2pRemainOnChannel(tHalHandle hHal, tANI_U8 sessionId,
 }
 
 eHalStatus p2pSendAction(tHalHandle hHal, tANI_U8 sessionId,
-         const tANI_U8 *pBuf, tANI_U32 len)
+         const tANI_U8 *pBuf, tANI_U32 len, tANI_U16 wait)
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
     tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
@@ -783,6 +790,7 @@ eHalStatus p2pSendAction(tHalHandle hHal, tANI_U8 sessionId,
         pMsg->type = pal_cpu_to_be16((tANI_U16)eWNI_SME_SEND_ACTION_FRAME_IND);
         pMsg->msgLen = pal_cpu_to_be16(msgLen);
         pMsg->sessionId = sessionId;
+        pMsg->wait = (tANI_U16)wait;
         palCopyMemory( pMac->hHdd, pMsg->data, pBuf, len ); 
         status = palSendMBMessage(pMac->hHdd, pMsg);
     }                             

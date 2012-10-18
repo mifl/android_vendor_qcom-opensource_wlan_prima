@@ -442,6 +442,12 @@ char *limMsgStr(tANI_U32 msgType)
             return "eWNI_SME_SYS_READY_IND\n";
         case eWNI_SME_SCAN_REQ:
             return "eWNI_SME_SCAN_REQ\n";
+#ifdef FEATURE_OEM_DATA_SUPPORT
+        case eWNI_SME_OEM_DATA_REQ:
+            return "eWNI_SME_OEM_DATA_REQ\n";
+        case eWNI_SME_OEM_DATA_RSP:
+            return "eWNI_SME_OEM_DATA_RSP\n";
+#endif
         case eWNI_SME_SCAN_RSP:
             return "eWNI_SME_SCAN_RSP\n";
         case eWNI_SME_JOIN_REQ:
@@ -6194,6 +6200,7 @@ limProcessDelTsInd(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 if((psessionEntry = peFindSessionByBssid(pMac,pDelTsParam->bssId,&sessionId))== NULL)
     {
          limLog(pMac, LOGE,FL("session does not exist for given BssId\n"));
+         palFreeMemory(pMac->hHdd, (void *)(limMsg->bodyptr));
          return;
     }
 
@@ -7539,6 +7546,7 @@ void limProcessAddStaRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ)
     if((psessionEntry = peFindSessionBySessionId(pMac,pAddStaParams->sessionId))==NULL)
     {
         limLog(pMac, LOGP,FL("Session Does not exist for given sessionID\n"));
+        palFreeMemory(pMac, pAddStaParams);
         return;
     }
     if (psessionEntry->limSystemRole == eLIM_STA_IN_IBSS_ROLE)
@@ -7734,6 +7742,7 @@ void limProcessAddStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ)
    {
       /// Buffer not available. Log error
       limLog(pMac, LOGP, FL("call to palAllocateMemory failed for Add Sta self RSP\n"));
+      palFreeMemory( pMac->hHdd, (tANI_U8 *)pAddStaSelfParams);
       return;
    }
 
@@ -7769,6 +7778,7 @@ void limProcessDelStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ)
    {
       /// Buffer not available. Log error
       limLog(pMac, LOGP, FL("call to palAllocateMemory failed for Add Sta self RSP\n"));
+      palFreeMemory( pMac->hHdd, (tANI_U8 *)pDelStaSelfParams);
       return;
    }
 

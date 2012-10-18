@@ -1036,6 +1036,97 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_BTC_A2DP_DHCP_PROTECTION_MIN,
                  CFG_BTC_A2DP_DHCP_PROTECTION_MAX ),
 
+   REG_VARIABLE( CFG_BTC_STATIC_LEN_INQ_BT_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcStaticLenInqBt,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_STATIC_LEN_INQ_BT_DEFAULT,
+                 CFG_BTC_STATIC_LEN_INQ_BT_MIN,
+                 CFG_BTC_STATIC_LEN_INQ_BT_MAX ),
+
+   REG_VARIABLE( CFG_BTC_STATIC_LEN_PAGE_BT_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcStaticLenPageBt,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_STATIC_LEN_PAGE_BT_DEFAULT,
+                 CFG_BTC_STATIC_LEN_PAGE_BT_MIN,
+                 CFG_BTC_STATIC_LEN_PAGE_BT_MAX ),
+
+   REG_VARIABLE( CFG_BTC_STATIC_LEN_CONN_BT_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcStaticLenConnBt,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_STATIC_LEN_CONN_BT_DEFAULT,
+                 CFG_BTC_STATIC_LEN_CONN_BT_MIN,
+                 CFG_BTC_STATIC_LEN_CONN_BT_MAX ),
+
+   REG_VARIABLE( CFG_BTC_STATIC_LEN_LE_BT_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcStaticLenLeBt,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_STATIC_LEN_LE_BT_DEFAULT,
+                 CFG_BTC_STATIC_LEN_LE_BT_MIN,
+                 CFG_BTC_STATIC_LEN_LE_BT_MAX ),
+
+   REG_VARIABLE( CFG_BTC_STATIC_LEN_INQ_WLAN_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcStaticLenInqWlan,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_STATIC_LEN_INQ_WLAN_DEFAULT,
+                 CFG_BTC_STATIC_LEN_INQ_WLAN_MIN,
+                 CFG_BTC_STATIC_LEN_INQ_WLAN_MAX ),
+
+   REG_VARIABLE( CFG_BTC_STATIC_LEN_PAGE_WLAN_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcStaticLenPageWlan,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_STATIC_LEN_PAGE_WLAN_DEFAULT,
+                 CFG_BTC_STATIC_LEN_PAGE_WLAN_MIN,
+                 CFG_BTC_STATIC_LEN_PAGE_WLAN_MAX ),
+
+   REG_VARIABLE( CFG_BTC_STATIC_LEN_CONN_WLAN_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcStaticLenConnWlan,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_STATIC_LEN_CONN_WLAN_DEFAULT,
+                 CFG_BTC_STATIC_LEN_CONN_WLAN_MIN,
+                 CFG_BTC_STATIC_LEN_CONN_WLAN_MAX ),
+
+   REG_VARIABLE( CFG_BTC_STATIC_LEN_LE_WLAN_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcStaticLenLeWlan,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_STATIC_LEN_LE_WLAN_DEFAULT,
+                 CFG_BTC_STATIC_LEN_LE_WLAN_MIN,
+                 CFG_BTC_STATIC_LEN_LE_WLAN_MAX ),
+
+   REG_VARIABLE( CFG_BTC_DYN_MAX_LEN_BT_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcDynMaxLenBt,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_DYN_MAX_LEN_BT_DEFAULT,
+                 CFG_BTC_DYN_MAX_LEN_BT_MIN,
+                 CFG_BTC_DYN_MAX_LEN_BT_MAX ),
+
+   REG_VARIABLE( CFG_BTC_DYN_MAX_LEN_WLAN_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcDynMaxLenWlan,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_DYN_MAX_LEN_WLAN_DEFAULT,
+                 CFG_BTC_DYN_MAX_LEN_WLAN_MIN,
+                 CFG_BTC_DYN_MAX_LEN_WLAN_MAX ),
+
+   REG_VARIABLE( CFG_BTC_MAX_SCO_BLOCK_PERC_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcMaxScoBlockPerc,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_MAX_SCO_BLOCK_PERC_DEFAULT,
+                 CFG_BTC_MAX_SCO_BLOCK_PERC_MIN,
+                 CFG_BTC_MAX_SCO_BLOCK_PERC_MAX ),
+
+   REG_VARIABLE( CFG_BTC_DHCP_PROT_ON_A2DP_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcDhcpProtOnA2dp,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_DHCP_PROT_ON_A2DP_DEFAULT,
+                 CFG_BTC_DHCP_PROT_ON_A2DP_MIN,
+                 CFG_BTC_DHCP_PROT_ON_A2DP_MAX ),
+
+   REG_VARIABLE( CFG_BTC_DHCP_PROT_ON_SCO_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, btcDhcpProtOnSco,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_BTC_DHCP_PROT_ON_SCO_DEFAULT,
+                 CFG_BTC_DHCP_PROT_ON_SCO_MIN,
+                 CFG_BTC_DHCP_PROT_ON_SCO_MAX ),
+
 #ifdef WLAN_SOFTAP_FEATURE
    REG_VARIABLE( CFG_AP_LISTEN_MODE_NAME , WLAN_PARAM_Integer,
                  hdd_config_t, nEnableListenMode, 
@@ -1446,6 +1537,34 @@ REG_VARIABLE( CFG_ENABLE_MODULATED_DTIM_NAME, WLAN_PARAM_Integer,
               CFG_ENABLE_MODULATED_DTIM_MIN, 
               CFG_ENABLE_MODULATED_DTIM_MAX ),
 
+ REG_VARIABLE( CFG_MC_ADDR_LIST_ENABLE_NAME, WLAN_PARAM_Integer,
+              hdd_config_t, fEnableMCAddrList,
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+              CFG_MC_ADDR_LIST_ENABLE_DEFAULT,
+              CFG_MC_ADDR_LIST_ENABLE_MIN,
+              CFG_MC_ADDR_LIST_ENABLE_MAX ),
+
+REG_VARIABLE( CFG_ENABLE_FIRST_SCAN_2G_ONLY_NAME, WLAN_PARAM_Integer,
+              hdd_config_t, enableFirstScan2GOnly, 
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT, 
+              CFG_ENABLE_FIRST_SCAN_2G_ONLY_DEFAULT, 
+              CFG_ENABLE_FIRST_SCAN_2G_ONLY_MIN, 
+              CFG_ENABLE_FIRST_SCAN_2G_ONLY_MAX ),
+
+REG_VARIABLE( CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_NAME, WLAN_PARAM_Integer,
+              hdd_config_t, skipDfsChnlInP2pSearch, 
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT, 
+              CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_DEFAULT, 
+              CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_MIN, 
+              CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_MAX ),
+
+REG_VARIABLE( CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_NAME, WLAN_PARAM_Integer,
+              hdd_config_t, ignoreDynamicDtimInP2pMode, 
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT, 
+              CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_DEFAULT, 
+              CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_MIN, 
+              CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_MAX ),
+
 };
 
 /*
@@ -1802,6 +1921,9 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableDFSChnlScan] Value = [%u] ",pHddCtx->cfg_ini->enableDFSChnlScan);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gReportMaxLinkSpeed] Value = [%u] ",pHddCtx->cfg_ini->reportMaxLinkSpeed);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [thermalMitigationEnable] Value = [%u] ",pHddCtx->cfg_ini->thermalMitigationEnable);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [enableFirstScan2GOnly] Value = [%u] ",pHddCtx->cfg_ini->enableFirstScan2GOnly);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [skipDfsChnlInP2pSearch] Value = [%u] ",pHddCtx->cfg_ini->skipDfsChnlInP2pSearch);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [ignoreDynamicDtimInP2pMode] Value = [%u] ",pHddCtx->cfg_ini->ignoreDynamicDtimInP2pMode);
 }
 
 
@@ -2198,10 +2320,22 @@ static void hdd_set_btc_config(hdd_context_t *pHddCtx)
    sme_BtcGetConfig(pHddCtx->hHal, &btcParams);
 
    btcParams.btcExecutionMode = pConfig->btcExecutionMode;
-
    btcParams.btcConsBtSlotsToBlockDuringDhcp = pConfig->btcConsBtSlotsToBlockDuringDhcp;
-
    btcParams.btcA2DPBtSubIntervalsDuringDhcp = pConfig->btcA2DPBtSubIntervalsDuringDhcp;
+
+   btcParams.btcStaticLenInqBt = pConfig->btcStaticLenInqBt;
+   btcParams.btcStaticLenPageBt = pConfig->btcStaticLenPageBt;
+   btcParams.btcStaticLenConnBt = pConfig->btcStaticLenConnBt;
+   btcParams.btcStaticLenLeBt = pConfig->btcStaticLenLeBt;
+   btcParams.btcStaticLenInqWlan = pConfig->btcStaticLenInqWlan;
+   btcParams.btcStaticLenPageWlan = pConfig->btcStaticLenPageWlan;
+   btcParams.btcStaticLenConnWlan = pConfig->btcStaticLenConnWlan;
+   btcParams.btcStaticLenLeWlan = pConfig->btcStaticLenLeWlan;
+   btcParams.btcDynMaxLenBt = pConfig->btcDynMaxLenBt;
+   btcParams.btcDynMaxLenWlan = pConfig->btcDynMaxLenWlan;
+   btcParams.btcMaxScoBlockPerc = pConfig->btcMaxScoBlockPerc;
+   btcParams.btcDhcpProtOnA2dp = pConfig->btcDhcpProtOnA2dp;
+   btcParams.btcDhcpProtOnSco = pConfig->btcDhcpProtOnSco;
 
    sme_BtcSetConfig(pHddCtx->hHal, &btcParams);
 }
@@ -2729,6 +2863,14 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
       hddLog(LOGE, "Could not pass on WNI_CFG_SHORT_GI_40MHZ to CCM\n");
    }
 
+
+     if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_ENABLE_MC_ADDR_LIST, pConfig->fEnableMCAddrList, 
+        NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
+     {
+        fStatus = FALSE;
+        hddLog(LOGE, "Could not pass on WNI_CFG_ENABLE_MC_ADDR_LIST to CCM\n");
+     }
+
    return fStatus;
 }
 
@@ -2803,14 +2945,7 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig.csrConfig.AdHocChannel5G            = 44; 
    smeConfig.csrConfig.ProprietaryRatesEnabled   = 0;  
    smeConfig.csrConfig.HeartbeatThresh50         = 40; 
-   if( smeConfig.csrConfig.Is11dSupportEnabled )
-   {
-      smeConfig.csrConfig.Is11hSupportEnabled    = 1;
-   }
-   else
-   {
-      smeConfig.csrConfig.Is11hSupportEnabled    = 0;
-   }
+   smeConfig.csrConfig.Is11hSupportEnabled       = 1;
    smeConfig.csrConfig.bandCapability            = pConfig->nBandCapability; 
    smeConfig.csrConfig.cbChoice                  = 0;   
    smeConfig.csrConfig.bgScanInterval            = 0; 
@@ -2818,7 +2953,8 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig.csrConfig.nTxPowerCap = pConfig->nTxPowerCap;
    smeConfig.csrConfig.fEnableBypass11d          = pConfig->enableBypass11d;
    smeConfig.csrConfig.fEnableDFSChnlScan        = pConfig->enableDFSChnlScan;
-   
+   smeConfig.csrConfig.fFirstScanOnly2GChnl      = pConfig->enableFirstScan2GOnly;
+
    //FIXME 11d config is hardcoded
 #ifdef WLAN_SOFTAP_FEATURE
    if ( VOS_STA_SAP_MODE != hdd_get_conparam()){

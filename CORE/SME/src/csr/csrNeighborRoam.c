@@ -360,7 +360,15 @@ void csrNeighborRoamResetConnectedStateControlInfo(tpAniSirGlobal pMac)
 
     /* Abort any ongoing BG scans */
     if (eANI_BOOLEAN_TRUE == pNeighborRoamInfo->scanRspPending)
+    {
+        if( pMac->roam.neighborRoamInfo.neighborRoamState != eCSR_NEIGHBOR_ROAM_STATE_CONNECTED)
+        {
+            smsLog(pMac, LOGE, FL("Connected during scan state and we didn't"
+                                    "transition to state"));
+            VOS_ASSERT(0);
+        }
         csrScanAbortMacScan(pMac);
+    }
 
     pNeighborRoamInfo->scanRspPending = eANI_BOOLEAN_FALSE;
     
@@ -1045,11 +1053,13 @@ static VOS_STATUS csrNeighborRoamHandleEmptyScanResult(tpAniSirGlobal pMac)
     vos_mem_zero(&pNeighborRoamInfo->FTRoamInfo.neighboReportBssInfo, sizeof(tCsrNeighborReportBssInfo) * MAX_BSS_IN_NEIGHBOR_RPT);
 #endif
 
+    /* Transition to CONNECTED state */
+    CSR_NEIGHBOR_ROAM_STATE_TRANSITION(eCSR_NEIGHBOR_ROAM_STATE_CONNECTED)
+
     /* Reset all the necessary variables before transitioning to the CONNECTED state */
     csrNeighborRoamResetConnectedStateControlInfo(pMac);
 
-    /* Transition to CONNECTED state */
-    CSR_NEIGHBOR_ROAM_STATE_TRANSITION(eCSR_NEIGHBOR_ROAM_STATE_CONNECTED)
+   
     /* Re-register Neighbor Lookup threshold callback with TL */
     NEIGHBOR_ROAM_DEBUG(pMac, LOG2, FL("Registering DOWN event neighbor lookup callback with TL for RSSI = %d"), pNeighborRoamInfo->currentNeighborLookupThreshold * (-1)); 
     vosStatus = WLANTL_RegRSSIIndicationCB(pMac->roam.gVosContext, (v_S7_t)pNeighborRoamInfo->currentNeighborLookupThreshold * (-1),
@@ -1997,12 +2007,13 @@ VOS_STATUS  csrNeighborRoamNeighborLookupUpEvent(tpAniSirGlobal pMac)
 
     pNeighborRoamInfo->currentNeighborLookupThreshold = pNeighborRoamInfo->cfgParams.neighborLookupThreshold;
     
-    /* Reset all the neighbor roam info control variables. Free all the allocated memory. It is like we are just associated now */
-    csrNeighborRoamResetConnectedStateControlInfo(pMac);
-
     /* Recheck whether the below check is needed. */
     if (pNeighborRoamInfo->neighborRoamState != eCSR_NEIGHBOR_ROAM_STATE_CONNECTED)
         CSR_NEIGHBOR_ROAM_STATE_TRANSITION(eCSR_NEIGHBOR_ROAM_STATE_CONNECTED)
+
+    /* Reset all the neighbor roam info control variables. Free all the allocated memory. It is like we are just associated now */
+    csrNeighborRoamResetConnectedStateControlInfo(pMac);
+
     
     NEIGHBOR_ROAM_DEBUG(pMac, LOG2, FL("Registering DOWN event neighbor lookup callback with TL. RSSI = %d,"), pNeighborRoamInfo->currentNeighborLookupThreshold * (-1));
     /* Register Neighbor Lookup threshold callback with TL for DOWN event now */

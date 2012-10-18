@@ -50,6 +50,9 @@
 #include <wlan_hdd_wmm.h>
 #include <wlan_hdd_cfg.h>
 #include <linux/spinlock.h>
+#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
+#include <linux/wakelock.h>
+#endif
 #ifdef ANI_MANF_DIAG
 #include <wlan_hdd_ftm.h>
 #endif
@@ -128,6 +131,15 @@
 #define MAX_EXIT_ATTEMPTS_DURING_LOGP 20
 
 #define MAX_NO_OF_2_4_CHANNELS 14
+
+#define WLAN_HDD_PUBLIC_ACTION_FRAME 4
+#define WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET 24
+#define WLAN_HDD_PUBLIC_ACTION_FRAME_TYPE_OFFSET 30
+#define WLAN_HDD_P2P_SOCIAL_CHANNELS 3
+
+#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
+#define HDD_WAKE_LOCK_DURATION 50
+#endif
 
 typedef struct hdd_tx_rx_stats_s
 {
@@ -404,6 +416,25 @@ typedef struct hdd_remain_on_chan_ctx
   rem_on_channel_request_type_t rem_on_chan_request;
 }hdd_remain_on_chan_ctx_t;
 
+typedef enum{
+    HDD_IDLE,
+    HDD_PD_REQ_ACK_PENDING,
+    HDD_GO_NEG_REQ_ACK_PENDING,
+    HDD_INVALID_STATE,
+}eP2PActionFrameState;
+
+typedef enum {
+    WLAN_HDD_GO_NEG_REQ,
+    WLAN_HDD_GO_NEG_RESP,
+    WLAN_HDD_GO_NEG_CNF,
+    WLAN_HDD_INVITATION_REQ,
+    WLAN_HDD_INVITATION_RESP,
+    WLAN_HDD_DEV_DIS_REQ,
+    WLAN_HDD_DEV_DIS_RESP,
+    WLAN_HDD_PROV_DIS_REQ,
+    WLAN_HDD_PROV_DIS_RESP,
+}tActionFrmType;
+
 typedef struct hdd_cfg80211_state_s 
 {
   tANI_U16 current_freq;
@@ -412,6 +443,7 @@ typedef struct hdd_cfg80211_state_s
   size_t len;
   struct sk_buff *skb;
   hdd_remain_on_chan_ctx_t* remain_on_chan_ctx;
+  eP2PActionFrameState actionFrmState;
 }hdd_cfg80211_state_t;
 
 #endif
@@ -541,7 +573,7 @@ typedef struct hdd_scaninfo_s
    v_U32_t waitScanResult;
 
 #ifdef WLAN_FEATURE_P2P
-   v_BOOL_t p2pSearch;
+  v_BOOL_t flushP2pScanResults;
 #endif
 
    /* Additional IE for scan */
@@ -858,6 +890,22 @@ struct hdd_context_s
 #ifdef WLAN_FEATURE_PACKET_FILTERING
    t_multicast_add_list mc_addr_list;
 #endif
+
+#ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
+   struct wake_lock rx_wake_lock;
+#endif
+
+   /* 
+    * Framework initiated driver restarting 
+    *    hdd_reload_timer   : Restart retry timer
+    *    isRestartInProgress: Restart in progress
+    *    hdd_restart_retries: Restart retries
+    *
+    */
+   vos_timer_t hdd_restart_timer;
+   atomic_t isRestartInProgress;
+   u_int8_t hdd_restart_retries;
+   
 };
 
 
@@ -922,6 +970,7 @@ void wlan_hdd_clear_concurrency_mode(hdd_context_t *pHddCtx, tVOS_CON_MODE mode)
 void wlan_hdd_reset_prob_rspies(hdd_adapter_t* pHostapdAdapter);
 void hdd_prevent_suspend(void);
 void hdd_allow_suspend(void);
+void hdd_allow_suspend_timeout(v_U32_t timeout);
 v_U8_t hdd_is_ssr_required(void);
 void hdd_set_ssr_required(v_U8_t value);
 
@@ -929,4 +978,5 @@ VOS_STATUS hdd_enable_bmps_imps(hdd_context_t *pHddCtx);
 VOS_STATUS hdd_disable_bmps_imps(hdd_context_t *pHddCtx, tANI_U8 session_type);
 
 eHalStatus hdd_smeCloseSessionCallback(void *pContext);
+VOS_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx);
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )

@@ -82,6 +82,9 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 #include "btcApi.h"
 #include "csrInternal.h"
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+#include "oemDataInternal.h" 
+#endif
 
 #if defined WLAN_FEATURE_VOWIFI
 #include "smeRrmInternal.h"
@@ -342,6 +345,7 @@ typedef struct sAniSirLim
 #ifdef WLAN_FEATURE_P2P
     // This variable store the total duration to do scan
     tANI_U32 gTotalScanDuration;
+    tANI_U32 p2pRemOnChanTimeStamp;
 #endif    
 
     // abort scan is used to abort an on-going scan
@@ -946,6 +950,10 @@ typedef struct sAniSirLim
     tANI_U8   gSmeSessionId;
     tANI_U16 gTransactionId;
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+tLimMlmOemDataReq       *gpLimMlmOemDataReq;
+tLimMlmOemDataRsp       *gpLimMlmOemDataRsp;
+#endif
 
 #ifdef WLAN_FEATURE_P2P
     tSirRemainOnChnReq  *gpLimRemainOnChanReq; //hold remain on chan request in this buf
@@ -1083,6 +1091,9 @@ typedef struct sAniSirGlobal
     tCsrScanStruct scan;
     tCsrRoamStruct roam;
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+    tOemDataStruct oemData;
+#endif
 
 #ifdef ANI_PRODUCT_TYPE_CLIENT
     tPmcInfo     pmc;

@@ -416,10 +416,13 @@ WLANTL_Open
   pTLCb = VOS_GET_TL_CB(pvosGCtx);
   if (( NULL == pTLCb ) || ( NULL == pTLConfig ) )
   {
-    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_FATAL,
                "WLAN TL: Invalid input pointer on WLANTL_Open TL %x Config %x", pTLCb, pTLConfig ));
     return VOS_STATUS_E_FAULT;
   }
+
+  /* Set the default log level to VOS_TRACE_LEVEL_ERROR */
+  vos_trace_setLevel(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR);
 
   smeContext = vos_get_context(VOS_MODULE_ID_SME, pvosGCtx);
   if ( NULL == smeContext )
@@ -2138,8 +2141,6 @@ WLANTL_GetRssi
     {
       *pRssi = pTLCb->atlSTAClients[ucSTAId].rssiAvg;
     }
-    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-                                 "WLAN TL:bmpsRssi %d \n",*pRssi));
   }
   else
   {
@@ -2147,7 +2148,9 @@ WLANTL_GetRssi
   }
 
   TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
-            "WLAN TL:WLANTL_GetRssi for STA: %d RSSI: %d", ucSTAId, *puRssi));
+                    "WLAN TL:WLANTL_GetRssi for STA: %d RSSI: %d%s",
+                    ucSTAId, *pRssi,
+                    pTLCb->isBMPS ? " in BMPS" : ""));
 
   return VOS_STATUS_SUCCESS;
 }/* WLANTL_GetRssi */
@@ -5100,12 +5103,15 @@ WLANTL_RxFrames
           continue;
         }
 
+/* This will be handled within statistics module */
+#ifndef FEATURE_WLAN_INTEGRATED_SOC
 #ifdef WLAN_SOFTAP_FEATURE
     /* RX Statistics Data */
       /* This is RX UC data frame */
       pTLCb->atlSTAClients[ucSTAId].trafficStatistics.rxUCFcnt++;
       pTLCb->atlSTAClients[ucSTAId].trafficStatistics.rxUCBcnt += usPktLen;
 #endif
+#endif /* FEATURE_WLAN_INTEGRATED_SOC */
 
     }/* else data frame*/
 
@@ -5880,6 +5886,10 @@ WLANTL_STATxAuth
     return vosStatus;
   }
 
+#ifdef FEATURE_WLAN_INTEGRATED_SOC
+  WLANTL_StatHandleTXFrame(pvosGCtx, ucSTAId, vosDataBuff, NULL, &tlMetaInfo);
+#endif /* FEATURE_WLAN_INTEGRATED_SOC */
+
 #ifdef WLAN_SOFTAP_FEATURE
   /*There are still packets in HDD - set back the pending packets and 
    the no more data assumption*/
@@ -6378,7 +6388,16 @@ WLANTL_STARxConn
       /*-------------------------------------------------------------------
       Increment receive counter
       -------------------------------------------------------------------*/
-      pTLCb->atlSTAClients[ucSTAId].auRxCount[ucTid]++;
+      if ( !WLANTL_TID_INVALID( ucTid) ) 
+      {
+        pTLCb->atlSTAClients[ucSTAId].auRxCount[ucTid]++;
+      }
+      else
+      {
+        TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+               "WLAN TL:Invalid tid  %d (Station ID %d) on %s",
+               ucTid, ucSTAId, __func__));
+      }
 
       TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
                "WLAN TL:Sending EAPoL frame to station %d AC %d", ucSTAId, ucTid));
@@ -6739,7 +6758,16 @@ WLANTL_STARxAuth
     dropped below or delayed in TL's queues
     - will leave it here for now
    ------------------------------------------------------------------------*/
-  pTLCb->atlSTAClients[ucSTAId].auRxCount[ucTid]++;
+  if ( !WLANTL_TID_INVALID( ucTid) ) 
+  {
+    pTLCb->atlSTAClients[ucSTAId].auRxCount[ucTid]++;
+  }
+  else
+  {
+    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+           "WLAN TL:Invalid tid  %d (Station ID %d) on %s",
+           ucTid, ucSTAId, __func__));
+  }
 
   /*------------------------------------------------------------------------
     Check if AMSDU and send for processing if so
@@ -9418,7 +9446,10 @@ WLANTL_CleanSTA
   if ( ( 0 != ucEmpty ) &&
        ( NULL != ptlSTAClient->vosAMSDUChainRoot ))
   {
-    vos_pkt_return_packet(ptlSTAClient->vosAMSDUChainRoot);
+    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_FATAL,
+               "WLAN TL:Non NULL vosAMSDUChainRoot (=%x) on WLANTL_CleanSTA," 
+               "suspecting a memory corruption"));
+
   }
 
   ptlSTAClient->vosAMSDUChain     = NULL;

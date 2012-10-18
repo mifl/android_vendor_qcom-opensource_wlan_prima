@@ -1374,6 +1374,19 @@ tANI_BOOLEAN csrIsConnStateWds( tpAniSirGlobal pMac, tANI_U32 sessionId )
         csrIsConnStateDisconnectedWds( pMac, sessionId ) );
 }
 
+tANI_BOOLEAN csrIsConnStateAp( tpAniSirGlobal pMac,  tANI_U32 sessionId )
+{
+    tCsrRoamSession *pSession;
+    pSession = CSR_GET_SESSION(pMac, sessionId);
+    if (!pSession)
+        return eANI_BOOLEAN_FALSE;
+    if ( CSR_IS_INFRA_AP(&pSession->connectedProfile) )
+    {
+        return eANI_BOOLEAN_TRUE;
+    }
+    return eANI_BOOLEAN_FALSE;
+}
+
 tANI_BOOLEAN csrIsAnySessionInConnectState( tpAniSirGlobal pMac )
 {
     tANI_U32 i;
@@ -1381,8 +1394,10 @@ tANI_BOOLEAN csrIsAnySessionInConnectState( tpAniSirGlobal pMac )
 
     for( i = 0; i < CSR_ROAM_SESSION_MAX; i++ )
     {
-        if( CSR_IS_SESSION_VALID( pMac, i ) && 
-            ( csrIsConnStateInfra( pMac, i ) || csrIsConnStateIbss( pMac, i ) ) )
+        if( CSR_IS_SESSION_VALID( pMac, i ) &&
+            ( csrIsConnStateInfra( pMac, i )
+            || csrIsConnStateIbss( pMac, i )
+            || csrIsConnStateAp( pMac, i) ) )
         {
             fRc = eANI_BOOLEAN_TRUE;
             break;
@@ -3081,6 +3096,12 @@ tANI_BOOLEAN csrLookupPMKID( tpAniSirGlobal pMac, tANI_U32 sessionId, tANI_U8 *p
     tANI_U32 Index;
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
 
+    if(!pSession)
+    {
+        smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+        return FALSE;
+    }
+
     do
     {
         for( Index=0; Index < pSession->NumPmkidCache; Index++ )
@@ -3330,6 +3351,12 @@ tANI_BOOLEAN csrLookupBKID( tpAniSirGlobal pMac, tANI_U32 sessionId, tANI_U8 *pB
     tANI_BOOLEAN fRC = FALSE, fMatchFound = FALSE;
     tANI_U32 Index;
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
+
+    if(!pSession)
+    {
+        smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+        return FALSE;
+    }
 
     do
     {

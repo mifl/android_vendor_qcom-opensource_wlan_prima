@@ -240,7 +240,16 @@ limSendProbeReqMgmtFrame(tpAniSirGlobal pMac,
     {
         p2pIe = limGetP2pIEPtr(pMac, pAdditionalIE, nAdditionalIELen);
     }
-    if( p2pIe != NULL)
+    /* Don't include 11b rate only when device is doing P2P Search */
+    if( ( WNI_CFG_DOT11_MODE_11B != dot11mode ) && 
+        ( p2pIe != NULL ) && 
+    /* Don't include 11b rate if it is a P2P serach or probe request is sent by P2P Client */
+        ( ( ( pMac->lim.gpLimMlmScanReq != NULL ) &&
+              pMac->lim.gpLimMlmScanReq->p2pSearch ) || 
+          ( ( psessionEntry != NULL ) && 
+            ( VOS_P2P_CLIENT_MODE == psessionEntry->pePersona ) )
+         )
+      )
     {
         /* In the below API pass channel number > 14, do that it fills only
          * 11a rates in supported rates */

@@ -201,6 +201,7 @@ typedef enum
     eCsrStartIbss,
     eCsrStartIbssSameIbss,
     eCsrReassocToSelfNoCapChange,
+    eCsrStopRoamingDueToConcurrency,
     
 }eCsrJoinState;
 
@@ -656,6 +657,11 @@ typedef struct tagCsrScanStruct
     * (apprx 1.3 sec) */
     tANI_BOOLEAN fEnableDFSChnlScan;
 
+    /*
+    * To enable/disable scanning only 2.4Ghz channels on first scan
+    */
+    tANI_BOOLEAN fFirstScanOnly2GChnl;
+
     tANI_BOOLEAN fDropScanCmd; //true means we don't accept scan commands
 
 #ifdef WLAN_AP_STA_CONCURRENCY
@@ -937,7 +943,7 @@ typedef struct tagCsrRoamStruct
         (CSR_IS_OPEARTING_DUAL_BAND((pMac)) || CSR_IS_RADIO_BG_ONLY((pMac)) || CSR_IS_24_BAND_ONLY((pMac)))
 
 #define CSR_IS_CHANNEL_5GHZ(chnNum) \
-        ((chnNum) > CSR_MAX_24GHz_CHANNEL_NUMBER)
+        (((chnNum) >= CSR_MIN_5GHz_CHANNEL_NUMBER) && ((chnNum) <= CSR_MAX_5GHz_CHANNEL_NUMBER))
 
 #define CSR_IS_CHANNEL_24GHZ(chnNum) \
         (((chnNum) > 0) && ((chnNum) <= CSR_MAX_24GHz_CHANNEL_NUMBER))

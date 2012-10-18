@@ -856,6 +856,71 @@ typedef enum
 #define CFG_BTC_A2DP_DHCP_PROTECTION_MAX                     ( 0xFF )
 #define CFG_BTC_A2DP_DHCP_PROTECTION_DEFAULT                 ( 7 )
 
+#define CFG_BTC_STATIC_LEN_INQ_BT_NAME       "btcStaticLenInqBt"
+#define CFG_BTC_STATIC_LEN_INQ_BT_MIN        ( 5000 )
+#define CFG_BTC_STATIC_LEN_INQ_BT_MAX        ( 500000 )
+#define CFG_BTC_STATIC_LEN_INQ_BT_DEFAULT    ( 120000 )
+
+#define CFG_BTC_STATIC_LEN_PAGE_BT_NAME      "btcStaticLenPageBt"
+#define CFG_BTC_STATIC_LEN_PAGE_BT_MIN       ( 5000 )
+#define CFG_BTC_STATIC_LEN_PAGE_BT_MAX       ( 500000 )
+#define CFG_BTC_STATIC_LEN_PAGE_BT_DEFAULT   ( 10000 )
+
+#define CFG_BTC_STATIC_LEN_CONN_BT_NAME      "btcStaticLenConnBt"
+#define CFG_BTC_STATIC_LEN_CONN_BT_MIN       ( 5000 )
+#define CFG_BTC_STATIC_LEN_CONN_BT_MAX       ( 500000 )
+#define CFG_BTC_STATIC_LEN_CONN_BT_DEFAULT   ( 10000 )
+
+#define CFG_BTC_STATIC_LEN_LE_BT_NAME        "btcStaticLenLeBt"
+#define CFG_BTC_STATIC_LEN_LE_BT_MIN         ( 5000 )
+#define CFG_BTC_STATIC_LEN_LE_BT_MAX         ( 500000 )
+#define CFG_BTC_STATIC_LEN_LE_BT_DEFAULT     ( 10000 )
+  
+#define CFG_BTC_STATIC_LEN_INQ_WLAN_NAME     "btcStaticLenInqWlan"
+#define CFG_BTC_STATIC_LEN_INQ_WLAN_MIN      ( 0 )
+#define CFG_BTC_STATIC_LEN_INQ_WLAN_MAX      ( 500000 )
+#define CFG_BTC_STATIC_LEN_INQ_WLAN_DEFAULT  ( 30000 )
+
+#define CFG_BTC_STATIC_LEN_PAGE_WLAN_NAME    "btcStaticLenPageWlan"
+#define CFG_BTC_STATIC_LEN_PAGE_WLAN_MIN     ( 0 )
+#define CFG_BTC_STATIC_LEN_PAGE_WLAN_MAX     ( 500000 )
+#define CFG_BTC_STATIC_LEN_PAGE_WLAN_DEFAULT ( 0 )
+
+#define CFG_BTC_STATIC_LEN_CONN_WLAN_NAME    "btcStaticLenConnWlan"
+#define CFG_BTC_STATIC_LEN_CONN_WLAN_MIN     ( 0 )
+#define CFG_BTC_STATIC_LEN_CONN_WLAN_MAX     ( 500000 )
+#define CFG_BTC_STATIC_LEN_CONN_WLAN_DEFAULT ( 0 )
+
+#define CFG_BTC_STATIC_LEN_LE_WLAN_NAME      "btcStaticLenLeWlan"
+#define CFG_BTC_STATIC_LEN_LE_WLAN_MIN       ( 0 )
+#define CFG_BTC_STATIC_LEN_LE_WLAN_MAX       ( 500000 )
+#define CFG_BTC_STATIC_LEN_LE_WLAN_DEFAULT   ( 0 )
+
+#define CFG_BTC_DYN_MAX_LEN_BT_NAME          "btcDynMaxLenBt"
+#define CFG_BTC_DYN_MAX_LEN_BT_MIN           ( 25000 )
+#define CFG_BTC_DYN_MAX_LEN_BT_MAX           ( 500000 )
+#define CFG_BTC_DYN_MAX_LEN_BT_DEFAULT       ( 250000 )
+
+#define CFG_BTC_DYN_MAX_LEN_WLAN_NAME        "btcDynMaxLenWlan"
+#define CFG_BTC_DYN_MAX_LEN_WLAN_MIN         ( 15000 )
+#define CFG_BTC_DYN_MAX_LEN_WLAN_MAX         ( 500000 )
+#define CFG_BTC_DYN_MAX_LEN_WLAN_DEFAULT     ( 45000 )
+
+#define CFG_BTC_MAX_SCO_BLOCK_PERC_NAME      "btcMaxScoBlockPerc"
+#define CFG_BTC_MAX_SCO_BLOCK_PERC_MIN       ( 0 )
+#define CFG_BTC_MAX_SCO_BLOCK_PERC_MAX       ( 100 )
+#define CFG_BTC_MAX_SCO_BLOCK_PERC_DEFAULT   ( 1 )
+
+#define CFG_BTC_DHCP_PROT_ON_A2DP_NAME       "btcDhcpProtOnA2dp"
+#define CFG_BTC_DHCP_PROT_ON_A2DP_MIN        ( 0 )
+#define CFG_BTC_DHCP_PROT_ON_A2DP_MAX        ( 1 )
+#define CFG_BTC_DHCP_PROT_ON_A2DP_DEFAULT    ( 1 )
+
+#define CFG_BTC_DHCP_PROT_ON_SCO_NAME        "btcDhcpProtOnSco"
+#define CFG_BTC_DHCP_PROT_ON_SCO_MIN         ( 0 )
+#define CFG_BTC_DHCP_PROT_ON_SCO_MAX         ( 1 )
+#define CFG_BTC_DHCP_PROT_ON_SCO_DEFAULT     ( 0 )
+
 #if defined WLAN_FEATURE_VOWIFI_11R
 #define CFG_FT_ENABLE_NAME                              "gFtEnabled"
 #define CFG_FT_ENABLE_MIN                               (0)
@@ -1128,6 +1193,40 @@ typedef enum
 #define CFG_ENABLE_DYNAMIC_DTIM_MAX        ( 5 )
 #define CFG_ENABLE_DYNAMIC_DTIM_DEFAULT    ( 0 )
 
+/*
+ * Enable First Scan 2G Only
+ * Options
+ * 0 - Disable First Scan 2G Option
+ * 1 - Enable First Scan 2G Option
+ */
+#define CFG_ENABLE_FIRST_SCAN_2G_ONLY_NAME            "gEnableFirstScan2GOnly"
+#define CFG_ENABLE_FIRST_SCAN_2G_ONLY_MIN        ( 0 )
+#define CFG_ENABLE_FIRST_SCAN_2G_ONLY_MAX        ( 1 )
+#define CFG_ENABLE_FIRST_SCAN_2G_ONLY_DEFAULT    ( 0 )
+
+/*
+ * Skip DFS Channel in case of P2P Search
+ * Options
+ * 0 - Don't Skip DFS Channel in case of P2P Search
+ * 1 - Skip DFS Channel in case of P2P Search
+ */
+#define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_NAME       "gSkipDfsChannelInP2pSearch"
+#define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_MIN        ( 0 )
+#define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_MAX        ( 1 )
+#define CFG_ENABLE_SKIP_DFS_IN_P2P_SEARCH_DEFAULT    ( 0 )
+
+/*
+ * Ignore Dynamic Dtim in case of P2P
+ * Options
+ * 0 - Consider Dynamic Dtim incase of P2P
+ * 1 - Ignore Dynamic Dtim incase of P2P
+ */
+#define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_NAME       "gIgnoreDynamicDtimInP2pMode"
+#define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_MIN        ( 0 )
+#define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_MAX        ( 1 )
+#define CFG_IGNORE_DYNAMIC_DTIM_IN_P2P_MODE_DEFAULT    ( 0 )
+
+
 #define CFG_ENABLE_AUTOMATIC_TX_POWER_CONTROL_NAME  "gEnableAutomaticTxPowerControl"
 #define CFG_ENABLE_AUTOMATIC_TX_POWER_CONTROL_MIN        ( 0 )
 #define CFG_ENABLE_AUTOMATIC_TX_POWER_CONTROL_MAX        ( 1 )
@@ -1164,6 +1263,15 @@ typedef enum
 #define CFG_ENABLE_MODULATED_DTIM_MIN        ( 0 )
 #define CFG_ENABLE_MODULATED_DTIM_MAX        ( 5 )
 #define CFG_ENABLE_MODULATED_DTIM_DEFAULT    ( 0 )
+
+/*
+ * Enable/Disable Multicast MAC Address List feature
+ * Default: Disable
+ */
+#define CFG_MC_ADDR_LIST_ENABLE_NAME          "gMCAddrListEnable"
+#define CFG_MC_ADDR_LIST_ENABLE_MIN           ( 0 )
+#define CFG_MC_ADDR_LIST_ENABLE_MAX           ( 1 )
+#define CFG_MC_ADDR_LIST_ENABLE_DEFAULT       ( 0 )
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -1206,6 +1314,19 @@ typedef struct
    v_U8_t        btcExecutionMode;
    v_U8_t        btcConsBtSlotsToBlockDuringDhcp;
    v_U8_t        btcA2DPBtSubIntervalsDuringDhcp;
+   v_U32_t       btcStaticLenInqBt;
+   v_U32_t       btcStaticLenPageBt;
+   v_U32_t       btcStaticLenConnBt;
+   v_U32_t       btcStaticLenLeBt;
+   v_U32_t       btcStaticLenInqWlan;
+   v_U32_t       btcStaticLenPageWlan;
+   v_U32_t       btcStaticLenConnWlan;
+   v_U32_t       btcStaticLenLeWlan;
+   v_U32_t       btcDynMaxLenBt;
+   v_U32_t       btcDynMaxLenWlan;
+   v_U32_t       btcMaxScoBlockPerc;
+   v_U32_t       btcDhcpProtOnA2dp;
+   v_U32_t       btcDhcpProtOnSco;
    v_U32_t       nImpsModSleepTime;
    v_U32_t       nImpsMaxSleepTime;
    v_U32_t       nImpsMinSleepTime;
@@ -1431,6 +1552,10 @@ typedef struct
    v_BOOL_t                    isMcAddrListFilter;
 #endif
    v_U8_t                      enableModulatedDTIM;
+   v_U32_t                     fEnableMCAddrList;
+   v_BOOL_t                    enableFirstScan2GOnly;
+   v_BOOL_t                    skipDfsChnlInP2pSearch;
+   v_BOOL_t                    ignoreDynamicDtimInP2pMode;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

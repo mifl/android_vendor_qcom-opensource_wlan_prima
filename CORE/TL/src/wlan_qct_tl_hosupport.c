@@ -433,7 +433,7 @@ VOS_STATUS WLANTL_StatHandleRXFrame
    if(WDA_IS_RX_BCAST(pBDHeader))
    {
       TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"This is RX BC/MC frame"));
-      if(VOS_FALSE == isBroadcast)
+      if(isBroadcast)
       {
          TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"This is RX BC frame"));
          statistics->rxBCFcnt++;
@@ -481,6 +481,9 @@ VOS_STATUS WLANTL_StatHandleTXFrame
    v_U8_t           STAid,
    vos_pkt_t       *dataBuffer,
    v_PVOID_t        pBDHeader
+#ifdef FEATURE_WLAN_INTEGRATED_SOC
+  ,WLANTL_MetaInfoType *txMetaInfo
+#endif /* FEATURE_WLAN_INTEGRATED_SOC */
 )
 {
    WLANTL_CbType            *tlCtxt = VOS_GET_TL_CB(pAdapter);
@@ -503,35 +506,39 @@ VOS_STATUS WLANTL_StatHandleTXFrame
    /* TODO : BC/MC/UC have to be determined by MAC address */
    statistics = &tlCtxt->atlSTAClients[STAid].trafficStatistics;
    vos_pkt_get_packet_length(dataBuffer, &packetSize);
+#ifdef FEATURE_WLAN_INTEGRATED_SOC
+   if(txMetaInfo->ucBcast)
+#else
    if(WLANTL_STA_ID_BCAST == STAid)
+#endif /* FEATURE_WLAN_INTEGRATED_SOC */
    {
       TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"This TX is BC frame"));
       statistics->txBCFcnt++;
+#ifdef FEATURE_WLAN_INTEGRATED_SOC
+      statistics->txBCBcnt += packetSize;
+#else
       statistics->txBCBcnt += (packetSize - WLANHAL_TX_BD_HEADER_SIZE);
+#endif /* FEATURE_WLAN_INTEGRATED_SOC */
    }
-/*
-   if(WLANHAL_TX_BD_GET_UB(pBDHeader))
+   else if(txMetaInfo->ucMcast)
    {
-      TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"This TX is BC/MC frame"));
-      if(WLANTL_STA_ID_BCAST == STAid)
-      {
-         TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"This TX is BC frame"));
-         statistics->txBCFcnt++;
-         statistics->txBCBcnt += (packetSize - WLANHAL_TX_BD_HEADER_SIZE);
-      }
-      else
-      {
-         TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"This TX is MC frame"));
-         statistics->txMCFcnt++;
-         statistics->txMCBcnt += (packetSize - WLANHAL_RX_BD_HEADER_SIZE);
-      }
+      TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"This TX is MC frame"));
+      statistics->txMCFcnt++;
+#ifdef FEATURE_WLAN_INTEGRATED_SOC
+      statistics->txMCBcnt += packetSize;
+#else
+      statistics->txMCBcnt += (packetSize - WLANHAL_RX_BD_HEADER_SIZE);
+#endif /* FEATURE_WLAN_INTEGRATED_SOC */
    }
-*/
    else
    {
       TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"This is TX UC frame"));
       statistics->txUCFcnt++;
+#ifdef FEATURE_WLAN_INTEGRATED_SOC
+      statistics->txUCBcnt += packetSize;
+#else
       statistics->txUCBcnt += (packetSize - WLANHAL_RX_BD_HEADER_SIZE);
+#endif /* FEATURE_WLAN_INTEGRATED_SOC */
    }
 
 #ifdef WLANTL_HO_DEBUG_MSG
@@ -1092,6 +1099,14 @@ VOS_STATUS WLANTL_HSHandleRXFrame
    }
    currentHO->sampleTime = currentTimestamp;
 
+   /* Get Current RSSI from BD Heaser */
+   status = WLANTL_HSGetRSSI(pAdapter, pBDHeader, STAid, &currentAvgRSSI);
+   if(!VOS_IS_STATUS_SUCCESS(status))
+   {
+      TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"Get RSSI Fail"));
+      return status;
+   }
+
    /* If any threshold is not registerd, DO NOTHING! */
    if(0 == tlCtxt->hoSupport.currentHOState.numThreshold)
    {
@@ -1099,13 +1114,6 @@ VOS_STATUS WLANTL_HSHandleRXFrame
    }
    else
    {
-      /* Get Current RSSI from BD Heaser */
-      status = WLANTL_HSGetRSSI(pAdapter, pBDHeader, STAid, &currentAvgRSSI);
-      if(!VOS_IS_STATUS_SUCCESS(status))
-      {
-         TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,"Get RSSI Fail"));
-         return status;
-      }
       /* Handle current RSSI value, region, notification, etc */
       status = WLANTL_HSHandleRSSIChange(pAdapter, currentAvgRSSI);
       if(!VOS_IS_STATUS_SUCCESS(status))
@@ -1153,7 +1161,9 @@ VOS_STATUS WLANTL_HSHandleTXFrame
       return VOS_STATUS_SUCCESS;
    }
 
+#ifndef FEATURE_WLAN_INTEGRATED_SOC
    WLANTL_StatHandleTXFrame(pAdapter, STAid, dataBuffer, bdHeader);
+#endif /* FEATURE_WLAN_INTEGRATED_SOC */
 
    /* Only Voice traffic is handled as real time traffic */
    if(WLANTL_AC_VO == ac)

@@ -1114,7 +1114,8 @@ __limProcessSmeScanReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         {
           for(i=0;i<pMac->lim.maxBssId;i++)
           {
-            if((pMac->lim.gpSession[i].valid == TRUE) &&
+            if((peFindSessionBySessionId(pMac,i) != NULL) &&
+               (pMac->lim.gpSession[i].valid == TRUE) &&
                (eLIM_MLM_LINK_ESTABLISHED_STATE == pMac->lim.gpSession[i].limMlmState))
             {
                limHeartBeatDeactivateAndChangeTimer(pMac, peFindSessionBySessionId(pMac,i));
@@ -1214,6 +1215,7 @@ __limProcessSmeScanReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         pMlmScanReq->dot11mode = pScanReq->dot11mode;
 #ifdef WLAN_FEATURE_P2P
         pMlmScanReq->p2pSearch = pScanReq->p2pSearch;
+        pMlmScanReq->skipDfsChnlInP2pSearch = pScanReq->skipDfsChnlInP2pSearch;
 #endif
 
         //Store the smeSessionID and transaction ID for later use.
@@ -1265,7 +1267,36 @@ __limProcessSmeScanReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 
 } /*** end __limProcessSmeScanReq() ***/
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
 
+static void __limProcessSmeOemDataReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
+{
+    tpSirOemDataReq    pOemDataReq;
+    tLimMlmOemDataReq* pMlmOemDataReq;
+
+    pOemDataReq = (tpSirOemDataReq) pMsgBuf; 
+
+    //post the lim mlm message now
+    if(eHAL_STATUS_SUCCESS != palAllocateMemory(pMac->hHdd, (void**)&pMlmOemDataReq, (sizeof(tLimMlmOemDataReq))))
+    {
+        limLog(pMac, LOGP, FL("palAllocateMemory failed for mlmOemDataReq\n"));
+        return;
+    }
+
+    //Initialize this buffer
+    palZeroMemory(pMac->hHdd, pMlmOemDataReq, (sizeof(tLimMlmOemDataReq)));
+
+    palCopyMemory(pMac->hHdd, pMlmOemDataReq->selfMacAddr, pOemDataReq->selfMacAddr, sizeof(tSirMacAddr)); 
+    palCopyMemory(pMac->hHdd, pMlmOemDataReq->oemDataReq, pOemDataReq->oemDataReq, OEM_DATA_REQ_SIZE);
+
+    //Issue LIM_MLM_OEM_DATA_REQ to MLM
+    limPostMlmMessage(pMac, LIM_MLM_OEM_DATA_REQ, (tANI_U32*)pMlmOemDataReq);
+
+    return;
+
+} /*** end __limProcessSmeOemDataReq() ***/
+
+#endif //FEATURE_OEM_DATA_SUPPORT
 
 
 /**
@@ -4436,6 +4467,7 @@ __limProcessSmeStatsRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     if((psessionEntry = peFindSessionByBssid(pMac,pStatsReq->bssId,&sessionId))== NULL)
     {
         limLog(pMac, LOGE, FL("session does not exist for given bssId\n"));
+        palFreeMemory( pMac, pMsgBuf );
         return;
     }
 
@@ -4481,6 +4513,7 @@ __limProcessSmeStatsRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 
     if( eSIR_SUCCESS != (wdaPostCtrlMsg( pMac, &msgQ ))){
         limLog(pMac, LOGP, "Unable to forward request\n");
+        palFreeMemory( pMac, pMsgBuf );
         return;
     }
 
@@ -5076,6 +5109,12 @@ limProcessSmeReqMessages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
 
             break;
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+        case eWNI_SME_OEM_DATA_REQ:
+            __limProcessSmeOemDataReq(pMac, pMsgBuf);
+
+            break;
+#endif
 #ifdef WLAN_FEATURE_P2P
         case eWNI_SME_REMAIN_ON_CHANNEL_REQ:
             bufConsumed = limProcessRemainOnChnlReq(pMac, pMsgBuf);

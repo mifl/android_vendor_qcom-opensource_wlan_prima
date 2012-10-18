@@ -834,6 +834,77 @@ limPostSmeScanRspMessage(tpAniSirGlobal    pMac,
 
 }  /*** limPostSmeScanRspMessage ***/
 
+#ifdef FEATURE_OEM_DATA_SUPPORT
+
+/**
+ * limSendSmeOemDataRsp()
+ *
+ *FUNCTION:
+ * This function is called by limProcessSmeReqMessages() to send
+ * eWNI_SME_OEM_DATA_RSP message to applications above MAC
+ * Software.
+ *
+ *PARAMS:
+ *
+ *LOGIC:
+ *
+ *ASSUMPTIONS:
+ * NA
+ *
+ *NOTE:
+ * NA
+ *
+ * @param pMac         Pointer to Global MAC structure
+ * @param pMsgBuf      Indicates the mlm message
+ * @param resultCode   Indicates the result of previously issued
+ *                     eWNI_SME_OEM_DATA_RSP message
+ *
+ * @return None
+ */
+
+void limSendSmeOemDataRsp(tpAniSirGlobal pMac, tANI_U32* pMsgBuf, tSirResultCodes resultCode)
+{
+    tSirMsgQ                      mmhMsg;
+    tSirOemDataRsp*               pSirSmeOemDataRsp=NULL;
+    tLimMlmOemDataRsp*            pMlmOemDataRsp=NULL;
+    tANI_U16                      msgLength;
+
+    
+    //get the pointer to the mlm message
+    pMlmOemDataRsp = (tLimMlmOemDataRsp*)(pMsgBuf);
+
+    msgLength = sizeof(tSirOemDataRsp);
+
+    //now allocate memory for the char buffer
+    if(eHAL_STATUS_SUCCESS != palAllocateMemory(pMac->hHdd, (void**)&pSirSmeOemDataRsp, msgLength))
+    {
+        limLog(pMac, LOGP, FL("call to palAllocateMemory failed for pSirSmeOemDataRsp\n"));
+        return;
+    }
+
+#if defined (ANI_LITTLE_BYTE_ENDIAN)
+    sirStoreU16N((tANI_U8*)&pSirSmeOemDataRsp->length, msgLength);
+    sirStoreU16N((tANI_U8*)&pSirSmeOemDataRsp->messageType, eWNI_SME_OEM_DATA_RSP);
+#else
+    pSirSmeOemDataRsp->length = msgLength;
+    pSirSmeOemDataRsp->messageType = eWNI_SME_OEM_DATA_RSP;
+#endif
+
+    palCopyMemory(pMac->hHdd, pSirSmeOemDataRsp->oemDataRsp, pMlmOemDataRsp->oemDataRsp, OEM_DATA_RSP_SIZE);
+
+    //Now free the memory from MLM Rsp Message
+    palFreeMemory(pMac->hHdd, pMlmOemDataRsp);
+
+    mmhMsg.type = eWNI_SME_OEM_DATA_RSP;
+    mmhMsg.bodyptr = pSirSmeOemDataRsp;
+    mmhMsg.bodyval = 0;
+
+    limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
+
+    return;
+}  /*** limSendSmeOemDataRsp ***/
+
+#endif
 
 
 /**
@@ -1066,6 +1137,7 @@ limSendSmeDisassocNtf(tpAniSirGlobal pMac,
             /* Update SME session Id and Transaction Id */
             pSirSmeDisassocInd->sessionId = smesessionId;
             pSirSmeDisassocInd->transactionId = smetransactionId;
+            pSirSmeDisassocInd->reasonCode = reasonCode;
 #endif
             pBuf = (tANI_U8 *) &pSirSmeDisassocInd->statusCode;
 
@@ -1178,6 +1250,7 @@ limSendSmeDisassocInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs,tpPESession pses
     pSirSmeDisassocInd->sessionId     =  psessionEntry->smeSessionId;
     pSirSmeDisassocInd->transactionId =  psessionEntry->transactionId;
     pSirSmeDisassocInd->statusCode    =  pStaDs->mlmStaContext.disassocReason;
+    pSirSmeDisassocInd->reasonCode    =  pStaDs->mlmStaContext.disassocReason;
     
     palCopyMemory( pMac->hHdd, pSirSmeDisassocInd->bssId , psessionEntry->bssId , sizeof(tSirMacAddr));
  
@@ -1256,6 +1329,7 @@ limSendSmeDeauthInd(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession psess
     palCopyMemory( pMac->hHdd, pSirSmeDeauthInd->bssId, psessionEntry->bssId, sizeof(tSirMacAddr));
     //peerMacAddr
     palCopyMemory( pMac->hHdd, pSirSmeDeauthInd->peerMacAddr, pStaDs->staAddr, sizeof(tSirMacAddr));
+    pSirSmeDeauthInd->reasonCode = pStaDs->mlmStaContext.disassocReason;
 #else
 
     //sessionId
@@ -1410,6 +1484,7 @@ limSendSmeDeauthNtf(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr, tSirResultCode
 #else
             pSirSmeDeauthInd->messageType = eWNI_SME_DEAUTH_IND;
             pSirSmeDeauthInd->length      = sizeof(tSirSmeDeauthInd);
+            pSirSmeDeauthInd->reasonCode = eSIR_MAC_UNSPEC_FAILURE_REASON;
 #endif
 
             // sessionId
