@@ -3067,10 +3067,6 @@ eHalStatus csrRoamSetBssConfigCfg(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrR
     //Qos
     csrSetQosToCfg( pMac, sessionId, pBssConfig->qosType );
     //SSID
-#ifdef WLAN_SOFTAP_FEATURE
-    if(pProfile->SSIDs.SSIDList[0].ssidHidden)
-        pBssConfig->SSID.length = 0;
-#endif
     csrSetCfgSsid(pMac, &pBssConfig->SSID );
     //fragment threshold
     //ccmCfgSetInt(pMac, WNI_CFG_FRAGMENTATION_THRESHOLD, csrGetFragThresh(pMac), NULL, eANI_BOOLEAN_FALSE);
