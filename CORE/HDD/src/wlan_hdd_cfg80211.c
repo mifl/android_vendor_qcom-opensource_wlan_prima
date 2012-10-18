@@ -1221,7 +1221,33 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
     (WLAN_HDD_GET_AP_CTX_PTR(pHostapdAdapter))->uPrivacy = pConfig->privacy;
 
     /*Set wps station to configured*/
-    pConfig->wps_state = 0;
+     pIe = wlan_hdd_get_wps_ie_ptr(pBeacon->tail, pBeacon->tail_len);
+     if(pIe)
+     {
+        if(pIe[1] < (2 + WPS_OUI_TYPE_SIZE))
+        {
+            hddLog( VOS_TRACE_LEVEL_ERROR, "**Wps Ie Length is too small***\n");
+            return -EINVAL;
+        }
+        else if(memcmp(&pIe[2], WPS_OUI_TYPE, WPS_OUI_TYPE_SIZE) == 0)
+        {
+             hddLog( VOS_TRACE_LEVEL_ERROR, "** WPS IE(len %d) ***\n", (pIe[1]+2));
+             /* Check 15 bit of WPS IE as it contain information for wps state
+              * WPS state
+              */
+              if(SAP_WPS_ENABLED_UNCONFIGURED == pIe[15])
+              {
+                  pConfig->wps_state = SAP_WPS_ENABLED_UNCONFIGURED;
+              } else if(SAP_WPS_ENABLED_CONFIGURED == pIe[15])
+              {
+                  pConfig->wps_state = SAP_WPS_ENABLED_CONFIGURED;
+              }
+        }
+    }
+    else
+    {
+        pConfig->wps_state = SAP_WPS_DISABLED;
+    }
     pConfig->fwdWPSPBCProbeReq  = 1; // Forward WPS PBC probe request frame up 
 
     pConfig->RSNWPAReqIELength = 0;

@@ -586,7 +586,17 @@ __limHandleSmeStartBssRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                  }
                  else
                  {
-                     psessionEntry->proxyProbeRspEn = 1;
+                     /* To detect PBC overlap in SAP WPS mode, Host handles
+                      * Probe Requests.
+                      */
+                     if (SAP_WPS_DISABLED == pSmeStartBssReq->wps_state)
+		     {
+		          psessionEntry->proxyProbeRspEn = 1;
+		     }
+		     else
+		     {
+		          psessionEntry->proxyProbeRspEn = 0;
+		     }
                  }
                  psessionEntry->ssidHidden = pSmeStartBssReq->ssidHidden;
                  psessionEntry->wps_state = pSmeStartBssReq->wps_state;
