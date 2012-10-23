@@ -404,6 +404,13 @@ typedef struct hdd_cfg80211_state_s
 }hdd_cfg80211_state_t;
 
 #endif
+
+typedef enum{
+    HDD_SSR_NOT_REQUIRED,
+    HDD_SSR_REQUIRED,
+    HDD_SSR_DISABLED,
+}e_hdd_ssr_required;
+
 struct hdd_station_ctx
 {
   /** Handle to the Wireless Extension State */
@@ -899,7 +906,7 @@ void wlan_hdd_clear_concurrency_mode(hdd_context_t *pHddCtx, tVOS_CON_MODE mode)
 void wlan_hdd_reset_prob_rspies(hdd_adapter_t* pHostapdAdapter);
 void hdd_prevent_suspend(void);
 void hdd_allow_suspend(void);
-v_U8_t hdd_is_ssr_required(void);
-void hdd_set_ssr_required(v_U8_t value);
+bool hdd_is_ssr_required(void);
+void hdd_set_ssr_required(e_hdd_ssr_required value);
 VOS_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx);
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )

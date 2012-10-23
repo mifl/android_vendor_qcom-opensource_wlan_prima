@@ -144,6 +144,12 @@
 #define WDA_MAX_RETRIES_TILL_RING_EMPTY  1000   /* MAX 10000 msec = 10 seconds wait */
 
 #define WDA_WAIT_MSEC_TILL_RING_EMPTY    10    /* 10 msec wait per cycle */
+#define WDA_IS_NULL_MAC_ADDRESS(mac_addr) \
+   ((mac_addr[0] == 0x00) && (mac_addr[1] == 0x00) && (mac_addr[2] == 0x00) &&\
+    (mac_addr[1] == 0x00) && (mac_addr[2] == 0x00) && (mac_addr[3] == 0x00))
+
+#define WDA_MAC_ADDR_ARRAY(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
+#define WDA_MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
 /* extern declarations */
 extern void vos_WDAComplete_cback(v_PVOID_t pVosContext);
 
@@ -1647,7 +1653,7 @@ VOS_STATUS WDA_GetWcnssWlanCompiledVersion(v_PVOID_t pvosGCtx,
 {
    tWDA_CbContext *pWDA;
 
-   VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+   VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO_LOW,
              "%s: Entered", __FUNCTION__);
 
    if ((NULL == pvosGCtx) || (NULL == pVersion))
@@ -1681,7 +1687,7 @@ VOS_STATUS WDA_GetWcnssWlanReportedVersion(v_PVOID_t pvosGCtx,
 {
    tWDA_CbContext *pWDA;
 
-   VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+   VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO_LOW,
              "%s: Entered", __FUNCTION__);
 
    if ((NULL == pvosGCtx) || (NULL == pVersion))
@@ -2615,6 +2621,7 @@ VOS_STATUS WDA_ProcessJoinReq(tWDA_CbContext *pWDA,
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                            "%s: VOS MEM Alloc Failure", __FUNCTION__); 
       VOS_ASSERT(0);
+      vos_mem_free(joinReqParam);
       return VOS_STATUS_E_NOMEM;
    }
    pWdaParams = (tWDA_ReqParams *)vos_mem_malloc(sizeof(tWDA_ReqParams)) ;
@@ -2624,7 +2631,25 @@ VOS_STATUS WDA_ProcessJoinReq(tWDA_CbContext *pWDA,
                            "%s: VOS MEM Alloc Failure", __FUNCTION__); 
       VOS_ASSERT(0);
       vos_mem_free(wdiJoinReqParam);
+      vos_mem_free(joinReqParam);
       return VOS_STATUS_E_NOMEM;
+   }
+
+   /*if the BSSID or self STA in pWDA is NULL, join request can't be processed*/
+   if(WDA_IS_NULL_MAC_ADDRESS(pWDA->macBSSID) || 
+      WDA_IS_NULL_MAC_ADDRESS(pWDA->macSTASelf))
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
+                 "%s: received join request when BSSID or self-STA is NULL "
+                 " BSSID:" WDA_MAC_ADDRESS_STR "Self-STA:" WDA_MAC_ADDRESS_STR,
+                 __FUNCTION__, WDA_MAC_ADDR_ARRAY(pWDA->macBSSID),
+                 WDA_MAC_ADDR_ARRAY(pWDA->macSTASelf)); 
+      VOS_ASSERT(0);
+      vos_mem_free(wdiJoinReqParam);
+      vos_mem_free(pWdaParams);
+      joinReqParam->status = eSIR_FAILURE ;
+      WDA_SendMsg(pWDA, WDA_SWITCH_CHANNEL_RSP, (void *)joinReqParam, 0) ;
+      return VOS_STATUS_E_INVAL;
    }
 
    /* copy the BSSID for pWDA */
@@ -4915,11 +4940,30 @@ WDA_processSetLinkStateStatus WDA_IsHandleSetLinkStateReq(
          * copy the BSSID into pWDA to use it in join request and return, 
          * No need to handle these messages.
          */
-         vos_mem_copy(pWDA->macBSSID,linkStateParams->bssid, 
+         if( !WDA_IS_NULL_MAC_ADDRESS(linkStateParams->bssid) )
+         {
+            vos_mem_copy(pWDA->macBSSID,linkStateParams->bssid, 
                                                    sizeof(tSirMacAddr));
+         }
+         else
+         {
+            VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
+               "%s: BSSID in set link state is NULL ", __FUNCTION__);
+            VOS_ASSERT(0);
+         }
 
-         vos_mem_copy(pWDA->macSTASelf,linkStateParams->selfMacAddr, 
+         if( !WDA_IS_NULL_MAC_ADDRESS(linkStateParams->selfMacAddr) )
+         {
+            vos_mem_copy(pWDA->macSTASelf,linkStateParams->selfMacAddr, 
                                                    sizeof(tSirMacAddr));
+         }
+         else
+         {
+            VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
+               "%s: self mac address in set link state is NULL ", __FUNCTION__);
+            VOS_ASSERT(0);
+         }
+
          /* UMAC is issuing the setlink state with PREASSOC twice (before set 
          *channel and after ) so reset the WDA state to ready when the second 
          * time UMAC issue the link state with PREASSOC 
@@ -4941,9 +4985,22 @@ WDA_processSetLinkStateStatus WDA_IsHandleSetLinkStateReq(
       default:
          if(pWDA->wdaState != WDA_READY_STATE)
          {
-             VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-                     "Set link state called when WDA is not in READY STATE " );
-             status = WDA_IGNORE_SET_LINK_STATE;
+            /*If WDA_SET_LINK_STATE is recieved with any other link state apart 
+             *from eSIR_LINK_PREASSOC_STATE and eSIR_LINK_BTAMP_PREASSOC_STATE when 
+             *pWDA->wdaState is in WDA_PRE_ASSOC_STATE(This can happen only in 
+             *error cases) so reset the WDA state to WDA_READY_STATE to avoid 
+             *the ASSERT in WDA_Stop during module unload.*/
+            if (pWDA->wdaState == WDA_PRE_ASSOC_STATE)
+            {
+               pWDA->wdaState = WDA_READY_STATE;
+               /* Don't ignore the set link in this case*/
+            }
+            else
+            {
+               VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                        "Set link state called when WDA is not in READY STATE " );
+               status = WDA_IGNORE_SET_LINK_STATE;
+            }
          }
          break;
    }
@@ -5022,7 +5079,7 @@ VOS_STATUS WDA_ProcessSetLinkState(tWDA_CbContext *pWDA,
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                            "%s:pMac is NULL", __FUNCTION__);
       VOS_ASSERT(0);
-	  vos_mem_free(wdiSetLinkStateParam);
+      vos_mem_free(wdiSetLinkStateParam);
       return VOS_STATUS_E_FAILURE;
    }
 
