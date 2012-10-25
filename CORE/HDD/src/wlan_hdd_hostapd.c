@@ -1400,6 +1400,7 @@ int iw_softap_get_channel_list(struct net_device *dev,
     v_REGDOMAIN_t domainIdCurrentSoftap;
     tpChannelListInfo channel_list = (tpChannelListInfo) extra;
     eCsrBand curBand = eCSR_BAND_ALL;
+
     if (eHAL_STATUS_SUCCESS != sme_GetFreqBand(hHal, &curBand))
     {
         hddLog(LOGE,FL("not able get the current frequency band\n"));
@@ -1418,13 +1419,8 @@ int iw_softap_get_channel_list(struct net_device *dev,
         bandStartChannel = RF_CHAN_36;
         bandEndChannel = RF_CHAN_165;
     }
-    else 
-    {
-        bandStartChannel = RF_CHAN_1;
-        bandEndChannel = RF_CHAN_165;
-    }
 
-    hddLog(LOGE, FL("\n nBandCapability = %d, bandStartChannel = %hu, "
+    hddLog(LOG1, FL("\n nBandCapability = %d, bandStartChannel = %hu, "
                 "bandEndChannel = %hu \n"), pHddCtx->cfg_ini->nBandCapability, 
                 bandStartChannel, bandEndChannel );
 
