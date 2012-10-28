@@ -1751,7 +1751,6 @@ static wpt_status dxeRXFrameReady
             HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                      "re-sync routed %d frames to upper layer", (int)frameCount);
             channelEntry->numFragmentCurrentChain = frameCount;
-            frameCount = 0;
          }
          /* Successive Empty interrupt
           * But this case, first descriptor also invalidated, then it means head descriptor 
