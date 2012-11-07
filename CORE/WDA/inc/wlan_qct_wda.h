@@ -397,6 +397,7 @@ typedef struct
    /* set, when BT AMP session is going on */
    v_BOOL_t             wdaAmpSessionOn;
    v_BOOL_t             needShutdown;
+   v_BOOL_t             wdaTimersCreated;
 } tWDA_CbContext ; 
 
 typedef struct

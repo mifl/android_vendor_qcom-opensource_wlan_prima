@@ -521,6 +521,10 @@ VOS_STATUS WDA_start(v_PVOID_t pVosContext)
    if ( eDRIVER_TYPE_MFG != wdaContext->driverMode )
    {
       status = wdaCreateTimers(wdaContext) ;
+      if(VOS_STATUS_SUCCESS == status)
+      {
+         wdaContext->wdaTimersCreated = VOS_TRUE;
+      }
    }
 
    return status;
@@ -1522,10 +1526,13 @@ VOS_STATUS WDA_stop(v_PVOID_t pVosContext, tANI_U8 reason)
       return VOS_STATUS_E_NOMEM;
    }
 
-   if ( eDRIVER_TYPE_MFG != pWDA->driverMode )
+   if ( (eDRIVER_TYPE_MFG != pWDA->driverMode) &&
+        (VOS_TRUE == pWDA->wdaTimersCreated))
    {
       wdaDestroyTimers(pWDA);
+      pWDA->wdaTimersCreated = VOS_FALSE;
    }
+
    pWdaParams->wdaWdiApiMsgParam = (v_PVOID_t *)wdiStopReq;
    pWdaParams->wdaMsgParam = NULL;
    pWdaParams->pWdaContext = pWDA;
@@ -10875,7 +10882,7 @@ static VOS_STATUS wdaCreateTimers(tWDA_CbContext *pWDA)
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                                "Unable to create BA activity timer");
-      return eSIR_FAILURE ;
+      return VOS_STATUS_E_FAILURE ;
    }
 
    val = SYS_MS_TO_TICKS( WDA_TX_COMPLETE_TIME_OUT_VALUE ) ; 
@@ -10895,12 +10902,12 @@ static VOS_STATUS wdaCreateTimers(tWDA_CbContext *pWDA)
       {
          VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                                   "Unable to Destroy BA activity timer");
-         return eSIR_FAILURE ;
+         return VOS_STATUS_E_FAILURE ;
       } 
-      return eSIR_FAILURE ;
+      return VOS_STATUS_E_FAILURE ;
    }
 
-   return eSIR_SUCCESS ;
+   return VOS_STATUS_SUCCESS ;
 }
 
 /*
@@ -12006,11 +12013,12 @@ VOS_STATUS WDA_shutdown(v_PVOID_t pVosContext, wpt_boolean closeTransport)
       VOS_ASSERT(0);
    }
 
-   if ( eDRIVER_TYPE_MFG != pWDA->driverMode )
+   if ( (eDRIVER_TYPE_MFG != pWDA->driverMode) &&
+        (VOS_TRUE == pWDA->wdaTimersCreated))
    {
       wdaDestroyTimers(pWDA);
+      pWDA->wdaTimersCreated = VOS_FALSE;
    }
-
 
    /* call WDI shutdown */
    wdiStatus = WDI_Shutdown(closeTransport);
