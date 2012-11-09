@@ -3333,7 +3333,7 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
          */
         if (request->ssids && '\0' == request->ssids->ssid[0])
         {
-            request->n_ssids = 0;
+            request->n_ssids = -1;
         }
 
         if (0 < request->n_ssids)
@@ -3366,19 +3366,31 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
             }
             /* set the scan type to active */
             scanRequest.scanType = eSIR_ACTIVE_SCAN;
+            scanRequest.minChnTime = cfg_param->nActiveMinChnTime; 
+            scanRequest.maxChnTime = cfg_param->nActiveMaxChnTime;
         }
         else if(WLAN_HDD_P2P_GO == pAdapter->device_mode)
         {
             /* set the scan type to active */
             scanRequest.scanType = eSIR_ACTIVE_SCAN;
+            scanRequest.minChnTime = cfg_param->nActiveMinChnTime;
+            scanRequest.maxChnTime = cfg_param->nActiveMaxChnTime;
+        }
+        else if(0 == request->n_ssids)
+        {
+             /* Set passive scan when n_ssids = 0 is sent from Supplicant.
+                  Supplicant expect the driver to do passive scan */
+             scanRequest.scanType = eSIR_PASSIVE_SCAN;
+             scanRequest.minChnTime = cfg_param->nPassiveMinChnTime;
+             scanRequest.maxChnTime = cfg_param->nPassiveMaxChnTime;
         }
         else
         {
             /*Set the scan type to default type, in this case it is ACTIVE*/
             scanRequest.scanType = pScanInfo->scan_mode;
+            scanRequest.minChnTime = cfg_param->nActiveMinChnTime; 
+            scanRequest.maxChnTime = cfg_param->nActiveMaxChnTime;
         }
-        scanRequest.minChnTime = cfg_param->nActiveMinChnTime; 
-        scanRequest.maxChnTime = cfg_param->nActiveMaxChnTime;
     }
     else
     {
