@@ -130,7 +130,7 @@ WPT_STATIC const WDI_MainFsmEntryType wdiMainFSM[WDI_MAX_ST] =
     NULL,                       /*WDI_REQUEST_EVENT*/
     WDI_MainRsp,                /*WDI_RESPONSE_EVENT*/
     WDI_MainClose,              /*WDI_CLOSE_EVENT*/
-    NULL                        /*WDI_SHUTDOWN_EVENT*/
+    WDI_MainShutdown            /*WDI_SHUTDOWN_EVENT*/
   }},
 
   /*WDI_BUSY_ST*/
