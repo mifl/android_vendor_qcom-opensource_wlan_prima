@@ -6086,17 +6086,17 @@ WLANTL_STARxConn
     }
     /*-------------------------------------------------------------------
       Increment receive counter
-    -------------------------------------------------------------------*/
-    if ( !WLANTL_TID_INVALID( ucTid) ) 
-    {
-      pTLCb->atlSTAClients[ucSTAId].auRxCount[ucTid]++;
-    }
-    else
-    {
-      TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-             "WLAN TL:Invalid tid  %d (Station ID %d) on %s",
-             ucTid, ucSTAId, __func__));
-    }
+      -------------------------------------------------------------------*/
+      if ( !WLANTL_TID_INVALID( ucTid) ) 
+      {
+        pTLCb->atlSTAClients[ucSTAId].auRxCount[ucTid]++;
+      }
+      else
+      {
+        TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+               "WLAN TL:Invalid tid  %d (Station ID %d) on %s",
+               ucTid, ucSTAId, __func__));
+      }
 
     TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
                "WLAN TL:Sending EAPoL frame to station %d AC %d", ucSTAId, ucTid));
