@@ -3336,7 +3336,7 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
             request->n_ssids = -1;
         }
 
-        if (0 < request->n_ssids)
+        if ((request->ssids) && (0 < request->n_ssids))
         {
             tCsrSSIDInfo *SsidInfo;
             int j;
