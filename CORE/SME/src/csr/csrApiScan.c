@@ -415,6 +415,16 @@ eHalStatus csrQueueScanRequest( tpAniSirGlobal pMac, tSmeCmd *pScanCmd )
                 pQueueScanCmd->u.scanCmd.reason = pScanCmd->u.scanCmd.reason;
                 pQueueScanCmd->u.scanCmd.scanID = pMac->scan.nextScanID++; //let it wrap around
 
+                /* First copy all the parameters to local variable of scan request */
+                csrScanCopyRequest(pMac, &scanReq, &pScanCmd->u.scanCmd.u.scanRequest);
+
+                /* Now modify the elements of local var scan request required to be modified for split scan */
+                if(scanReq.ChannelInfo.ChannelList != NULL)
+                {
+                    palFreeMemory(pMac->hHdd, scanReq.ChannelInfo.ChannelList);
+                    scanReq.ChannelInfo.ChannelList = NULL;
+                }
+                
                 pChnInfo->numOfChannels = pScanCmd->u.scanCmd.u.scanRequest.ChannelInfo.numOfChannels - 1;
 
                 VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_WARN, 
@@ -443,9 +453,18 @@ eHalStatus csrQueueScanRequest( tpAniSirGlobal pMac, tSmeCmd *pScanCmd )
                         pScanCmd->u.scanCmd.u.scanRequest.ChannelInfo.ChannelList = NULL;
                  
                     }
+                    if( scanReq.pIEField != NULL)
+                    {
+                        palFreeMemory(pMac->hHdd, scanReq.pIEField);
+                        scanReq.pIEField = NULL;
+                    }
                     smsLog( pMac, LOGE, FL(" Failed to get copy csrScanRequest = %d\n"), status );
                     return eHAL_STATUS_FAILURE;
-                }       
+                }
+                /* Clean the local scan variable */
+                scanReq.ChannelInfo.ChannelList = NULL;
+                scanReq.ChannelInfo.numOfChannels = 0;
+                csrScanFreeRequest(pMac, &scanReq);
                 numChn = 1; //make numChn to be 1 for second iteration to create a send command
             }  
 
@@ -5067,6 +5086,16 @@ static void csrStaApConcTimerHandler(void *pv)
              pSendScanCmd->u.scanCmd.reason = pScanCmd->u.scanCmd.reason;
              pSendScanCmd->u.scanCmd.scanID = pMac->scan.nextScanID++; //let it wrap around
 
+             /* First copy all the parameters to local variable of scan request */
+             csrScanCopyRequest(pMac, &scanReq, &pScanCmd->u.scanCmd.u.scanRequest);
+             
+             /* Now modify the elements of local var scan request required to be modified for split scan */
+             if(scanReq.ChannelInfo.ChannelList != NULL)
+             {
+                 palFreeMemory(pMac->hHdd,scanReq.ChannelInfo.ChannelList);
+                 scanReq.ChannelInfo.ChannelList = NULL;
+             }
+             
              pChnInfo->numOfChannels = 1;
              palCopyMemory(pMac->hHdd, &channelToScan[0], &pScanCmd->u.scanCmd.u.scanRequest.ChannelInfo.ChannelList[0], 
                           1 * sizeof(tANI_U8)); //just send one channel
@@ -5092,7 +5121,11 @@ static void csrStaApConcTimerHandler(void *pv)
                  smsLog( pMac, LOGE, FL(" Failed to get copy csrScanRequest = %d\n"), status );
                  csrLLUnlock(&pMac->scan.scanCmdPendingList);
                  return;
-             }       
+             }
+             /* Clean the local scan variable */
+             scanReq.ChannelInfo.ChannelList = NULL;
+             scanReq.ChannelInfo.numOfChannels = 0;
+             csrScanFreeRequest(pMac, &scanReq);
         }
         else
         {    //numChn ==1 This is the last channel to be scanned
