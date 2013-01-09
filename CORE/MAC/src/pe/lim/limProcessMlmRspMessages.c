@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -4786,16 +4786,7 @@ limHandleAddBssInReAssocContext(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPES
             tpDphHashNode   pStaDs;
             tSirRetStatus       retStatus = eSIR_SUCCESS;
 #ifdef ANI_PRODUCT_TYPE_CLIENT
-            tSchBeaconStruct *pBeaconStruct;
-            if(eHAL_STATUS_SUCCESS != palAllocateMemory(pMac->hHdd, 
-                                                        (void **)&pBeaconStruct, sizeof(tSchBeaconStruct)))
-            {
-                limLog(pMac, LOGE, FL("Unable to PAL allocate memory in limHandleAddBssInReAssocContext\n") );
-                mlmReassocCnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
-                mlmReassocCnf.protStatusCode = eSIR_SME_RESOURCES_UNAVAILABLE;
-                goto Error;
-            }
-
+            tSchBeaconStruct beaconStruct;
 #endif
             // Get the AP entry from DPH hash table
             pStaDs = dphGetHashEntry(pMac, DPH_STA_HASH_INDEX_PEER, &psessionEntry->dph.dphHashTable);
@@ -4804,7 +4795,6 @@ limHandleAddBssInReAssocContext(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPES
                 PELOGE(limLog(pMac, LOGE, FL("Fail to get STA PEER entry from hash\n"));)
                 mlmReassocCnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
                 mlmReassocCnf.protStatusCode = eSIR_SME_SUCCESS;
-                palFreeMemory(pMac->hHdd, pBeaconStruct);
                 goto Error;
             }
             /** While Processing the ReAssoc Response Frame the ReAssocRsp Frame
@@ -4817,19 +4807,17 @@ limHandleAddBssInReAssocContext(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPES
             limExtractApCapabilities( pMac,
                   (tANI_U8 *) psessionEntry->pLimReAssocReq->bssDescription.ieFields,
                   limGetIElenFromBssDescription( &psessionEntry->pLimReAssocReq->bssDescription ),
-                    pBeaconStruct );
+                    &beaconStruct );
             if(pMac->lim.gLimProtectionControl != WNI_CFG_FORCE_POLICY_PROTECTION_DISABLE)
-                limDecideStaProtectionOnAssoc(pMac, pBeaconStruct, psessionEntry);
-
-            if(pBeaconStruct->erpPresent) 
-            {
-                if (pBeaconStruct->erpIEInfo.barkerPreambleMode)
+                limDecideStaProtectionOnAssoc(pMac, &beaconStruct, psessionEntry);
+                if(beaconStruct.erpPresent) {
+                if (beaconStruct.erpIEInfo.barkerPreambleMode)
                     psessionEntry->beaconParams.fShortPreamble = 0;
                 else
                     psessionEntry->beaconParams.fShortPreamble = 1;
             }
 
-            if (eSIR_SUCCESS != limStaSendAddBss( pMac, assocRsp, pBeaconStruct,
+            if (eSIR_SUCCESS != limStaSendAddBss( pMac, assocRsp, &beaconStruct,
                                                     &psessionEntry->pLimReAssocReq->bssDescription, true, psessionEntry))  {
                 limLog( pMac, LOGE, FL( "Posting ADDBSS in the ReAssocContext has Failed \n"));
                 retStatus = eSIR_FAILURE;
@@ -4846,12 +4834,10 @@ limHandleAddBssInReAssocContext(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPES
                 mlmReassocCnf.protStatusCode = eSIR_MAC_UNSPEC_FAILURE_STATUS;
                 palFreeMemory(pMac->hHdd, assocRsp);
                 pMac->lim.gLimAssocResponseData = NULL;
-                palFreeMemory(pMac->hHdd, pBeaconStruct);
                 goto Error;
             }
             palFreeMemory(pMac->hHdd, assocRsp);
             psessionEntry->limAssocResponseData = NULL;
-            palFreeMemory(pMac->hHdd, pBeaconStruct);
         }
         break;
         case eLIM_SME_WT_REASSOC_LINK_FAIL_STATE: {     /** Case wherein the DisAssoc / Deauth

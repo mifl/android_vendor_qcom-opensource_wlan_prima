@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1311,12 +1311,6 @@ static wpt_status dxeChannelClose
 
          currentCtrlBlk    = nextCtrlBlk;
          currentDescriptor = nextDescriptor;
-         if(NULL == currentCtrlBlk)
-         {
-            /* Already reach last of the control block
-             * Not need to process anymore, break */
-            break;
-         }
       }
    }
 
@@ -3722,8 +3716,8 @@ void *WLANDXE_Open
       {
          dxeChannelClose(tempDxeCtrlBlk, &tempDxeCtrlBlk->dxeChannel[idx]);
       }
-      wpalMemoryFree(tempDxeCtrlBlk->rxIsrMsg);
-      wpalMemoryFree(tempDxeCtrlBlk->txIsrMsg);
+      wpalMemoryFree((void *)&tempDxeCtrlBlk->rxIsrMsg);
+      wpalMemoryFree((void *)&tempDxeCtrlBlk->txIsrMsg);
       wpalMemoryFree(tempDxeCtrlBlk);
       return NULL;
    }

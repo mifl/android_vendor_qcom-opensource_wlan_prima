@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -12068,13 +12068,12 @@ VOS_STATUS WDA_shutdown(v_PVOID_t pVosContext, wpt_boolean closeTransport)
 
    return status;
 }
-
 /*
- * FUNCTION: WDA_setNeedShutdown
- * WDA stop failed or WDA NVDownload failed
+ * FUNCTION: WDA_stopFailed
+ * WDA stop failed
  */
 
-void WDA_setNeedShutdown(v_PVOID_t pVosContext)
+void WDA_stopFailed(v_PVOID_t pVosContext)
 {
    tWDA_CbContext *pWDA = (tWDA_CbContext *)VOS_GET_WDA_CTXT(pVosContext);
    pWDA->needShutdown  = TRUE;

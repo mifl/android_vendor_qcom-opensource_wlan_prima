@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -113,18 +113,13 @@ limExtractApCapability(tpAniSirGlobal pMac, tANI_U8 *pIE, tANI_U16 ieLen,
                        tPowerdBm *localConstraint
                        )
 {
-    tSirProbeRespBeacon *pBeaconStruct;
+    tSirProbeRespBeacon beaconStruct;
 #if !defined WLAN_FEATURE_VOWIFI
     tANI_U32            localPowerConstraints = 0;
 #endif
-    if(eHAL_STATUS_SUCCESS != palAllocateMemory(pMac->hHdd, 
-                                                (void **)&pBeaconStruct, sizeof(tSirProbeRespBeacon)))
-    {
-        limLog(pMac, LOGE, FL("Unable to PAL allocate memory in limExtractApCapability\n") );
-        return;
-    }
 
-    palZeroMemory( pMac->hHdd, (tANI_U8 *) pBeaconStruct, sizeof(tSirProbeRespBeacon));
+    palZeroMemory( pMac->hHdd, (tANI_U8 *) &beaconStruct, sizeof(beaconStruct));
+
     *qosCap = 0;
     *propCap = 0;
     *uapsd = 0;
@@ -132,38 +127,38 @@ limExtractApCapability(tpAniSirGlobal pMac, tANI_U8 *pIE, tANI_U16 ieLen,
     PELOG3(limLog( pMac, LOG3,
         FL("In limExtractApCapability: The IE's being received are:\n"));
     sirDumpBuf( pMac, SIR_LIM_MODULE_ID, LOG3, pIE, ieLen );)
-    if (sirParseBeaconIE(pMac, pBeaconStruct, pIE, (tANI_U32)ieLen) == eSIR_SUCCESS)
+    if (sirParseBeaconIE(pMac, &beaconStruct, pIE, (tANI_U32)ieLen) == eSIR_SUCCESS)
     {
 #if (WNI_POLARIS_FW_PACKAGE == ADVANCED)
-        if (pBeaconStruct->propIEinfo.hcfEnabled)
+        if (beaconStruct.propIEinfo.hcfEnabled)
             LIM_BSS_CAPS_SET(HCF, *qosCap);
 #endif
-        if (pBeaconStruct->wmeInfoPresent || pBeaconStruct->wmeEdcaPresent)
+        if (beaconStruct.wmeInfoPresent || beaconStruct.wmeEdcaPresent)
             LIM_BSS_CAPS_SET(WME, *qosCap);
-        if (LIM_BSS_CAPS_GET(WME, *qosCap) && pBeaconStruct->wsmCapablePresent)
+        if (LIM_BSS_CAPS_GET(WME, *qosCap) && beaconStruct.wsmCapablePresent)
             LIM_BSS_CAPS_SET(WSM, *qosCap);
-        if (pBeaconStruct->propIEinfo.aniIndicator &&
-            pBeaconStruct->propIEinfo.capabilityPresent)
-            *propCap = pBeaconStruct->propIEinfo.capability;
-        if (pBeaconStruct->HTCaps.present)
+        if (beaconStruct.propIEinfo.aniIndicator &&
+            beaconStruct.propIEinfo.capabilityPresent)
+            *propCap = beaconStruct.propIEinfo.capability;
+        if (beaconStruct.HTCaps.present)
             pMac->lim.htCapabilityPresentInBeacon = 1;
         else
             pMac->lim.htCapabilityPresentInBeacon = 0;
 
         // Extract the UAPSD flag from WMM Parameter element
-        if (pBeaconStruct->wmeEdcaPresent)
-            *uapsd = pBeaconStruct->edcaParams.qosInfo.uapsd;
+        if (beaconStruct.wmeEdcaPresent)
+            *uapsd = beaconStruct.edcaParams.qosInfo.uapsd;
 
-        if (pBeaconStruct->powerConstraintPresent && ( pMac->lim.gLim11hEnable
+        if (beaconStruct.powerConstraintPresent && ( pMac->lim.gLim11hEnable
 #if defined WLAN_FEATURE_VOWIFI
                  || pMac->rrm.rrmPEContext.rrmEnable
 #endif
                  ))
         {
 #if defined WLAN_FEATURE_VOWIFI
-           *localConstraint = pBeaconStruct->localPowerConstraint.localPowerConstraints;
+           *localConstraint = beaconStruct.localPowerConstraint.localPowerConstraints;
 #else
-           localPowerConstraints = (tANI_U32)pBeaconStruct->localPowerConstraint.localPowerConstraints;
+           localPowerConstraints = (tANI_U32)beaconStruct.localPowerConstraint.localPowerConstraints;
            *localConstraint = 0; 
 #endif
         }
@@ -175,7 +170,7 @@ limExtractApCapability(tpAniSirGlobal pMac, tANI_U8 *pIE, tANI_U16 ieLen,
         }
 #endif
     }
-    palFreeMemory(pMac->hHdd, pBeaconStruct);
+
     return;
 } /****** end limExtractApCapability() ******/
 

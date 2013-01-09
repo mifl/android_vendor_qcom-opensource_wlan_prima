@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -5318,35 +5318,31 @@ tANI_BOOLEAN csrMatchCountryCode( tpAniSirGlobal pMac, tANI_U8 *pCountry, tDot11
             smsLog(pMac, LOGE, FL("  No IEs\n"));
             break;
         }
-        if( pMac->roam.configParam.fEnforceDefaultDomain ||
-            pMac->roam.configParam.fEnforceCountryCodeMatch )
+        //Make sure this country is recognizable
+        if( pIes->Country.present )
         {
-            //Make sure this country is recognizable
-            if( pIes->Country.present )
+            status = csrGetRegulatoryDomainForCountry( pMac, pIes->Country.country, &domainId );
+            if( !HAL_STATUS_SUCCESS( status ) )
             {
-                status = csrGetRegulatoryDomainForCountry( pMac, pIes->Country.country, &domainId );
-                if( !HAL_STATUS_SUCCESS( status ) )
-                {
-                    fRet = eANI_BOOLEAN_FALSE;
-                    break;
-                }
+                fRet = eANI_BOOLEAN_FALSE;
+                break;
             }
-            //check whether it is needed to enforce to the default regulatory domain first
-            if( pMac->roam.configParam.fEnforceDefaultDomain )
+        }
+        //check whether it is needed to enforce to the default regulatory domain first
+        if( pMac->roam.configParam.fEnforceDefaultDomain )
+        {
+            if( domainId != pMac->scan.domainIdCurrent )
             {
-                if( domainId != pMac->scan.domainIdCurrent )
-                {
-                    fRet = eANI_BOOLEAN_FALSE;
-                    break;
-                }
+                fRet = eANI_BOOLEAN_FALSE;
+                break;
             }
-            if( pMac->roam.configParam.fEnforceCountryCodeMatch )
-            {
+        }
+        if( pMac->roam.configParam.fEnforceCountryCodeMatch )
+        {
             if( domainId >= REGDOMAIN_COUNT )
-                {
-                    fRet = eANI_BOOLEAN_FALSE;
-                    break;
-                }
+            {
+                fRet = eANI_BOOLEAN_FALSE;
+                break;
             }
         }
         if( pCountry )
