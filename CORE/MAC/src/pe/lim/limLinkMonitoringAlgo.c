@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
  * Airgo Networks, Inc proprietary. All rights reserved.
@@ -177,93 +157,85 @@ limDeleteStaContext(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
     tpPESession psessionEntry ;
     tANI_U8     sessionId;
 
-    if(NULL == pMsg)
-    {
-        PELOGE(limLog(pMac, LOGE,FL("Invalid body pointer in message\n"));)
-        return;
-    }
     if((psessionEntry = peFindSessionByBssid(pMac,pMsg->bssId,&sessionId))== NULL)
     {
-        PELOGE(limLog(pMac, LOGE,FL("session does not exist for given BSSId\n"));)
-            palFreeMemory(pMac->hHdd, pMsg);
-        return;
+         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given BSSId\n"));)
+         palFreeMemory(pMac->hHdd, pMsg);
+         return;
     }
 
-#ifdef WLAN_SOFTAP_FEATURE
-    switch(pMsg->reasonCode)
+    if (NULL != pMsg)
     {
-        case HAL_DEL_STA_REASON_CODE_KEEP_ALIVE:
-        case HAL_DEL_STA_REASON_CODE_TIM_BASED:
-             PELOGE(limLog(pMac, LOGE, FL(" Deleting station: staId = %d, reasonCode = %d\n"), pMsg->staId, pMsg->reasonCode);)
-#endif
-             if((eLIM_BT_AMP_AP_ROLE == psessionEntry->limSystemRole) ||
-                         (eLIM_AP_ROLE == psessionEntry->limSystemRole))
-             {
-                 pStaDs = dphGetHashEntry(pMac, pMsg->assocId, &psessionEntry->dph.dphHashTable);
-             }
-             else
-             {
-                 pStaDs = dphGetHashEntry(pMac, DPH_STA_HASH_INDEX_PEER, &psessionEntry->dph.dphHashTable);
-             }
-             if (!pStaDs)
-             {
-                 PELOGE(limLog(pMac, LOGE, FL("Skip STA deletion (invalid STA) limSystemRole=%d\n"),psessionEntry->limSystemRole);)
-                 palFreeMemory(pMac->hHdd, pMsg);
-                 return;
-             }
-
-             /* check and see if same staId. This is to avoid the scenario
-              * where we're trying to delete a staId we just added.
-              */
-             if (pStaDs->staIndex != pMsg->staId)
-             {
-                 PELOGE(limLog(pMac, LOGE, FL("staid mismatch: %d vs %d \n"), pStaDs->staIndex, pMsg->staId);)
-                 palFreeMemory(pMac->hHdd, pMsg);
-                 return;
-             }
-
-             if((eLIM_BT_AMP_AP_ROLE == psessionEntry->limSystemRole) ||
-                     (eLIM_AP_ROLE == psessionEntry->limSystemRole))
-             {
-                 PELOG1(limLog(pMac, LOG1, FL("SAP:lim Delete Station Context (staId: %d, assocId: %d) \n"),
-                             pMsg->staId, pMsg->assocId);)
-                 limTriggerSTAdeletion(pMac, pStaDs, psessionEntry);
-             }
-             else
-             {
-                 //TearDownLink with AP
-                 tLimMlmDeauthInd  mlmDeauthInd;
-                 PELOGW(limLog(pMac, LOGW, FL("lim Delete Station Context (staId: %d, assocId: %d) \n"),
-                             pMsg->staId, pMsg->assocId);)
-
-                     pStaDs->mlmStaContext.disassocReason = eSIR_MAC_UNSPEC_FAILURE_REASON;
-                 pStaDs->mlmStaContext.cleanupTrigger = eLIM_LINK_MONITORING_DEAUTH;
-
-                 // Issue Deauth Indication to SME.
-                 palCopyMemory( pMac->hHdd, (tANI_U8 *) &mlmDeauthInd.peerMacAddr,
-                         pStaDs->staAddr, sizeof(tSirMacAddr));
-                 mlmDeauthInd.reasonCode    = (tANI_U8) pStaDs->mlmStaContext.disassocReason;
-                 mlmDeauthInd.deauthTrigger =  pStaDs->mlmStaContext.cleanupTrigger;
-
-                 limPostSmeMessage(pMac, LIM_MLM_DEAUTH_IND, (tANI_U32 *) &mlmDeauthInd);
-
-                 limSendSmeDeauthInd(pMac, pStaDs, psessionEntry);
-             }
 #ifdef WLAN_SOFTAP_FEATURE
-             break;        
+        switch(pMsg->reasonCode)
+        {
+            case HAL_DEL_STA_REASON_CODE_KEEP_ALIVE:
+            case HAL_DEL_STA_REASON_CODE_TIM_BASED:
+                PELOGE(limLog(pMac, LOGE, FL(" Deleting station: staId = %d, reasonCode = %d\n"), pMsg->staId, pMsg->reasonCode);)
+#endif        
+                pStaDs = dphGetHashEntry(pMac, pMsg->assocId, &psessionEntry->dph.dphHashTable);
+                if (! pStaDs)
+                {
+                   PELOGW(limLog(pMac, LOGW, FL("Skip STA deletion (invalid STA)\n"));)
+                   palFreeMemory(pMac->hHdd, pMsg);
+                   return;
+                }
 
-        case HAL_DEL_STA_REASON_CODE_UNKNOWN_A2:
-             PELOGE(limLog(pMac, LOGE, FL(" Deleting Unknown station \n"));)
-             limPrintMacAddr(pMac, pMsg->addr2, LOGE);
-             limSendDeauthMgmtFrame( pMac, eSIR_MAC_CLASS3_FRAME_FROM_NON_ASSOC_STA_REASON, pMsg->addr2, psessionEntry, FALSE);
-             break;
+                /* check and see if same staId. This is to avoid the scenario
+                * where we're trying to delete a staId we just added.
+                */
+                if (pStaDs->staIndex != pMsg->staId)
+                {
+                    PELOGW(limLog(pMac, LOGW, FL("staid mismatch: %d vs %d \n"), pStaDs->staIndex, pMsg->staId);)
+                    palFreeMemory(pMac->hHdd, pMsg);
+                    return;
+                }
 
-        default:
-             PELOGE(limLog(pMac, LOGE, FL(" Unknown reason code \n"));)
-             break;
+                if((eLIM_BT_AMP_AP_ROLE == psessionEntry->limSystemRole) 
+					            || (eLIM_AP_ROLE == psessionEntry->limSystemRole))
+       	        {
+                    PELOG1(limLog(pMac, LOG1, FL("SAP:lim Delete Station Context (staId: %d, assocId: %d) \n"),
+                                                               pMsg->staId, pMsg->assocId);)
+                    limTriggerSTAdeletion(pMac, pStaDs, psessionEntry);
+                }
+                else
+                {
+                    //TearDownLink with AP
+                    tLimMlmDeauthInd  mlmDeauthInd;
+                    PELOG1(limLog(pMac, LOG1, FL("lim Delete Station Context (staId: %d, assocId: %d) \n"),
+                                                               pMsg->staId, pMsg->assocId);)
 
-    }
+                    pStaDs->mlmStaContext.disassocReason = eSIR_MAC_UNSPEC_FAILURE_REASON;
+                    pStaDs->mlmStaContext.cleanupTrigger = eLIM_LINK_MONITORING_DEAUTH;
+
+                    /// Issue Deauth Indication to SME.
+                    palCopyMemory( pMac->hHdd, (tANI_U8 *) &mlmDeauthInd.peerMacAddr,
+                                     pStaDs->staAddr, sizeof(tSirMacAddr));
+                    mlmDeauthInd.reasonCode    = (tANI_U8) pStaDs->mlmStaContext.disassocReason;
+                    mlmDeauthInd.deauthTrigger =  pStaDs->mlmStaContext.cleanupTrigger;
+
+                    limPostSmeMessage(pMac, LIM_MLM_DEAUTH_IND, (tANI_U32 *) &mlmDeauthInd);
+ 
+                    limSendSmeDeauthInd(pMac, pStaDs, psessionEntry);
+                }
+#ifdef WLAN_SOFTAP_FEATURE
+                break;        
+            
+            case HAL_DEL_STA_REASON_CODE_UNKNOWN_A2:
+                PELOGE(limLog(pMac, LOGE, FL(" Deleting Unknown station \n"));)
+                limPrintMacAddr(pMac, pMsg->addr2, LOGE);
+               
+                limSendDeauthMgmtFrame( pMac, eSIR_MAC_CLASS3_FRAME_FROM_NON_ASSOC_STA_REASON, pMsg->addr2, psessionEntry);
+                break;
+
+            default:
+                PELOGE(limLog(pMac, LOGE, FL(" Unknown reason code \n"));)
+                break;
+
+        }
 #endif
+    }
+
     palFreeMemory(pMac->hHdd, pMsg);
     return;
 }
@@ -356,10 +328,8 @@ limTriggerSTAdeletion(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession pse
     pBuf += sizeof(tANI_U16);
     msgLength += sizeof(tANI_U16);
 
-    //Do not send disassoc OTA
-    //pBuf[0] = 1 means do not send the disassoc frame over the air
-    //pBuf[0] = 0 means send the disassoc frame over the air
-    pBuf[0]= 0;
+    //send disassoc OTA
+    pBuf[0]= 1;
     pBuf += sizeof(tANI_U8);
     msgLength += sizeof(tANI_U8);
 
@@ -403,14 +373,14 @@ limTriggerSTAdeletion(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession pse
  */
 
 void
-limTearDownLinkWithAp(tpAniSirGlobal pMac, tANI_U8 sessionId, tSirMacReasonCodes reasonCode)
+limTearDownLinkWithAp(tpAniSirGlobal pMac)
 {
     tpDphHashNode pStaDs = NULL;
 
     //tear down the following sessionEntry
     tpPESession psessionEntry;
 
-    if((psessionEntry = peFindSessionBySessionId(pMac, sessionId))== NULL)
+    if((psessionEntry = peFindSessionBySessionId(pMac, pMac->lim.limTimers.gLimProbeAfterHBTimer.sessionId))== NULL)
     {
         limLog(pMac, LOGP,FL("Session Does not exist for given sessionID\n"));
         return;
@@ -438,7 +408,7 @@ limTearDownLinkWithAp(tpAniSirGlobal pMac, tANI_U8 sessionId, tSirMacReasonCodes
     {
         tLimMlmDeauthInd  mlmDeauthInd;
 
-        pStaDs->mlmStaContext.disassocReason = reasonCode;
+        pStaDs->mlmStaContext.disassocReason = eSIR_MAC_UNSPEC_FAILURE_REASON;
         pStaDs->mlmStaContext.cleanupTrigger = eLIM_LINK_MONITORING_DEAUTH;
 
         /// Issue Deauth Indication to SME.
@@ -487,8 +457,9 @@ void limHandleHeartBeatFailure(tpAniSirGlobal pMac,tpPESession psessionEntry)
      * want to handle heartbeat timeout in the BMPS, because Firmware handles it in BMPS.
      * So just return from heartbeatfailure handler
      */
-    if(!IS_ACTIVEMODE_OFFLOAD_FEATURE_ENABLE && (!limIsSystemInActiveState(pMac)))
-       return;
+
+    if(!limIsSystemInActiveState(pMac))
+        return;
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM //FEATURE_WLAN_DIAG_SUPPORT
     WLAN_VOS_DIAG_LOG_ALLOC(log_ptr, vos_log_beacon_update_pkt_type, LOG_WLAN_BEACON_UPDATE_C);
@@ -497,8 +468,6 @@ void limHandleHeartBeatFailure(tpAniSirGlobal pMac,tpPESession psessionEntry)
     WLAN_VOS_DIAG_LOG_REPORT(log_ptr);
 #endif //FEATURE_WLAN_DIAG_SUPPORT
 
-    /* Ensure HB Status for the session has been reseted */
-    psessionEntry->LimHBFailureStatus = eANI_BOOLEAN_FALSE;
     /** Re Activate Timer if the system is Waiting for ReAssoc Response*/
     if(((psessionEntry->limSystemRole == eLIM_STA_IN_IBSS_ROLE) || 
         (psessionEntry->limSystemRole == eLIM_STA_ROLE) ||
@@ -537,29 +506,25 @@ void limHandleHeartBeatFailure(tpAniSirGlobal pMac,tpPESession psessionEntry)
         pMac->lim.gLimHBfailureCntInLinkEstState++;
 
         /**
-         * Check if connected on the DFS channel, if not connected on
-         * DFS channel then only send the probe request otherwise tear down the link
+         * Send Probe Request frame to AP to see if
+         * it is still around. Wait until certain
+         * timeout for Probe Response from AP.
          */
-        if(!limIsconnectedOnDFSChannel(psessionEntry->currentOperChannel))
+        PELOGW(limLog(pMac, LOGW, FL("Heart Beat missed from AP. Sending Probe Req\n"));)
+        /* for searching AP, we don't include any additional IE */
+        limSendProbeReqMgmtFrame(pMac, &psessionEntry->ssId, psessionEntry->bssId,
+                                  psessionEntry->currentOperChannel,psessionEntry->selfMacAddr,
+                                  psessionEntry->dot11mode, 0, NULL);
+
+        //assign the sessionId to the timer object
+
+        limDeactivateAndChangeTimer(pMac, eLIM_PROBE_AFTER_HB_TIMER);
+        MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, 0, eLIM_PROBE_AFTER_HB_TIMER));
+        pMac->lim.limTimers.gLimProbeAfterHBTimer.sessionId = psessionEntry->peSessionId;
+        if (tx_timer_activate(&pMac->lim.limTimers.gLimProbeAfterHBTimer) != TX_SUCCESS)
         {
-            /*** Detected continuous Beacon Misses ***/
-             psessionEntry->LimHBFailureStatus= eANI_BOOLEAN_TRUE;
-            /**
-             * Send Probe Request frame to AP to see if
-             * it is still around. Wait until certain
-             * timeout for Probe Response from AP.
-             */
-            PELOGW(limLog(pMac, LOGW, FL("Heart Beat missed from AP. Sending Probe Req\n"));)
-            /* for searching AP, we don't include any additional IE */
-            limSendProbeReqMgmtFrame(pMac, &psessionEntry->ssId, psessionEntry->bssId,
-                                      psessionEntry->currentOperChannel,psessionEntry->selfMacAddr,
-                                      psessionEntry->dot11mode, 0, NULL);
-        }
-        else
-        {
-            /* Connected on DFS channel so should not send the probe request
-            * tear down the link directly */
-            limTearDownLinkWithAp(pMac, psessionEntry->peSessionId, eSIR_MAC_UNSPEC_FAILURE_REASON);
+            limLog(pMac, LOGP, FL("Fail to re-activate Probe-after-heartbeat timer\n"));
+            limReactivateHeartBeatTimer(pMac, psessionEntry);
         }
     }
     else

@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /**
  *
@@ -57,44 +37,13 @@
  * --------------------------------------------------------------------
  */
 
-#ifdef WCN_PRONTO
-#ifdef WCN_PRONTO_V1
-
-/* In Pronto 1.0 TPE descriptor size is increased to 1K per station
- * but not the cMEM allocated for hardware descriptors. Due to this
- * memory limitation the number of stations are limited to 9 and BSS
- * to 2 respectively. 
- *
- * In Pronto 2.0, TPE descriptor size is reverted
- * back to 512 bytes and hence more stations and BSSs can be supported
- * from Pronto 2.0
- *
- * In Pronto 1.0, 9 HW stations are supported including BCAST STA(staId 0)
- * and SELF STA(staId 1). So total ASSOC stations which can connect to
- * Pronto 1.0 Softap = 9 - 1(self sta) - 1(Bcast sta) = 7 stations
- */
-#define HAL_NUM_STA                 9
-#define HAL_NUM_BSSID               2
-#define HAL_NUM_UMA_DESC_ENTRIES    9
-
-#else /* WCN_PRONTO_V1 */
-
-#define HAL_NUM_STA                 14
-#define HAL_NUM_BSSID               4
-#define HAL_NUM_UMA_DESC_ENTRIES    14
-
-#endif /* WCN_PRONTO_V1 */
-#else  /* WCN_PRONTO */
-
 /*In prima 12 HW stations are supported including BCAST STA(staId 0)
  and SELF STA(staId 1) so total ASSOC stations which can connect to Prima
  SoftAP = 12 - 1(Self STa) - 1(Bcast Sta) = 10 Stations. */
+
 #define HAL_NUM_STA                 12
 #define HAL_NUM_BSSID               2
 #define HAL_NUM_UMA_DESC_ENTRIES    12
-
-#endif /* WCN_PRONTO */
-
 
 #define HAL_INVALID_BSSIDX          HAL_NUM_BSSID
 
@@ -172,21 +121,11 @@ typedef enum sBmuWqId {
     /* Special WQ for BMU to dropping all frames coming to this WQ ID */
     BMUWQ_SINK = 255,
 
-#ifdef WCN_PRONTO
-    BMUWQ_BMU_CMEM_IDLE_BD = 27,
-    /* Total BMU WQ count in Pronto */
-    BMUWQ_NUM = 28,
-    
-    //WQs 17 through 22 are enabled in Pronto. So, set not supported mask to 0.
-    BMUWQ_NOT_SUPPORTED_MASK = 0x0,
-#else
-    /* Total BMU WQ count in Prima */
+    /* Total BMU WQ count in Volans */
     BMUWQ_NUM = 27,
 
-    //Prima has excluded support for WQs 17 through 22.
+    //Volans has excluded support for WQs 17 through 22.
     BMUWQ_NOT_SUPPORTED_MASK = 0x7e0000,
-#endif //WCN_PRONTO
-
 
     /* Aliases */
     BMUWQ_BTQM_TX_MGMT = BMUWQ_BTQM,

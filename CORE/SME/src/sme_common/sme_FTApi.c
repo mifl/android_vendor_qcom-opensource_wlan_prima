@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 #ifdef WLAN_FEATURE_VOWIFI_11R
 /**=========================================================================
@@ -187,12 +167,10 @@ void sme_SetFTIEs( tHalHandle hHal, tANI_U8 sessionId, tANI_U8 *ft_ies,
 
 #if defined WLAN_FEATURE_VOWIFI_11R_DEBUG
             smsLog( pMac, LOGE, "ft_ies_length=%d\n", ft_ies_length);
-            /*
             smsLog( pMac, LOGE, "%d: New Auth ft_ies_length=%02x%02x%02x\n", 
                 current->pid, pMac->ft.ftSmeContext.auth_ft_ies[0],
                 pMac->ft.ftSmeContext.auth_ft_ies[1],
                 pMac->ft.ftSmeContext.auth_ft_ies[2]);
-                */
 #endif
             break;
 
@@ -247,12 +225,10 @@ void sme_SetFTIEs( tHalHandle hHal, tANI_U8 sessionId, tANI_U8 *ft_ies,
 #if defined WLAN_FEATURE_VOWIFI_11R_DEBUG
             smsLog( pMac, LOGE, "ft_ies_length=%d state=%d\n", ft_ies_length,
                 pMac->ft.ftSmeContext.FTState);
-            /*
             smsLog( pMac, LOGE, "%d: New Auth ft_ies_length=%02x%02x%02x\n", 
                 current->pid, pMac->ft.ftSmeContext.reassoc_ft_ies[0],
                 pMac->ft.ftSmeContext.reassoc_ft_ies[1],
                 pMac->ft.ftSmeContext.reassoc_ft_ies[2]);
-                */
 #endif
             
             break;
@@ -384,8 +360,7 @@ eHalStatus sme_FTUpdateKey( tHalHandle hHal, tCsrRoamSetKey * pFTKeyInfo )
     switch(pMac->ft.ftSmeContext.FTState)
     {
     case eFT_SET_KEY_WAIT:
-       status = eHAL_STATUS_SUCCESS;
-       //status = sme_FTSendUpdateKeyInd( hHal, pFTKeyInfo );
+       status = sme_FTSendUpdateKeyInd( hHal, pFTKeyInfo );
        pMac->ft.ftSmeContext.FTState = eFT_START_READY;
        break;
           

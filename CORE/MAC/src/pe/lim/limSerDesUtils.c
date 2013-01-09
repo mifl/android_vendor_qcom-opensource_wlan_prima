@@ -18,30 +18,9 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
- * Airgo Networks, Inc proprietary. All rights reserved. 
- * 
+ * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limSerDesUtils.cc contains the serializer/deserializer
  * utility functions LIM uses while communicating with upper layer
  * software entities
@@ -123,7 +102,7 @@ static tSirRetStatus
 limGetBssDescription( tpAniSirGlobal pMac, tSirBssDescription *pBssDescription,
                      tANI_S16 rLen, tANI_S16 *lenUsed, tANI_U8 *pBuf)
 {
-    tANI_S16 len = 0;
+    tANI_U16 len = 0;
 
     pBssDescription->length = limGetU16(pBuf);
     pBuf += sizeof(tANI_U16);
@@ -139,14 +118,6 @@ limGetBssDescription( tpAniSirGlobal pMac, tSirBssDescription *pBssDescription,
                   pBuf, sizeof(tSirMacAddr));
     pBuf += sizeof(tSirMacAddr);
     len  -= sizeof(tSirMacAddr);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;
-
-    // Extract timer
-    palCopyMemory( pMac->hHdd, (tANI_U8 *) (&pBssDescription->scanSysTimeMsec),
-                  pBuf, sizeof(v_TIME_t));
-    pBuf += sizeof(v_TIME_t);
-    len  -= sizeof(v_TIME_t);
     if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
         return eSIR_FAILURE;
 
@@ -207,6 +178,14 @@ limGetBssDescription( tpAniSirGlobal pMac, tSirBssDescription *pBssDescription,
     if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
         return eSIR_FAILURE;
 
+    // Extract the TITAN capability info
+    // NOTE - titanHtCaps is now DWORD aligned
+    pBssDescription->titanHtCaps = limGetU32( pBuf );
+    pBuf += sizeof(tANI_U32);
+    len  -= sizeof(tANI_U32);
+    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
+        return eSIR_FAILURE;
+
     //pass the timestamp
     pBssDescription->nReceivedTime = limGetU32( pBuf );
     pBuf += sizeof(tANI_TIMESTAMP);
@@ -246,71 +225,12 @@ limGetBssDescription( tpAniSirGlobal pMac, tSirBssDescription *pBssDescription,
 #endif
 #endif
 
-#ifdef FEATURE_WLAN_CCX
-    pBssDescription->QBSSLoad_present = limGetU16(pBuf);
-    pBuf += sizeof(tANI_U16);
-    len  -= sizeof(tANI_U16);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;
-
-    // Extract QBSSLoad_avail
-    pBssDescription->QBSSLoad_avail = limGetU16(pBuf);
-    pBuf += sizeof(tANI_U16);
-    len  -= sizeof(tANI_U16);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;
-#endif
-    pBssDescription->fProbeRsp = *pBuf++;
-    len  -= sizeof(tANI_U8);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;
-
-    /* 3 reserved bytes for padding */
-    pBuf += (3 * sizeof(tANI_U8));
-    len  -= 3;
-
-    pBssDescription->WscIeLen = limGetU32( pBuf );
-    pBuf += sizeof(tANI_U32);
-    len  -= sizeof(tANI_U32);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;
-    
-    if (WSCIE_PROBE_RSP_LEN < len)
-    {
-        /* Do not copy with WscIeLen
-         * if WscIeLen is not set properly, memory overwrite happen
-         * Ended up with memory corruption and crash
-         * Copy with Fixed size */
-        palCopyMemory( pMac->hHdd, (tANI_U8 *) pBssDescription->WscIeProbeRsp,
-                       pBuf,
-                       WSCIE_PROBE_RSP_LEN);
-
-    }
-    else
-    {
-        limLog(pMac, LOGE,
-                     FL("remaining bytes len %d is less than WSCIE_PROBE_RSP_LEN\n"),
-                     pBssDescription->WscIeLen);
-        return eSIR_FAILURE;
-    }
-
-    /* 1 reserved byte padding */
-    pBuf += (WSCIE_PROBE_RSP_LEN + 1);
-    len -= (WSCIE_PROBE_RSP_LEN + 1);
-
-    if (len > 0)
+    if (len)
     {
         palCopyMemory( pMac->hHdd, (tANI_U8 *) pBssDescription->ieFields,
                        pBuf,
                        len);
     }
-    else if (len < 0)
-    {
-        limLog(pMac, LOGE, 
-                     FL("remaining length is negative. len = %d, actual length = %d\n"), 
-                     len, pBssDescription->length);
-        return eSIR_FAILURE;
-    }    
 
     return eSIR_SUCCESS;
 } /*** end limGetBssDescription() ***/
@@ -357,12 +277,6 @@ limCopyBssDescription(tpAniSirGlobal pMac, tANI_U8 *pBuf, tSirBssDescription *pB
        FL("Copying BSSdescr:channel is %d, aniInd is %d, bssId is "),
        pBssDescription->channelId, pBssDescription->aniIndicator);
     limPrintMacAddr(pMac, pBssDescription->bssId, LOG3);)
-
-    palCopyMemory( pMac->hHdd, pBuf,
-                  (tANI_U8 *) (&pBssDescription->scanSysTimeMsec),
-                  sizeof(v_TIME_t));
-    pBuf       += sizeof(v_TIME_t);
-    len        += sizeof(v_TIME_t);
 
     limCopyU32(pBuf, pBssDescription->timeStamp[0]);
     pBuf       += sizeof(tANI_U32);
@@ -632,11 +546,15 @@ limCopyNeighborBssInfo(tpAniSirGlobal pMac, tANI_U8 *pBuf, tpSirNeighborBssInfo 
     pBuf       += sizeof(tSirMacAddr);
     bssInfoLen += sizeof(tSirMacAddr);
    PELOG3(limLog(pMac, LOG3,
-       FL("Copying new NeighborWds node:channel is %d, wniIndicator is %d, bssType is %d, bssId is "),
-       pBssInfo->channelId, pBssInfo->wniIndicator, pBssInfo->bssType);
+       FL("Copying new NeighborWds node:channel is %d, TITAN HT Caps are %1d, wniIndicator is %d, bssType is %d, bssId is "),
+       pBssInfo->channelId, pBssInfo->titanHtCaps, pBssInfo->wniIndicator,
+       pBssInfo->bssType);
     limPrintMacAddr(pMac, pBssInfo->bssId, LOG3);)
 
     *pBuf++ = pBssInfo->channelId;
+    bssInfoLen++;
+
+    *pBuf++ = pBssInfo->titanHtCaps;
     bssInfoLen++;
 
     limCopyU32(pBuf, pBssInfo->wniIndicator);
@@ -1401,7 +1319,7 @@ limStartBssReqSerDes(tpAniSirGlobal pMac, tpSirSmeStartBssReq pStartBssReq, tANI
     len--;
 
     // Extract CB secondary channel info
-    pStartBssReq->cbMode = (ePhyChanBondState)limGetU32( pBuf );
+    pStartBssReq->cbMode = (tAniCBSecondaryMode)limGetU32( pBuf );
     pBuf += sizeof( tANI_U32 );
     len -= sizeof( tANI_U32 );
 
@@ -1824,12 +1742,6 @@ limJoinReqSerDes(tpAniSirGlobal pMac, tpSirSmeJoinReq pJoinReq, tANI_U8 *pBuf)
     if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
         return eSIR_FAILURE;
 
-    // Extract cbMode
-    pJoinReq->cbMode = *pBuf++;
-    len--;
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;
-
     // Extract uapsdPerAcBitmask
     pJoinReq->uapsdPerAcBitmask = *pBuf++;
     len--;
@@ -1893,31 +1805,6 @@ limJoinReqSerDes(tpAniSirGlobal pMac, tpSirSmeJoinReq pJoinReq, tANI_U8 *pBuf)
             return eSIR_FAILURE;
     }
 
-#ifdef FEATURE_WLAN_CCX
-    // Extract CCKM IE
-    pJoinReq->cckmIE.length = limGetU16(pBuf);
-    pBuf += sizeof(tANI_U16);
-    len -= sizeof(tANI_U16);
-    if (pJoinReq->cckmIE.length)
-    {
-        // Check for CCKM IE length (that includes length of type & length)
-        if ((pJoinReq->cckmIE.length > SIR_MAC_MAX_IE_LENGTH) ||
-             (pJoinReq->cckmIE.length != (2 + *(pBuf + 1))))
-        {
-            limLog(pMac, LOGW,
-                   FL("Invalid CCKM IE length %d/%d in SME_JOIN/REASSOC_REQ\n"),
-                   pJoinReq->cckmIE.length, 2 + *(pBuf + 1));
-            return eSIR_FAILURE;
-        }
-        palCopyMemory( pMac->hHdd, (tANI_U8 *) pJoinReq->cckmIE.cckmIEdata,
-                      pBuf, pJoinReq->cckmIE.length);
-        pBuf += pJoinReq->cckmIE.length;
-        len  -= pJoinReq->cckmIE.length; // skip CCKM IE
-        if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-            return eSIR_FAILURE;
-    }
-#endif
-
     // Extract Add IE for scan
     pJoinReq->addIEScan.length = limGetU16(pBuf);
     pBuf += sizeof(tANI_U16);
@@ -1978,51 +1865,6 @@ limJoinReqSerDes(tpAniSirGlobal pMac, tpSirSmeJoinReq pJoinReq, tANI_U8 *pBuf)
     if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
         return eSIR_FAILURE;    
     
-#ifdef WLAN_FEATURE_VOWIFI_11R
-    //is11Rconnection;
-    pJoinReq->is11Rconnection = (tAniBool)limGetU32(pBuf);
-    pBuf += sizeof(tAniBool);
-    len -= sizeof(tAniBool);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;    
-#endif
-
-#ifdef FEATURE_WLAN_CCX
-    //isCCXconnection;
-    pJoinReq->isCCXconnection = (tAniBool)limGetU32(pBuf);
-    pBuf += sizeof(tAniBool);
-    len -= sizeof(tAniBool);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;    
-
-    // TSPEC information
-    pJoinReq->ccxTspecInfo.numTspecs = *pBuf++;
-    len -= sizeof(tANI_U8);
-    palCopyMemory(pMac->hHdd, (void*)&pJoinReq->ccxTspecInfo.tspec[0], pBuf, (sizeof(tTspecInfo)* pJoinReq->ccxTspecInfo.numTspecs));
-    pBuf += sizeof(tTspecInfo)*SIR_CCX_MAX_TSPEC_IES;
-    len  -= sizeof(tTspecInfo)*SIR_CCX_MAX_TSPEC_IES;
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;
-#endif
-    
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
-    //isFastTransitionEnabled;
-    pJoinReq->isFastTransitionEnabled = (tAniBool)limGetU32(pBuf);
-    pBuf += sizeof(tAniBool);
-    len -= sizeof(tAniBool);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;    
-#endif
-
-#ifdef FEATURE_WLAN_LFR
-    //isFastRoamIniFeatureEnabled;
-    pJoinReq->isFastRoamIniFeatureEnabled = (tAniBool)limGetU32(pBuf);
-    pBuf += sizeof(tAniBool);
-    len -= sizeof(tAniBool);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;    
-#endif
-
 #if (WNI_POLARIS_FW_PACKAGE == ADVANCED) && defined(ANI_PRODUCT_TYPE_AP)
     // Extract BP Indicator
     pJoinReq->bpIndicator = (tAniBool) limGetU32(pBuf);
@@ -2139,10 +1981,7 @@ limAssocIndSerDes(tpAniSirGlobal pMac, tpLimMlmAssocInd pAssocInd, tANI_U8 *pBuf
 #endif
 
     mLen   = sizeof(tANI_U32);
-    mLen   += sizeof(tANI_U8);
     pBuf  += sizeof(tANI_U16);
-    *pBuf = psessionEntry->smeSessionId;
-    pBuf   += sizeof(tANI_U8);
 
      // Fill in peerMacAddr
     palCopyMemory( pMac->hHdd, pBuf, pAssocInd->peerMacAddr, sizeof(tSirMacAddr));
@@ -2233,6 +2072,11 @@ limAssocIndSerDes(tpAniSirGlobal pMac, tpLimMlmAssocInd pAssocInd, tANI_U8 *pBuf
     mLen += sizeof(tANI_U32);
 
 #endif
+
+    // Copy the new TITAN capabilities
+    *pBuf = pAssocInd->titanHtCaps;
+    pBuf++;
+    mLen++;
 
     limCopyU32(pBuf, pAssocInd->spectrumMgtIndicator);
     pBuf += sizeof(tAniBool);
@@ -2696,8 +2540,6 @@ limReassocIndSerDes(tpAniSirGlobal pMac, tpLimMlmReassocInd pReassocInd, tANI_U8
 
     mLen   = sizeof(tANI_U32);
     pBuf  += sizeof(tANI_U16);
-    *pBuf++ = psessionEntry->smeSessionId;
-    mLen += sizeof(tANI_U8);
 
     // Fill in peerMacAddr
     palCopyMemory( pMac->hHdd, pBuf, pReassocInd->peerMacAddr, sizeof(tSirMacAddr));
@@ -2802,6 +2644,11 @@ limReassocIndSerDes(tpAniSirGlobal pMac, tpLimMlmReassocInd pReassocInd, tANI_U8
     mLen += sizeof(tANI_U32);
 #endif
 
+    // Copy the new TITAN capabilities
+    *pBuf = pReassocInd->titanHtCaps;
+    pBuf++;
+    mLen++;
+
     limCopyU32(pBuf, pReassocInd->spectrumMgtIndicator);
     pBuf += sizeof(tAniBool);
     mLen += sizeof(tAniBool);
@@ -2874,8 +2721,6 @@ limAuthIndSerDes(tpAniSirGlobal pMac, tpLimMlmAuthInd pAuthInd, tANI_U8 *pBuf)
 
     mLen   = sizeof(tANI_U32);
     pBuf  += sizeof(tANI_U16);
-    *pBuf++ = pAuthInd->sessionId;
-    mLen += sizeof(tANI_U8);
 
     // BTAMP TODO:  Fill in bssId
     palZeroMemory(pMac->hHdd, pBuf, sizeof(tSirMacAddr));
@@ -2954,6 +2799,20 @@ limSetContextReqSerDes(tpAniSirGlobal pMac, tpSirSmeSetContextReq pSetContextReq
     if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
         return eSIR_FAILURE;
 
+    palCopyMemory( pMac->hHdd, (tANI_U8 *) pSetContextReq->peerMacAddr,
+                  pBuf, sizeof(tSirMacAddr));
+    pBuf += sizeof(tSirMacAddr);
+    len  -= sizeof(tSirMacAddr);
+    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
+        return eSIR_FAILURE;
+
+    // Extract bssId
+    palCopyMemory( pMac->hHdd, pSetContextReq->bssId, pBuf, sizeof(tSirMacAddr));
+    pBuf += sizeof(tSirMacAddr);
+    len -= sizeof(tSirMacAddr);
+    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
+        return eSIR_FAILURE;
+
     // Extract sessionId
     pSetContextReq->sessionId = *pBuf++;
     len--;
@@ -2964,17 +2823,6 @@ limSetContextReqSerDes(tpAniSirGlobal pMac, tpSirSmeSetContextReq pSetContextReq
     pSetContextReq->transactionId = sirReadU16N(pBuf);
     pBuf += sizeof(tANI_U16);
     len  -= sizeof(tANI_U16);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;
-    palCopyMemory( pMac->hHdd, (tANI_U8 *) pSetContextReq->peerMacAddr,
-                   pBuf, sizeof(tSirMacAddr));
-    pBuf += sizeof(tSirMacAddr);
-    len  -= sizeof(tSirMacAddr);
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-        return eSIR_FAILURE;
-    palCopyMemory( pMac->hHdd, pSetContextReq->bssId, pBuf, sizeof(tSirMacAddr));
-    pBuf += sizeof(tSirMacAddr);
-    len  -= sizeof(tSirMacAddr);
     if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
         return eSIR_FAILURE;
 
@@ -3388,19 +3236,16 @@ limDeauthReqSerDes(tpAniSirGlobal pMac, tSirSmeDeauthReq *pDeauthReq, tANI_U8 *p
  */
 
 void
-limCopyNeighborInfoToCfg(tpAniSirGlobal pMac, tSirNeighborBssInfo neighborBssInfo, tpPESession psessionEntry)
+limCopyNeighborInfoToCfg(tpAniSirGlobal pMac, tSirNeighborBssInfo neighborBssInfo)
 {
     tANI_U32    localPowerConstraints = 0;
     tANI_U16    caps;
     tANI_U8     qosCap = 0;
-
-    if(psessionEntry)
+    
+    if (cfgSetInt(pMac, WNI_CFG_PHY_MODE,
+                  neighborBssInfo.nwType) != eSIR_SUCCESS)
     {
-        psessionEntry->gLimPhyMode = neighborBssInfo.nwType;
-    }
-    else
-    {
-        pMac->lim.gLimPhyMode = neighborBssInfo.nwType;
+        limLog(pMac, LOGP, FL("could not set networkType at CFG\n"));
     }
 
     cfgSetCapabilityInfo(pMac, neighborBssInfo.capabilityInfo);
@@ -3456,7 +3301,7 @@ limCopyNeighborInfoToCfg(tpAniSirGlobal pMac, tSirNeighborBssInfo neighborBssInf
         pMac->lim.htCapabilityPresentInBeacon = 1;
     else
         pMac->lim.htCapabilityPresentInBeacon = 0;
-    if (neighborBssInfo.localPowerConstraints && pSessionEntry->lim11hEnable)
+    if (neighborBssInfo.localPowerConstraints && pMac->lim.gLim11hEnable)
     {
         localPowerConstraints = neighborBssInfo.localPowerConstraints;
     }
@@ -3609,8 +3454,7 @@ limSmeWmStatusChangeHeaderSerDes(tpAniSirGlobal pMac,
                                  tSirSmeStatusChangeCode statusChangeCode,
                                  tANI_U8 *pBuf,
                                  tANI_U16 *len,
-                                 tANI_U32 buflen,
-                                 tANI_U8 sessionId)
+                                 tANI_U32 buflen)
 {
     if (buflen < ((sizeof(tANI_U16) * 2) + sizeof(tANI_U32)))
     {
@@ -3628,9 +3472,6 @@ limSmeWmStatusChangeHeaderSerDes(tpAniSirGlobal pMac,
     // Actual length value shall be filled later
     pBuf += sizeof(tANI_U16);
     *len += sizeof(tANI_U16);
-    
-    *pBuf++ = sessionId;
-    *len += sizeof(tANI_U8);
 
     limCopyU32(pBuf, statusChangeCode);
     pBuf += sizeof(tANI_U32);
@@ -3706,18 +3547,16 @@ void
 limPackBkgndScanFailNotify(tpAniSirGlobal pMac,
                            tSirSmeStatusChangeCode statusChangeCode,
                            tpSirBackgroundScanInfo pScanInfo,
-                           tSirSmeWmStatusChangeNtf *pSmeNtf,
-                           tANI_U8 sessionId)
+                           tSirSmeWmStatusChangeNtf *pSmeNtf)
 {
 
-    tANI_U16    length = (sizeof(tANI_U16) * 2) + sizeof(tANI_U8) +
+    tANI_U16    length = (sizeof(tANI_U16) * 2) +
                     sizeof(tSirSmeStatusChangeCode) +
                     sizeof(tSirBackgroundScanInfo);
 
 #if defined (ANI_PRODUCT_TYPE_AP) && defined(ANI_LITTLE_BYTE_ENDIAN)
         sirStoreU16N((tANI_U8*)&pSmeNtf->messageType, eWNI_SME_WM_STATUS_CHANGE_NTF );
         sirStoreU16N((tANI_U8*)&pSmeNtf->length, length);
-        pSmeNtf->sessionId = sessionId;
         sirStoreU32N((tANI_U8*)&pSmeNtf->statusChangeCode, statusChangeCode);
 
         sirStoreU32N((tANI_U8*)&pSmeNtf->statusChangeInfo.bkgndScanInfo.numOfScanSuccess,
@@ -3730,7 +3569,6 @@ limPackBkgndScanFailNotify(tpAniSirGlobal pMac,
         pSmeNtf->messageType = eWNI_SME_WM_STATUS_CHANGE_NTF;
         pSmeNtf->statusChangeCode = statusChangeCode;
         pSmeNtf->length = length;
-        pSmeNtf->sessionId = sessionId;
         pSmeNtf->statusChangeInfo.bkgndScanInfo.numOfScanSuccess = pScanInfo->numOfScanSuccess;
         pSmeNtf->statusChangeInfo.bkgndScanInfo.numOfScanFailure = pScanInfo->numOfScanFailure;
         pSmeNtf->statusChangeInfo.bkgndScanInfo.reserved = pScanInfo->reserved;
@@ -3769,8 +3607,7 @@ limPackBkgndScanFailNotify(tpAniSirGlobal pMac,
 tSirRetStatus nonTitanBssFoundSerDes( tpAniSirGlobal pMac,
     tpSirNeighborBssWdsInfo pNewBssInfo,
     tANI_U8 *pBuf,
-    tANI_U16 *len,
-    tANI_U8 sessionId )
+    tANI_U16 *len )
 {
 tANI_U8 *pTemp = pBuf;
 tANI_U16 length = 0;
@@ -3782,8 +3619,7 @@ tANI_U32 bufLen = sizeof( tSirSmeWmStatusChangeNtf );
         eSIR_SME_CB_LEGACY_BSS_FOUND_BY_AP,
         pBuf,
         &length,
-        bufLen,
-        sessionId))
+        bufLen ))
   {
     limLog( pMac, LOGE,
         FL("Header SerDes failed \n"));

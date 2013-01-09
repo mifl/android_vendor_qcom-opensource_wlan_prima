@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 #ifndef __WEXT_IW_H__
 #define __WEXT_IW_H__
@@ -69,11 +49,7 @@
 #define HDD_WLAN_WMM_PARAM_SUSPENSION_INTERVAL         13
 #define HDD_WLAN_WMM_PARAM_BURST_SIZE_DEFN             14
 #define HDD_WLAN_WMM_PARAM_ACK_POLICY                  15
-#define HDD_WLAN_WMM_PARAM_INACTIVITY_INTERVAL         16
-#define HDD_WLAN_WMM_PARAM_MAX_SERVICE_INTERVAL        17
-#define HDD_WLAN_WMM_PARAM_COUNT                       18
-
-#define MHZ 6
+#define HDD_WLAN_WMM_PARAM_COUNT                       16
 
 typedef enum
 {
@@ -216,7 +192,6 @@ typedef enum
 #endif
 
 
- 
 #define WPS_OUI_TYPE   "\x00\x50\xf2\x04"
 #define WPS_OUI_TYPE_SIZE  4
  
@@ -224,9 +199,6 @@ typedef enum
 #define P2P_OUI_TYPE   "\x50\x6f\x9a\x09"
 #define P2P_OUI_TYPE_SIZE  4
 #endif
-
-#define HS20_OUI_TYPE   "\x50\x6f\x9a\x10"
-#define HS20_OUI_TYPE_SIZE  4
 
 #ifdef WLAN_FEATURE_WFD
 #define WFD_OUI_TYPE   "\x50\x6f\x9a\x0a"
@@ -300,12 +272,6 @@ typedef struct hdd_wext_state_s
 
    /* oem data req ID */
    v_U32_t oemDataReqID;
-#endif
-
-#ifdef FEATURE_WLAN_CCX
-   /* CCX state variables */
-   v_BOOL_t isCCXConnection;
-   eCsrAuthType collectedAuthType; /* Collected from ALL SIOCSIWAUTH Ioctls. Will be negotiatedAuthType - in tCsrProfile */
 #endif
 }hdd_wext_state_t;
 
@@ -407,8 +373,6 @@ VOS_STATUS wlan_hdd_exit_lowpower(hdd_context_t *pHddCtx,
 VOS_STATUS wlan_hdd_enter_lowpower(hdd_context_t *pHddCtx);
 
 VOS_STATUS wlan_hdd_get_classAstats(hdd_adapter_t *pAdapter);
-
-VOS_STATUS wlan_hdd_get_station_stats(hdd_adapter_t *pAdapter);
 
 VOS_STATUS wlan_hdd_get_rssi(hdd_adapter_t *pAdapter, v_S7_t *rssi_value);
 

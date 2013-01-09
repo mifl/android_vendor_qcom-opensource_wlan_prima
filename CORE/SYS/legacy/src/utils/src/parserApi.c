@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
  * Airgo Networks, Inc proprietary. All rights reserved.
@@ -178,12 +158,11 @@ inline static void __printWMMParams(tpAniSirGlobal  pMac, tDot11fIEWMMParams *pW
 
 // return: >= 0, the starting location of the IE in rsnIEdata inside tSirRSNie
 //         < 0, cannot find
-int FindIELocation( tpAniSirGlobal pMac,
+static int FindIELocation( tpAniSirGlobal pMac,
                            tpSirRSNie pRsnIe,
                            tANI_U8 EID)
 {
     int idx, ieLen, bytesLeft;
-    int ret_val = -1;
 
     // Here's what's going on: 'rsnIe' looks like this:
 
@@ -220,14 +199,14 @@ int FindIELocation( tpAniSirGlobal pMac,
              bytesLeft <= (tANI_U16)( ieLen ) )
         {
             dot11fLog( pMac, LOG3, FL("No IE (%d) in FindIELocation.\n"), EID );
-            return ret_val;
+            return (-1);
         }
         bytesLeft -= ieLen;
         ieLen = pRsnIe->rsnIEdata[ idx + 1 ] + 2;
         idx += ieLen;
     }
 
-    return ret_val;
+    return (-1);
 }
 
 
@@ -288,40 +267,25 @@ PopulateDot11fCapabilities2(tpAniSirGlobal         pMac,
 
 void
 PopulateDot11fChanSwitchAnn(tpAniSirGlobal          pMac,
-                            tDot11fIEChanSwitchAnn *pDot11f,
-                            tpPESession psessionEntry)
+                            tDot11fIEChanSwitchAnn *pDot11f)
 {
-    pDot11f->switchMode = psessionEntry->gLimChannelSwitch.switchMode;
-    pDot11f->newChannel = psessionEntry->gLimChannelSwitch.primaryChannel;
-    pDot11f->switchCount = ( tANI_U8 ) psessionEntry->gLimChannelSwitch.switchCount;
+    pDot11f->switchMode = pMac->lim.gLimChannelSwitch.switchMode;
+    pDot11f->newChannel = pMac->lim.gLimChannelSwitch.primaryChannel;
+    pDot11f->switchCount = ( tANI_U8 ) pMac->lim.gLimChannelSwitch.switchCount;
 
     pDot11f->present = 1;
 } // End PopulateDot11fChanSwitchAnn.
 
 void
 PopulateDot11fExtChanSwitchAnn(tpAniSirGlobal pMac,
-                               tDot11fIEExtChanSwitchAnn *pDot11f,
-                               tpPESession psessionEntry)
+                               tDot11fIEExtChanSwitchAnn *pDot11f)
 {
     //Has to be updated on the cb state basis
     pDot11f->secondaryChannelOffset = 
-             psessionEntry->gLimChannelSwitch.secondarySubBand;
+             limGetHTCBState(pMac->lim.gLimChannelSwitch.secondarySubBand);
 
     pDot11f->present = 1;
 }
-
-#ifdef WLAN_FEATURE_11AC
-void
-PopulateDot11fWiderBWChanSwitchAnn(tpAniSirGlobal pMac,
-                                   tDot11fIEWiderBWChanSwitchAnn *pDot11f,
-                                   tpPESession psessionEntry)
-{
-    pDot11f->present = 1;
-    pDot11f->newChanWidth = psessionEntry->gLimWiderBWChannelSwitch.newChanWidth;
-    pDot11f->newCenterChanFreq0 = psessionEntry->gLimWiderBWChannelSwitch.newCenterChanFreq0;
-    pDot11f->newCenterChanFreq1 = psessionEntry->gLimWiderBWChannelSwitch.newCenterChanFreq1;
-}
-#endif
 
 tSirRetStatus
 PopulateDot11fCountry(tpAniSirGlobal    pMac,
@@ -331,13 +295,11 @@ PopulateDot11fCountry(tpAniSirGlobal    pMac,
     tANI_U32           len, maxlen, codelen;
     tANI_U16           item;
     tSirRetStatus nSirStatus;
-    tSirRFBand         rfBand;
     tANI_U8            temp[CFG_MAX_STR_LEN], code[3];
 
     if (psessionEntry->lim11dEnabled )
     {
-        limGetRfBand(pMac, &rfBand, psessionEntry);
-        if (rfBand == SIR_BAND_5_GHZ)
+        if (pMac->lim.gLimPhyMode == WNI_CFG_PHY_MODE_11A)
         {
             item   = WNI_CFG_MAX_TX_POWER_5;
             maxlen = WNI_CFG_MAX_TX_POWER_5_LEN;
@@ -379,14 +341,13 @@ PopulateDot11fCountry(tpAniSirGlobal    pMac,
 
 tSirRetStatus
 PopulateDot11fDSParams(tpAniSirGlobal     pMac,
-                       tDot11fIEDSParams *pDot11f, tANI_U8 channel,
-                       tpPESession psessionEntry)
+                       tDot11fIEDSParams *pDot11f, tANI_U8 channel)
 {
-//    tSirRetStatus       nSirStatus;
+    tSirRetStatus       nSirStatus;
     tANI_U32            nPhyMode;
 
     // Get PHY mode and based on that add DS Parameter Set IE
-    limGetPhyMode(pMac, &nPhyMode, psessionEntry);
+    CFG_GET_INT( nSirStatus, pMac, WNI_CFG_PHY_MODE, nPhyMode );
 
     if ( WNI_CFG_PHY_MODE_11A != nPhyMode )
     {
@@ -458,7 +419,7 @@ PopulateDot11fERPInfo(tpAniSirGlobal    pMac,
     tANI_U32            val;
     tSirRFBand          rfBand = SIR_BAND_UNKNOWN;
 
-    limGetRfBand(pMac, &rfBand, psessionEntry);
+    limGetRfBand(pMac, &rfBand);
     if(SIR_BAND_2_4_GHZ == rfBand)
     {
         pDot11f->present = 1;
@@ -578,8 +539,7 @@ PopulateDot11fExtSuppRates1(tpAniSirGlobal         pMac,
 
 tSirRetStatus
 PopulateDot11fHTCaps(tpAniSirGlobal           pMac,
-                           tpPESession      psessionEntry,
-                           tDot11fIEHTCaps *pDot11f)
+                             tDot11fIEHTCaps *pDot11f)
 {
     tANI_U32                         nCfgValue, nCfgLen;
     tANI_U8                          nCfgValue8;
@@ -609,8 +569,12 @@ PopulateDot11fHTCaps(tpAniSirGlobal           pMac,
     pHTCapabilityInfo = ( tSirMacHTCapabilityInfo* ) &nCfgValue16;
 #endif
 
+    dot11fLog( pMac, LOG1, FL( "HT Caps: %x\n" ), nCfgValue);
+
+
 #ifdef WLAN_SOFTAP_FEATURE  // this is added for fixing CRs on MDM9K platform - 257951, 259577
     pDot11f->advCodingCap             = uHTCapabilityInfo.htCapInfo.advCodingCap;
+    pDot11f->supportedChannelWidthSet = uHTCapabilityInfo.htCapInfo.supportedChannelWidthSet;
     pDot11f->mimoPowerSave            = uHTCapabilityInfo.htCapInfo.mimoPowerSave;
     pDot11f->greenField               = uHTCapabilityInfo.htCapInfo.greenField;
     pDot11f->shortGI20MHz             = uHTCapabilityInfo.htCapInfo.shortGI20MHz;
@@ -625,6 +589,7 @@ PopulateDot11fHTCaps(tpAniSirGlobal           pMac,
     pDot11f->lsigTXOPProtection       = uHTCapabilityInfo.htCapInfo.lsigTXOPProtection;
 #else
     pDot11f->advCodingCap             = pHTCapabilityInfo->advCodingCap;
+    pDot11f->supportedChannelWidthSet = pHTCapabilityInfo->supportedChannelWidthSet;
     pDot11f->mimoPowerSave            = pHTCapabilityInfo->mimoPowerSave;
     pDot11f->greenField               = pHTCapabilityInfo->greenField;
     pDot11f->shortGI20MHz             = pHTCapabilityInfo->shortGI20MHz;
@@ -638,16 +603,6 @@ PopulateDot11fHTCaps(tpAniSirGlobal           pMac,
     pDot11f->stbcControlFrame         = pHTCapabilityInfo->stbcControlFrame;
     pDot11f->lsigTXOPProtection       = pHTCapabilityInfo->lsigTXOPProtection;
 #endif
-
-    // All sessionized entries will need the check below
-    if (psessionEntry == NULL) // Only in case of NO session
-    {
-        pDot11f->supportedChannelWidthSet = uHTCapabilityInfo.htCapInfo.supportedChannelWidthSet;
-    }
-    else
-    {
-        pDot11f->supportedChannelWidthSet = psessionEntry->htSupportedChannelWidthSet;
-    }
 
     /* Ensure that shortGI40MHz is Disabled if supportedChannelWidthSet is
        eHT_CHANNEL_WIDTH_20MHZ */
@@ -732,286 +687,7 @@ PopulateDot11fHTCaps(tpAniSirGlobal           pMac,
     return eSIR_SUCCESS;
 
 } // End PopulateDot11fHTCaps.
-#ifdef WLAN_FEATURE_11AC
 
-void limLogVHTCap(tpAniSirGlobal pMac,
-                              tDot11fIEVHTCaps *pDot11f)
-{
-#ifdef DUMP_MGMT_CNTNTS
-    limLog(pMac, LOG1, FL("maxMPDULen (2): %d\n"), pDot11f->maxMPDULen);
-    limLog(pMac, LOG1, FL("supportedChannelWidthSet (2): %d\n"), pDot11f->supportedChannelWidthSet);
-    limLog(pMac, LOG1, FL("ldpcCodingCap (1): %d\n"), pDot11f->ldpcCodingCap);
-    limLog(pMac, LOG1, FL("shortGI80MHz (1): %d\n"), pDot11f->shortGI80MHz);
-    limLog(pMac, LOG1, FL("shortGI160and80plus80MHz (1): %d\n"), pDot11f->shortGI160and80plus80MHz);
-    limLog(pMac, LOG1, FL("txSTBC (1): %d\n"), pDot11f->txSTBC);
-    limLog(pMac, LOG1, FL("rxSTBC (3): %d\n"), pDot11f->rxSTBC);
-    limLog(pMac, LOG1, FL("suBeamFormerCap (1): %d\n"), pDot11f->suBeamFormerCap);
-    limLog(pMac, LOG1, FL("suBeamformeeCap (1): %d\n"), pDot11f->suBeamformeeCap);
-    limLog(pMac, LOG1, FL("csnofBeamformerAntSup (3): %d\n"), pDot11f->csnofBeamformerAntSup);
-    limLog(pMac, LOG1, FL("numSoundingDim (3): %d\n"), pDot11f->numSoundingDim);
-    limLog(pMac, LOG1, FL("muBeamformerCap (1): %d\n"), pDot11f->muBeamformerCap);
-    limLog(pMac, LOG1, FL("muBeamformeeCap (1): %d\n"), pDot11f->muBeamformeeCap);
-    limLog(pMac, LOG1, FL("vhtTXOPPS (1): %d\n"), pDot11f->vhtTXOPPS);
-    limLog(pMac, LOG1, FL("htcVHTCap (1): %d\n"), pDot11f->htcVHTCap);
-    limLog(pMac, LOG1, FL("maxAMPDULenExp (3): %d\n"), pDot11f->maxAMPDULenExp);
-    limLog(pMac, LOG1, FL("vhtLinkAdaptCap (2): %d\n"), pDot11f->vhtLinkAdaptCap);
-    limLog(pMac, LOG1, FL("rxAntPattern (1): %d\n"), pDot11f->vhtLinkAdaptCap);
-    limLog(pMac, LOG1, FL("txAntPattern (1): %d\n"), pDot11f->vhtLinkAdaptCap);
-    limLog(pMac, LOG1, FL("reserved1 (2): %d\n"), pDot11f->reserved1);
-    limLog(pMac, LOG1, FL("rxMCSMap (16): %d\n"), pDot11f->rxMCSMap);
-    limLog(pMac, LOG1, FL("rxHighSupDataRate (13): %d\n"), pDot11f->rxHighSupDataRate);
-    limLog(pMac, LOG1, FL("reserve (3): %d\n"), pDot11f->reserved2);
-    limLog(pMac, LOG1, FL("txMCSMap (16): %d\n"), pDot11f->txMCSMap);
-    limLog(pMac, LOG1, FL("txSupDataRate (13): %d\n"), pDot11f->txSupDataRate);
-    limLog(pMac, LOG1, FL("reserv (3): %d\n"), pDot11f->reserved3);
-#endif /* DUMP_MGMT_CNTNTS */
-}
-
-void limLogVHTOperation(tpAniSirGlobal pMac,
-                              tDot11fIEVHTOperation *pDot11f)
-{
-#ifdef DUMP_MGMT_CNTNTS
-    limLog(pMac, LOG1, FL("chanWidth : %d\n"), pDot11f->chanWidth);
-    limLog(pMac, LOG1, FL("chanCenterFreqSeg1: %d\n"), pDot11f->chanCenterFreqSeg1);
-    limLog(pMac, LOG1, FL("chanCenterFreqSeg2: %d\n"), pDot11f->chanCenterFreqSeg2);
-    limLog(pMac, LOG1, FL("basicMCSSet: %d\n"), pDot11f->basicMCSSet);
-#endif /* DUMP_MGMT_CNTNTS */
-}
-
-void limLogVHTExtBssLoad(tpAniSirGlobal pMac,
-                              tDot11fIEVHTExtBssLoad *pDot11f)
-{
-#ifdef DUMP_MGMT_CNTNTS
-    limLog(pMac, LOG1, FL("muMIMOCapStaCount : %d\n"), pDot11f->muMIMOCapStaCount);
-    limLog(pMac, LOG1, FL("ssUnderUtil: %d\n"), pDot11f->ssUnderUtil);
-    limLog(pMac, LOG1, FL("FortyMHzUtil: %d\n"), pDot11f->FortyMHzUtil);
-    limLog(pMac, LOG1, FL("EightyMHzUtil: %d\n"), pDot11f->EightyMHzUtil);
-    limLog(pMac, LOG1, FL("OneSixtyMHzUtil: %d\n"), pDot11f->OneSixtyMHzUtil);
-#endif /* DUMP_MGMT_CNTNTS */
-}
-
-
-void limLogOperatingMode( tpAniSirGlobal pMac, 
-                               tDot11fIEOperatingMode *pDot11f)
-{
-#ifdef DUMP_MGMT_CNTNTS
-    limLog(pMac, LOG1, FL("ChanWidth : %d\n"), pDot11f->chanWidth);
-    limLog(pMac, LOG1, FL("reserved: %d\n"), pDot11f->reserved);
-    limLog(pMac, LOG1, FL("rxNSS: %d\n"), pDot11f->rxNSS);
-    limLog(pMac, LOG1, FL("rxNSS Type: %d\n"), pDot11f->rxNSSType);
-#endif /* DUMP_MGMT_CNTNTS */
-}
-
-
-tSirRetStatus
-PopulateDot11fVHTCaps(tpAniSirGlobal           pMac,
-                           tDot11fIEVHTCaps *pDot11f)
-{
-    tSirRetStatus        nStatus;
-    tANI_U32             nCfgValue=0;
-
-    pDot11f->present = 1;
-
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_MAX_MPDU_LENGTH, nCfgValue );
-    pDot11f->maxMPDULen =  (nCfgValue & 0x0003);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_SUPPORTED_CHAN_WIDTH_SET,
-                                                             nCfgValue );
-    pDot11f->supportedChannelWidthSet = (nCfgValue & 0x0003);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_LDPC_CODING_CAP, nCfgValue );
-    pDot11f->ldpcCodingCap = (nCfgValue & 0x0001);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_SHORT_GI_80MHZ, nCfgValue );
-    pDot11f->shortGI80MHz= (nCfgValue & 0x0001);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_SHORT_GI_160_AND_80_PLUS_80MHZ,
-                                                                nCfgValue );
-    pDot11f->shortGI160and80plus80MHz = (nCfgValue & 0x0001);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_TXSTBC, nCfgValue );
-    pDot11f->txSTBC = (nCfgValue & 0x0001);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_RXSTBC, nCfgValue );
-    pDot11f->rxSTBC = (nCfgValue & 0x0007);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_SU_BEAMFORMER_CAP, nCfgValue );
-    pDot11f->suBeamFormerCap = (nCfgValue & 0x0001);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_SU_BEAMFORMEE_CAP, nCfgValue );
-    pDot11f->suBeamformeeCap = (nCfgValue & 0x0001);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED,
-                                                               nCfgValue );
-    pDot11f->csnofBeamformerAntSup = (nCfgValue & 0x0007);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_NUM_SOUNDING_DIMENSIONS,
-                                                               nCfgValue );
-    pDot11f->numSoundingDim = (nCfgValue & 0x0007);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_MU_BEAMFORMER_CAP, nCfgValue );
-    pDot11f->muBeamformerCap = (nCfgValue & 0x0001);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_MU_BEAMFORMEE_CAP, nCfgValue );
-    pDot11f->muBeamformeeCap = (nCfgValue & 0x0001);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_TXOP_PS, nCfgValue );
-    pDot11f->vhtTXOPPS = (nCfgValue & 0x0001);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_HTC_VHTC_CAP, nCfgValue );
-    pDot11f->htcVHTCap = (nCfgValue & 0x0001);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_AMPDU_LEN_EXPONENT, nCfgValue );
-    pDot11f->maxAMPDULenExp = (nCfgValue & 0x0007);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_LINK_ADAPTATION_CAP, nCfgValue );
-    pDot11f->vhtLinkAdaptCap = (nCfgValue & 0x0003);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_RX_ANT_PATTERN, nCfgValue );
-    pDot11f->rxAntPattern = nCfgValue;
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_TX_ANT_PATTERN, nCfgValue );
-    pDot11f->txAntPattern = nCfgValue;
-
-    pDot11f->reserved1= 0;
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_RX_MCS_MAP, nCfgValue );
-    pDot11f->rxMCSMap = (nCfgValue & 0x0000FFFF);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_RX_HIGHEST_SUPPORTED_DATA_RATE,
-                                                                  nCfgValue );
-    pDot11f->rxHighSupDataRate = (nCfgValue & 0x00001FFF);
-
-    pDot11f->reserved2= 0;
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_TX_MCS_MAP, nCfgValue );
-    pDot11f->txMCSMap = (nCfgValue & 0x0000FFFF);
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_TX_HIGHEST_SUPPORTED_DATA_RATE,
-                                                                  nCfgValue );
-    pDot11f->txSupDataRate = (nCfgValue & 0x00001FFF);
-
-    pDot11f->reserved3= 0;
-
-    limLogVHTCap(pMac, pDot11f);
-
-    return eSIR_SUCCESS;
-
-}
-
-tSirRetStatus
-PopulateDot11fVHTOperation(tpAniSirGlobal   pMac,
-                               tDot11fIEVHTOperation  *pDot11f)
-{
-    tSirRetStatus        nStatus;
-    tANI_U32             nCfgValue=0;
-
-    pDot11f->present = 1;
-
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_CHANNEL_WIDTH, nCfgValue );
-    pDot11f->chanWidth = (tANI_U8)nCfgValue;
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_CHANNEL_CENTER_FREQ_SEGMENT1,
-                                                               nCfgValue );
-    pDot11f->chanCenterFreqSeg1 = (tANI_U8)nCfgValue;
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_CHANNEL_CENTER_FREQ_SEGMENT2,
-                                                               nCfgValue );
-    pDot11f->chanCenterFreqSeg2 = (tANI_U8)nCfgValue;
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_BASIC_MCS_SET,nCfgValue );
-    pDot11f->basicMCSSet = (tANI_U16)nCfgValue;
-
-    limLogVHTOperation(pMac,pDot11f);
-
-    return eSIR_SUCCESS;
-
-}
-
-tSirRetStatus
-PopulateDot11fVHTExtBssLoad(tpAniSirGlobal      pMac,
-                           tDot11fIEVHTExtBssLoad   *pDot11f)
-{
-    tSirRetStatus    nStatus;
-    tANI_U32         nCfgValue=0;
-
-    pDot11f->present = 1;
-
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_MU_MIMO_CAP_STA_COUNT,
-                                                         nCfgValue );
-    pDot11f->muMIMOCapStaCount = (tANI_U8)nCfgValue;
-
-    nCfgValue = 0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_SS_UNDER_UTIL,nCfgValue );
-    pDot11f->ssUnderUtil = (tANI_U8)nCfgValue;
-
-    nCfgValue=0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_40MHZ_UTILIZATION,nCfgValue );
-    pDot11f->FortyMHzUtil = (tANI_U8)nCfgValue;
-
-    nCfgValue=0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_80MHZ_UTILIZATION,nCfgValue );
-    pDot11f->EightyMHzUtil = (tANI_U8)nCfgValue;
-
-    nCfgValue=0;
-    CFG_GET_INT( nStatus, pMac, WNI_CFG_VHT_160MHZ_UTILIZATION,nCfgValue );
-    pDot11f->EightyMHzUtil = (tANI_U8)nCfgValue;
-
-    limLogVHTExtBssLoad(pMac,pDot11f);
-
-    return eSIR_SUCCESS;
-}
-
-tSirRetStatus
-PopulateDot11fExtCap(tpAniSirGlobal      pMac,
-                           tDot11fIEExtCap  *pDot11f)
-{
-    pDot11f->present = 1;
-    pDot11f->operModeNotification = 1;
-    
-    return eSIR_SUCCESS;
-}
-
-tSirRetStatus
-PopulateDot11fOperatingMode(tpAniSirGlobal      pMac,
-                           tDot11fIEOperatingMode  *pDot11f,
-                           tpPESession   psessionEntry)
-{
-    pDot11f->present = 1;
-    
-    pDot11f->chanWidth = psessionEntry->gLimOperatingMode.chanWidth;
-    pDot11f->rxNSS = psessionEntry->gLimOperatingMode.rxNSS;
-    pDot11f->rxNSSType = psessionEntry->gLimOperatingMode.rxNSSType;
-    
-    return eSIR_SUCCESS;
-}
-
-#endif
 #ifdef WLAN_SOFTAP_FEATURE
 tSirRetStatus
 PopulateDot11fHTInfo(tpAniSirGlobal   pMac,
@@ -1050,14 +726,7 @@ PopulateDot11fHTInfo(tpAniSirGlobal   pMac,
     #if 0
     CFG_GET_INT( nSirStatus, pMac, WNI_CFG_CURRENT_CHANNEL, nCfgValue );
     #endif // TO SUPPORT BT-AMP
-
-    if (NULL == psessionEntry)
-    {
-        PELOGE(limLog(pMac, LOG1,
-                FL("Invalid session entry in PopulateDot11fHTInfo()\n"));)
-        return eSIR_FAILURE;
-    }
-
+    
     pDot11f->primaryChannel = psessionEntry->currentOperChannel;
 
     CFG_GET_INT( nSirStatus, pMac, WNI_CFG_HT_INFO_FIELD1, nCfgValue );
@@ -1065,22 +734,14 @@ PopulateDot11fHTInfo(tpAniSirGlobal   pMac,
     htInfoField1 = ( tANI_U8 ) nCfgValue;
 
     pHTInfoField1 = ( tSirMacHTInfoField1* ) &htInfoField1;
+    pHTInfoField1->secondaryChannelOffset     = pMac->lim.gHTSecondaryChannelOffset;
+    pHTInfoField1->recommendedTxWidthSet      = pMac->lim.gHTRecommendedTxWidthSet;
     pHTInfoField1->rifsMode                   = psessionEntry->beaconParams.fRIFSMode;
     pHTInfoField1->serviceIntervalGranularity = pMac->lim.gHTServiceIntervalGranularity;
 
-    if (psessionEntry == NULL)
-    {
-        PELOGE(limLog(pMac, LOG1,
-            FL("Keep the value retrieved from cfg for secondary channel offset and recommended Tx Width set\n"));)
-    }
-    else
-    {
-        pHTInfoField1->secondaryChannelOffset     = psessionEntry->htSecondaryChannelOffset;
-        pHTInfoField1->recommendedTxWidthSet      = psessionEntry->htRecommendedTxWidthSet;
-    }
 
 #ifdef WLAN_SOFTAP_FEATURE
-    if((psessionEntry) && (psessionEntry->limSystemRole == eLIM_AP_ROLE)){
+    if(psessionEntry->limSystemRole == eLIM_AP_ROLE ){
     CFG_GET_INT( nSirStatus, pMac, WNI_CFG_HT_INFO_FIELD2, nCfgValue );
 
     uHTInfoField2.nCfgValue16 = nCfgValue & 0xFFFF; // this is added for fixing CRs on MDM9K platform - 257951, 259577
@@ -1282,6 +943,8 @@ PopulateDot11fPowerConstraints(tpAniSirGlobal             pMac,
 
     return eSIR_SUCCESS;
 } // End PopulateDot11fPowerConstraints.
+
+
 
 void
 PopulateDot11fQOSCapsAp(tpAniSirGlobal      pMac,
@@ -1637,24 +1300,6 @@ void PopulateDot11fWMMCaps(tDot11fIEWMMCaps *pCaps)
     pCaps->present       = 1;
 } // End PopulateDot11fWmmCaps.
 
-#ifdef FEATURE_WLAN_CCX
-void PopulateDot11fReAssocTspec(tpAniSirGlobal pMac, tDot11fReAssocRequest *pReassoc, tpPESession psessionEntry)
-{
-    tANI_U8 numTspecs = 0, idx;
-    tTspecInfo *pTspec = NULL;
-
-    numTspecs = psessionEntry->pLimReAssocReq->ccxTspecInfo.numTspecs;
-    pTspec = &psessionEntry->pLimReAssocReq->ccxTspecInfo.tspec[0];
-    pReassoc->num_WMMTSPEC = numTspecs;
-    if (numTspecs) {
-        for (idx=0; idx<numTspecs; idx++) {
-            PopulateDot11fWMMTSPEC(&pTspec->tspec, &pReassoc->WMMTSPEC[idx]);
-            pTspec++;
-        }
-    }
-}
-#endif 
-
 void PopulateDot11fWMMInfoAp(tpAniSirGlobal pMac, tDot11fIEWMMInfoAp *pInfo, 
                              tpPESession psessionEntry)
 {
@@ -1861,6 +1506,9 @@ sirGetCfgPropCaps(tpAniSirGlobal pMac, tANI_U16 *caps)
     return eSIR_SUCCESS;
 }
 
+
+
+
 tSirRetStatus
 sirConvertProbeReqFrame2Struct(tpAniSirGlobal  pMac,
                                tANI_U8             *pFrame,
@@ -1927,19 +1575,11 @@ sirConvertProbeReqFrame2Struct(tpAniSirGlobal  pMac,
         pProbeReq->wscIePresent = 1;
         memcpy(&pProbeReq->probeReqWscIeInfo, &pr.WscProbeReq, sizeof(tDot11fIEWscProbeReq));
     }
-#ifdef WLAN_FEATURE_11AC
-    if ( pr.VHTCaps.present )
-    {
-        palCopyMemory( pMac, &pProbeReq->VHTCaps, &pr.VHTCaps, sizeof( tDot11fIEVHTCaps ) );
-    }
-#endif
-
 
     if ( pr.P2PProbeReq.present )
     {
         pProbeReq->p2pIePresent = 1;
     }
-
     return eSIR_SUCCESS;
 
 } // End sirConvertProbeReqFrame2Struct.
@@ -2156,33 +1796,6 @@ tSirRetStatus sirConvertProbeFrame2Struct(tpAniSirGlobal       pMac,
     }
 #endif
 
-#if defined FEATURE_WLAN_CCX
-    if (pr->QBSSLoad.present)
-    {
-        palCopyMemory(pMac->hHdd, &pProbeResp->QBSSLoad, &pr->QBSSLoad, sizeof(tDot11fIEQBSSLoad));
-    }
-#endif
-#ifdef WLAN_FEATURE_P2P
-    if (pr->P2PProbeRes.present)
-    {
-       palCopyMemory( pMac, &pProbeResp->P2PProbeRes, &pr->P2PProbeRes,
-                                                sizeof(tDot11fIEP2PProbeRes) );
-    }
-#endif
-#ifdef WLAN_FEATURE_11AC
-    if ( pr->VHTCaps.present )
-    {
-       palCopyMemory( pMac, &pProbeResp->VHTCaps, &pr->VHTCaps, sizeof( tDot11fIEVHTCaps ) );
-    }
-    if ( pr->VHTOperation.present )
-    {
-        palCopyMemory( pMac, &pProbeResp->VHTOperation, &pr->VHTOperation, sizeof( tDot11fIEVHTOperation) );
-    }
-    if ( pr->VHTExtBssLoad.present )
-    {
-        palCopyMemory( pMac, &pProbeResp->VHTExtBssLoad, &pr->VHTExtBssLoad, sizeof( tDot11fIEVHTExtBssLoad) );
-    }
-#endif
     palFreeMemory(pMac->hHdd, pr);
     return eSIR_SUCCESS;
 
@@ -2194,27 +1807,20 @@ sirConvertAssocReqFrame2Struct(tpAniSirGlobal pMac,
                                tANI_U32            nFrame,
                                tpSirAssocReq  pAssocReq)
 {
-    tDot11fAssocRequest *ar;
+    tDot11fAssocRequest ar;
     tANI_U32                 status;
 
-    status = palAllocateMemory(pMac->hHdd, (void **)&ar, sizeof(tDot11fAssocRequest));
-    if(!HAL_STATUS_SUCCESS(status))
-    {
-        limLog(pMac, LOGE, FL("Failed to allocate memory\n") );
-        return eSIR_FAILURE;
-    }
-        // Zero-init our [out] parameter,
+    // Zero-init our [out] parameter,
     palZeroMemory( pMac->hHdd, ( tANI_U8* )pAssocReq, sizeof(tSirAssocReq) );
-    palZeroMemory( pMac->hHdd, ( tANI_U8* )ar, sizeof( tDot11fAssocRequest ) );
+    palZeroMemory( pMac->hHdd, ( tANI_U8* )&ar, sizeof( tDot11fAssocRequest ) );
 
     // delegate to the framesc-generated code,
-    status = dot11fUnpackAssocRequest( pMac, pFrame, nFrame, ar );
+    status = dot11fUnpackAssocRequest( pMac, pFrame, nFrame, &ar );
     if ( DOT11F_FAILED( status ) )
     {
         limLog(pMac, LOGE, FL("Failed to parse an Association Request (0x%08x, %d bytes):\n"),
                   status, nFrame);
         PELOG2(sirDumpBuf(pMac, SIR_DBG_MODULE_ID, LOG2, pFrame, nFrame);)
-        palFreeMemory(pMac->hHdd, ar);
         return eSIR_FAILURE;
     }
     else if ( DOT11F_WARNED( status ) )
@@ -2230,151 +1836,126 @@ sirConvertAssocReqFrame2Struct(tpAniSirGlobal pMac,
     pAssocReq->reassocRequest = 0;
 
     // Capabilities
-    pAssocReq->capabilityInfo.ess            = ar->Capabilities.ess;
-    pAssocReq->capabilityInfo.ibss           = ar->Capabilities.ibss;
-    pAssocReq->capabilityInfo.cfPollable     = ar->Capabilities.cfPollable;
-    pAssocReq->capabilityInfo.cfPollReq      = ar->Capabilities.cfPollReq;
-    pAssocReq->capabilityInfo.privacy        = ar->Capabilities.privacy;
-    pAssocReq->capabilityInfo.shortPreamble  = ar->Capabilities.shortPreamble;
-    pAssocReq->capabilityInfo.pbcc           = ar->Capabilities.pbcc;
-    pAssocReq->capabilityInfo.channelAgility = ar->Capabilities.channelAgility;
-    pAssocReq->capabilityInfo.spectrumMgt    = ar->Capabilities.spectrumMgt;
-    pAssocReq->capabilityInfo.qos            = ar->Capabilities.qos;
-    pAssocReq->capabilityInfo.shortSlotTime  = ar->Capabilities.shortSlotTime;
-    pAssocReq->capabilityInfo.apsd           = ar->Capabilities.apsd;
-    pAssocReq->capabilityInfo.rrm            = ar->Capabilities.rrm;
-    pAssocReq->capabilityInfo.dsssOfdm       = ar->Capabilities.dsssOfdm;
-    pAssocReq->capabilityInfo.delayedBA       = ar->Capabilities.delayedBA;
-    pAssocReq->capabilityInfo.immediateBA    = ar->Capabilities.immediateBA;
+    pAssocReq->capabilityInfo.ess            = ar.Capabilities.ess;
+    pAssocReq->capabilityInfo.ibss           = ar.Capabilities.ibss;
+    pAssocReq->capabilityInfo.cfPollable     = ar.Capabilities.cfPollable;
+    pAssocReq->capabilityInfo.cfPollReq      = ar.Capabilities.cfPollReq;
+    pAssocReq->capabilityInfo.privacy        = ar.Capabilities.privacy;
+    pAssocReq->capabilityInfo.shortPreamble  = ar.Capabilities.shortPreamble;
+    pAssocReq->capabilityInfo.pbcc           = ar.Capabilities.pbcc;
+    pAssocReq->capabilityInfo.channelAgility = ar.Capabilities.channelAgility;
+    pAssocReq->capabilityInfo.spectrumMgt    = ar.Capabilities.spectrumMgt;
+    pAssocReq->capabilityInfo.qos            = ar.Capabilities.qos;
+    pAssocReq->capabilityInfo.shortSlotTime  = ar.Capabilities.shortSlotTime;
+    pAssocReq->capabilityInfo.apsd           = ar.Capabilities.apsd;
+    pAssocReq->capabilityInfo.rrm            = ar.Capabilities.rrm;
+    pAssocReq->capabilityInfo.dsssOfdm       = ar.Capabilities.dsssOfdm;
+    pAssocReq->capabilityInfo.delayedBA       = ar.Capabilities.delayedBA;
+    pAssocReq->capabilityInfo.immediateBA    = ar.Capabilities.immediateBA;
 
     // Listen Interval
-    pAssocReq->listenInterval = ar->ListenInterval.interval;
+    pAssocReq->listenInterval = ar.ListenInterval.interval;
 
     // SSID
-    if ( ar->SSID.present )
+    if ( ar.SSID.present )
     {
         pAssocReq->ssidPresent = 1;
-        ConvertSSID( pMac, &pAssocReq->ssId, &ar->SSID );
+        ConvertSSID( pMac, &pAssocReq->ssId, &ar.SSID );
     }
 
     // Supported Rates
-    if ( ar->SuppRates.present )
+    if ( ar.SuppRates.present )
     {
         pAssocReq->suppRatesPresent = 1;
-        ConvertSuppRates( pMac, &pAssocReq->supportedRates, &ar->SuppRates );
+        ConvertSuppRates( pMac, &pAssocReq->supportedRates, &ar.SuppRates );
     }
 
     // Extended Supported Rates
-    if ( ar->ExtSuppRates.present )
+    if ( ar.ExtSuppRates.present )
     {
         pAssocReq->extendedRatesPresent = 1;
-        ConvertExtSuppRates( pMac, &pAssocReq->extendedRates, &ar->ExtSuppRates );
+        ConvertExtSuppRates( pMac, &pAssocReq->extendedRates, &ar.ExtSuppRates );
     }
 
     // QOS Capabilities:
-    if ( ar->QOSCapsStation.present )
+    if ( ar.QOSCapsStation.present )
     {
         pAssocReq->qosCapabilityPresent = 1;
-        ConvertQOSCapsStation( pMac, &pAssocReq->qosCapability, &ar->QOSCapsStation );
+        ConvertQOSCapsStation( pMac, &pAssocReq->qosCapability, &ar.QOSCapsStation );
     }
 
     // WPA
-    if ( ar->WPAOpaque.present )
+    if ( ar.WPAOpaque.present )
     {
         pAssocReq->wpaPresent = 1;
-        ConvertWPAOpaque( pMac, &pAssocReq->wpa, &ar->WPAOpaque );
+        ConvertWPAOpaque( pMac, &pAssocReq->wpa, &ar.WPAOpaque );
     }
 
     // RSN
-    if ( ar->RSNOpaque.present )
+    if ( ar.RSNOpaque.present )
     {
         pAssocReq->rsnPresent = 1;
-        ConvertRSNOpaque( pMac, &pAssocReq->rsn, &ar->RSNOpaque );
+        ConvertRSNOpaque( pMac, &pAssocReq->rsn, &ar.RSNOpaque );
     }
 
     // WSC IE
-    if (ar->WscIEOpaque.present) 
+    if (ar.WscIEOpaque.present) 
     {
         pAssocReq->addIEPresent = 1;
-        ConvertWscOpaque(pMac, &pAssocReq->addIE, &ar->WscIEOpaque);
+        ConvertWscOpaque(pMac, &pAssocReq->addIE, &ar.WscIEOpaque);
     }
     
-
 #ifdef WLAN_FEATURE_P2P
-    if(ar->P2PIEOpaque.present)
+    if(ar.P2PIEOpaque.present)
     {
         pAssocReq->addIEPresent = 1;
-        ConvertP2POpaque( pMac, &pAssocReq->addIE, &ar->P2PIEOpaque);
-    }
-#endif
-#ifdef WLAN_FEATURE_WFD
-    if(ar->WFDIEOpaque.present)
-    {
-        pAssocReq->addIEPresent = 1;
-        ConvertWFDOpaque( pMac, &pAssocReq->addIE, &ar->WFDIEOpaque);
+        ConvertP2POpaque( pMac, &pAssocReq->addIE, &ar.P2PIEOpaque);
     }
 #endif
 
     // Power Capabilities
-    if ( ar->PowerCaps.present )
+    if ( ar.PowerCaps.present )
     {
         pAssocReq->powerCapabilityPresent     = 1;
-        ConvertPowerCaps( pMac, &pAssocReq->powerCapability, &ar->PowerCaps );
+        ConvertPowerCaps( pMac, &pAssocReq->powerCapability, &ar.PowerCaps );
     }
 
     // Supported Channels
-    if ( ar->SuppChannels.present )
+    if ( ar.SuppChannels.present )
     {
         pAssocReq->supportedChannelsPresent = 1;
-        ConvertSuppChannels( pMac, &pAssocReq->supportedChannels, &ar->SuppChannels );
+        ConvertSuppChannels( pMac, &pAssocReq->supportedChannels, &ar.SuppChannels );
     }
 
-    if ( ar->HTCaps.present )
+    if ( ar.HTCaps.present )
     {
-        palCopyMemory( pMac, &pAssocReq->HTCaps, &ar->HTCaps, sizeof( tDot11fIEHTCaps ) );
+        palCopyMemory( pMac, &pAssocReq->HTCaps, &ar.HTCaps, sizeof( tDot11fIEHTCaps ) );
     }
 
-    if ( ar->WMMInfoStation.present )
+    if ( ar.WMMInfoStation.present )
     {
         pAssocReq->wmeInfoPresent = 1;
 #ifdef WLAN_SOFTAP_FEATURE
-        palCopyMemory( pMac, &pAssocReq->WMMInfoStation, &ar->WMMInfoStation, sizeof( tDot11fIEWMMInfoStation ) );
+        palCopyMemory( pMac, &pAssocReq->WMMInfoStation, &ar.WMMInfoStation, sizeof( tDot11fIEWMMInfoStation ) );
 #endif
 
     }
 
 
-    if ( ar->WMMCaps.present ) pAssocReq->wsmCapablePresent = 1;
+    if ( ar.WMMCaps.present ) pAssocReq->wsmCapablePresent = 1;
 
     if ( ! pAssocReq->ssidPresent )
     {
         PELOG2(limLog(pMac, LOG2, FL("Received Assoc without SSID IE.\n"));)
-        palFreeMemory(pMac->hHdd, ar);
         return eSIR_FAILURE;
     }
 
     if ( !pAssocReq->suppRatesPresent && !pAssocReq->extendedRatesPresent )
     {
         PELOG2(limLog(pMac, LOG2, FL("Received Assoc without supp rate IE.\n"));)
-        palFreeMemory(pMac->hHdd, ar);
         return eSIR_FAILURE;
     }
 
-#ifdef WLAN_FEATURE_11AC
-    if ( ar->VHTCaps.present )
-    {
-        palCopyMemory( pMac, &pAssocReq->VHTCaps, &ar->VHTCaps, sizeof( tDot11fIEVHTCaps ) );
-        limLog( pMac, LOGW, FL("Received Assoc Req with VHT Cap\n"));
-        limLogVHTCap( pMac, &pAssocReq->VHTCaps);
-    }
-    if ( ar->OperatingMode.present )
-    {
-        palCopyMemory( pMac, &pAssocReq->operMode, &ar->OperatingMode, sizeof( tDot11fIEVHTCaps ) );
-        limLog( pMac, LOGW, FL("Received Assoc Req with Operating Mode IE\n"));
-        limLogOperatingMode( pMac, &pAssocReq->operMode);
-    }
-#endif
-    palFreeMemory(pMac->hHdd, ar);
     return eSIR_SUCCESS;
 
 } // End sirConvertAssocReqFrame2Struct.
@@ -2387,7 +1968,6 @@ sirConvertAssocRespFrame2Struct(tpAniSirGlobal pMac,
 {
     static tDot11fAssocResponse ar;
     tANI_U32                  status;
-    tANI_U8  cnt =0;
 
     // Zero-init our [out] parameter,
     palZeroMemory( pMac->hHdd, ( tANI_U8* )pAssocRsp, sizeof(tSirAssocRsp) );
@@ -2495,50 +2075,6 @@ sirConvertAssocRespFrame2Struct(tpAniSirGlobal pMac,
 #endif
         pAssocRsp->ftinfoPresent = 1;
         palCopyMemory( pMac, &pAssocRsp->FTInfo, &ar.FTInfo, sizeof(tDot11fIEFTInfo) );
-    }
-#endif
-
-#ifdef WLAN_FEATURE_VOWIFI_11R
-    if (ar.num_RICDataDesc) {
-        for (cnt=0; cnt < ar.num_RICDataDesc; cnt++) {
-            if (ar.RICDataDesc[cnt].present) {
-                palCopyMemory(pMac, &pAssocRsp->RICData[cnt], &ar.RICDataDesc[cnt], sizeof(tDot11fIERICDataDesc));
-            }
-        }
-        pAssocRsp->num_RICData = ar.num_RICDataDesc;
-        pAssocRsp->ricPresent = TRUE;
-    }
-#endif    
-
-#ifdef FEATURE_WLAN_CCX
-    if (ar.num_WMMTSPEC) {
-        pAssocRsp->num_tspecs = ar.num_WMMTSPEC;
-        for (cnt=0; cnt < ar.num_WMMTSPEC; cnt++) {
-            palCopyMemory(pMac, &pAssocRsp->TSPECInfo[cnt], &ar.WMMTSPEC[cnt], (sizeof(tDot11fIEWMMTSPEC)*ar.num_WMMTSPEC));
-        }
-        pAssocRsp->tspecPresent = TRUE;
-    }
-   
-    if(ar.CCXTrafStrmMet.present)
-    {
-        pAssocRsp->tsmPresent = 1;
-        palCopyMemory(pMac->hHdd,&pAssocRsp->tsmIE.tsid,
-                &ar.CCXTrafStrmMet.tsid,sizeof(tSirMacCCXTSMIE));
-    }    
-#endif
-
-#ifdef WLAN_FEATURE_11AC
-    if ( ar.VHTCaps.present )
-    {
-        palCopyMemory( pMac, &pAssocRsp->VHTCaps, &ar.VHTCaps, sizeof( tDot11fIEVHTCaps ) );
-        limLog( pMac, LOG1, FL("Received Assoc Response with VHT Cap"));
-        limLogVHTCap(pMac, &pAssocRsp->VHTCaps);
-    }
-    if ( ar.VHTOperation.present )
-    {
-        palCopyMemory( pMac, &pAssocRsp->VHTOperation, &ar.VHTOperation, sizeof( tDot11fIEVHTOperation) );
-        limLog( pMac, LOG1, FL("Received Assoc Response with VHT Operation"));
-        limLogVHTOperation(pMac, &pAssocRsp->VHTOperation);
     }
 #endif
 
@@ -2704,26 +2240,6 @@ sirConvertReassocReqFrame2Struct(tpAniSirGlobal pMac,
     }
 #endif
 
-#ifdef WLAN_FEATURE_WFD
-    if(ar.WFDIEOpaque.present)
-    {
-        pAssocReq->addIEPresent = 1;
-        ConvertWFDOpaque( pMac, &pAssocReq->addIE, &ar.WFDIEOpaque);
-    }
-#endif
-
-#ifdef WLAN_FEATURE_11AC
-    if ( ar.VHTCaps.present )
-    {
-        palCopyMemory( pMac, &pAssocReq->VHTCaps, &ar.VHTCaps, sizeof( tDot11fIEVHTCaps ) );
-    }
-    if ( ar.OperatingMode.present )
-    {
-        palCopyMemory( pMac, &pAssocReq->operMode, &ar.OperatingMode, sizeof( tDot11fIEOperatingMode  ) );
-        limLog( pMac, LOGW, FL("Received Assoc Req with Operating Mode IE\n"));
-        limLogOperatingMode( pMac, &pAssocReq->operMode);
-    }
-#endif
     return eSIR_SUCCESS;
 
 } // End sirConvertReassocReqFrame2Struct.
@@ -2827,17 +2343,6 @@ sirParseBeaconIE(tpAniSirGlobal        pMac,
                       &pBies->PowerConstraints,
                       sizeof(tDot11fIEPowerConstraints));
     }
-#ifdef FEATURE_WLAN_CCX
-    if(pBies->CCXTxmitPower.present)
-    {
-        pBeaconStruct->ccxTxPwr.present = 1;
-        pBeaconStruct->ccxTxPwr.power_limit = pBies->CCXTxmitPower.power_limit;
-    }
-    if (pBies->QBSSLoad.present)
-    {
-        palCopyMemory(pMac->hHdd, &pBeaconStruct->QBSSLoad, &pBies->QBSSLoad, sizeof(tDot11fIEQBSSLoad));
-    }
-#endif
 
     if ( pBies->EDCAParamSet.present )
     {
@@ -2929,31 +2434,7 @@ sirParseBeaconIE(tpAniSirGlobal        pMac,
         ConvertERPInfo( pMac, &pBeaconStruct->erpIEInfo, &pBies->ERPInfo );
     }
 
-#ifdef WLAN_FEATURE_11AC
-    if ( pBies->VHTCaps.present )
-    {
-        pBeaconStruct->VHTCaps.present = 1;
-        palCopyMemory( pMac, &pBeaconStruct->VHTCaps, &pBies->VHTCaps, sizeof( tDot11fIEVHTCaps ) );
-    }
-    if ( pBies->VHTOperation.present )
-    {
-         pBeaconStruct->VHTOperation.present = 1;
-         palCopyMemory( pMac, &pBeaconStruct->VHTOperation, &pBies->VHTOperation, sizeof( tDot11fIEVHTOperation) );
-    }
-    if ( pBies->VHTExtBssLoad.present )
-    {
-         pBeaconStruct->VHTExtBssLoad.present = 1;
-         palCopyMemory( pMac, &pBeaconStruct->VHTExtBssLoad, &pBies->VHTExtBssLoad, sizeof( tDot11fIEVHTExtBssLoad) );
-    }
-    if( pBies->OperatingMode.present)
-    {
-        pBeaconStruct->OperatingMode.present = 1;
-        palCopyMemory( pMac, &pBeaconStruct->OperatingMode, &pBies->OperatingMode, sizeof( tDot11fIEOperatingMode) );
-    }
-
-#endif
     palFreeMemory(pMac->hHdd, pBies);
-
 
     return eSIR_SUCCESS;
 
@@ -3195,30 +2676,6 @@ sirConvertBeaconFrame2Struct(tpAniSirGlobal       pMac,
         pBeaconStruct->mdie[2] = ((pBeacon->MobilityDomain.overDSCap << 0) | (pBeacon->MobilityDomain.resourceReqCap << 1));
 
     }
-#endif
-
-#ifdef WLAN_FEATURE_11AC
-    if ( pBeacon->VHTCaps.present )
-    {
-        palCopyMemory( pMac, &pBeaconStruct->VHTCaps, &pBeacon->VHTCaps, sizeof( tDot11fIEVHTCaps ) );
-    }
-    if ( pBeacon->VHTOperation.present )
-    {
-        palCopyMemory( pMac, &pBeaconStruct->VHTOperation, &pBeacon->VHTOperation, sizeof( tDot11fIEVHTOperation) );
-    }
-    if ( pBeacon->VHTExtBssLoad.present )
-    {
-        palCopyMemory( pMac, &pBeaconStruct->VHTExtBssLoad, &pBeacon->VHTExtBssLoad, sizeof( tDot11fIEVHTExtBssLoad) );
-    }
-    if(pBeacon->OperatingMode.present)
-    {
-        palCopyMemory( pMac, &pBeaconStruct->OperatingMode, &pBeacon->OperatingMode, sizeof( tDot11fIEOperatingMode) );
-    }
-    if(pBeacon->WiderBWChanSwitchAnn.present)
-    {
-        pBeaconStruct->WiderBWChanSwitchAnnPresent = 1;
-        palCopyMemory( pMac, &pBeaconStruct->WiderBWChanSwitchAnn, &pBeacon->WiderBWChanSwitchAnn, sizeof( tDot11fIEWiderBWChanSwitchAnn));
-    }      
 #endif
 
     palFreeMemory(pMac->hHdd, pBeacon);
@@ -3526,14 +2983,7 @@ sirConvertAddtsRsp2Struct(tpAniSirGlobal    pMac,
             pAddTs->tclasProcPresent = 1;
             pAddTs->tclasProc = addts.TCLASSPROC.processing;
         }
-#ifdef FEATURE_WLAN_CCX
-        if(addts.CCXTrafStrmMet.present)
-        {
-            pAddTs->tsmPresent = 1;
-            palCopyMemory(pMac->hHdd,&pAddTs->tsmIE.tsid,
-                      &addts.CCXTrafStrmMet.tsid,sizeof(tSirMacCCXTSMIE));
-        }
-#endif
+
         if ( addts.Schedule.present )
         {
             pAddTs->schedulePresent = 1;
@@ -3595,15 +3045,6 @@ sirConvertAddtsRsp2Struct(tpAniSirGlobal    pMac,
             limLog( pMac, LOGE, FL("Mandatory WME TSPEC element missing!\n") );
             return eSIR_FAILURE;
         }
-
-#ifdef FEATURE_WLAN_CCX
-        if(wmmaddts.CCXTrafStrmMet.present)
-        {
-            pAddTs->tsmPresent = 1;
-            palCopyMemory(pMac->hHdd,&pAddTs->tsmIE.tsid,
-                         &wmmaddts.CCXTrafStrmMet.tsid,sizeof(tSirMacCCXTSMIE));
-        }
-#endif
 
     }
 
@@ -3891,20 +3332,6 @@ PopulateDot11fWMMTSPEC(tSirMacTspecIE     *pOld,
     pDot11f->present = 1;
 
 } // End PopulateDot11fWMMTSPEC.
-
-#ifdef FEATURE_WLAN_CCX
-void PopulateDot11TSRSIE(tpAniSirGlobal  pMac,
-                               tSirMacCCXTSRSIE     *pOld,
-                               tDot11fIECCXTrafStrmRateSet  *pDot11f,
-                               tANI_U8 rate_length)
-{
-    pDot11f->tsid = pOld->tsid;
-    palCopyMemory(pMac->hHdd,pDot11f->tsrates, pOld->rates,rate_length);
-    pDot11f->num_tsrates = rate_length;
-    pDot11f->present = 1;
-}
-#endif
-
 
 tSirRetStatus
 PopulateDot11fTCLAS(tpAniSirGlobal  pMac,
@@ -4741,7 +4168,6 @@ tSirRetStatus PopulateDot11fAssocResWscIE(tpAniSirGlobal pMac,
     tDot11fIEWscAssocReq parsedWscAssocReq = { 0, };
     tANI_U8         *wscIe;
     
-
     wscIe = limGetWscIEPtr(pMac, pRcvdAssocReq->addIE.addIEdata, pRcvdAssocReq->addIE.length);
     if(wscIe != NULL)
     {
@@ -4767,6 +4193,7 @@ tSirRetStatus PopulateDot11fAssocResWscIE(tpAniSirGlobal pMac,
         {
              pDot11f->ResponseType.resType = RESP_TYPE_AP;
         }
+
         // Version infomration should be taken from our capability as well as peers
         // TODO: currently it takes from peers only
         if(parsedWscAssocReq.VendorExtension.present &&
@@ -4801,6 +4228,7 @@ tSirRetStatus PopulateDot11AssocResP2PIE(tpAniSirGlobal pMac,
     }
     return eSIR_SUCCESS;
 }
+
 #endif
 
 #if defined WLAN_FEATURE_VOWIFI

@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*===========================================================================
 
@@ -730,11 +710,11 @@ VOS_STATUS sysMcProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
                        "Processing SYS MC STOP" );
 
             // get the HAL context...
-            hHal = vos_get_context( VOS_MODULE_ID_PE, pVosContext );
+            hHal = vos_get_context( VOS_MODULE_ID_SME, pVosContext );
             if (NULL == hHal)
             {
                VOS_TRACE( VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_ERROR,
-                          "%s: Invalid hHal", __func__ );
+                          "%s: Invalid hHal", __FUNCTION__ );
             }
             else
             {
@@ -790,11 +770,13 @@ VOS_STATUS sysMcProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
             break;
          }
 #ifndef WLAN_FTM_STUB
-         case SYS_MSG_ID_FTM_RSP:
-         {
-             WLANFTM_McProcessMsg((v_VOID_t *)pMsg->bodyptr);
-             break;
-         }
+        case SYS_MSG_ID_FTM_RSP:
+        {
+#ifndef ANI_OS_TYPE_WINDOWS //TODO: remove this once WM HDD FTM code is main/lined
+                WLANFTM_McProcessMsg((v_VOID_t *)pMsg->bodyptr);
+#endif
+                break;
+        }
 #endif
 
          default:
@@ -1010,7 +992,6 @@ VOS_STATUS sysTxProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
    return( vosStatus );
 }
 
-
 #ifdef FEATURE_WLAN_INTEGRATED_SOC
 VOS_STATUS sysRxProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
 {
@@ -1204,12 +1185,8 @@ SysProcessMmhMsg
   */
   if(VOS_STATUS_SUCCESS != vos_mq_post_message(targetMQ, (vos_msg_t*)pMsg))
   {
-    //Caller doesn't allocate memory for the pMsg. It allocate memory for bodyptr
-    /* free the mem and return */
-    if(pMsg->bodyptr)
-    {
-      palFreeMemory( pMac->hHdd, pMsg->bodyptr);
-    }
+     /* free the mem and return */
+     palFreeMemory( pMac->hHdd, pMsg->bodyptr);
   }
 
 } /* SysProcessMmhMsg() */

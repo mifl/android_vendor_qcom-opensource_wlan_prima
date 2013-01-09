@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*===========================================================================
                         L I M _ P 2 P . C
@@ -80,8 +60,8 @@
 #define   BSSID_OFFSET           16
 #define   ADDR2_OFFSET           10
 #define   ACTION_OFFSET          24
-#define   LIM_MIN_REM_TIME_FOR_TX_ACTION_FRAME                     50
-#define   LIM_MIN_REM_TIME_EXT_FOR_TX_ACTION_FRAME                 60
+#define   LIM_MIN_REM_TIME_FOR_TX_ACTION_FRAME                     30
+#define   LIM_MIN_REM_TIME_EXT_FOR_TX_ACTION_FRAME                 40
 
 
 
@@ -97,7 +77,6 @@ extern tSirRetStatus limSetLinkState(
                          tSirMacAddr bssId, tSirMacAddr selfMacAddr, 
                          tpSetLinkStateCallback callback, void *callbackArg);
 
-static tSirRetStatus limCreateSessionForRemainOnChn(tpAniSirGlobal pMac, tPESession **ppP2pSession);
 eHalStatus limP2PActionCnf(tpAniSirGlobal pMac, tANI_U32 txCompleteSuccess);
 /*------------------------------------------------------------------
  *
@@ -131,25 +110,12 @@ void limSetLinkStateP2PCallback(tpAniSirGlobal pMac, void *callbackArg)
 
 int limProcessRemainOnChnlReq(tpAniSirGlobal pMac, tANI_U32 *pMsg)
 {
-
-    /* CONC_OPER_AND_LISTEN_CHNL_SAME_OPTIMIZE - Currently removed the special optimization when a concurrent session
-     * exists with operating channel same as P2P listen channel since it was causing issues in P2P search. The reason was
-     * STA-AP link entering BMPS when returning to home channel causing P2P search to miss Probe Reqs and hence not
-     * respond with Probe Rsp causing peer device to NOT find us.
-     * If we need this optimization, we need to find a way to keep the STA-AP link awake (no BMPS) on home channel when in listen state
-     */
-#ifdef CONC_OPER_AND_LISTEN_CHNL_SAME_OPTIMIZE
     tANI_U8 i;
     tpPESession psessionEntry;
-#endif
-#ifdef WLAN_FEATURE_P2P_INTERNAL
-    tpPESession pP2pSession;
-#endif
 
     tSirRemainOnChnReq *MsgBuff = (tSirRemainOnChnReq *)pMsg;
     pMac->lim.gpLimRemainOnChanReq = MsgBuff;
 
-#ifdef CONC_OPER_AND_LISTEN_CHNL_SAME_OPTIMIZE
     for (i =0; i < pMac->lim.maxBssId;i++)
     {
         psessionEntry = peFindSessionBySessionId(pMac,i);
@@ -185,15 +151,6 @@ int limProcessRemainOnChnlReq(tpAniSirGlobal pMac, tANI_U32 *pMsg)
                     goto error;
                 }
 
-#ifdef WLAN_FEATURE_P2P_INTERNAL
-                //Session is needed to send probe rsp
-                if(eSIR_SUCCESS != limCreateSessionForRemainOnChn(pMac, &pP2pSession))
-                {
-                    limLog( pMac, LOGE, "Unable to create session");
-                    goto error;
-                }
-#endif
-
                 if ((limSetLinkState(pMac, eSIR_LINK_LISTEN_STATE,
                     nullBssid, pMac->lim.gSelfMacAddr, 
                     limSetLinkStateP2PCallback, NULL)) != eSIR_SUCCESS)
@@ -205,7 +162,7 @@ int limProcessRemainOnChnlReq(tpAniSirGlobal pMac, tANI_U32 *pMsg)
             }
         }
     }
-#endif
+
     pMac->lim.gLimPrevMlmState = pMac->lim.gLimMlmState;
     pMac->lim.gLimMlmState     = eLIM_MLM_P2P_LISTEN_STATE;
 
@@ -216,55 +173,11 @@ int limProcessRemainOnChnlReq(tpAniSirGlobal pMac, tANI_U32 *pMsg)
                    limRemainOnChnlSuspendLinkHdlr, NULL);
     return FALSE;
 
-#ifdef CONC_OPER_AND_LISTEN_CHNL_SAME_OPTIMIZE
 error:
     limRemainOnChnRsp(pMac,eHAL_STATUS_FAILURE, NULL);
     /* pMsg is freed by the caller */
     return FALSE;
-#endif
 }
-
-
-tSirRetStatus limCreateSessionForRemainOnChn(tpAniSirGlobal pMac, tPESession **ppP2pSession)
-{
-    tSirRetStatus nSirStatus = eSIR_FAILURE;
-    tpPESession psessionEntry;
-    tANI_U8 sessionId;
-    tANI_U32 val;
-
-    if(pMac->lim.gpLimRemainOnChanReq && ppP2pSession)
-    {
-        if((psessionEntry = peCreateSession(pMac,
-           pMac->lim.gpLimRemainOnChanReq->selfMacAddr, &sessionId, 1)) == NULL)
-        {
-            limLog(pMac, LOGE, FL("Session Can not be created \n"));
-            /* send remain on chn failure */
-            return nSirStatus;
-        }
-        /* Store PE sessionId in session Table  */
-        psessionEntry->peSessionId = sessionId;
-
-        psessionEntry->limSystemRole = eLIM_P2P_DEVICE_ROLE;
-        CFG_GET_STR( nSirStatus, pMac,  WNI_CFG_SUPPORTED_RATES_11A,
-               psessionEntry->rateSet.rate, val , SIR_MAC_MAX_NUMBER_OF_RATES );
-        psessionEntry->rateSet.numRates = val;
-
-        CFG_GET_STR( nSirStatus, pMac, WNI_CFG_EXTENDED_OPERATIONAL_RATE_SET,
-                     psessionEntry->extRateSet.rate, val,
-                     WNI_CFG_EXTENDED_OPERATIONAL_RATE_SET_LEN );
-        psessionEntry->extRateSet.numRates = val;
-
-        sirCopyMacAddr(psessionEntry->selfMacAddr,
-                       pMac->lim.gpLimRemainOnChanReq->selfMacAddr);
-
-        psessionEntry->currentOperChannel = pMac->lim.gpLimRemainOnChanReq->chnNum;
-        nSirStatus = eSIR_SUCCESS;
-        *ppP2pSession = psessionEntry;
-    }
-
-    return nSirStatus;
-}
-
 
 /*------------------------------------------------------------------
  *
@@ -277,8 +190,9 @@ tSirRetStatus limRemainOnChnlChangeChnReq(tpAniSirGlobal pMac,
                                           eHalStatus status, tANI_U32 *data)
 {
     tpPESession psessionEntry;
-    tANI_U8 sessionId = 0;
+    tANI_U8 sessionId=0;
     tSirRetStatus nSirStatus = eSIR_FAILURE;
+    tANI_U32 val;
 
     if( NULL == pMac->lim.gpLimRemainOnChanReq )
     {
@@ -296,19 +210,35 @@ tSirRetStatus limRemainOnChnlChangeChnReq(tpAniSirGlobal pMac,
 
 
     if((psessionEntry = peFindSessionByBssid(
-        pMac,pMac->lim.gpLimRemainOnChanReq->selfMacAddr, &sessionId)) != NULL)
+        pMac,pMac->lim.gpLimRemainOnChanReq->selfMacAddr,&sessionId)) != NULL)
     {
         goto change_channel;
     }
     else /* Session Entry does not exist for given BSSId */
     {
         /* Try to Create a new session */
-        if(eSIR_SUCCESS != limCreateSessionForRemainOnChn(pMac, &psessionEntry))
+        if((psessionEntry = peCreateSession(pMac,
+           pMac->lim.gpLimRemainOnChanReq->selfMacAddr, &sessionId, 1)) == NULL)
         {
             limLog(pMac, LOGE, FL("Session Can not be created \n"));
             /* send remain on chn failure */
             goto error;
         }
+        /* Store PE sessionId in session Table  */
+        psessionEntry->peSessionId = sessionId;
+
+        psessionEntry->limSystemRole = eLIM_P2P_DEVICE_ROLE;
+        CFG_GET_STR( nSirStatus, pMac,  WNI_CFG_SUPPORTED_RATES_11A,
+               psessionEntry->rateSet.rate, val , SIR_MAC_MAX_NUMBER_OF_RATES );
+        psessionEntry->rateSet.numRates = val;
+
+        CFG_GET_STR( nSirStatus, pMac, WNI_CFG_EXTENDED_OPERATIONAL_RATE_SET,
+                     psessionEntry->extRateSet.rate, val,
+                     WNI_CFG_EXTENDED_OPERATIONAL_RATE_SET_LEN );
+        psessionEntry->extRateSet.numRates = val;
+
+        sirCopyMacAddr(psessionEntry->selfMacAddr,
+                       pMac->lim.gpLimRemainOnChanReq->selfMacAddr);
     }
 
 change_channel:
@@ -395,24 +325,6 @@ error1:
 
 /*------------------------------------------------------------------
  *
- * lim Insert NOA timer timeout callback - when timer fires, deactivate it and send
- * scan rsp to csr/hdd
- *
- *------------------------------------------------------------------*/
-void limProcessInsertSingleShotNOATimeout(tpAniSirGlobal pMac)
-{
-    /* timeout means start NOA did not arrive; we need to restart the timer and
-     * send the scan response from here
-     */
-    limDeactivateAndChangeTimer(pMac, eLIM_INSERT_SINGLESHOT_NOA_TIMER);
-    
-    // send the scan response back and do not even call insert NOA
-    limSendSmeScanRsp(pMac, sizeof(tSirSmeScanRsp), eSIR_SME_SCAN_FAILED, pMac->lim.gSmeSessionId, pMac->lim.gTransactionId);
-    return;
-}
-
-/*------------------------------------------------------------------
- *
  * limchannelchange callback, on success channel change, set the
  * link_state to LISTEN
  *
@@ -488,9 +400,6 @@ void limExitRemainOnChannel(tpAniSirGlobal pMac, eHalStatus status,
         PELOGE(limLog( pMac, LOGE, "Remain on Channel Failed\n");)
         goto error;
     }
-    //Set the resume channel to Any valid channel (invalid). 
-    //This will instruct HAL to set it to any previous valid channel.
-    peSetResumeChannel(pMac, 0, 0);
     limResumeLink(pMac, limRemainOnChnRsp, NULL);
     return;
 error:
@@ -632,7 +541,7 @@ void limSendSmeMgmtFrameInd(
             pMac->lim.p2pRemOnChanTimeStamp = vos_timer_get_system_time();
             pMac->lim.gTotalScanDuration = LIM_MIN_REM_TIME_EXT_FOR_TX_ACTION_FRAME;
 
-            chanWaitTime = SYS_MS_TO_TICKS(LIM_MIN_REM_TIME_EXT_FOR_TX_ACTION_FRAME);
+            chanWaitTime = SYS_MS_TO_TICKS(40);
             vStatus = tx_timer_deactivate(&pMac->lim.limTimers.gLimRemainOnChannelTimer);
 
             if (VOS_STATUS_SUCCESS != vStatus)
@@ -656,7 +565,6 @@ void limSendSmeMgmtFrameInd(
     return;
 } /*** end limSendSmeListenRsp() ***/
 
-
 eHalStatus limP2PActionCnf(tpAniSirGlobal pMac, tANI_U32 txCompleteSuccess)
 {
     if (pMac->lim.actionFrameSessionId != 0xff)
@@ -672,13 +580,12 @@ eHalStatus limP2PActionCnf(tpAniSirGlobal pMac, tANI_U32 txCompleteSuccess)
     return eHAL_STATUS_SUCCESS;
 }
 
-
-void limSetHtCaps(tpAniSirGlobal pMac, tpPESession psessionEntry, tANI_U8 *pIeStartPtr,tANI_U32 nBytes)
+void limSetHtCaps(tpAniSirGlobal pMac,tANI_U8 *pIeStartPtr,tANI_U32 nBytes)
 {
     v_U8_t              *pIe=NULL;
     tDot11fIEHTCaps     dot11HtCap;
 
-    PopulateDot11fHTCaps(pMac, psessionEntry, &dot11HtCap);
+    PopulateDot11fHTCaps(pMac,&dot11HtCap);
     pIe = limGetIEPtr(pMac,pIeStartPtr, nBytes,
                                        DOT11F_EID_HTCAPS,ONE_BYTE);
    limLog( pMac, LOG2, FL("pIe 0x%x dot11HtCap.supportedMCSSet[0]=0x%x"),
@@ -901,7 +808,7 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
 
         if (SIR_MAC_MGMT_PROBE_RSP == pFc->subType)
         {
-            limSetHtCaps( pMac, psessionEntry, (tANI_U8*)pMbMsg->data + PROBE_RSP_IE_OFFSET,
+            limSetHtCaps( pMac,(tANI_U8*)pMbMsg->data + PROBE_RSP_IE_OFFSET,
                            nBytes - PROBE_RSP_IE_OFFSET);
         }
         
@@ -1066,7 +973,7 @@ tSirRetStatus __limProcessSmeNoAUpdate(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     pMsgNoA->single_noa_duration = pNoA->single_noa_duration;
     pMsgNoA->psSelection = pNoA->psSelection;
 
-    msg.type = WDA_SET_P2P_GO_NOA_REQ;
+    msg.type = SIR_HAL_SET_P2P_GO_NOA_REQ;
     msg.reserved = 0;
     msg.bodyptr = pMsgNoA;
     msg.bodyval = 0;

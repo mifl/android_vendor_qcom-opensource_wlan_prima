@@ -18,29 +18,7 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
-/*
- * */
 #ifndef _HALMSGAPI_H_
 #define _HALMSGAPI_H_
 
@@ -63,9 +41,6 @@
 #define STA_ENTRY_BSSID             2
 #define STA_ENTRY_BCAST             3 //Special station id for transmitting broadcast frames.
 #define STA_ENTRY_PEER              STA_ENTRY_OTHER
-#ifdef FEATURE_WLAN_TDLS
-#define STA_ENTRY_TDLS_PEER         4
-#endif /* FEATURE_WLAN_TDLS */
 
 #define STA_ENTRY_TRANSMITTER       STA_ENTRY_SELF
 #define STA_ENTRY_RECEIVER          STA_ENTRY_OTHER
@@ -325,11 +300,6 @@ typedef struct
     tANI_U8     p2pCapableSta;
 #endif
 
-#ifdef WLAN_FEATURE_11AC
-    tANI_U8    vhtCapable;
-    tANI_U8    vhtTxChannelWidthSet;
-#endif
-
 } tAddStaParams, *tpAddStaParams;
 
 
@@ -533,10 +503,7 @@ typedef struct
 
     //Spectrum Management Capability, 1 - Enabled, 0 - Disabled.
     tANI_U8 bSpectrumMgtEnabled;
-#ifdef WLAN_FEATURE_11AC
-    tANI_U8 vhtCapable;
-    tANI_U8    vhtTxChannelWidthSet;
-#endif
+
 } tAddBssParams, * tpAddBssParams;
 
 typedef struct
@@ -732,10 +699,10 @@ typedef struct {
 #ifdef FEATURE_OEM_DATA_SUPPORT 
 
 #ifndef OEM_DATA_REQ_SIZE
-#define OEM_DATA_REQ_SIZE 134
+#define OEM_DATA_REQ_SIZE 70
 #endif
 #ifndef OEM_DATA_RSP_SIZE
-#define OEM_DATA_RSP_SIZE 1968
+#define OEM_DATA_RSP_SIZE 968
 #endif
 
 typedef struct
@@ -919,13 +886,7 @@ typedef struct
     tANI_U16 paramChangeBitmap;
 }tUpdateBeaconParams, *tpUpdateBeaconParams;
 
-#ifdef WLAN_FEATURE_11AC
-typedef struct 
-{
-   tANI_U16   opMode;
-   tANI_U16  staId;
-}tUpdateVHTOpMode, *tpUpdateVHTOpMode;
-#endif
+
 
 //HAL MSG: SIR_HAL_UPDATE_CF_IND
 typedef struct
@@ -978,21 +939,15 @@ typedef struct
 #ifndef WLAN_FEATURE_VOWIFI    
     tANI_U8 localPowerConstraint;
 #endif /* WLAN_FEATURE_VOWIFI  */
-    ePhyChanBondState secondaryChannelOffset;
+    tSirMacHTSecondaryChannelOffset secondaryChannelOffset;
     tANI_U8 peSessionId;
 #if defined WLAN_FEATURE_VOWIFI
     tPowerdBm txMgmtPower; //HAL fills in the tx power used for mgmt frames in this field.
     tPowerdBm maxTxPower;
     tSirMacAddr selfStaMacAddr;
+    tSirMacAddr bssId;  // BSSID is needed to identify which session issued this request. As 
                         //the request has power constraints, this should be applied only to that session
 #endif
-    /* VO Wifi comment: BSSID is needed to identify which session issued this request. As the 
-       request has power constraints, this should be applied only to that session */
-    /* V IMP: Keep bssId field at the end of this msg. It is used to mantain backward compatbility
-     * by way of ignoring if using new host/old FW or old host/new FW since it is at the end of this struct
-     */
-    tSirMacAddr bssId;
-
     eHalStatus status;
 
 }tSwitchChannelParams, *tpSwitchChannelParams;
@@ -1190,7 +1145,6 @@ typedef struct sExitBmpsParams
 {
     tANI_U8     sendDataNull;
     eHalStatus  status;
-    tANI_U8     bssIdx;
 } tExitBmpsParams, *tpExitBmpsParams;
 
 //
@@ -1208,18 +1162,7 @@ typedef struct sUapsdParams
     tANI_U8     viTriggerEnabled:1;
     tANI_U8     voTriggerEnabled:1;
     eHalStatus  status;
-    tANI_U8     bssIdx;
 }tUapsdParams, *tpUapsdParams;
-
-//
-// Mesg header is used from tSirMsgQ
-// Mesg Type = SIR_HAL_EXIT_UAPSD_REQ
-//
-typedef struct sExitUapsdParams
-{
-    eHalStatus  status;
-    tANI_U8     bssIdx;
-}tExitUapsdParams, *tpExitUapsdParams;
 
 //
 // Mesg header is used from tSirMsgQ
@@ -1306,23 +1249,11 @@ typedef struct sEnterBmpsParams
     //DTIM period given to HAL during association may not be valid,
     //if association is based on ProbeRsp instead of beacon.
     tANI_U8 dtimPeriod;
-
-    // For CCX and 11R Roaming
-    tANI_U8  bRssiFilterEnable;
-    tANI_U32 rssiFilterPeriod;
-    tANI_U32 numBeaconPerRssiAverage;
-
     eHalStatus status;
     tANI_U8 respReqd;
 }tEnterBmpsParams, *tpEnterBmpsParams;
 
-//BMPS response
-typedef struct sEnterBmpsRspParams
-{
-    /* success or failure */
-    tANI_U32   status;
-    tANI_U8    bssIdx;
-}tEnterBmpsRspParams, *tpEnterBmpsRspParams;
+
 //
 // Mesg header is used from tSirMsgQ
 // Mesg Type = SIR_HAL_SET_MAX_TX_POWER_REQ
@@ -1381,8 +1312,6 @@ typedef __ani_attr_pre_packed struct sBeaconFilterMsg
     tANI_U16    capabilityMask;
     tANI_U16    beaconInterval;
     tANI_U16    ieNum;
-    tANI_U8     bssIdx;
-    tANI_U8     reserved;
 } __ani_attr_packed tBeaconFilterMsg, *tpBeaconFilterMsg;
 
 typedef __ani_attr_pre_packed struct sEidByteInfo

@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /** ------------------------------------------------------------------------- *
     ------------------------------------------------------------------------- *
@@ -3816,7 +3796,7 @@ const sHalNv nvDefaults =
     } // tables
 };
 
-#else
+#else 
 
 #include "palTypes.h"
 #include "wlan_nv.h"
@@ -3910,84 +3890,6 @@ const sHalNv nvDefaults =
                 {1500},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_120_MBPS,
                 {1400},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_135_MBPS,
                 {1350},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_150_MBPS,
-#ifdef WLAN_FEATURE_11AC
-                //11AC rates
-               //11A duplicate 80MHz Rates
-                {1700},    // HAL_PHY_RATE_11AC_DUP_6_MBPS,
-                {1700},    // HAL_PHY_RATE_11AC_DUP_9_MBPS,
-                {1700},    // HAL_PHY_RATE_11AC_DUP_12_MBPS,
-                {1650},    // HAL_PHY_RATE_11AC_DUP_18_MBPS,
-                {1600},    // HAL_PHY_RATE_11AC_DUP_24_MBPS,
-                {1550},    // HAL_PHY_RATE_11AC_DUP_36_MBPS,
-                {1550},    // HAL_PHY_RATE_11AC_DUP_48_MBPS,
-                {1500},    // HAL_PHY_RATE_11AC_DUP_54_MBPS,
-
-               //11ac 20MHZ NG, SG
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_6_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_13_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_19_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_26_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_39_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_52_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_58_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_65_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_78_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_7_2_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_14_4_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_21_6_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_28_8_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_43_3_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_57_7_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_65_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_72_2_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_86_6_MBPS,
-
-
-               //11ac 40MHZ NG, SG
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_13_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_27_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_40_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_54_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_81_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_108_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_121_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_135_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_162_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_180_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_15_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_30_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_45_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_60_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_90_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_120_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_135_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_150_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_180_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_200_MBPS,
-
-
-               //11ac 80MHZ NG, SG
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_29_3_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_58_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_87_8_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_117_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_175_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_234_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_263_3_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_292_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_351_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_390_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_32_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_65_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_97_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_130_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_195_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_260_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_292_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_325_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_390_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_433_3_MBPS,
-#endif //WLAN_FEATURE_11AC
                 },  //    RF_SUBBAND_2_4_GHZ
 
                 {
@@ -4055,84 +3957,6 @@ const sHalNv nvDefaults =
                 {1400},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_120_MBPS,
                 {1300},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_135_MBPS,
                 {1200},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_150_MBPS,
-#ifdef WLAN_FEATURE_11AC
-                //11AC rates
-               //11A duplicate 80MHz Rates
-                {1700},    // HAL_PHY_RATE_11AC_DUP_6_MBPS,
-                {1700},    // HAL_PHY_RATE_11AC_DUP_9_MBPS,
-                {1700},    // HAL_PHY_RATE_11AC_DUP_12_MBPS,
-                {1650},    // HAL_PHY_RATE_11AC_DUP_18_MBPS,
-                {1600},    // HAL_PHY_RATE_11AC_DUP_24_MBPS,
-                {1550},    // HAL_PHY_RATE_11AC_DUP_36_MBPS,
-                {1550},    // HAL_PHY_RATE_11AC_DUP_48_MBPS,
-                {1500},    // HAL_PHY_RATE_11AC_DUP_54_MBPS,
-
-               //11ac 20MHZ NG, SG
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_6_5_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_13_MBPS,
-                {1350},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_19_5_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_26_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_39_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_52_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_58_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_65_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_78_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_7_2_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_14_4_MBPS,
-                {1350},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_21_6_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_28_8_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_43_3_MBPS,
-                {1200},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_57_7_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_65_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_72_2_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_86_6_MBPS,
-
-
-               //11ac 40MHZ NG, SG
-                {1400},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_13_5_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_27_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_40_5_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_54_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_81_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_108_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_121_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_135_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_162_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_180_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_15_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_30_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_45_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_60_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_90_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_120_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_135_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_150_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_180_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_200_MBPS,
-
-
-               //11ac 80MHZ NG, SG
-                {1300},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_29_3_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_58_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_87_8_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_117_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_175_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_234_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_263_3_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_292_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_351_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_390_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_32_5_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_65_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_97_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_130_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_195_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_260_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_292_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_325_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_390_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_433_3_MBPS,
-#endif //WLAN_FEATURE_11AC
                 },  //    RF_SUBBAND_5_LOW_GHZ
 
                 // 5G Mid
@@ -4201,84 +4025,6 @@ const sHalNv nvDefaults =
                 {1400},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_120_MBPS,
                 {1300},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_135_MBPS,
                 {1200},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_150_MBPS,
-#ifdef WLAN_FEATURE_11AC
-                //11AC rates
-               //11A duplicate 80MHz Rates
-                {1700},    // HAL_PHY_RATE_11AC_DUP_6_MBPS,
-                {1700},    // HAL_PHY_RATE_11AC_DUP_9_MBPS,
-                {1700},    // HAL_PHY_RATE_11AC_DUP_12_MBPS,
-                {1650},    // HAL_PHY_RATE_11AC_DUP_18_MBPS,
-                {1600},    // HAL_PHY_RATE_11AC_DUP_24_MBPS,
-                {1550},    // HAL_PHY_RATE_11AC_DUP_36_MBPS,
-                {1550},    // HAL_PHY_RATE_11AC_DUP_48_MBPS,
-                {1500},    // HAL_PHY_RATE_11AC_DUP_54_MBPS,
-
-               //11ac 20MHZ NG, SG
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_6_5_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_13_MBPS,
-                {1350},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_19_5_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_26_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_39_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_52_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_58_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_65_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_78_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_7_2_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_14_4_MBPS,
-                {1350},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_21_6_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_28_8_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_43_3_MBPS,
-                {1200},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_57_7_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_65_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_72_2_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_86_6_MBPS,
-
-
-               //11ac 40MHZ NG, SG
-                {1400},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_13_5_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_27_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_40_5_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_54_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_81_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_108_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_121_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_135_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_162_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_180_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_15_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_30_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_45_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_60_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_90_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_120_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_135_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_150_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_180_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_200_MBPS,
-
-
-               //11ac 80MHZ NG, SG
-                {1300},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_29_3_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_58_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_87_8_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_117_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_175_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_234_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_263_3_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_292_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_351_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_390_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_32_5_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_65_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_97_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_130_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_195_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_260_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_292_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_325_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_390_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_433_3_MBPS,
-#endif //WLAN_FEATURE_11AC
                 },  //    //     RF_SUBBAND_5_MID_GHZ
                 // 5G High
                 {
@@ -4346,84 +4092,6 @@ const sHalNv nvDefaults =
                 {1400},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_120_MBPS,
                 {1300},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_135_MBPS,
                 {1200},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_150_MBPS,
-#ifdef WLAN_FEATURE_11AC
-                //11AC rates
-               //11A duplicate 80MHz Rates
-                {1700},    // HAL_PHY_RATE_11AC_DUP_6_MBPS,
-                {1700},    // HAL_PHY_RATE_11AC_DUP_9_MBPS,
-                {1700},    // HAL_PHY_RATE_11AC_DUP_12_MBPS,
-                {1650},    // HAL_PHY_RATE_11AC_DUP_18_MBPS,
-                {1600},    // HAL_PHY_RATE_11AC_DUP_24_MBPS,
-                {1550},    // HAL_PHY_RATE_11AC_DUP_36_MBPS,
-                {1550},    // HAL_PHY_RATE_11AC_DUP_48_MBPS,
-                {1500},    // HAL_PHY_RATE_11AC_DUP_54_MBPS,
-
-               //11ac 20MHZ NG, SG
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_6_5_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_13_MBPS,
-                {1350},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_19_5_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_26_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_39_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_52_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_58_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_65_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_NGI_78_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_7_2_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_14_4_MBPS,
-                {1350},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_21_6_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_28_8_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_43_3_MBPS,
-                {1200},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_57_7_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_65_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_72_2_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_CB_SGI_86_6_MBPS,
-
-
-               //11ac 40MHZ NG, SG
-                {1400},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_13_5_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_27_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_40_5_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_54_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_81_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_108_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_121_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_135_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_162_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_180_MBPS,
-                {1400},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_15_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_30_MBPS,
-                {1250},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_45_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_60_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_90_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_120_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_135_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_150_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_180_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_200_MBPS,
-
-
-               //11ac 80MHZ NG, SG
-                {1300},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_29_3_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_58_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_87_8_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_117_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_175_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_234_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_263_3_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_292_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_351_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_390_MBPS,
-                {1300},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_32_5_MBPS,
-                {1100},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_65_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_97_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_130_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_195_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_260_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_292_5_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_325_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_390_MBPS,
-                {1000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_433_3_MBPS,
-#endif //WLAN_FEATURE_11AC
                 },  //    RF_SUBBAND_5_HIGH_GHZ,
                 // 4.9G
 
@@ -4492,84 +4160,6 @@ const sHalNv nvDefaults =
                 {1400},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_120_MBPS,
                 {1300},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_135_MBPS,
                 {1200},    // HAL_PHY_RATE_MCS_1NSS_MM_SG_CB_150_MBPS,
-#ifdef WLAN_FEATURE_11AC
-                //11AC rates
-               //11A duplicate 80MHz Rates
-                {1700},    // HAL_PHY_RATE_11AC_DUP_6_MBPS,
-                {1700},    // HAL_PHY_RATE_11AC_DUP_9_MBPS,
-                {1700},    // HAL_PHY_RATE_11AC_DUP_12_MBPS,
-                {1650},    // HAL_PHY_RATE_11AC_DUP_18_MBPS,
-                {1600},    // HAL_PHY_RATE_11AC_DUP_24_MBPS,
-                {1550},    // HAL_PHY_RATE_11AC_DUP_36_MBPS,
-                {1550},    // HAL_PHY_RATE_11AC_DUP_48_MBPS,
-                {1500},    // HAL_PHY_RATE_11AC_DUP_54_MBPS,
-
-               //11ac 20MHZ NG, SG
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_6_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_13_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_19_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_26_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_39_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_52_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_58_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_65_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_78_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_7_2_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_14_4_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_21_6_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_28_8_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_43_3_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_57_7_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_65_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_72_2_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_86_6_MBPS,
-
-
-               //11ac 40MHZ NG, SG
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_13_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_27_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_40_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_54_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_81_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_108_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_121_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_135_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_162_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_180_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_15_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_30_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_45_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_60_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_90_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_120_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_135_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_150_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_180_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_SGI_200_MBPS,
-
-
-               //11ac 80MHZ NG, SG
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_29_3_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_58_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_87_8_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_117_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_175_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_234_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_263_3_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_292_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_351_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_NGI_390_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_32_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_65_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_97_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_130_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_195_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_260_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_292_5_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_325_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_390_MBPS,
-                {0000},    // HAL_PHY_RATE_VHT_80MHZ_MCS_1NSS_CB_SGI_433_3_MBPS,
-#endif //WLAN_FEATURE_11AC
                 },  //    RF_SUBBAND_4_9_GHZ
         },
 
@@ -7762,7 +7352,7 @@ const sHalNv nvDefaults =
             100,   // RF_CHAN_108
             100,   // RF_CHAN_112
             100,   // RF_CHAN_116
-            100,   // RF_CHAN_120
+            100,   // RF_CHAN_120 
             100,   // RF_CHAN_124
             100,   // RF_CHAN_128
             100,   // RF_CHAN_132
@@ -7774,7 +7364,7 @@ const sHalNv nvDefaults =
             100,   // RF_CHAN_161
             100,   // RF_CHAN_165
             //CHANNEL BONDED CHANNELS
-            100,   // RF_CHAN_BOND_3
+            100,   // RF_CHAN_BOND_3 
             100,   // RF_CHAN_BOND_4
             100,   // RF_CHAN_BOND_5
             100,   // RF_CHAN_BOND_6
@@ -7791,15 +7381,15 @@ const sHalNv nvDefaults =
             100,   // RF_CHAN_BOND_38
             100,   // RF_CHAN_BOND_42
             100,   // RF_CHAN_BOND_46
-            100,   // RF_CHAN_BOND_50
+            100,   // RF_CHAN_BOND_50 
             100,   // RF_CHAN_BOND_54
             100,   // RF_CHAN_BOND_58
             100,   // RF_CHAN_BOND_62
             100,   // RF_CHAN_BOND_102
             100,   // RF_CHAN_BOND_106
             100,   // RF_CHAN_BOND_110
-            100,   // RF_CHAN_BOND_114
-            100,   // RF_CHAN_BOND_118
+            100,   // RF_CHAN_BOND_114 
+            100,   // RF_CHAN_BOND_118 
             100,   // RF_CHAN_BOND_122
             100,   // RF_CHAN_BOND_126
             100,   // RF_CHAN_BOND_130
@@ -9100,7 +8690,7 @@ const sHalNv nvDefaults =
             280,   // RF_CHAN_108
             280,   // RF_CHAN_112
             280,   // RF_CHAN_116
-            280,   // RF_CHAN_120
+            280,   // RF_CHAN_120 
             280,   // RF_CHAN_124
             280,   // RF_CHAN_128
             280,   // RF_CHAN_132
@@ -9112,7 +8702,7 @@ const sHalNv nvDefaults =
             280,   // RF_CHAN_161
             280,   // RF_CHAN_165
             //CHANNEL BONDED CHANNELS
-            280,   // RF_CHAN_BOND_3
+            280,   // RF_CHAN_BOND_3 
             280,   // RF_CHAN_BOND_4
             280,   // RF_CHAN_BOND_5
             280,   // RF_CHAN_BOND_6
@@ -9129,15 +8719,15 @@ const sHalNv nvDefaults =
             280,   // RF_CHAN_BOND_38
             280,   // RF_CHAN_BOND_42
             280,   // RF_CHAN_BOND_46
-            280,   // RF_CHAN_BOND_50
+            280,   // RF_CHAN_BOND_50 
             280,   // RF_CHAN_BOND_54
             280,   // RF_CHAN_BOND_58
             280,   // RF_CHAN_BOND_62
             280,   // RF_CHAN_BOND_102
             280,   // RF_CHAN_BOND_106
             280,   // RF_CHAN_BOND_110
-            280,   // RF_CHAN_BOND_114
-            280,   // RF_CHAN_BOND_118
+            280,   // RF_CHAN_BOND_114 
+            280,   // RF_CHAN_BOND_118 
             280,   // RF_CHAN_BOND_122
             280,   // RF_CHAN_BOND_126
             280,   // RF_CHAN_BOND_130
@@ -9153,7 +8743,7 @@ const sHalNv nvDefaults =
         {
             { 2150 }, // applied to all channels, MODE_802_11B
             { 1850 }, // applied to all channels,MODE_802_11AG
-            { 1750 }  // applied to all channels,MODE_802_11N
+            { 1750 }  // applied to all channels,MODE_802_11N 
         },
 
         //NV_TABLE_OFDM_CMD_PWR_OFFSET
@@ -9169,7 +8759,7 @@ const sHalNv nvDefaults =
     } // tables
 };
 
-#endif
+#endif 
 #endif
 
 

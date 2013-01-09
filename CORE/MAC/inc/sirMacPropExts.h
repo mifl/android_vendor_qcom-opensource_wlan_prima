@@ -18,29 +18,8 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file sirMacPropExts.h contains the MAC protocol
  * extensions to support ANI feature set.
@@ -119,10 +98,10 @@
 
 // macro to set/get a capability bit, bitname is one of HCF/11EQOS/etc...
 #define PROP_CAPABILITY_SET(bitname, value) \
-  ((value) = (value) | ((tANI_U16)(1 << SIR_MAC_PROP_CAPABILITY_ ## bitname)))
+        (value) = (value) | ((tANI_U16)(1 << SIR_MAC_PROP_CAPABILITY_ ## bitname))
 
 #define PROP_CAPABILITY_RESET(bitname, value) \
-  ((value) = (value) & ~((tANI_U16)(1 << SIR_MAC_PROP_CAPABILITY_ ## bitname)))
+        (value) = (value) & ~((tANI_U16)(1 << SIR_MAC_PROP_CAPABILITY_ ## bitname))
         
 #define PROP_CAPABILITY_GET(bitname, value) \
         (((value) >> SIR_MAC_PROP_CAPABILITY_ ## bitname) & 1)
@@ -138,22 +117,11 @@
 #define IS_DOT11_MODE_HT(dot11Mode) \
         (((dot11Mode == WNI_CFG_DOT11_MODE_11N) || \
           (dot11Mode ==  WNI_CFG_DOT11_MODE_11N_ONLY) || \
-          (dot11Mode ==  WNI_CFG_DOT11_MODE_11AC) || \
-          (dot11Mode ==  WNI_CFG_DOT11_MODE_11AC_ONLY) || \
           (dot11Mode ==  WNI_CFG_DOT11_MODE_TAURUS) || \
           (dot11Mode ==  WNI_CFG_DOT11_MODE_ALL)) ? TRUE: FALSE)
 #else
 #define IS_DOT11_MODE_HT(dot11Mode) \
         (((dot11Mode == WNI_CFG_DOT11_MODE_11N) || \
-          (dot11Mode ==  WNI_CFG_DOT11_MODE_TAURUS) || \
-          (dot11Mode ==  WNI_CFG_DOT11_MODE_11AC) || \
-          (dot11Mode ==  WNI_CFG_DOT11_MODE_ALL)) ? TRUE: FALSE)
-#endif
-
-#ifdef WLAN_FEATURE_11AC
-#define IS_DOT11_MODE_VHT(dot11Mode) \
-        (((dot11Mode == WNI_CFG_DOT11_MODE_11AC) || \
-          (dot11Mode ==  WNI_CFG_DOT11_MODE_11AC_ONLY) || \
           (dot11Mode ==  WNI_CFG_DOT11_MODE_TAURUS) || \
           (dot11Mode ==  WNI_CFG_DOT11_MODE_ALL)) ? TRUE: FALSE)
 #endif
@@ -254,6 +222,53 @@ typedef struct sSirMacPropVersion
 // Get state of Compression
 #define GET_COMPRESSION_STATE(cpBitmap,tcid) \
         ((cpBitmap) & (tcid))
+
+// Get/Set state of Channel Bonding
+//
+// The CB bitfield encoding is -
+//
+//     b7    b6   b5  b4  b3  b2  b1  b0
+// --------------------------------------
+// |CCA_CB |CCA |ICE | AU|CS|U/D| O | A |
+// --------------------------------------
+//
+#define GET_CB_ADMIN_STATE(cbState)    (cbState & 0x01)
+#define GET_CB_OPER_STATE(cbState)     ((cbState & 0x02) >> 1)
+#define GET_CB_SEC_CHANNEL(cbState)    ((cbState & 0x04) >> 2)
+#define GET_CB_CS_IN_PROGRESS(cbState) ((cbState & 0x08) >> 3)
+#define GET_CB_CS_AUTO_UPDATE(cbState) ((cbState & 0x10) >> 4)
+#define GET_CB_ICE_STATE(cbState)      ((cbState & 0x20) >> 5)
+#define GET_CB_CCA_MODE(cbState)       ((cbState & 0x40) >> 6)
+#define GET_CB_CCA_CB_STATE(cbState)   ((cbState & 0x80) >> 7)
+
+#define SET_CB_STATE_DISABLE(cbState) \
+        ((cbState) = (0x00))
+#define SET_CB_STATE_ENABLE(cbState) \
+        ((cbState) = (0x03))
+#define SET_CB_AU_ENABLE(cbState) \
+        ((cbState) = ((cbState) | 0x10))
+#define SET_CB_AU_DISABLE(cbState) \
+        ((cbState) = ((cbState) & 0xEF))
+#define SET_CB_OPER_STATE(cbState,state) \
+        (((state) == eHAL_CLEAR)? \
+          ((cbState) = (cbState) & (0xfD)): \
+          ((cbState) = (cbState) | (0x02)))
+#define SET_CB_SEC_CHANNEL(cbState,state) \
+        (((state) == eHAL_CLEAR)? \
+          ((cbState) = (cbState) & (0xfB)): \
+          ((cbState) = (cbState) | (0x04)))
+#define SET_CB_ICE_DISABLE(cbState) \
+        ((cbState) = ((cbState) & 0xDF))
+#define SET_CB_ICE_ENABLE(cbState) \
+        ((cbState) = ((cbState) | 0x20))
+#define SET_CB_CCA_MODE_TWENTY(cbState) \
+        ((cbState) = ((cbState) & 0xBF))
+#define SET_CB_CCA_MODE_FOURTY(cbState) \
+        ((cbState) = ((cbState) | 0x40))
+#define SET_CB_CCA_CB_DISABLE(cbState) \
+        ((cbState) = ((cbState) & 0x7F))
+#define SET_CB_CCA_CB_ENABLE(cbState) \
+        ((cbState) = ((cbState) | 0x80))
 
 // Get/Set the state of Reverse FCS
 #define GET_RFCS_OPER_STATE(revFcsState) (revFcsState & 0x01)

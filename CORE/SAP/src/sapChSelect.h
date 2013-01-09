@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 #if !defined( __SAP_CH_SELECT_H )
 #define __SAP_CH_SELECT_H
@@ -102,26 +82,12 @@
 #define SAP_DEFAULT_CHANNEL     (6)
 #define SAP_DEFAULT_5GHZ_CHANNEL      (40)
 #define SAP_CHANNEL_NOT_SELECTED (0)
-
-#define SOFTAP_HT20_CHANNELWIDTH 0
-#define SAP_EXT_CHAN_RSSI      (-20)
-#define SAP_EXT_SUBBAND2_RSSI      (-30)
-#define SAP_EXT_SUBBAND3_RSSI      (-40)
 /**
 * Structure holding information of each channel in the spectrum, 
 * it contains the channel number, the computed weight
 */
-
-#define SPACE_ASCII_VALUE  32
-
-typedef struct sSapChannelListInfo{
-    v_U8_t numChannel;
-    v_U8_t *channelList;
-} tSapChannelListInfo;
-
 typedef struct {
     v_U16_t chNum;      // Channel Number
-    v_U16_t channelWidth;      // Channel Width
     v_U16_t bssCount;   // bss found in scanresult for this channel
     v_S31_t rssiAgr;    // Max value of rssi among all BSS(es) from scanresult for this channel
     v_U32_t weight;     // Weightage of this channel
@@ -132,7 +98,6 @@ typedef struct {
 * Structure holding all the information required to make a 
 * decision for the best operating channel based on dfs formula
 */
-
 typedef struct {
     tSapSpectChInfo *pSpectCh;//tDfsSpectChInfo *pSpectCh;  // Ptr to the channels in the entire spectrum band
     v_U8_t numSpectChans;      // Total num of channels in the spectrum

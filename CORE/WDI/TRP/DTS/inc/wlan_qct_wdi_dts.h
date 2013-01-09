@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 #ifndef __WLAN_QCT_DTS_H
 #define __WLAN_QCT_DTS_H
@@ -121,14 +101,13 @@ typedef struct {
   wpt_status (*register_client)(void *pContext, WDTS_RxFrameReadyCbType, 
       WDTS_TxCompleteCbType, WDTS_LowResourceCbType, void *clientData);
   wpt_status (*xmit) (void *pContext, wpt_packet *packet, WDTS_ChannelType channel);
-  wpt_status (*txComplete) (void *pContext, wpt_uint32 ucTxResReq);
+  wpt_status (*txComplete) (void *pContext);
   wpt_status (*setPowerState) (void *pContext, WDTS_PowerStateType   powerState, 
                                WDTS_SetPSCbType cBack);
   void (*channelDebug)(wpt_boolean displaySnapshot,
                        wpt_boolean enableStallDetect);
   wpt_status (*stop) (void *pContext);
   wpt_status (*close) (void *pContext);
-  wpt_uint32 (*getFreeTxDataResNumber) (void *pContext);
 } WDTS_TransportDriverTrype;
 
 typedef struct {
@@ -181,12 +160,11 @@ wpt_status WDTS_TxPacket(void *pContext, wpt_packet *pFrame);
  * This function should be invoked by the DAL Dataservice to notify tx completion to DXE/SDIO.
  * Parameters:
  * pContext:Cookie that should be passed back to the caller along with the callback.
- * ucTxResReq:TX resource number required by TL
  * Return Value: SUCCESS  Completed successfully.
  *     FAILURE_XXX  Request was rejected due XXX Reason.
  *
  */
-wpt_status WDTS_CompleteTx(void *pContext, wpt_uint32 ucTxResReq);
+wpt_status WDTS_CompleteTx(void *pContext);
 
 /* DTS Set power state function. 
  * This function should be invoked by the DAL to notify the WLAN device power state.
@@ -205,14 +183,14 @@ wpt_status WDTS_SetPowerState(void *pContext, WDTS_PowerStateType powerState,
  * User may request to display DXE channel snapshot
  * Or if host driver detects any abnormal stcuk may display
  * Parameters:
- *  displaySnapshot : Display DXE snapshot option
+ *  displaySnapshot : Dispaly DXE snapshot option
  *  enableStallDetect : Enable stall detect feature
                         This feature will take effect to data performance
                         Not integrate till fully verification
  * Return Value: NONE
  *
  */
-void WDTS_ChannelDebug(wpt_boolean displaySnapshot, wpt_boolean toggleStallDetect);
+void WDTS_ChannelDebug(wpt_boolean dispalySnapshot, wpt_boolean toggleStallDetect);
 
 /* DTS Stop function. 
  * Stop Transport driver, ie DXE, SDIO
@@ -233,13 +211,4 @@ wpt_status WDTS_Stop(void *pContext);
  *
  */
 wpt_status WDTS_Close(void *pContext);
-
-/* Get free TX data descriptor number from DXE
- * Parameters:
- * pContext: Cookie that should be passed back to the caller along with the callback.
- * Return Value: number of free descriptors for TX data channel
- *
- */
-wpt_uint32 WDTS_GetFreeTxDataResNumber(void *pContext);
-
 #endif

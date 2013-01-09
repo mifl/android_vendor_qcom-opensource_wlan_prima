@@ -18,29 +18,8 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file utilsParser.cc contains the code for parsing
  * 802.11 messages.
@@ -182,28 +161,6 @@ tSirRetStatus ConvertP2POpaque( tpAniSirGlobal      pMac,
     pOld->addIEdata[ curAddIELen++ ] = 0x6f;
     pOld->addIEdata[ curAddIELen++ ] = 0x9A;
     pOld->addIEdata[ curAddIELen++ ] = 0x09;
-    palCopyMemory( pMac->hHdd, pOld->addIEdata + curAddIELen, pNew->data, pNew->num_data );
-
-    return eSIR_SUCCESS;
-}
-#endif
-
-#ifdef WLAN_FEATURE_WFD
-tSirRetStatus ConvertWFDOpaque( tpAniSirGlobal      pMac,
-                                tSirAddie           *pOld,
-                                tDot11fIEWFDIEOpaque *pNew )
-{
-    // This is awful, I know, but the old code just rammed the IE into
-    // an opaque array.  Note that we need to explicitly add the vendorIE and OUI !
-    tANI_U8 curAddIELen = pOld->length; 
-
-    pOld->length    = curAddIELen + pNew->num_data + 6;
-    pOld->addIEdata[ curAddIELen++ ] = 0xdd;
-    pOld->addIEdata[ curAddIELen++ ] = pNew->num_data + 4;
-    pOld->addIEdata[ curAddIELen++ ] = 0x50;
-    pOld->addIEdata[ curAddIELen++ ] = 0x6f;
-    pOld->addIEdata[ curAddIELen++ ] = 0x9A;
-    pOld->addIEdata[ curAddIELen++ ] = 0x0a;
     palCopyMemory( pMac->hHdd, pOld->addIEdata + curAddIELen, pNew->data, pNew->num_data );
 
     return eSIR_SUCCESS;
@@ -423,7 +380,7 @@ tSirRetStatus ConvertTCLAS(tpAniSirGlobal  pMac,
                                  tSirTclasInfo  *pOld,
                                  tDot11fIETCLAS *pNew)
 {
-    tANI_U32 length = 0;
+    tANI_U32 length;
 
     if ( DOT11F_FAILED( dot11fGetPackedIETCLAS( pMac, pNew, &length ) ) )
     {
@@ -513,7 +470,7 @@ tSirRetStatus ConvertWMMTCLAS(tpAniSirGlobal    pMac,
                                     tSirTclasInfo     *pOld,
                                     tDot11fIEWMMTCLAS *pNew)
 {
-    tANI_U32 length = 0;
+    tANI_U32 length;
 
     if ( DOT11F_FAILED( dot11fGetPackedIEWMMTCLAS( pMac, pNew, &length ) ) )
     {

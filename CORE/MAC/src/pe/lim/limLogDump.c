@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*============================================================================
 limLogDump.c
@@ -103,7 +83,7 @@ dumpMacAddr(tpAniSirGlobal pMac, char *p, tANI_U8 *addr)
 #endif
 
 
-char *dumpLim( tpAniSirGlobal pMac, char *p, tANI_U32 sessionId)
+char *dumpLim( tpAniSirGlobal pMac, char *p )
 {
   #ifdef FIXME_GEN6
   //iterate through the sessionTable and dump sta entries for each session.
@@ -111,13 +91,6 @@ char *dumpLim( tpAniSirGlobal pMac, char *p, tANI_U32 sessionId)
 
   tANI_U16 i, j;
 
-  tpPESession psessionEntry = peFindSessionBySessionId(pMac, sessionId);
-
-  if (psessionEntry == NULL)
-  {
-    p += log_sprintf( pMac, p, "Invalid sessionId: %d \n ", sessionId);
-    return p;
-  }
 
   p += log_sprintf( pMac,p, "\n ----- LIM Debug Information ----- \n");
   p += log_sprintf( pMac,p, "LIM Role  = (%d) %s\n",
@@ -126,8 +99,11 @@ char *dumpLim( tpAniSirGlobal pMac, char *p, tANI_U32 sessionId)
                   pMac->lim.gLimSmeState, limSmeStateStr(pMac->lim.gLimSmeState));
   p += log_sprintf( pMac,p, "MLM State = (%d) %s",
                   pMac->lim.gLimMlmState, limMlmStateStr(pMac->lim.gLimMlmState));
-  p += log_sprintf( pMac,p, "802.11n session HT Capability: %s\n",
-                  (psessionEntry->htCapability == 1) ? "Enabled" : "Disabled");
+
+  p += log_sprintf( pMac,p, "CHANNEL BONDING Mode (%1d) and State (X|X|X|AU|CS|U/D|O|A) (0x%1x)\n",
+                  pMac->lim.gCbMode, pMac->lim.gCbState);
+  p += log_sprintf( pMac,p, "802.11n HT Capability: %s\n",
+                  (pMac->lim.htCapability == 1) ? "Enabled" : "Disabled");
   p += log_sprintf( pMac,p, "gLimProcessDefdMsgs: %s\n",
                   (pMac->lim.gLimProcessDefdMsgs == 1) ? "Enabled" : "Disabled");
 
@@ -155,6 +131,10 @@ char *dumpLim( tpAniSirGlobal pMac, char *p, tANI_U32 sessionId)
 
       p += log_sprintf( pMac,p, "Num of Hash Miss Event ignored             = %d\n",
                       pMac->lim.gLimNumHashMissIgnored);
+
+
+
+
   }
 
   p += log_sprintf( pMac,p, "Num of RxCleanup Count                     = %d\n",
@@ -172,6 +152,11 @@ char *dumpLim( tpAniSirGlobal pMac, char *p, tANI_U32 sessionId)
   p += log_sprintf( pMac,p, "No. of Beacons Rxed During HB Interval     = %d\n",
                   pMac->lim.gLimRxedBeaconCntDuringHB);
   p += log_sprintf( pMac,p, "Self Operating Mode                              = %s\n", limDot11ModeStr(pMac, (tANI_U8)pMac->lim.gLimDot11Mode));
+
+
+
+
+
   p += log_sprintf( pMac,p, "\n");
 
   if (pMac->lim.gLimSystemRole == eLIM_AP_ROLE)
@@ -364,13 +349,16 @@ char *dumpLim( tpAniSirGlobal pMac, char *p, tANI_U32 sessionId)
             p += log_sprintf( pMac,p, "\n");
         }
     }
+
+
 #endif
     p += log_sprintf( pMac, p, "HT operating Mode = %d, llbCoexist = %d, llgCoexist = %d, ht20Coexist = %d, nonGfPresent = %d, RifsMode = %d, lsigTxop = %d\n",
                       pMac->lim.gHTOperMode, pMac->lim.llbCoexist, pMac->lim.llgCoexist,
                       pMac->lim.ht20MhzCoexist, pMac->lim.gHTNonGFDevicesPresent,
                       pMac->lim.gHTRifsMode, pMac->lim.gHTLSigTXOPFullSupport);
+
     p += log_sprintf(pMac, p, "2nd Channel offset = %d\n",
-                  psessionEntry->hHTSecondaryChannelOffset);
+                  pMac->lim.gHTSecondaryChannelOffset);
 #endif
     return p;
 }
@@ -390,7 +378,7 @@ char *triggerBeaconGen( tpAniSirGlobal pMac, char *p )
     tSirMsgQ mesg = { (tANI_U16) SIR_LIM_BEACON_GEN_IND, (tANI_U16) 0, (tANI_U32) 0 };
     
     pMac->lim.gLimSmeState = eLIM_SME_NORMAL_STATE;
-    MTRACE(macTrace(pMac, TRACE_CODE_SME_STATE, NO_SESSION, pMac->lim.gLimSmeState));
+    MTRACE(macTrace(pMac, TRACE_CODE_SME_STATE, 0, pMac->lim.gLimSmeState));
     pMac->lim.gLimSystemRole = eLIM_AP_ROLE;
     
     p += log_sprintf( pMac, p,
@@ -468,7 +456,6 @@ static char *sendSmeScanReq(tpAniSirGlobal pMac, char *p)
     pScanReq->channelList.channelNumber[0] = 6;
     pScanReq->uIEFieldLen = 0;
     pScanReq->uIEFieldOffset = sizeof(tSirSmeScanReq);
-    pScanReq->sessionId = 0;
 
     msg.type = eWNI_SME_SCAN_REQ;
     msg.bodyptr = pScanReq;
@@ -558,7 +545,7 @@ static char *sendSmeStartBssReq(tpAniSirGlobal pMac, char *p,tANI_U32 arg1)
     tSirMsgQ  msg;
     tSirSmeStartBssReq  *pStartBssReq;
     unsigned char *pBuf;
-    ePhyChanBondState  cbMode;
+    tAniCBSecondaryMode  cbMode;
     tSirNwType  nwType;
 
     p += log_sprintf( pMac,p, "sendSmeStartBssReq: Preparing eWNI_SME_START_BSS_REQ message\n");
@@ -604,9 +591,9 @@ static char *sendSmeStartBssReq(tpAniSirGlobal pMac, char *p,tANI_U32 arg1)
     pBuf++;
 
     // Filling in CB mode
-    cbMode = PHY_SINGLE_CHANNEL_CENTERED;
-    palCopyMemory( pMac->hHdd, pBuf, (tANI_U8 *)&cbMode, sizeof(ePhyChanBondState) );
-    pBuf += sizeof(ePhyChanBondState);
+    cbMode = eANI_CB_SECONDARY_NONE;
+    palCopyMemory( pMac->hHdd, pBuf, (tANI_U8 *)&cbMode, sizeof(tAniCBSecondaryMode) );
+    pBuf += sizeof(tAniCBSecondaryMode);
 
     // Filling in RSN IE Length to zero
     palZeroMemory( pMac->hHdd, pBuf, sizeof(tANI_U16) );    //tSirRSNie->length
@@ -778,7 +765,7 @@ static char *printSessionInfo(tpAniSirGlobal pMac, char *p)
             p += log_sprintf( pMac,p, "bssType: (%d) %s \n", psessionEntry->bssType, limBssTypeStr(psessionEntry->bssType));
             p += log_sprintf( pMac,p, "operMode: %d \n", psessionEntry->operMode);
             p += log_sprintf( pMac,p, "dot11mode: %d \n", psessionEntry->dot11mode);
-            p += log_sprintf( pMac,p, "htCapability: %d \n", psessionEntry->htCapability);
+            p += log_sprintf( pMac,p, "htCapabality: %d \n", psessionEntry->htCapabality);
             p += log_sprintf( pMac,p, "limRFBand: %d \n", psessionEntry->limRFBand);
             p += log_sprintf( pMac,p, "limIbssActive: %d \n", psessionEntry->limIbssActive);
             p += log_sprintf( pMac,p, "limCurrentAuthType: %d \n", psessionEntry->limCurrentAuthType);
@@ -794,6 +781,7 @@ static char *printSessionInfo(tpAniSirGlobal pMac, char *p)
             p += log_sprintf( pMac,p, "limReassocBssCaps: %d \n", psessionEntry->limReassocBssCaps);
             p += log_sprintf( pMac,p, "limReassocBssQosCaps: %d \n", psessionEntry->limReassocBssQosCaps);
             p += log_sprintf( pMac,p, "limReassocBssPropCap: %d \n", psessionEntry->limReassocBssPropCap);
+            p += log_sprintf( pMac,p, "limReassocTitanHtCaps: %d \n", psessionEntry->limReassocTitanHtCaps);
             p += log_sprintf( pMac,p, "********************************************\n");
         }
     }
@@ -1288,7 +1276,7 @@ dump_lim_send_SM_Power_Mode( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, 
     tpSirMbMsg  pMBMsg;
         tSirMacHTMIMOPowerSaveState state;
 
-        p += log_sprintf( pMac,p, "%s: Verifying the Arguments\n", __func__);
+        p += log_sprintf( pMac,p, "%s: Verifying the Arguments\n", __FUNCTION__);
     if ((arg1 > 3) || (arg1 == 2))
     {
                 p += log_sprintf( pMac,p, "Invalid Argument , enter one of the valid states\n");
@@ -1343,7 +1331,7 @@ tpDphHashNode pSta;
   {
     p += log_sprintf( pMac, p,
         "\n%s: Could not find entry in DPH table for assocId = %d\n",
-        __func__,
+        __FUNCTION__,
         arg1 );
   }
   else
@@ -1351,7 +1339,7 @@ tpDphHashNode pSta;
     status = limPostMlmAddBAReq( pMac, pSta, (tANI_U8) arg2, (tANI_U16) arg3,psessionEntry);
     p += log_sprintf( pMac, p,
         "\n%s: Attempted to send an ADDBA Req to STA Index %d, for TID %d. Send Status = %s\n",
-        __func__,
+        __FUNCTION__,
         pSta->staIndex,
         arg2,
         limResultCodeStr( status ));
@@ -1373,7 +1361,7 @@ tpDphHashNode pSta;
   {
     p += log_sprintf( pMac, p,
         "\n%s: Could not find entry in DPH table for assocId = %d\n",
-        __func__,
+        __FUNCTION__,
         arg1 );
   }
   else
@@ -1383,7 +1371,7 @@ tpDphHashNode pSta;
         "\n%s: Attempted to send a DELBA Ind to STA Index %d, "
         "as the BA \"%s\" for TID %d, with Reason code %d. "
         "Send Status = %s\n",
-        __func__,
+        __FUNCTION__,
         pSta->staIndex,
         (arg2 == 1)? "Initiator": "Recipient",
         arg3, // TID
@@ -1407,7 +1395,7 @@ dump_lim_ba_timeout( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32
 
   p += log_sprintf( pMac, p,
       "\n%s: Attempted to trigger a BA Timeout Ind to STA Index %d, for TID %d, Direction %d\n",
-      __func__,
+      __FUNCTION__,
       arg1, // STA index
       arg2, // TID
       arg3 ); // BA Direction
@@ -1433,7 +1421,7 @@ tpPESession psessionEntry = &pMac->lim.gpSession[0];  //TBD-RAJESH
   {
     p += log_sprintf( pMac, p,
         "\n%s: Could not find entry in DPH table for assocId = %d\n",
-        __func__,
+        __FUNCTION__,
         arg1 );
   }
   else
@@ -1468,14 +1456,14 @@ dump_lim_AddBA_DeclineStat( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, t
     tANI_U8 val;
 
     if (arg1 > 1) {
-        log_sprintf( pMac,p, "%s:Invalid Value is entered for Enable/Disable \n", __func__ );
+        log_sprintf( pMac,p, "%s:Invalid Value is entered for Enable/Disable \n", __FUNCTION__ );
         arg1 &= 1;
     }       
     
     val = pMac->lim.gAddBA_Declined;
     
     if (arg2 > 7) {
-        log_sprintf( pMac,p, "%s:Invalid Value is entered for Tid \n", __func__ );
+        log_sprintf( pMac,p, "%s:Invalid Value is entered for Tid \n", __FUNCTION__ );
         Tid = arg2 & 0x7;
     } else
         Tid = arg2;
@@ -1487,9 +1475,9 @@ dump_lim_AddBA_DeclineStat( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, t
         val &=  ~(0x1 << Tid);
 
     if (cfgSetInt(pMac, (tANI_U16)WNI_CFG_ADDBA_REQ_DECLINE, (tANI_U32) val) != eSIR_SUCCESS)
-             log_sprintf( pMac,p, "%s:Config Set for ADDBA REQ Decline has failed \n", __func__ );
+             log_sprintf( pMac,p, "%s:Config Set for ADDBA REQ Decline has failed \n", __FUNCTION__ );
 
-     log_sprintf( pMac,p, "%s:Decline value %d is being set for TID %d ,\n \tAddBA_Decline Cfg value is %d \n", __func__ , arg1, Tid, (int) val);
+     log_sprintf( pMac,p, "%s:Decline value %d is being set for TID %d ,\n \tAddBA_Decline Cfg value is %d \n", __FUNCTION__ , arg1, Tid, (int) val);
 
      return p;
 }
@@ -1510,37 +1498,30 @@ dump_lim_set_dot11_mode( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI
 static char* dump_lim_update_cb_Mode(tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 arg3, tANI_U32 arg4, char *p)
 {
     tANI_U32 localPwrConstraint;
-    tpPESession psessionEntry = peFindSessionBySessionId(pMac, arg1);
-
-    if (psessionEntry == NULL)
-    {
-      p += log_sprintf( pMac, p, "Invalid sessionId: %d \n ", arg1);
-      return p;
-    }
-
-    if ( !psessionEntry->htCapability )
+    tpPESession psessionEntry = &pMac->lim.gpSession[0];  //TBD-RAJESH HOW TO GET sessionEntry?????
+    
+    if ( !pMac->lim.htCapability )
     {
         p += log_sprintf( pMac,p, "Error: Dot11 mode is non-HT, can not change the CB mode.\n");
         return p;
     }
-
-    psessionEntry->htSupportedChannelWidthSet = arg2?1:0;
-    psessionEntry->htRecommendedTxWidthSet = psessionEntry->htSupportedChannelWidthSet;
-    psessionEntry->htSecondaryChannelOffset = arg2;
+    
+    pMac->lim.gHTSecondaryChannelOffset = arg1;
+    setupCBState(pMac,  limGetAniCBState(pMac->lim.gHTSecondaryChannelOffset));
 
     if(eSIR_SUCCESS != cfgSetInt(pMac, WNI_CFG_CHANNEL_BONDING_MODE,  
-                                    arg2 ? WNI_CFG_CHANNEL_BONDING_MODE_ENABLE : WNI_CFG_CHANNEL_BONDING_MODE_DISABLE))
+                                    arg1 ? WNI_CFG_CHANNEL_BONDING_MODE_ENABLE : WNI_CFG_CHANNEL_BONDING_MODE_DISABLE))
         p += log_sprintf(pMac,p, "cfgSetInt failed for WNI_CFG_CHANNEL_BONDING_MODE\n");
-
+    
     wlan_cfgGetInt(pMac, WNI_CFG_LOCAL_POWER_CONSTRAINT, &localPwrConstraint);
-
-    limSendSwitchChnlParams(pMac, psessionEntry->currentOperChannel, psessionEntry->htSecondaryChannelOffset,
+        
+    limSendSwitchChnlParams(pMac, psessionEntry->currentOperChannel, pMac->lim.gHTSecondaryChannelOffset,
                                                                   (tPowerdBm) localPwrConstraint, psessionEntry->peSessionId);
     if ( (limGetSystemRole(psessionEntry) == eLIM_AP_ROLE) ||
           (limGetSystemRole(psessionEntry) == eLIM_STA_IN_IBSS_ROLE))
            schSetFixedBeaconFields(pMac,psessionEntry);
     return p;
-
+    
 }
 
 static char* dump_lim_abort_scan(tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 arg3, tANI_U32 arg4, char *p)
@@ -1730,7 +1711,6 @@ dump_lim_sme_reassoc_req( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tAN
 static char *
 dump_lim_dot11h_stats( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 arg3, tANI_U32 arg4, char *p)
 {
-#if 0
     unsigned int i;
     (void) arg1; (void) arg2; (void) arg3; (void) arg4;
 
@@ -1799,7 +1779,6 @@ dump_lim_dot11h_stats( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U
     }
     p += log_sprintf(pMac, p, "\n");
     
-#endif
     return p;
 }
 
@@ -1826,7 +1805,7 @@ static char *
 dump_lim_enable_quietIE( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 arg3, tANI_U32 arg4, char *p)
 {
     (void) arg2; (void) arg3; (void) arg4;
-#if 0
+
     if (arg1)
     {
         pMac->lim.gLimSpecMgmt.fQuietEnabled = eANI_BOOLEAN_TRUE;
@@ -1837,7 +1816,6 @@ dump_lim_enable_quietIE( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI
         pMac->lim.gLimSpecMgmt.fQuietEnabled = eANI_BOOLEAN_FALSE;
         p += log_sprintf(pMac, p, "QuietIE disabled\n");
     }
-#endif
 
     return p;
 }
@@ -1879,8 +1857,8 @@ static char *finishScan(tpAniSirGlobal pMac, char *p)
 static char *
 dump_lim_info( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 arg3, tANI_U32 arg4, char *p)
 {
-    (void) arg2; (void) arg3; (void) arg4;
-    p = dumpLim( pMac, p, arg1);
+    (void) arg1; (void) arg2; (void) arg3; (void) arg4;
+    p = dumpLim( pMac, p );
     return p;
 }
 
@@ -1933,22 +1911,14 @@ static char *
 dump_lim_send_rrm_action( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 arg3, tANI_U32 arg4, char *p)
 {
     tpPESession psessionEntry;
-    tSirMacRadioMeasureReport *pRRMReport =
-            vos_mem_malloc(4*sizeof(tSirMacRadioMeasureReport));
+    tSirMacRadioMeasureReport pRRMReport[4];
     tANI_U8 num = (tANI_U8)(arg4 > 4 ? 4 : arg4);
     tANI_U8 i;
-
-    if (!pRRMReport)
-    {
-        p += log_sprintf(pMac, p,
-                         "Unable to allocate memory to process command\n");
-        goto done;
-    }
 
     if((psessionEntry = peFindSessionBySessionId(pMac,(tANI_U8)arg2) )== NULL)
     {
         p += log_sprintf( pMac,p,"Session does not exist for given session Id  \n");
-        goto done;
+        return p;
     }
     switch (arg3)
     {
@@ -2028,9 +1998,6 @@ dump_lim_send_rrm_action( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tAN
          default:
               break;
     }
-
-done:
-    vos_mem_free(pRRMReport);
     return p;    
 }
 
@@ -2171,37 +2138,22 @@ dump_lim_unpack_rrm_action( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, t
       case 2:
       case 3:
          {
-            tDot11fRadioMeasurementRequest *frm =
-                    vos_mem_malloc(sizeof(tDot11fRadioMeasurementRequest));
-            if (!frm)
-            {
-                p += log_sprintf(pMac, p,
-                            "Unable to allocate memory to process command\n");
-                break;
-            }
-            if( (status = dot11fUnpackRadioMeasurementRequest( pMac, &pBody[arg2][0], size[arg2], frm )) != 0 )
+            tDot11fRadioMeasurementRequest frm;
+            if( (status = dot11fUnpackRadioMeasurementRequest( pMac, &pBody[arg2][0], size[arg2], &frm )) != 0 )
                p += log_sprintf( pMac, p, "failed to unpack.....status = %x\n", status);
             else
-               rrmProcessRadioMeasurementRequest( pMac, psessionEntry->bssId, frm, psessionEntry );
-            vos_mem_free(frm);
+               rrmProcessRadioMeasurementRequest( pMac, psessionEntry->bssId, &frm, psessionEntry );
          }
          break;
       case 4:
          {
-            tDot11fNeighborReportResponse *frm =
-                    vos_mem_malloc(sizeof(tDot11fNeighborReportResponse));
-            if (!frm)
-            {
-                p += log_sprintf(pMac, p,
-                            "Unable to allocate memory to process command\n");
-                break;
-            }
+            tDot11fNeighborReportResponse frm;
             pBody[arg2][2] = (tANI_U8)arg3; //Dialog Token
-            if( (status = dot11fUnpackNeighborReportResponse( pMac, &pBody[arg2][0], size[arg2], frm )) != 0 )
+            if( (status = dot11fUnpackNeighborReportResponse( pMac, &pBody[arg2][0], size[arg2], &frm )) != 0 )
                p += log_sprintf( pMac, p, "failed to unpack.....status = %x\n", status);
             else
-               rrmProcessNeighborReportResponse( pMac, frm, psessionEntry );
-            vos_mem_free(frm);
+               rrmProcessNeighborReportResponse( pMac, &frm, psessionEntry );
+
          }
          break;
       case 5:
@@ -2317,18 +2269,18 @@ dump_lim_ft_event( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 a
                    vos_mem_copy(Profile.pBssDesc->bssId, macAddr, 6);
 
                    p += log_sprintf( pMac,p, "\n ----- LIM Debug Information ----- \n");
-                   p += log_sprintf( pMac, p, "%s: length = %d\n", __func__, 
+                   p += log_sprintf( pMac, p, "%s: length = %d\n", __FUNCTION__, 
                             (int)pMac->ft.ftSmeContext.auth_ft_ies_length);
-                   p += log_sprintf( pMac, p, "%s: length = %02x\n", __func__, 
+                   p += log_sprintf( pMac, p, "%s: length = %02x\n", __FUNCTION__, 
                             (int)pMac->ft.ftSmeContext.auth_ft_ies[0]);
                    p += log_sprintf( pMac, p, "%s: Auth Req %02x %02x %02x\n", 
-                            __func__, pftPreAuthReq->ft_ies[0],
+                            __FUNCTION__, pftPreAuthReq->ft_ies[0],
                             pftPreAuthReq->ft_ies[1], pftPreAuthReq->ft_ies[2]);
 
-                   p += log_sprintf( pMac, p, "%s: Session %02x %02x %02x\n", __func__, 
+                   p += log_sprintf( pMac, p, "%s: Session %02x %02x %02x\n", __FUNCTION__, 
                             psessionEntry->bssId[0],
                             psessionEntry->bssId[1], psessionEntry->bssId[2]);
-                   p += log_sprintf( pMac, p, "%s: Session %02x %02x %02x %p\n", __func__, 
+                   p += log_sprintf( pMac, p, "%s: Session %02x %02x %02x %p\n", __FUNCTION__, 
                             pftPreAuthReq->currbssId[0],
                             pftPreAuthReq->currbssId[1], 
                             pftPreAuthReq->currbssId[2], pftPreAuthReq);
@@ -2352,123 +2304,10 @@ dump_lim_ft_event( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 a
     return p;    
 }
 #endif
-static char *
-dump_lim_channel_switch_announcement( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 arg3, tANI_U32 arg4, char *p)
-{
-    tpPESession psessionEntry;
-    tANI_U8 nMode = arg2;
-    tANI_U8 nNewChannel = arg3;
-    tANI_U8 nCount = arg4;
-  tANI_U8 peer[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-    if((psessionEntry = peFindSessionBySessionId(pMac,(tANI_U8)arg1) )== NULL)
-    {
-        p += log_sprintf( pMac,
-            p,"Session does not exist usage: 363 <0> sessionid channel \n");
-        printk("Session Not found!!!!\n");
-        return p;
-    }
-
-    limSendChannelSwitchMgmtFrame( pMac, peer, nMode, nNewChannel, nCount, psessionEntry );
-
-    psessionEntry->gLimChannelSwitch.switchCount = nCount;
-    psessionEntry->gLimSpecMgmt.dot11hChanSwState = eLIM_11H_CHANSW_RUNNING;
-    psessionEntry->gLimChannelSwitch.switchMode = nMode;
-    psessionEntry->gLimChannelSwitch.primaryChannel = nNewChannel;
-
-    schSetFixedBeaconFields(pMac, psessionEntry);
-    limSendBeaconInd(pMac, psessionEntry); 
-
-  return p;
-}
-
-#ifdef WLAN_FEATURE_11AC
-static char *
-dump_lim_vht_opmode_notification(tpAniSirGlobal pMac, tANI_U32 arg1,tANI_U32 arg2,tANI_U32 arg3, tANI_U32 arg4, char *p)
-{
-    tANI_U8 peer[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-    tANI_U8 nMode = arg2;
-    tpPESession psessionEntry;
-
-    if((psessionEntry = peFindSessionBySessionId(pMac,(tANI_U8)arg1) )== NULL)
-    {
-        p += log_sprintf( pMac,
-            p,"Session does not exist usage: 366 <0> sessionid channel \n");
-        return p;
-    }
-    
-    limSendVHTOpmodeNotificationFrame(pMac, peer, nMode,psessionEntry);
-    
-    psessionEntry->gLimOperatingMode.present = 1;
-    psessionEntry->gLimOperatingMode.chanWidth = nMode;
-    psessionEntry->gLimOperatingMode.rxNSS   = 0;
-    psessionEntry->gLimOperatingMode.rxNSSType    = 0;
-
-    schSetFixedBeaconFields(pMac, psessionEntry);
-    limSendBeaconInd(pMac, psessionEntry); 
-
-    return p;
-}
-
-static char *
-dump_lim_vht_channel_switch_notification(tpAniSirGlobal pMac, tANI_U32 arg1,tANI_U32 arg2,tANI_U32 arg3, tANI_U32 arg4, char *p)
-{
-    tpPESession psessionEntry;
-    tANI_U8 nChanWidth = arg2;
-    tANI_U8 nNewChannel = arg3;
-    tANI_U8 ncbMode = arg4;
-    tANI_U8 peer[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-    if((psessionEntry = peFindSessionBySessionId(pMac,(tANI_U8)arg1) )== NULL)
-    {
-        p += log_sprintf( pMac,
-            p,"Session does not exist usage: 367 <0> sessionid channel \n");
-        printk("Session Not found!!!!\n");
-        return p;
-    }
-
-    limSendVHTChannelSwitchMgmtFrame( pMac, peer, nChanWidth, nNewChannel, (ncbMode+1), psessionEntry );
-
-    psessionEntry->gLimChannelSwitch.switchCount = 0;
-    psessionEntry->gLimSpecMgmt.dot11hChanSwState = eLIM_11H_CHANSW_RUNNING;
-    psessionEntry->gLimChannelSwitch.switchMode = 1;
-    psessionEntry->gLimChannelSwitch.primaryChannel = nNewChannel;
-    psessionEntry->gLimWiderBWChannelSwitch.newChanWidth = nChanWidth;
-    psessionEntry->gLimWiderBWChannelSwitch.newCenterChanFreq0 = limGetCenterChannel(pMac,nNewChannel,(ncbMode+1),nChanWidth);
-    psessionEntry->gLimWiderBWChannelSwitch.newCenterChanFreq1 = 0;
-    
-    schSetFixedBeaconFields(pMac, psessionEntry);
-    limSendBeaconInd(pMac, psessionEntry);    
-
-    return p;
-}
-
-#endif
-static char *
-dump_lim_cancel_channel_switch_announcement( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 arg3, tANI_U32 arg4, char *p)
-{
-    tpPESession psessionEntry;
-
-    if((psessionEntry = peFindSessionBySessionId(pMac,(tANI_U8)arg1) )== NULL)
-    {
-        p += log_sprintf( pMac,
-            p,"Session does not exist usage: 363 <0> sessionid channel \n");
-        printk("Session Not found!!!!\n");
-        return p;
-    }
-    psessionEntry->gLimChannelSwitch.switchCount = 0;
-    psessionEntry->gLimSpecMgmt.dot11hChanSwState = eLIM_11H_CHANSW_INIT;
-    psessionEntry->gLimChannelSwitch.switchMode = 0;
-    psessionEntry->gLimChannelSwitch.primaryChannel = 0;
-
-    schSetFixedBeaconFields(pMac, psessionEntry);
-    limSendBeaconInd(pMac, psessionEntry); 
-
-  return p;
-}
 static tDumpFuncEntry limMenuDumpTable[] = {
     {0,     "PE (300-499)",                                          NULL},
-    {300,   "LIM: Dump state(s)/statistics <session id>",            dump_lim_info},
+    {300,   "LIM: Dump state(s)/statistics",                         dump_lim_info},
     {301,   "PE.LIM: dump TSPEC Table",                              dump_lim_tspec_table},
     {302,   "PE.LIM: dump specified TSPEC entry (id)",               dump_lim_tspec_entry},
     {303,   "PE.LIM: dump EDCA params",                              dump_lim_edca_params},
@@ -2507,7 +2346,7 @@ static tDumpFuncEntry limMenuDumpTable[] = {
     {346,   "PE:LIM: Set the Dot11 Mode",                            dump_lim_set_dot11_mode},
     {347,   "PE:Enable or Disable Protection",                       dump_lim_set_protection_control},
     {348,   "PE:LIM: Send SM Power Mode Action frame",               dump_lim_send_SM_Power_Mode},
-    {349,   "PE: LIM: Change CB Mode <session id> <sec chnl offset>",dump_lim_update_cb_Mode},
+    {349,   "PE: LIM: Change CB Mode",                               dump_lim_update_cb_Mode},
     {350,   "PE: LIM: abort scan",                                   dump_lim_abort_scan},
     {351,   "PE: LIM: Start stop BG scan",                           dump_lim_start_stop_bg_scan},
     {352,   "PE: LIM: PE statistics <scanmask>",                     dump_lim_get_pe_statistics},
@@ -2530,12 +2369,7 @@ static tDumpFuncEntry limMenuDumpTable[] = {
 #ifdef WLAN_FEATURE_VOWIFI_11R
     {363,   "PE.LIM: trigger pre auth/reassoc event",                dump_lim_ft_event},
 #endif
-    {364,   "PE.LIM: Send a channel switch announcement",            dump_lim_channel_switch_announcement},
-    {365,   "PE.LIM: Cancel channel switch announcement",            dump_lim_cancel_channel_switch_announcement},
-#ifdef WLAN_FEATURE_11AC
-    {366,   "PE.LIM: Send a VHT OPMode Action Frame",                dump_lim_vht_opmode_notification},
-    {367,   "PE.LIM: Send a VHT Channel Switch Announcement",        dump_lim_vht_channel_switch_notification},
-#endif
+
 };
 
 

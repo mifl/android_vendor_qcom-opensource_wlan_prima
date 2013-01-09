@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 #ifndef WLAN_QCT_WDI_DP_H
 #define WLAN_QCT_WDI_DP_H
@@ -252,7 +232,7 @@ when        who    what, where, why
 
 #define WDI_RX_BD_GET_SUBTYPE( _pvBDHeader )        ((((WDI_RxBdType*)_pvBDHeader)->frameTypeSubtype) & WDI_FRAME_SUBTYPE_MASK)
 
-#define WDI_RX_BD_GET_TYPE( _pvBDHeader )     (((((WDI_RxBdType*)_pvBDHeader)->frameTypeSubtype) & WDI_FRAME_TYPE_MASK) >> WDI_FRAME_TYPE_OFFSET)
+#define WDI_RX_BD_GET_TYPE( _pvBDHeader )      ((((WDI_RxBdType*)_pvBDHeader)->frameTypeSubtype) & WDI_FRAME_TYPE_MASK) >> WDI_FRAME_TYPE_OFFSET;
 
 #define WDI_RX_BD_GET_RTSF( _pvBDHeader )         (((WDI_RxBdType*)_pvBDHeader)->rtsf)
 
@@ -264,7 +244,7 @@ when        who    what, where, why
 
 #define WDI_RX_BD_GET_NE( _pvBDHeader )         (((WDI_RxBdType*)_pvBDHeader)->dpuNE)
 
-#define WDI_RX_BD_GET_LLCR( _pvBDHeader )         (((WDI_RxBdType*)_pvBDHeader)->llcr)
+#define WDI_RX_BD_GET_LLCR( _pvBDHeader )         (((WDI_RxBdType*)_pvBDHeader)->llc)
 
 #define WDI_RX_BD_GET_TIMESTAMP( _pvBDHeader )         (((WDI_RxBdType*)_pvBDHeader)->mclkRxTimestamp)
 
@@ -295,12 +275,6 @@ when        who    what, where, why
 #define WDI_TX_BD_GET_STA_ID( _pvBDHeader ) (((WDI_TxBdType*)_pvBDHeader)->staIndex)
 
 #define WDI_RX_BD_GET_DPU_SIG( _pvBDHeader )     (((WDI_RxBdType*)_pvBDHeader)->dpuSignature)
-
-//flow control related.
-#define WDI_RX_FC_BD_GET_STA_TX_DISABLED_BITMAP( _pvBDHeader )     (((WDI_FcRxBdType*)_pvBDHeader)->fcStaTxDisabledBitmap)
-#define WDI_RX_FC_BD_GET_FC( _pvBDHeader )     (((WDI_FcRxBdType*)_pvBDHeader)->fc)
-#define WDI_RX_FC_BD_GET_STA_VALID_MASK( _pvBDHeader )     (((WDI_FcRxBdType*)_pvBDHeader)->fcSTAValidMask)
-
 
 /*------------ RSSI and SNR Information extraction -------------*/
 #define WDI_RX_BD_GET_RSSI0( _pvBDHeader )  \

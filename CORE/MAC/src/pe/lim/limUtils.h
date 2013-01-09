@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
  * Airgo Networks, Inc proprietary. All rights reserved.
@@ -66,12 +46,10 @@ typedef enum
     TWO_BYTE   = 2
 } eSizeOfLenField;
 
+
 #define LIM_STA_ID_MASK                        0x00FF
 #define LIM_AID_MASK                              0xC000
 #define LIM_SPECTRUM_MANAGEMENT_BIT_MASK          0x0100
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-#define LIM_MAX_REASSOC_RETRY_LIMIT            2
-#endif
 
 // classifier ID is coded as 0-3: tsid, 4-5:direction
 #define LIM_MAKE_CLSID(tsid, dir) (((tsid) & 0x0F) | (((dir) & 0x03) << 4))
@@ -101,7 +79,7 @@ typedef struct sAddBaCandidate
 }tAddBaCandidate, *tpAddBaCandidate;
 #endif /* FEATURE_WLAN_INTEGRATED_SOC */
 
-// LIM utility functions
+// LIM utilility functions
 void limGetBssidFromPkt(tpAniSirGlobal, tANI_U8 *, tANI_U8 *, tANI_U32 *);
 char * limMlmStateStr(tLimMlmStates state);
 char * limSmeStateStr(tLimSmeStates state);
@@ -115,12 +93,6 @@ void limPrintMsgName(tpAniSirGlobal pMac, tANI_U16 logLevel, tANI_U32 msgType);
 void limPrintMsgInfo(tpAniSirGlobal pMac, tANI_U16 logLevel, tSirMsgQ *msg);
 char* limBssTypeStr(tSirBssType bssType);
 
-#if defined FEATURE_WLAN_CCX || defined WLAN_FEATURE_VOWIFI
-extern tSirRetStatus limSendSetMaxTxPowerReq ( tpAniSirGlobal pMac, 
-                                  tPowerdBm txPower, 
-                                  tpPESession pSessionEntry );
-extern tANI_U8 limGetMaxTxPower(tPowerdBm regMax, tPowerdBm apTxPower, tANI_U8 iniTxPower);
-#endif
 
 tANI_U32            limPostMsgApiNoWait(tpAniSirGlobal, tSirMsgQ *);
 tANI_U8           limIsAddrBC(tSirMacAddr);
@@ -215,8 +187,11 @@ void limProcessWPSOverlapTimeout(tpAniSirGlobal pMac);
 #endif
 
 void limStartQuietTimer(tpAniSirGlobal pMac, tANI_U8 sessionId);
+void limUpdateQuietIEFromBeacon(tpAniSirGlobal, tDot11fIEQuiet *, tpPESession);
+void limGetHtCbAdminState(tpAniSirGlobal pMac, tDot11fIEHTCaps htCaps, tANI_U8 * titanHtCaps);
+void limGetHtCbOpState(tpAniSirGlobal pMac, tDot11fIEHTInfo htInfo, tANI_U8 * titanHtCaps);
 void limSwitchPrimaryChannel(tpAniSirGlobal, tANI_U8,tpPESession);
-void limSwitchPrimarySecondaryChannel(tpAniSirGlobal, tpPESession, tANI_U8, ePhyChanBondState);
+void limSwitchPrimarySecondaryChannel(tpAniSirGlobal, tANI_U8, tAniCBSecondaryMode);
 tAniBool limTriggerBackgroundScanDuringQuietBss(tpAniSirGlobal);
 void limUpdateStaRunTimeHTSwtichChnlParams(tpAniSirGlobal pMac, tDot11fIEHTInfo *pRcvdHTInfo, tANI_U8 bssIdx);
 void limUpdateStaRunTimeHTCapability(tpAniSirGlobal pMac, tDot11fIEHTCaps *pHTCaps);
@@ -226,7 +201,7 @@ void limCancelDot11hQuiet(tpAniSirGlobal pMac, tpPESession psessionEntry);
 tAniBool limIsChannelValidForChannelSwitch(tpAniSirGlobal pMac, tANI_U8 channel);
 void limFrameTransmissionControl(tpAniSirGlobal pMac, tLimQuietTxMode type, tLimControlTx mode);
 tSirRetStatus limRestorePreChannelSwitchState(tpAniSirGlobal pMac, tpPESession psessionEntry);
-tSirRetStatus limRestorePreQuietState(tpAniSirGlobal pMac, tpPESession psessionEntry);
+tSirRetStatus limRestorePreQuietState(tpAniSirGlobal pMac);
 
 void limPrepareFor11hChannelSwitch(tpAniSirGlobal pMac, tpPESession psessionEntry);
 void limSwitchChannelCback(tpAniSirGlobal pMac, eHalStatus status, 
@@ -400,7 +375,6 @@ void limHandleHeartBeatFailureTimeout(tpAniSirGlobal pMac);
 void limProcessDelStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ);
 void limProcessAddStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ);
 v_U8_t* limGetIEPtr(tpAniSirGlobal pMac, v_U8_t *pIes, int length, v_U8_t eid,eSizeOfLenField size_of_len_field);
-
 tANI_U8 limUnmapChannel(tANI_U8 mapChannel);
 
 #define limGetWscIEPtr(pMac, ie, ie_len) \
@@ -414,16 +388,8 @@ v_U8_t limGetNoaAttrStreamInMultP2pIes(tpAniSirGlobal pMac,v_U8_t* noaStream,v_U
 v_U8_t limGetNoaAttrStream(tpAniSirGlobal pMac, v_U8_t*pNoaStream,tpPESession psessionEntry);
 
 v_U8_t limBuildP2pIe(tpAniSirGlobal pMac, tANI_U8 *ie, tANI_U8 *data, tANI_U8 ie_len);
-tANI_BOOLEAN limIsNOAInsertReqd(tpAniSirGlobal pMac);
 #endif
 v_U8_t* limGetVendorIEOuiPtr(tpAniSirGlobal pMac, tANI_U8 *oui, tANI_U8 oui_size, tANI_U8 *ie, tANI_U16 ie_len);
-tANI_BOOLEAN limIsconnectedOnDFSChannel(tANI_U8 currentChannel);
-tANI_U8 limGetCurrentOperatingChannel(tpAniSirGlobal pMac);
-
-#ifdef WLAN_FEATURE_11AC
-tANI_BOOLEAN limCheckVHTOpModeChange( tpAniSirGlobal pMac, 
-                                      tpPESession psessionEntry, tANI_U8 chanWidth, tANI_U8 staId);
-#endif
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 
@@ -489,33 +455,5 @@ typedef enum
 
 void limDiagEventReport(tpAniSirGlobal pMac, tANI_U16 eventType, tpPESession pSessionEntry, tANI_U16 status, tANI_U16 reasonCode);
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
-
-void peSetResumeChannel(tpAniSirGlobal pMac, tANI_U16 channel, ePhyChanBondState cbState);
-/*--------------------------------------------------------------------------
-  
-  \brief peGetResumeChannel() - Returns the  channel number for scanning, from a valid session.
-
-  This function returns the channel to resume to during link resume. channel id of 0 means HAL will
-  resume to previous channel before link suspend
-    
-  \param pMac                   - pointer to global adapter context
-  \return                            - channel to scan from valid session else zero.
-  
-  \sa
-  
-  --------------------------------------------------------------------------*/
-void peGetResumeChannel(tpAniSirGlobal pMac, tANI_U8* resumeChannel, ePhyChanBondState* resumePhyCbState);
-
-#ifdef FEATURE_WLAN_TDLS_INTERNAL
-tANI_U8 limTdlsFindLinkPeer(tpAniSirGlobal pMac, tSirMacAddr peerMac, tLimTdlsLinkSetupPeer  **setupPeer);
-void limTdlsDelLinkPeer(tpAniSirGlobal pMac, tSirMacAddr peerMac);
-void limStartTdlsTimer(tpAniSirGlobal pMac, tANI_U8 sessionId, TX_TIMER *timer, tANI_U32 timerId, 
-                                      tANI_U16 timerType, tANI_U32 timerMsg);
-#endif
-tANI_U8 limGetShortSlotFromPhyMode(tpAniSirGlobal pMac, tpPESession psessionEntry, tANI_U32 phyMode);
-
-void limCleanUpDisassocDeauthReq(tpAniSirGlobal pMac, tANI_U8 *staMac, tANI_BOOLEAN cleanRxPath);
-
-tANI_BOOLEAN limCheckDisassocDeauthAckPending(tpAniSirGlobal pMac, tANI_U8 *staMac);
 
 #endif /* __LIM_UTILS_H */

@@ -18,30 +18,10 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
+ *
  * Author:      Sandesh Goel
  * Date:        02/25/02
  * History:-
@@ -99,7 +79,7 @@ void pmmHandleTimBasedDisassociation(tpAniSirGlobal pMac, tpPESession psessionEn
 //go into sleep state
 void pmmInitBmpsPwrSave(tpAniSirGlobal pMac);
 tSirRetStatus  pmmSendInitPowerSaveMsg(tpAniSirGlobal pMac,tpPESession);
-void pmmInitBmpsResponseHandler(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
+void pmmInitBmpsResponseHandler(tpAniSirGlobal pMac, eHalStatus rspStatus);
 tSirRetStatus  pmmSendChangePowerSaveMsg(tpAniSirGlobal pMac);
 tSirRetStatus pmmSendSleepIndicationToHal(tpAniSirGlobal pMac);
 
@@ -112,7 +92,7 @@ void pmmMissedBeaconHandler(tpAniSirGlobal pMac);
 void pmmEnterUapsdRequestHandler (tpAniSirGlobal pMac);
 void pmmEnterUapsdResponseHandler(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
 void pmmExitUapsdRequestHandler (tpAniSirGlobal pMac);
-void pmmExitUapsdResponseHandler(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
+void pmmExitUapsdResponseHandler(tpAniSirGlobal pMac, eHalStatus rspStatus);
 tSirRetStatus pmmUapsdSendChangePwrSaveMsg (tpAniSirGlobal pMac, tANI_U8 mode);
 
 // handling of all idle mode power save messages
@@ -127,9 +107,9 @@ void pmmSendWowlDelBcastPtrn(tpAniSirGlobal pMac, tpSirMsgQ pMsg);
 void pmmEnterWowlRequestHandler(tpAniSirGlobal pMac, tpSirMsgQ pMsg);
 tSirRetStatus pmmSendWowlEnterRequest(tpAniSirGlobal pMac, tpSirHalWowlEnterParams pHalWowlParams);
 void pmmEnterWowlanResponseHandler(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
-tSirRetStatus  pmmSendExitWowlReq(tpAniSirGlobal pMac, tpSirHalWowlExitParams pHalWowlParams);
+tSirRetStatus  pmmSendExitWowlReq(tpAniSirGlobal pMac);
 void pmmExitWowlanRequestHandler(tpAniSirGlobal pMac);
-void pmmExitWowlanResponseHandler(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
+void pmmExitWowlanResponseHandler(tpAniSirGlobal pMac, eHalStatus rspStatus);
 
 // update idle mode statistics
 void pmmImpsUpdatePwrSaveStats(tpAniSirGlobal pMac);
@@ -162,10 +142,6 @@ void pmmLowRssiHandler(tpAniSirGlobal pMac);
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 void pmmFilterMatchCountResponseHandler(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
-#endif // WLAN_FEATURE_PACKET_FILTERING
-
-#ifdef WLAN_FEATURE_GTK_OFFLOAD
-void pmmGTKOffloadGetInfoResponseHandler(tpAniSirGlobal pMac, tpSirMsgQ limMsg);
-#endif // WLAN_FEATURE_GTK_OFFLOAD
+#endif // WLAN_FEATURE_D0PC
 
 #endif

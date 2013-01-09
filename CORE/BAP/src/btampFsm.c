@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*===========================================================================
 
@@ -203,12 +183,12 @@ bapSetKey( v_PVOID_t pvosGCtx, tCsrRoamSetKey *pSetKeyInfo )
     if (NULL == hHal) 
     {
         VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
-                     "hHal is NULL in %s", __func__);
+                     "hHal is NULL in %s", __FUNCTION__);
 
         return VOS_STATUS_E_FAULT;
     }
 
-    VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s: btampContext value: %x", __func__,  btampContext); 
+    VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s: btampContext value: %x", __FUNCTION__,  btampContext); 
 
     /* Fill in the event structure */ 
     bapEvent.event = eWLAN_BAP_RSN_SUCCESS;
@@ -232,7 +212,7 @@ bapSetKey( v_PVOID_t pvosGCtx, tCsrRoamSetKey *pSetKeyInfo )
     }
                          
     /* Set the Group Key */ 
-    vos_mem_copy( pSetKeyInfo->peerMac, groupMac, sizeof( tAniMacAddr ) );
+    vos_mem_copy( pSetKeyInfo->peerMac, groupMac, sizeof( tAniMacAddr ) );;
     halStatus = sme_RoamSetKey( 
             hHal, 
             btampContext->sessionId, 
@@ -256,13 +236,15 @@ bapSetKey( v_PVOID_t pvosGCtx, tCsrRoamSetKey *pSetKeyInfo )
  */
 #define DUMPLOG_ON
 #if defined DUMPLOG_ON
-#define DUMPLOG(n, name1, name2, aStr, size) do {                       \
-        int i;                                                          \
-        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%d. %s: %s = \n", n, name1, name2); \
-        for (i = 0; i < size; i++)                                      \
-            VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%2.2x%s", ((unsigned char *)aStr)[i], i % 16 == 15 ? "\n" : " "); \
-        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "\n"); \
-    } while (0)
+#define DUMPLOG(n, name1, name2, aStr, size) \
+    if (1) \
+{\
+    int i;\
+    VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%d. %s: %s = \n", n, name1, name2); \
+    for (i = 0; i < size; i++) \
+        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%2.2x%s", ((unsigned char *)aStr)[i], i % 16 == 15 ? "\n" : " "); \
+    VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "\n"); \
+}
 #else
 #define DUMPLOG(n, name1, name2, aStr, size)
 #endif
@@ -456,15 +438,11 @@ convertToCsrProfile
     VOS_STATUS  vosStatus = VOS_STATUS_SUCCESS;
     v_S7_t sessionid = -1;
     tHalHandle     hHal = NULL;
-    v_U32_t triplet;
-    v_U8_t regulatoryClass;
-    v_U8_t firstChannel;
-    v_U8_t numChannels;
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
     if (NULL == btampContext) 
     {
         VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
-                     "btampContext is NULL in %s", __func__);
+                     "btampContext is NULL in %s", __FUNCTION__);
 
         return VOS_STATUS_E_FAULT;
     }
@@ -473,7 +451,7 @@ convertToCsrProfile
     if (NULL == hHal) 
     {
         VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
-                     "hHal is NULL in %s", __func__);
+                     "hHal is NULL in %s", __FUNCTION__);
 
         return VOS_STATUS_E_FAULT;
     }
@@ -492,7 +470,7 @@ convertToCsrProfile
     {
         pProfile->SSIDs.numOfSSIDs = 2;
 
-        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s: bssType = %s, SSID specified = %s\n", __func__, "eCSR_BSS_TYPE_WDS_STA", convertBSSIDToSSID(btampContext->btamp_Remote_AMP_Assoc.HC_mac_addr));
+        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s: bssType = %s, SSID specified = %s\n", __FUNCTION__, "eCSR_BSS_TYPE_WDS_STA", convertBSSIDToSSID(btampContext->btamp_Remote_AMP_Assoc.HC_mac_addr));
     
         vos_mem_zero(pProfile->SSIDs.SSIDList[0].SSID.ssId, 
                 sizeof(pProfile->SSIDs.SSIDList[0].SSID.ssId));
@@ -519,7 +497,7 @@ convertToCsrProfile
     {
         pProfile->SSIDs.numOfSSIDs = 1;
 
-        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s: bssType = %s, SSID specified = %s\n", __func__, "eCSR_BSS_TYPE_WDS_AP", convertBSSIDToSSID(btampContext->self_mac_addr));
+        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s: bssType = %s, SSID specified = %s\n", __FUNCTION__, "eCSR_BSS_TYPE_WDS_AP", convertBSSIDToSSID(btampContext->self_mac_addr));
     
         vos_mem_zero(pProfile->SSIDs.SSIDList[0].SSID.ssId, 
                 sizeof(pProfile->SSIDs.SSIDList[0].SSID.ssId));
@@ -545,7 +523,7 @@ convertToCsrProfile
     {
         pProfile->SSIDs.numOfSSIDs = 1;
     
-        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s: bssType = %s, SSID specified = %s\n", __func__, "eCSR_BSS_TYPE_WDS_STA", convertBSSIDToSSID(btampContext->btamp_Remote_AMP_Assoc.HC_mac_addr));
+        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s: bssType = %s, SSID specified = %s\n", __FUNCTION__, "eCSR_BSS_TYPE_WDS_STA", convertBSSIDToSSID(btampContext->btamp_Remote_AMP_Assoc.HC_mac_addr));
 
         vos_mem_zero(pProfile->SSIDs.SSIDList[0].SSID.ssId, 
                 sizeof(pProfile->SSIDs.SSIDList[0].SSID.ssId));
@@ -591,121 +569,56 @@ convertToCsrProfile
     pProfile->pWPAReqIE = NULL;
     pProfile->nWPAReqIELength = 0;
 
-    // Identify the operation channel
-
-    /* Choose the operation channel from the preferred channel list */
-    pProfile->operationChannel = 0;
-    regulatoryClass = 0;
-    for (triplet = 0; triplet < btampContext->btamp_Remote_AMP_Assoc.HC_pref_num_triplets; triplet++)
+    // Specify the channel
+    /* Choose the operation channel from the preferred channel list
+     * Assume that for STA, only one preferred channel is available.
+     * If no preferred channel list, chose the one from user config
+     * If multi session on, we need to match the channel selected here 
+     * with the one we are currently operating on. The priority goes
+     * to the operating channel.
+     */
+    if (btampContext->btamp_Remote_AMP_Assoc.HC_pref_num_triplets)
+    {
+        /* Preferred channel list avaialble, choose the first preferred
+         channel
+         Check what do with the remaining channels if any ?
+         Number of channels in this Triplet and 
+         the Maximum Transmit power level (next 2 triplet values) */
+        /* Check if at least one channel match between local & remote and choose
+        the first common one */
+        if (btampContext->btamp_AMP_Assoc.HC_pref_num_triplets)
         {
-        firstChannel = 0;
-        numChannels = 0;
 
-        /* is this a regulatory class triplet? */
-        if (btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[triplet][0] == 201)
+            /* If no common subset, reject : going to be ugly for 5 Ghz(TBD) */
+            if(((btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0] + btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][1])<=
+                btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0]) ||
+               ((btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0] + btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][1])<=
+                btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0]))
             {
-            /* identify supported 2.4GHz regulatory classes */
-            switch (btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[triplet][1])
-            {
-                case 254:
-                {
-                    /* class 254 is special regulatory class defined by BT HS+3.0 spec that
-                       is valid only for unknown/'mobile' country */
-                    if ((btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[0] == 'X') &&
-                        (btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[1] == 'X'))
-                    {
-                        regulatoryClass = 254;
-                        firstChannel = 1;
-                        numChannels = 11;
-                    }
-                    break;
+                return VOS_STATUS_E_INVAL;  
             }
-                case 12:
+            else if((btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0] + btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][1])>
+                    btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0])
             {
-                    /* class 12 in the US regulatory domain is 2.4GHz channels 1-11 */
-                    if ((btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[0] == 'U') &&
-                        (btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[1] == 'S'))
-                    {
-                        regulatoryClass = 12;
-                        firstChannel = 1;
-                        numChannels = 11;
+                pProfile->operationChannel =  btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0];  
             }
-                    break;
-                }
-                case 4:
+            else if((btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0] + btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][1])>
+                    btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0])
             {
-                    /* class 4 in the Europe regulatory domain is 2.4GHz channels 1-13 */
-                    if ((btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[0] == 'G') &&
-                        (btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[1] == 'B'))
-                    {
-                        regulatoryClass = 4;
-                        firstChannel = 1;
-                        numChannels = 13;
+                pProfile->operationChannel =  btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0];  
             }
-                    break;
-                }
-                case 30:
+            else
             {
-                    /* class 30 in the Japan regulatory domain is 2.4GHz channels 1-13 */
-                    if ((btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[0] == 'J') &&
-                        (btampContext->btamp_Remote_AMP_Assoc.HC_pref_country[1] == 'P'))
-                    {
-                        regulatoryClass = 30;
-                        firstChannel = 1;
-                        numChannels = 13;
+                return VOS_STATUS_E_INVAL;  
             }
-                    break;
         }
-                default:
+        else
         {
-                    break;
-                }
-            }
-            /* if the next triplet is not another regulatory class triplet then it must be a sub-band
-               triplet. Skip processing the default channels for this regulatory class triplet and let
-               the sub-band triplet restrict the available channels */
-            if (((triplet+1) < btampContext->btamp_Remote_AMP_Assoc.HC_pref_num_triplets) &&
-                (btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[triplet+1][0] != 201))
-            {
-                continue;
+            pProfile->operationChannel =
+               btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[0][0];
         }
     }
     else
-    {
-            /* if the regulatory class is valid then this is a sub-band triplet */
-            if (regulatoryClass)
-            {
-                firstChannel = btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[triplet][0];
-                numChannels = btampContext->btamp_Remote_AMP_Assoc.HC_pref_triplets[triplet][1];
-            }
-        }
-
-        if (firstChannel && numChannels)
-        {
-            if (!btampContext->btamp_AMP_Assoc.HC_pref_num_triplets)
-            {
-                pProfile->operationChannel = firstChannel;
-                break;
-            }
-            else if (((btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0] + btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][1]) <= firstChannel) ||
-               ((firstChannel + numChannels ) <= btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0]))
-            {
-                continue;
-            }
-            else if ((btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0] + btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][1]) > firstChannel)
-            {
-                pProfile->operationChannel = firstChannel;
-                break;
-            }
-            else if ((firstChannel + numChannels) > btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0])
-            {
-                pProfile->operationChannel =  btampContext->btamp_AMP_Assoc.HC_pref_triplets[1][0];
-                break;
-            }
-        }
-    }
-
-    if (!pProfile->operationChannel)
     {
         return VOS_STATUS_E_INVAL;
     }
@@ -784,7 +697,7 @@ gotoStarting
     if (NULL == btampContext) 
     {
         VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
-                     "btampContext is NULL in %s", __func__);
+                     "btampContext is NULL in %s", __FUNCTION__);
 
         return VOS_STATUS_E_FAULT;
     }
@@ -793,7 +706,7 @@ gotoStarting
     if (NULL == hHal) 
     {
         VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
-                     "hHal is NULL in %s", __func__);
+                     "hHal is NULL in %s", __FUNCTION__);
 
         return VOS_STATUS_E_FAULT;
     }
@@ -824,10 +737,10 @@ gotoStarting
     //fail the HCI Create Physical Link 
 
     VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, 
-            "In %s, amp_assoc_remaining_length = %d", __func__, 
+            "In %s, amp_assoc_remaining_length = %d", __FUNCTION__, 
             pBapHCIWriteRemoteAMPAssoc->amp_assoc_remaining_length); 
 #if 0
-    DUMPLOG(1, __func__, "amp_assoc_fragment",  
+    DUMPLOG(1, __FUNCTION__, "amp_assoc_fragment",  
             pBapHCIWriteRemoteAMPAssoc->amp_assoc_fragment, 
             64);
 #endif //0
@@ -842,7 +755,7 @@ gotoStarting
     /* Unknown or Reserved TLVs are allowed in the write AMP assoc fragment */
     if ((BTAMP_PARSE_SUCCESS != parseStatus ) && (BTAMP_UNKNOWN_TLVS != parseStatus))  
     {
-        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, parseStatus = %d", __func__, parseStatus);
+        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, parseStatus = %d", __FUNCTION__, parseStatus);
         *status = WLANBAP_ERROR_INVALID_HCI_CMND_PARAM;
         return VOS_STATUS_E_BADMSG;
     }
@@ -949,23 +862,16 @@ gotoStarting
     if (btampContext->isBapSessionOpen == FALSE)
     {
 
-        halStatus = sme_OpenSession(hHal, 
-                                    WLANBAP_RoamCallback, 
-                                    btampContext,
-                                    // <=== JEZ081210: FIXME
-                                    //(tANI_U8 *) btampContext->self_mac_addr,  
-                                    btampContext->self_mac_addr,  
-                                    &btampContext->sessionId);
-        if(eHAL_STATUS_SUCCESS == halStatus)
-        {
-            btampContext->isBapSessionOpen = TRUE;
-        }
-        else
-        {
-            VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
-                         "sme_OpenSession failed in %s", __func__);
-            *status = WLANBAP_ERROR_NO_CNCT;
-            return VOS_STATUS_E_FAILURE;
+    halStatus = sme_OpenSession(hHal, 
+            WLANBAP_RoamCallback, 
+            btampContext,
+            // <=== JEZ081210: FIXME
+            //(tANI_U8 *) btampContext->self_mac_addr,  
+            btampContext->self_mac_addr,  
+            &btampContext->sessionId);
+    if(eHAL_STATUS_SUCCESS == halStatus)
+    {
+        btampContext->isBapSessionOpen = TRUE;
         }
     }
     /* Update the SME Session info for this Phys Link (i.e., for this Phys State Machine instance) */
@@ -980,7 +886,7 @@ gotoStarting
     if(VOS_STATUS_E_INVAL == vosStatus)
     {
         VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
-                     "Incorrect channel to create AMP link %s", __func__);
+                     "Incorrect channel to create AMP link %s", __FUNCTION__);
         *status = WLANBAP_ERROR_NO_SUITABLE_CHANNEL;
         return VOS_STATUS_E_INVAL;
     }
@@ -1198,7 +1104,7 @@ regStaWithTl
     {
        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR, 
                   "%s: WLANTL_RegisterSTAClient() failed to register.  Status= %d [0x%08lX]",
-                  __func__, vosStatus, vosStatus );
+                  __FUNCTION__, vosStatus, vosStatus );
     }                                            
      
     if ( !  btampContext->ucSecEnabled )
@@ -1426,7 +1332,7 @@ signalHCIPhysLinkDiscEvent
 #ifdef BAP_DEBUG
   /* Trace the tBtampCtx being passed in. */
   VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH,
-            "WLAN BAP Context Monitor: btampContext value = %x in %s:%d", btampContext, __func__, __LINE__ );
+            "WLAN BAP Context Monitor: btampContext value = %x in %s:%d", btampContext, __FUNCTION__, __LINE__ );
 #endif //BAP_DEBUG
 
     /* Loop disconnecting all Logical Links on this Physical Link */
@@ -1438,7 +1344,7 @@ signalHCIPhysLinkDiscEvent
         { 
             VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR, 
                     "WLAN BAP: Deleting logical link entry %d in %s", i,
-                    __func__); 
+                    __FUNCTION__); 
 
             /* Mark this Logical Link index value as free */
             pLogLinkContext->present = VOS_FALSE; 
@@ -1625,7 +1531,7 @@ validAssocInd
             ieLen, 
             &dot11BeaconIEs);
 
-    //DUMPLOG(9,  __func__, "dot11BeaconIEs", &dot11BeaconIEs, 64);
+    //DUMPLOG(9,  __FUNCTION__, "dot11BeaconIEs", &dot11BeaconIEs, 64);
 
     pDot11SSID = &dot11BeaconIEs.SSID; 
 
@@ -1635,7 +1541,7 @@ validAssocInd
         if (pDot11SSID->present )
         {
 
-        //DUMPLOG(10,  __func__, "pDot11SSID present", pDot11SSID, 64);
+        //DUMPLOG(10,  __FUNCTION__, "pDot11SSID present", pDot11SSID, 64);
 
         btampContext->assocSsidLen = pDot11SSID->num_ssid;  
         vos_mem_copy(btampContext->assocSsid, 
@@ -1662,7 +1568,7 @@ validAssocInd
         if (pDot11RSN->present )
         {
 
-        //DUMPLOG(10,  __func__, "pDot11RSN present", pDot11RSN, 64);
+        //DUMPLOG(10,  __FUNCTION__, "pDot11RSN present", pDot11RSN, 64);
 
         //The 802.11 BT-AMP PAL only supports WPA2-PSK  
         if (!vos_mem_compare(pRSNOui02, //  RSN-PSK
@@ -1735,7 +1641,7 @@ btampFsm
     if (NULL == hHal) 
     {
         VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR,
-                     "hHal is NULL in %s", __func__);
+                     "hHal is NULL in %s", __FUNCTION__);
 
         return VOS_STATUS_E_FAULT;
     }
@@ -1754,7 +1660,7 @@ btampFsm
         if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_HCI_PHYSICAL_LINK_CREATE))
         {
           /*Transition from DISCONNECTED to S1 (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "DISCONNECTED", "S1");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "DISCONNECTED", "S1");
  
 #if 0
          /* This will have issues in multisession. Need not close the session */
@@ -1770,14 +1676,14 @@ btampFsm
 
           /* Set BAP device role */
           vosStatus = gotoS1( btampContext, bapEvent, BT_INITIATOR, status); 
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, cmd status is %d", __func__, *status);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, cmd status is %d", __FUNCTION__, *status);
            /*Advance outer statevar */
           btampfsmChangeToState(instanceVar,S1);
         }
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_HCI_PHYSICAL_LINK_ACCEPT))
         {
           /*Transition from DISCONNECTED to S1 (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "DISCONNECTED", "S1");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "DISCONNECTED", "S1");
           
 #if 0
           if(btampContext->isBapSessionOpen == TRUE)
@@ -1797,7 +1703,7 @@ btampFsm
         }
         else
         {
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __func__, "DISCONNECTED", msg);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __FUNCTION__, "DISCONNECTED", msg);
           /* Intentionally left blank */
         }
       break;
@@ -1807,7 +1713,7 @@ btampFsm
            ) && (btampContext->BAPDeviceRole == BT_INITIATOR && !(CHANNEL_NOT_SELECTED)))
         {
           /*Transition from S1 to STARTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "S1", "STARTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "S1", "STARTING");
 
           /*Action code for transition */
           vosStatus = determineChan(btampContext, BT_INITIATOR, &channel, status);
@@ -1823,7 +1729,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_TIMER_CONNECT_ACCEPT_TIMEOUT))
         {
           /*Transition from S1 to DISCONNECTED (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "S1", "DISCONNECTED");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "S1", "DISCONNECTED");
 
           /*Action code for transition */
           /* Set everything back as dis-connected */    
@@ -1836,7 +1742,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_HCI_PHYSICAL_LINK_DISCONNECT))
         {
           /*Transition from S1 to DISCONNECTED (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "S1", "DISCONNECTED");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "S1", "DISCONNECTED");
 
           /*Action code for transition */
           gotoDisconnected(btampContext);
@@ -1854,7 +1760,7 @@ btampFsm
                 ) && (btampContext->BAPDeviceRole == BT_RESPONDER))
         {
           /*Transition from S1 to STARTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "S1", "STARTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "S1", "STARTING");
 
           /*Action code for transition */
           //determineChan(BT_RESPONDER);
@@ -1873,7 +1779,7 @@ btampFsm
                 ) && (btampContext->BAPDeviceRole == BT_INITIATOR && CHANNEL_NOT_SELECTED))
         {
           /*Transition from S1 to SCANNING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "S1", "SCANNING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "S1", "SCANNING");
 
           /*Action code for transition */
           gotoScanning(btampContext, BT_RESPONDER, status);
@@ -1882,7 +1788,7 @@ btampFsm
         }
         else
         {
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __func__, "S1", msg);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __FUNCTION__, "S1", msg);
           /* Intentionally left blank */
         }
       break;
@@ -1892,7 +1798,7 @@ btampFsm
            ) && (btampContext->BAPDeviceRole == BT_INITIATOR))
         {
           /*Transition from STARTING to CONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "STARTING", "CONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "STARTING", "CONNECTING");
 
           btampfsmChangeToState(instanceVar,CONNECTING);//Moved to debug
 
@@ -1907,7 +1813,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_HCI_PHYSICAL_LINK_DISCONNECT))
         {
           /*Transition from STARTING to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "STARTING", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "STARTING", "DISCONNECTING");
 
           /*Action code for transition */
           //csrRoamDisconnect();
@@ -1937,7 +1843,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_CHANNEL_SELECTION_FAILED))
         {
           /*Transition from STARTING to DISCONNECTED (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "STARTING", "DISCONNECTED");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "STARTING", "DISCONNECTED");
 
           gotoDisconnected(btampContext);
           /*Advance outer statevar */
@@ -1949,7 +1855,7 @@ btampFsm
                 ) && (btampContext->BAPDeviceRole == BT_RESPONDER))
         {
           /*Transition from STARTING to CONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "STARTING", "CONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "STARTING", "CONNECTING");
 
           /* Set the selected channel */
           /*should have been already set */
@@ -1964,7 +1870,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_TIMER_CONNECT_ACCEPT_TIMEOUT))
         {
           /*Transition from STARTING to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "STARTING", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "STARTING", "DISCONNECTING");
 
           /*Action code for transition */
           //csrRoamDisconnect();
@@ -1984,7 +1890,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_MAC_START_FAILS))
         {
           /*Transition from STARTING to DISCONNECTED (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "STARTING", "DISCONNECTED");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "STARTING", "DISCONNECTED");
 
           /*Action code for transition */
           gotoDisconnected(btampContext);
@@ -1994,7 +1900,7 @@ btampFsm
         }
         else
         {
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __func__, "STARTING", msg);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __FUNCTION__, "STARTING", msg);
           /* Intentionally left blank */
         }
       break;
@@ -2004,8 +1910,8 @@ btampFsm
            ) && (btampContext->BAPDeviceRole == BT_RESPONDER))
         {
           /*Transition from CONNECTING to AUTHENTICATING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "CONNECTING", "AUTHENTICATING");
-          //VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "CONNECTING", "CONNECTED");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "CONNECTING", "AUTHENTICATING");
+          //VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "CONNECTING", "CONNECTED");
 
             gotoAuthenticating(btampContext);
           /*Action code for transition */
@@ -2030,7 +1936,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_HCI_PHYSICAL_LINK_DISCONNECT))
         {
           /*Transition from CONNECTING to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "CONNECTING", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "CONNECTING", "DISCONNECTING");
 
           /*Action code for transition */
           //csrRoamDisconnect();
@@ -2059,7 +1965,7 @@ btampFsm
                 ) && !validAssocInd(btampContext, (tCsrRoamInfo *)bapEvent->params))
         {
           /*Transition from CONNECTING to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "CONNECTING", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "CONNECTING", "DISCONNECTING");
           /*Action code for transition */
           //csrRoamDisconnect(DEAUTH);
           //JEZ081120: Danlin points out that I could just ignore this
@@ -2086,9 +1992,9 @@ btampFsm
                 ) && validAssocInd(btampContext, (tCsrRoamInfo *)bapEvent->params))
         {
           /*Transition from CONNECTING to VALIDATED (both without substates)*/
-          //VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "CONNECTING", "VALIDATED");
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "CONNECTING", "AUTHENTICATING");
-          //VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "CONNECTING", "CONNECTED");
+          //VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "CONNECTING", "VALIDATED");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "CONNECTING", "AUTHENTICATING");
+          //VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "CONNECTING", "CONNECTED");
 
           /*Action code for transition */
           // JEZ081027: This one is a pain.  Since we are responding in the
@@ -2130,7 +2036,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_MAC_CONNECT_FAILED))
         {
           /*Transition from CONNECTING to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "CONNECTING", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "CONNECTING", "DISCONNECTING");
 
           /*Action code for transition */
             sme_RoamDisconnect(hHal,
@@ -2152,7 +2058,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_TIMER_CONNECT_ACCEPT_TIMEOUT))
         {
           /*Transition from CONNECTING to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "CONNECTING", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "CONNECTING", "DISCONNECTING");
 
           /*Action code for transition */
           //csrRoamDisconnect();
@@ -2171,7 +2077,7 @@ btampFsm
         }
         else
         {
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __func__, "CONNECTING", msg);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __FUNCTION__, "CONNECTING", msg);
           /* Intentionally left blank */
         }
       break;
@@ -2181,7 +2087,7 @@ btampFsm
            ) && (btampContext->BAPDeviceRole == BT_RESPONDER))
         {
           /*Transition from AUTHENTICATING to KEYING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "AUTHENTICATING", "KEYING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "AUTHENTICATING", "KEYING");
 
           /*Action code for transition */
           //sme_RoamSetContext(); 
@@ -2203,7 +2109,7 @@ btampFsm
                 ) && (btampContext->BAPDeviceRole == BT_INITIATOR))
         {
           /*Transition from AUTHENTICATING to KEYING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "AUTHENTICATING", "KEYING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "AUTHENTICATING", "KEYING");
 
           /*Action code for transition */
           //sme_RoamSetContext(); 
@@ -2224,7 +2130,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_TIMER_CONNECT_ACCEPT_TIMEOUT))
         {
           /*Transition from AUTHENTICATING to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s ConnectAcceptTimeout", __func__, "AUTHENTICATING", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s ConnectAcceptTimeout", __FUNCTION__, "AUTHENTICATING", "DISCONNECTING");
 
           gotoDisconnecting(
                   btampContext,
@@ -2244,7 +2150,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_HCI_PHYSICAL_LINK_DISCONNECT))
         {
           /*Transition from AUTHENTICATING to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s Physicallink Disconnect", __func__, "AUTHENTICATING", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s Physicallink Disconnect", __FUNCTION__, "AUTHENTICATING", "DISCONNECTING");
 
           /*Action code for transition */
           //csrRoamDisconnect();
@@ -2271,7 +2177,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_RSN_FAILURE))
         {
           /*Transition from AUTHENTICATING to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s RSN Failure", __func__, "AUTHENTICATING", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s RSN Failure", __FUNCTION__, "AUTHENTICATING", "DISCONNECTING");
 
           /*Action code for transition */
           //csrRoamDisconnect(DEAUTH);
@@ -2291,7 +2197,7 @@ btampFsm
         }
         else
         {
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __func__, "AUTHENTICATING", msg);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __FUNCTION__, "AUTHENTICATING", msg);
           /* Intentionally left blank */
         }
       break;
@@ -2300,7 +2206,7 @@ btampFsm
         if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_HCI_PHYSICAL_LINK_DISCONNECT))
         {
           /*Transition from CONNECTED to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "CONNECTED", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "CONNECTED", "DISCONNECTING");
 
             gotoDisconnecting(
                   btampContext,
@@ -2323,7 +2229,7 @@ btampFsm
         {
 
           /*Transition from CONNECTED to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "CONNECTED", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "CONNECTED", "DISCONNECTING");
           WLANBAP_DeInitLinkSupervision(( ptBtampHandle)btampContext);
 
           gotoDisconnecting(
@@ -2341,7 +2247,7 @@ btampFsm
         }
         else
         {
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __func__, "CONNECTED", msg);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __FUNCTION__, "CONNECTED", msg);
           /* Intentionally left blank */
         }
       break;
@@ -2354,12 +2260,12 @@ btampFsm
  * Naw! Not necessary.
  */
       case DISCONNECTING:
-         VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, Entered DISCONNECTING:", __func__);//Debug statement
+         VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, Entered DISCONNECTING:", __FUNCTION__);//Debug statement
         if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_MAC_READY_FOR_CONNECTIONS
            ) && (btampContext->gDiscRequested == VOS_TRUE))
         {
           /*Transition from DISCONNECTING to DISCONNECTED (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "DISCONNECTING", "DISCONNECTED");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "DISCONNECTING", "DISCONNECTED");
 
     //Clear gDiscRequested;
     btampContext->gDiscRequested = VOS_FALSE;
@@ -2390,14 +2296,14 @@ btampFsm
           if ( VOS_STATUS_SUCCESS != vosStatus ) 
           {
               VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO,
-                          "Unable to retrieve STA Id from BAP context and phy_link_handle in %s", __func__);
+                          "Unable to retrieve STA Id from BAP context and phy_link_handle in %s", __FUNCTION__);
               return VOS_STATUS_E_FAULT;
           }
           WLANTL_ClearSTAClient(btampContext->pvosGCtx, ucSTAId);
 
     //      gotoDisconnected(btampContext);
 
-      //    VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s:In DISCONNECTING-changing outer state var to DISCONNECTED", __func__);
+      //    VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s:In DISCONNECTING-changing outer state var to DISCONNECTED", __FUNCTION__);
           /*Advance outer statevar */
         //  btampfsmChangeToState(instanceVar,DISCONNECTED);
 
@@ -2410,7 +2316,7 @@ btampFsm
           /*Action code for transition */
           gotoDisconnected(btampContext);
 
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s:In DISCONNECTING-changing outer state var to DISCONNECTED", __func__);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s:In DISCONNECTING-changing outer state var to DISCONNECTED", __FUNCTION__);
           /*Advance outer statevar */
           btampfsmChangeToState(instanceVar,DISCONNECTED);
         }
@@ -2418,7 +2324,7 @@ btampFsm
                 ) && (btampContext->gNeedPhysLinkCompEvent == VOS_TRUE))
         {
           /*Transition from DISCONNECTING to DISCONNECTED (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s gNeedPhysLinkComp TRUE", __func__, "DISCONNECTING", "DISCONNECTED");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s gNeedPhysLinkComp TRUE", __FUNCTION__, "DISCONNECTING", "DISCONNECTED");
           if(btampContext->BAPDeviceRole == BT_INITIATOR) 
           {
               if(!VOS_IS_STATUS_SUCCESS(vos_lock_acquire(&btampContext->bapLock)))
@@ -2445,7 +2351,7 @@ btampFsm
           if ( VOS_STATUS_SUCCESS != vosStatus ) 
           {
               VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO,
-                          "Unable to retrieve STA Id from BAP context and phy_link_handle in %s", __func__);
+                          "Unable to retrieve STA Id from BAP context and phy_link_handle in %s", __FUNCTION__);
               return VOS_STATUS_E_FAULT;
           }
           WLANTL_ClearSTAClient(btampContext->pvosGCtx, ucSTAId);
@@ -2463,7 +2369,7 @@ btampFsm
         }
         else
         {
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __func__, "DISCONNECTING", msg);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __FUNCTION__, "DISCONNECTING", msg);
           /* Intentionally left blank */
         }
       break;
@@ -2472,7 +2378,7 @@ btampFsm
         if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_TIMER_CONNECT_ACCEPT_TIMEOUT))
         {
           /*Transition from KEYING to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "KEYING", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "KEYING", "DISCONNECTING");
 
           /*Action code for transition */
           //csrRoamDisconnect();
@@ -2492,7 +2398,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_HCI_PHYSICAL_LINK_DISCONNECT))
         {
           /*Transition from KEYING to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "KEYING", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "KEYING", "DISCONNECTING");
 
           /*Action code for transition */
           //csrRoamDisconnect();
@@ -2521,7 +2427,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_MAC_KEY_SET_SUCCESS))
         {
           /*Transition from KEYING to CONNECTED (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "KEYING", "CONNECTED");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "KEYING", "CONNECTED");
 
           /*Action code for transition */
           gotoConnected(btampContext);
@@ -2531,7 +2437,7 @@ btampFsm
         }
         else
         {
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __func__, "KEYING", msg);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __FUNCTION__, "KEYING", msg);
           /* Intentionally left blank */
         }
       break;
@@ -2540,7 +2446,7 @@ btampFsm
         if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_MAC_SCAN_COMPLETE))
         {
           /*Transition from SCANNING to STARTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "SCANNING", "STARTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "SCANNING", "STARTING");
 
           /*Action code for transition */
           vosStatus = determineChan(btampContext, BT_INITIATOR, &channel, status);
@@ -2556,7 +2462,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_TIMER_CONNECT_ACCEPT_TIMEOUT))
         {
           /*Transition from SCANNING to DISCONNECTED (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "SCANNING", "DISCONNECTED");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "SCANNING", "DISCONNECTED");
 
           /*Action code for transition */
           gotoDisconnected(btampContext);
@@ -2568,7 +2474,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_HCI_PHYSICAL_LINK_DISCONNECT))
         {
           /*Transition from SCANNING to DISCONNECTED (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "SCANNING", "DISCONNECTED");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "SCANNING", "DISCONNECTED");
 
           /*Action code for transition */
           gotoDisconnected(btampContext);
@@ -2582,7 +2488,7 @@ btampFsm
         }
         else
         {
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __func__, "SCANNING", msg);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __FUNCTION__, "SCANNING", msg);
           /* Intentionally left blank */
         }
       break;
@@ -2592,7 +2498,7 @@ btampFsm
            ) && (btampContext->BAPDeviceRole == BT_INITIATOR))
         {
           /*Transition from VALIDATED to AUTHENTICATING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "VALIDATED", "AUTHENTICATING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "VALIDATED", "AUTHENTICATING");
 
             gotoAuthenticating(btampContext);
           /*Action code for transition */
@@ -2603,7 +2509,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_TIMER_CONNECT_ACCEPT_TIMEOUT))
         {
           /*Transition from VALIDATED to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "VALIDATED", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "VALIDATED", "DISCONNECTING");
 
           /*Action code for transition */
           //csrRoamDisconnect();
@@ -2623,7 +2529,7 @@ btampFsm
         else if((msg==(BTAMPFSM_EVENT_T)eWLAN_BAP_HCI_PHYSICAL_LINK_DISCONNECT))
         {
           /*Transition from VALIDATED to DISCONNECTING (both without substates)*/
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __func__, "VALIDATED", "DISCONNECTING");
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, from state %s => %s", __FUNCTION__, "VALIDATED", "DISCONNECTING");
 
           /*Action code for transition */
           //csrRoamDisconnect();
@@ -2651,13 +2557,13 @@ btampFsm
         }
         else
         {
-          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __func__, "VALIDATED", msg);
+          VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, in state %s, invalid event msg %d", __FUNCTION__, "VALIDATED", msg);
           /* Intentionally left blank */
         }
       break;
 
       default:
-        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, invalid state %d", __func__, instanceVar->stateVar);
+        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, invalid state %d", __FUNCTION__, instanceVar->stateVar);
         /*Intentionally left blank*/
       break;
   }
@@ -2675,13 +2581,12 @@ VOS_STATUS btampEstablishLogLink(ptBtampContext btampContext)
    pMsg = vos_mem_malloc(sizeof(tAniBtAmpLogLinkReq));
    if ( NULL == pMsg ) 
    {
-      VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR, "In %s, failed to allocate mem for req", __func__);
+      VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR, "In %s, failed to allocate mem for req", __FUNCTION__);
       return VOS_STATUS_E_NOMEM;
    }
 
    pMsg->msgType = pal_cpu_to_be16((tANI_U16)eWNI_SME_BTAMP_LOG_LINK_IND);
    pMsg->msgLen = (tANI_U16)sizeof(tAniBtAmpLogLinkReq);
-   pMsg->sessionId = btampContext->sessionId;
    pMsg->btampHandle = btampContext;
 
    msg.type = eWNI_SME_BTAMP_LOG_LINK_IND;
@@ -2690,7 +2595,7 @@ VOS_STATUS btampEstablishLogLink(ptBtampContext btampContext)
 
    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MQ_ID_SME, &msg))
    {
-       VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR, "In %s, failed to post msg to self", __func__);
+       VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR, "In %s, failed to post msg to self", __FUNCTION__);
        vos_mem_free(pMsg);
        vosStatus = VOS_STATUS_E_FAILURE;
    }
@@ -2712,14 +2617,14 @@ void btampEstablishLogLinkHdlr(void* pMsg)
         }
         else
         {
-            VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR, "In %s, btampContext is NULL", __func__);                  
+            VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR, "In %s, btampContext is NULL", __FUNCTION__);                  
             return;
         }
             
     }
     else
     {
-        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR, "In %s, pBtAmpLogLinkReq is NULL", __func__);    
+        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR, "In %s, pBtAmpLogLinkReq is NULL", __FUNCTION__);    
     }
     return;
 }

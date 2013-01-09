@@ -18,29 +18,8 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file pmmAP.cc contains AP PM functions
  *
@@ -261,19 +240,13 @@ void pmmGenerateTIM(tpAniSirGlobal pMac, tANI_U8 **pPtr, tANI_U16 *timLength, tA
     *timLength = N2 - N1 + 4;
     val = dtimPeriod;
 
-    /* 
-     * 09/23/2011 - ASW team decision; 
-     * Write 0xFF to firmware's field to detect firmware's mal-function early.
-     * DTIM count and bitmap control usually cannot be 0xFF, so it is easy to know that 
-     * firmware never updated DTIM count/bitmap control field after host driver downloaded
-     * beacon template if end-user complaints that DTIM count and bitmapControl is 0xFF.
-     */
+
     *ptr++ = SIR_MAC_TIM_EID;
     *ptr++ = (tANI_U8)(*timLength);
-    *ptr++ = 0xFF; // location for dtimCount. will be filled in by FW.
+    ptr++; // location for dtimCount. will be filled in by FW.
     *ptr++ = (tANI_U8)val;
 
-    *ptr++ = 0xFF; // location for bitmap contorl. will be filled in by FW.
+    ptr++; //bitmap contorl will be filled in by FW.
     ptr += (N2 - N1 + 1);
 
     PELOG2(sirDumpBuf(pMac, SIR_PMM_MODULE_ID, LOG2, *pPtr, (*timLength)+2);)

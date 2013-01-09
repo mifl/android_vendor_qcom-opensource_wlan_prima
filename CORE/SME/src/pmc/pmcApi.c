@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /******************************************************************************
 *
@@ -62,9 +42,9 @@
 #include "smeInside.h"
 #include "csrInsideApi.h"
 #include "wlan_ps_wow_diag.h"
+
 #include "wlan_qct_wda.h"
 #include "limSessionUtils.h"
-#include "csrInsideApi.h"
 
 extern void pmcReleaseCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand );
 
@@ -754,8 +734,7 @@ eHalStatus pmcStartAutoBmpsTimer (tHalHandle hHal)
 
    /* Check if there is an Infra session. If there is no Infra session, timer will be started 
          when STA associates to AP */
-
-   if (pmcShouldBmpsTimerRun(pMac))
+   if (csrIsInfraConnected(pMac))
    {
       if (pmcStartTrafficTimer(hHal, pMac->pmc.bmpsConfig.trafficMeasurePeriod) != eHAL_STATUS_SUCCESS)
          return eHAL_STATUS_FAILURE;
@@ -1644,10 +1623,8 @@ tANI_BOOLEAN pmcValidateConnectState( tHalHandle hHal )
       smsLog(pMac, LOGW, "PMC: BT-AMP exists. BMPS cannot be entered\n");
       return eANI_BOOLEAN_FALSE;
    }
-   if ((vos_concurrent_sessions_running()) &&
-       (csrIsConcurrentInfraConnected( pMac ) ||
-       (vos_get_concurrency_mode()& VOS_SAP) ||
-       (vos_get_concurrency_mode()& VOS_P2P_GO)))
+   if ((vos_concurrent_sessions_running()) && 
+        csrIsConcurrentInfraConnected( pMac ))
    {
       smsLog(pMac, LOGW, "PMC: Multiple active sessions exists. BMPS cannot be entered\n");
       return eANI_BOOLEAN_FALSE;
@@ -1668,13 +1645,6 @@ tANI_BOOLEAN pmcAllowImps( tHalHandle hHal )
     if ( csrIsBTAMPStarted( pMac ) )
     {
        smsLog(pMac, LOGW, "PMC: BT-AMP exists. IMPS cannot be entered\n");
-       return eANI_BOOLEAN_FALSE;
-    }
-
-    //All sessions must be disconnected to allow IMPS
-    if ( !csrIsAllSessionDisconnected( pMac ) )
-    {
-       smsLog(pMac, LOGW, "PMC: Atleast one connected session. IMPS cannot be entered\n");
        return eANI_BOOLEAN_FALSE;
     }
 
@@ -2113,11 +2083,9 @@ eHalStatus pmcReady(tHalHandle hHal)
   ---------------------------------------------------------------------------*/
 eHalStatus pmcWowlAddBcastPattern (
     tHalHandle hHal, 
-    tpSirWowlAddBcastPtrn pattern,
-    tANI_U8 sessionId)
+    tpSirWowlAddBcastPtrn pattern)
 {
     tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-    tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
     vos_log_powersave_wow_add_ptrn_pkt_type *log_ptr = NULL;
@@ -2129,12 +2097,6 @@ eHalStatus pmcWowlAddBcastPattern (
     if(pattern == NULL)
     {
         smsLog(pMac, LOGE, FL("Null broadcast pattern being passed\n"));
-        return eHAL_STATUS_FAILURE;
-    }
-
-    if( pSession == NULL)
-    {
-        smsLog(pMac, LOGE, FL("Session not found \n"));
         return eHAL_STATUS_FAILURE;
     }
 
@@ -2169,15 +2131,8 @@ eHalStatus pmcWowlAddBcastPattern (
     }
     if( pMac->pmc.pmcState == IMPS || pMac->pmc.pmcState == REQUEST_IMPS )
     {
-        eHalStatus status;
-        if( !csrIsConnStateConnectedInfra (pMac, sessionId ))
-        {
-            smsLog(pMac, LOGE, FL("Ignoring the indication as we are not connected\n"));
-            return eHAL_STATUS_FAILURE;
-        }
-        vos_mem_copy(pattern->bssId, pSession->connectedProfile.bssid, sizeof(tSirMacAddr));
         //Wake up the chip first
-        status = pmcDeferMsg( pMac, eWNI_PMC_WOWL_ADD_BCAST_PTRN, 
+        eHalStatus status = pmcDeferMsg( pMac, eWNI_PMC_WOWL_ADD_BCAST_PTRN, 
                                     pattern, sizeof(tSirWowlAddBcastPtrn) );
 
         if( eHAL_STATUS_PMC_PENDING == status )
@@ -2216,11 +2171,9 @@ eHalStatus pmcWowlAddBcastPattern (
   ---------------------------------------------------------------------------*/
 eHalStatus pmcWowlDelBcastPattern (
     tHalHandle hHal, 
-    tpSirWowlDelBcastPtrn pattern,
-    tANI_U8  sessionId)
+    tpSirWowlDelBcastPtrn pattern)
 {
     tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-    tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT    
     WLAN_VOS_DIAG_EVENT_DEF(wowRequest, vos_event_wlan_powersave_wow_payload_type);
@@ -2233,12 +2186,6 @@ eHalStatus pmcWowlDelBcastPattern (
 #endif
 
     smsLog(pMac, LOG2, "PMC: entering pmcWowlDelBcastPattern");
-
-    if( NULL == pSession )
-    {
-        smsLog(pMac, LOGE, FL("Session not found \n"));
-        return eHAL_STATUS_FAILURE;
-    }
 
     if(pattern->ucPatternId >= SIR_WOWL_BCAST_MAX_NUM_PATTERNS )
     {
@@ -2256,16 +2203,8 @@ eHalStatus pmcWowlDelBcastPattern (
 
     if( pMac->pmc.pmcState == IMPS || pMac->pmc.pmcState == REQUEST_IMPS )
     {
-        eHalStatus status;
-        if( !csrIsConnStateConnectedInfra (pMac, sessionId ))
-        {
-            smsLog(pMac, LOGE, FL("Ignoring the indication as we are not connected\n"));
-            return eHAL_STATUS_FAILURE;
-        }
-
-        vos_mem_copy(pattern->bssId, pSession->connectedProfile.bssid, sizeof(tSirMacAddr));
         //Wake up the chip first
-        status = pmcDeferMsg( pMac, eWNI_PMC_WOWL_DEL_BCAST_PTRN, 
+        eHalStatus status = pmcDeferMsg( pMac, eWNI_PMC_WOWL_DEL_BCAST_PTRN, 
                                     pattern, sizeof(tSirWowlDelBcastPtrn) );
 
         if( eHAL_STATUS_PMC_PENDING == status )
@@ -2317,10 +2256,8 @@ eHalStatus pmcWowlDelBcastPattern (
             - Polling of all modules through the Power Save Check routine passes
             - STA is associated to an access point
     \param  hHal - The handle returned by macOpen.
-    \param  - enterWowlCallbackRoutine Callback routine invoked in case of success/failure
-    \param  - enterWowlCallbackContext -  Cookie to be passed back during callback
-    \param  - wakeReasonIndCB Callback routine invoked for Wake Reason Indication
-    \param  - wakeReasonIndCBContext -  Cookie to be passed back during callback
+    \param  - callbackRoutine Callback routine invoked in case of success/failure
+    \param  - callbackContext -  Cookie to be passed back during callback
     \param  - fullPowerReason - Reason why this API is being invoked. SME needs to
               distinguish between BAP and HDD requests
     \return eHalStatus - status 
@@ -2330,16 +2267,10 @@ eHalStatus pmcWowlDelBcastPattern (
   ---------------------------------------------------------------------------*/
 eHalStatus pmcEnterWowl ( 
     tHalHandle hHal, 
-    void (*enterWowlCallbackRoutine) (void *callbackContext, eHalStatus status),
-    void *enterWowlCallbackContext,
-#ifdef WLAN_WAKEUP_EVENTS
-    void (*wakeReasonIndCB) (void *callbackContext, tpSirWakeReasonInd pWakeReasonInd),
-    void *wakeReasonIndCBContext,
-#endif // WLAN_WAKEUP_EVENTS
-    tpSirSmeWowlEnterParams wowlEnterParams, tANI_U8 sessionId)
+    void (*callbackRoutine) (void *callbackContext, eHalStatus status),   
+    void *callbackContext, tpSirSmeWowlEnterParams wowlEnterParams)
 {
    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-   tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT    
    WLAN_VOS_DIAG_EVENT_DEF(wowRequest, vos_event_wlan_powersave_wow_payload_type);
@@ -2358,25 +2289,11 @@ eHalStatus pmcEnterWowl (
    {
        wowRequest.wow_type |= 2;
    }
+
    WLAN_VOS_DIAG_EVENT_REPORT(&wowRequest, EVENT_WLAN_POWERSAVE_WOW);
 #endif
 
-   smsLog(pMac, LOG2, FL("PMC: entering pmcEnterWowl\n"));
-
-   if( NULL == pSession )
-   {
-       smsLog(pMac, LOGE, FL("Session not found \n"));
-       return eHAL_STATUS_FAILURE;
-   }
-
-   if( !csrIsConnStateConnectedInfra (pMac, sessionId ))
-   {
-       smsLog(pMac, LOGE, FL("Ignoring the indication as we are not connected\n"));
-       return eHAL_STATUS_FAILURE;
-   }
-
-   vos_mem_copy(wowlEnterParams->bssId, pSession->connectedProfile.bssid, 
-               sizeof(tSirMacAddr));
+   smsLog(pMac, LOG2, "PMC: entering pmcEnterWowl\n");
 
    if( !PMC_IS_READY(pMac) )
    {
@@ -2424,21 +2341,14 @@ eHalStatus pmcEnterWowl (
       return eHAL_STATUS_FAILURE;
    }
 
-   // To avoid race condition, set callback routines before sending message.
-   /* cache the WOWL information */
-   pMac->pmc.wowlEnterParams = *wowlEnterParams;
-   pMac->pmc.enterWowlCallbackRoutine = enterWowlCallbackRoutine;
-   pMac->pmc.enterWowlCallbackContext = enterWowlCallbackContext;
-#ifdef WLAN_WAKEUP_EVENTS
-   /* Cache the Wake Reason Indication callback information */
-   pMac->pmc.wakeReasonIndCB = wakeReasonIndCB;
-   pMac->pmc.wakeReasonIndCBContext = wakeReasonIndCBContext;
-#endif // WLAN_WAKEUP_EVENTS
-
    /* Enter Request WOWL State. */
    if (pmcRequestEnterWowlState(hHal, wowlEnterParams) != eHAL_STATUS_SUCCESS)
       return eHAL_STATUS_FAILURE;
 
+   /* cache the WOWL information */
+   pMac->pmc.wowlEnterParams = *wowlEnterParams;
+   pMac->pmc.enterWowlCallbackRoutine = callbackRoutine;
+   pMac->pmc.enterWowlCallbackContext = callbackContext;
    pMac->pmc.wowlModeRequired = TRUE;
 
    return eHAL_STATUS_PMC_PENDING;
@@ -2494,39 +2404,18 @@ eHalStatus pmcExitWowl (tHalHandle hHal)
             eHAL_STATUS_FAILURE  Cannot set the offload.
             eHAL_STATUS_SUCCESS  Request accepted. 
   ---------------------------------------------------------------------------*/
-eHalStatus pmcSetHostOffload (tHalHandle hHal, tpSirHostOffloadReq pRequest, 
-                                   tANI_U8 sessionId)
+eHalStatus pmcSetHostOffload (tHalHandle hHal, tpSirHostOffloadReq pRequest)
 {
     tpSirHostOffloadReq pRequestBuf;
     vos_msg_t msg;
-    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-    tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
-
-    VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "%s: IP address = %d.%d.%d.%d", __func__,
-        pRequest->params.hostIpv4Addr[0], pRequest->params.hostIpv4Addr[1],
-        pRequest->params.hostIpv4Addr[2], pRequest->params.hostIpv4Addr[3]);
 
     pRequestBuf = vos_mem_malloc(sizeof(tSirHostOffloadReq));
     if (NULL == pRequestBuf)
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for host offload request", __func__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate "
+                  "memory for host offload request", __FUNCTION__);
         return eHAL_STATUS_FAILED_ALLOC;
     }
-
-    if(NULL == pSession )
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: SESSION not Found\n", __func__);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    if( !csrIsConnStateConnectedInfra (pMac, sessionId ))
-    {
-        smsLog(pMac, LOGE, FL("Ignoring the indication as we are not connected\n"));
-        return eHAL_STATUS_FAILURE;
-    }
-
-    vos_mem_copy(pRequest->bssId, pSession->connectedProfile.bssid, sizeof(tSirMacAddr));
-
     vos_mem_copy(pRequestBuf, pRequest, sizeof(tSirHostOffloadReq));
 
     msg.type = WDA_SET_HOST_OFFLOAD;
@@ -2534,7 +2423,8 @@ eHalStatus pmcSetHostOffload (tHalHandle hHal, tpSirHostOffloadReq pRequest,
     msg.bodyptr = pRequestBuf;
     if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_HOST_OFFLOAD message to WDA", __func__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post "
+                  "WDA_SET_HOST_OFFLOAD message to WDA", __FUNCTION__);
         vos_mem_free(pRequestBuf);
         return eHAL_STATUS_FAILURE;
     }
@@ -2551,42 +2441,24 @@ eHalStatus pmcSetHostOffload (tHalHandle hHal, tpSirHostOffloadReq pRequest,
             eHAL_STATUS_FAILURE  Cannot set the keepalive.
             eHAL_STATUS_SUCCESS  Request accepted. 
   ---------------------------------------------------------------------------*/
-eHalStatus pmcSetKeepAlive (tHalHandle hHal, tpSirKeepAliveReq pRequest, tANI_U8 sessionId)
+eHalStatus pmcSetKeepAlive (tHalHandle hHal, tpSirKeepAliveReq pRequest)
 {
     tpSirKeepAliveReq pRequestBuf;
     vos_msg_t msg;
-    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-    tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
 
     VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_LOW, "%s: "
-                  "WDA_SET_KEEP_ALIVE message", __func__);
+                  "WDA_SET_KEEP_ALIVE message", __FUNCTION__);
 
     pRequestBuf = vos_mem_malloc(sizeof(tSirKeepAliveReq));
     if (NULL == pRequestBuf)
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: "
                   "Not able to allocate memory for keep alive request",
-                  __func__);
+                  __FUNCTION__);
         return eHAL_STATUS_FAILED_ALLOC;
     }
-    if(pSession == NULL )
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: "
-           " Session not Found", __func__);
-        vos_mem_free(pRequestBuf);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    if( !csrIsConnStateConnectedInfra (pMac, sessionId ))
-    {
-        smsLog(pMac, LOGE, FL("Ignoring the indication as we are not connected\n"));
-        vos_mem_free(pRequestBuf);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    vos_mem_copy(pRequest->bssId, pSession->connectedProfile.bssid, sizeof(tSirMacAddr));
     vos_mem_copy(pRequestBuf, pRequest, sizeof(tSirKeepAliveReq));
-
+    
     VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_LOW, "buff TP %d "
               "input TP %d ", pRequestBuf->timePeriod, pRequest->timePeriod);
 
@@ -2597,71 +2469,13 @@ eHalStatus pmcSetKeepAlive (tHalHandle hHal, tpSirKeepAliveReq pRequest, tANI_U8
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: "
                   "Not able to post WDA_SET_KEEP_ALIVE message to WDA",
-                  __func__);
+                  __FUNCTION__);
         vos_mem_free(pRequestBuf);
         return eHAL_STATUS_FAILURE;
     }
 
     return eHAL_STATUS_SUCCESS;
 }
-
-
-#ifdef WLAN_NS_OFFLOAD
-
-/* ---------------------------------------------------------------------------
-    \fn pmcSetNSOffload
-    \brief  Set the host offload feature.
-    \param  hHal - The handle returned by macOpen.
-    \param  pRequest - Pointer to the offload request.
-    \return eHalStatus
-            eHAL_STATUS_FAILURE  Cannot set the offload.
-            eHAL_STATUS_SUCCESS  Request accepted. 
-  ---------------------------------------------------------------------------*/
-eHalStatus pmcSetNSOffload (tHalHandle hHal, tpSirHostOffloadReq pRequest, 
-                                 tANI_U8 sessionId)
-{
-    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-    tpSirHostOffloadReq pRequestBuf;
-    vos_msg_t msg;
-    int i;
-    tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
-
-    if( NULL == pSession )
-    {
-        smsLog(pMac, LOGE, FL("Session not found \n"));
-        return eHAL_STATUS_FAILURE;
-    }
-
-    if( !csrIsConnStateConnectedInfra (pMac, sessionId ))
-    {
-        smsLog(pMac, LOGE, FL("Ignoring the indication as we are not connected\n"));
-        return eHAL_STATUS_FAILURE;
-    }
-    vos_mem_copy(pRequest->bssId, pSession->connectedProfile.bssid, 
-                sizeof(tSirMacAddr));
-
-    pRequestBuf = vos_mem_malloc(sizeof(tSirHostOffloadReq));
-    if (NULL == pRequestBuf)
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for NS offload request", __func__);
-        return eHAL_STATUS_FAILED_ALLOC;
-    }
-    vos_mem_copy(pRequestBuf, pRequest, sizeof(tSirHostOffloadReq));
-
-    msg.type = WDA_SET_NS_OFFLOAD;
-    msg.reserved = 0;
-    msg.bodyptr = pRequestBuf;
-    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post SIR_HAL_SET_HOST_OFFLOAD message to HAL", __func__);
-        vos_mem_free(pRequestBuf);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    return eHAL_STATUS_SUCCESS;
-}
-
-#endif //WLAN_NS_OFFLOAD
 
 
 void pmcClosePowerSaveCheckList(tpAniSirGlobal pMac)
@@ -2858,7 +2672,7 @@ pmcPrepareProbeReqTemplate(tpAniSirGlobal pMac,
     
     if (IS_DOT11_MODE_HT(dot11mode))
     {
-       PopulateDot11fHTCaps( pMac, NULL, &pr.HTCaps );
+       PopulateDot11fHTCaps( pMac, &pr.HTCaps );
     }
     
     // That's it-- now we pack it.  First, how much space are we going to
@@ -2934,13 +2748,14 @@ eHalStatus pmcSetPreferredNetworkList
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
     tANI_U8 ucDot11Mode; 
 
-    VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "%s: SSID = %s, %s", __func__,
+
+    VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "%s: SSID = %s, %s", __FUNCTION__,
         pRequest->aNetworks[0].ssId.ssId, pRequest->aNetworks[1].ssId.ssId);
 
     pRequestBuf = vos_mem_malloc(sizeof(tSirPNOScanReq));
     if (NULL == pRequestBuf)
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for PNO request", __func__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for PNO request", __FUNCTION__);
         return eHAL_STATUS_FAILED_ALLOC;
     }
 
@@ -2961,9 +2776,9 @@ eHalStatus pmcSetPreferredNetworkList
     msg.type     = WDA_SET_PNO_REQ;
     msg.reserved = 0;
     msg.bodyptr  = pRequestBuf;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_PNO_REQ message to WDA", __func__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_PNO_REQ message to WDA", __FUNCTION__);
         vos_mem_free(pRequestBuf);
         return eHAL_STATUS_FAILURE;
     }
@@ -2971,8 +2786,6 @@ eHalStatus pmcSetPreferredNetworkList
     /* Cache the Preferred Network Found Indication callback information */
     pMac->pmc.prefNetwFoundCB = callbackRoutine;
     pMac->pmc.preferredNetworkFoundIndCallbackContext = callbackContext;
-
-    VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "-%s", __func__);
 
     return eHAL_STATUS_SUCCESS;
 }
@@ -2986,7 +2799,7 @@ eHalStatus pmcSetRssiFilter(tHalHandle hHal,   v_U8_t        rssiThreshold)
     pRequestBuf = vos_mem_malloc(sizeof(tpSirSetRSSIFilterReq));
     if (NULL == pRequestBuf)
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for PNO request", __func__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for PNO request", __FUNCTION__);
         return eHAL_STATUS_FAILED_ALLOC;
     }
 
@@ -2996,9 +2809,9 @@ eHalStatus pmcSetRssiFilter(tHalHandle hHal,   v_U8_t        rssiThreshold)
     msg.type = WDA_SET_RSSI_FILTER_REQ;
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_PNO_REQ message to WDA", __func__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_PNO_REQ message to WDA", __FUNCTION__);
         vos_mem_free(pRequestBuf);
         return eHAL_STATUS_FAILURE;
     }
@@ -3013,12 +2826,12 @@ eHalStatus pmcUpdateScanParams(tHalHandle hHal, tCsrConfig *pRequest, tCsrChanne
     vos_msg_t msg;
     int i;
 
-    VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "%s started", __func__);
+    VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "%s started", __FUNCTION__);
 
     pRequestBuf = vos_mem_malloc(sizeof(tSirUpdateScanParams));
     if (NULL == pRequestBuf)
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for UpdateScanParams request", __func__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for UpdateScanParams request", __FUNCTION__);
         return eHAL_STATUS_FAILED_ALLOC;
     }
 
@@ -3028,14 +2841,11 @@ eHalStatus pmcUpdateScanParams(tHalHandle hHal, tCsrConfig *pRequest, tCsrChanne
     pRequestBuf->b11dEnabled    = pRequest->Is11eSupportEnabled;
     pRequestBuf->b11dResolved   = b11dResolved;
     pRequestBuf->ucChannelCount = 
-        ( pChannelList->numChannels < SIR_PNO_MAX_NETW_CHANNELS_EX )?
-        pChannelList->numChannels:SIR_PNO_MAX_NETW_CHANNELS_EX;
+        ( pChannelList->numChannels < SIR_PNO_MAX_NETW_CHANNELS )?
+        pChannelList->numChannels:SIR_PNO_MAX_NETW_CHANNELS;
 
-    for (i=0; i < pRequestBuf->ucChannelCount; i++)
+    for (i=0; i < pChannelList->numChannels; i++)
     {    
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, 
-                  "%s: Channel List %d: %d", __FUNCTION__, i, pChannelList->channelList[i] );
-
         pRequestBuf->aChannels[i] = pChannelList->channelList[i];
     }
     pRequestBuf->usPassiveMinChTime = pRequest->nPassiveMinChnTime;
@@ -3047,9 +2857,9 @@ eHalStatus pmcUpdateScanParams(tHalHandle hHal, tCsrConfig *pRequest, tCsrChanne
     msg.type = WDA_UPDATE_SCAN_PARAMS_REQ;
     msg.reserved = 0;
     msg.bodyptr = pRequestBuf;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
+    if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_UPDATE_SCAN_PARAMS message to WDA", __func__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_UPDATE_SCAN_PARAMS message to WDA", __FUNCTION__);
         vos_mem_free(pRequestBuf);
         return eHAL_STATUS_FAILURE;
     }
@@ -3073,13 +2883,14 @@ eHalStatus pmcSetPowerParams(tHalHandle hHal,   tSirSetPowerParamsReq*  pwParams
     pRequestBuf = vos_mem_malloc(sizeof(tSirSetPowerParamsReq));
     if (NULL == pRequestBuf)
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for Power Paramrequest", __func__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate memory for Power Paramrequest", __FUNCTION__);
         return eHAL_STATUS_FAILED_ALLOC;
     }
 
 
     vos_mem_copy(pRequestBuf, pwParams, sizeof(*pRequestBuf)); 
 
+    pRequestBuf->uDTIMPeriod = psessionEntry->dtimPeriod; 
 
     msg.type = WDA_SET_POWER_PARAMS_REQ;
     msg.reserved = 0;
@@ -3087,7 +2898,7 @@ eHalStatus pmcSetPowerParams(tHalHandle hHal,   tSirSetPowerParamsReq*  pwParams
 
     if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
     {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_POWER_PARAMS_REQ message to WDA", __func__);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_SET_POWER_PARAMS_REQ message to WDA", __FUNCTION__);
         vos_mem_free(pRequestBuf);
         return eHAL_STATUS_FAILURE;
     }
@@ -3100,40 +2911,24 @@ eHalStatus pmcGetFilterMatchCount
 (
     tHalHandle hHal, 
     FilterMatchCountCallback callbackRoutine, 
-    void *callbackContext,
-    tANI_U8  sessionId
+    void *callbackContext
 )
 {
     tpSirRcvFltPktMatchRsp  pRequestBuf;
     vos_msg_t               msg;
     tpAniSirGlobal          pMac = PMAC_STRUCT(hHal);
-    tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
 
     VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, 
-        "%s: filterId = %d", __func__);
+        "%s: filterId = %d", __FUNCTION__);
 
     pRequestBuf = vos_mem_malloc(sizeof(tSirRcvFltPktMatchRsp));
     if (NULL == pRequestBuf)
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
                   "%s: Not able to allocate "
-                  "memory for Get PC Filter Match Count request", __func__);
+                  "memory for Get PC Filter Match Count request", __FUNCTION__);
         return eHAL_STATUS_FAILED_ALLOC;
     }
-    if(NULL == pSession )
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
-                  "%s: Session not found ", __func__);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    if( !csrIsConnStateConnectedInfra (pMac, sessionId ))
-    {
-        smsLog(pMac, LOGE, FL("Ignoring the indication as we are not connected\n"));
-        return eHAL_STATUS_FAILURE;
-    }
-
-    vos_mem_copy(pRequestBuf->bssId, pSession->connectedProfile.bssid, sizeof(tSirMacAddr)); 
 
     msg.type = WDA_PACKET_COALESCING_FILTER_MATCH_COUNT_REQ;
     msg.reserved = 0;
@@ -3156,140 +2951,10 @@ eHalStatus pmcGetFilterMatchCount
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
             "%s: Not able to post WDA_PACKET_COALESCING_FILTER_MATCH_COUNT_REQ "
-            "message to WDA", __func__);
+            "message to WDA", __FUNCTION__);
         return eHAL_STATUS_FAILURE;
     }
 
     return eHAL_STATUS_SUCCESS;
 }
 #endif // WLAN_FEATURE_PACKET_FILTERING
-
-#ifdef WLAN_FEATURE_GTK_OFFLOAD
-/* ---------------------------------------------------------------------------
-    \fn pmcSetGTKOffload
-    \brief  Set GTK offload feature.
-    \param  hHal - The handle returned by macOpen.
-    \param  pGtkOffload - Pointer to the GTK offload request.
-    \return eHalStatus
-            eHAL_STATUS_FAILURE  Cannot set the offload.
-            eHAL_STATUS_SUCCESS  Request accepted. 
-  ---------------------------------------------------------------------------*/
-eHalStatus pmcSetGTKOffload (tHalHandle hHal, tpSirGtkOffloadParams pGtkOffload, 
-                                  tANI_U8 sessionId)
-{
-    tpSirGtkOffloadParams pRequestBuf;
-    vos_msg_t msg;
-    int i;
-    tpAniSirGlobal   pMac = PMAC_STRUCT(hHal);
-    tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
-
-    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s: KeyReplayCounter: %d", 
-                __func__, pGtkOffload->ullKeyReplayCounter);
-
-    pRequestBuf = (tpSirGtkOffloadParams)vos_mem_malloc(sizeof(tSirGtkOffloadParams));
-    if (NULL == pRequestBuf)
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate "
-                  "memory for GTK offload request", __func__);
-        return eHAL_STATUS_FAILED_ALLOC;
-    }
-    if(NULL == pSession )
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
-                  "%s: Session not found ", __func__);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    if( !csrIsConnStateConnectedInfra (pMac, sessionId ))
-    {
-        smsLog(pMac, LOGE, FL("Ignoring the indication as we are not connected\n"));
-        return eHAL_STATUS_FAILURE;
-    }
-
-    vos_mem_copy(pGtkOffload->bssId, pSession->connectedProfile.bssid, sizeof(tSirMacAddr)); 
-
-    vos_mem_copy(pRequestBuf, pGtkOffload, sizeof(tSirGtkOffloadParams));
-
-    msg.type = WDA_GTK_OFFLOAD_REQ;
-    msg.reserved = 0;
-    msg.bodyptr = pRequestBuf;
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post "
-                  "SIR_HAL_SET_GTK_OFFLOAD message to HAL", __func__);
-        vos_mem_free(pRequestBuf);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    return eHAL_STATUS_SUCCESS;
-}
-
-/* ---------------------------------------------------------------------------
-    \fn pmcGetGTKOffload
-    \brief  Get GTK offload information.
-    \param  hHal - The handle returned by macOpen.
-    \param  callbackRoutine - Pointer to the GTK Offload Get Info response callback routine.
-    \return eHalStatus
-            eHAL_STATUS_FAILURE  Cannot set the offload.
-            eHAL_STATUS_SUCCESS  Request accepted. 
-  ---------------------------------------------------------------------------*/
-eHalStatus pmcGetGTKOffload(tHalHandle hHal, GTKOffloadGetInfoCallback callbackRoutine, 
-                                  void *callbackContext, tANI_U8 sessionId)
-{
-    tpSirGtkOffloadGetInfoRspParams  pRequestBuf;
-    vos_msg_t               msg;
-    tpAniSirGlobal          pMac = PMAC_STRUCT(hHal);
-    tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
-
-    VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "%s: filterId = %d", 
-                __func__);
-
-    pRequestBuf = vos_mem_malloc(sizeof(tSirGtkOffloadGetInfoRspParams));
-    if (NULL == pRequestBuf)
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to allocate "
-                  "memory for Get GTK Offload request", __func__);
-        return eHAL_STATUS_FAILED_ALLOC;
-    }
-
-    if(NULL == pSession )
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
-                  "%s: Session not found ", __func__);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    if( !csrIsConnStateConnectedInfra (pMac, sessionId ))
-    {
-        smsLog(pMac, LOGE, FL("Ignoring the indication as we are not connected\n"));
-        return eHAL_STATUS_FAILURE;
-    }
-    vos_mem_copy(pRequestBuf->bssId, pSession->connectedProfile.bssid, sizeof(tSirMacAddr)); 
-
-    msg.type = WDA_GTK_OFFLOAD_GETINFO_REQ;
-    msg.reserved = 0;
-    msg.bodyptr = pRequestBuf;
-
-    /* Cache the Get GTK Offload callback information */
-    if (NULL != pMac->pmc.GtkOffloadGetInfoCB)
-    {
-        // Do we need to check if the callback is in use? 
-        // Because we are not sending the same message again when it is pending,
-        // the only case when the callback is not NULL is that the previous message was timed out or failed.
-        // So, it will be safe to set the callback in this case.
-    }
-
-    pMac->pmc.GtkOffloadGetInfoCB = callbackRoutine;
-    pMac->pmc.GtkOffloadGetInfoCBContext = callbackContext;
-
-    if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)))
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: Not able to post WDA_GTK_OFFLOAD_GETINFO_REQ message to WDA", 
-                    __func__);
-        vos_mem_free(pRequestBuf);
-        return eHAL_STATUS_FAILURE;
-    }
-
-    return eHAL_STATUS_SUCCESS;
-}
-#endif // WLAN_FEATURE_GTK_OFFLOAD

@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 #if !defined( __WLAN_QCT_WDI_DS_I_H )
 #define __WLAN_QCT_WDI_DS_I_H
@@ -71,14 +51,13 @@
 /*The number of resources (BD headers) available for the HI priority DXE
   channel
   DXE will use 1 descriptor for the BD header and 1 for the data =>
-  This is true for LA but not EA. EA sends down 3~4 MDL chain per a packet.
-  Now we set it the same with free DXE decriptor number*/
-#define WDI_DS_HI_PRI_RES_NUM  (WLANDXE_HI_PRI_RES_NUM)
+  the number of resources available = half the DXE descriptors*/
+#define WDI_DS_HI_PRI_RES_NUM  (WLANDXE_HI_PRI_RES_NUM/2)
 
 /*The number of resources (BD headers) available for the Low priority DXE
   channel - see above
 */
-#define WDI_DS_LO_PRI_RES_NUM  (WLANDXE_LO_PRI_RES_NUM)
+#define WDI_DS_LO_PRI_RES_NUM  (WLANDXE_LO_PRI_RES_NUM/2)
 
 /*The number of BD headers available in the system for Tx must match the number
   of DXE descriptors available for actual transmission, otherwise we have to
@@ -177,15 +156,15 @@ typedef struct
 
 WPT_STATIC WPT_INLINE void WDI_GetBDPointers(wpt_packet *pFrame, void **pVirt, void **pPhys)
 {
-  *pVirt = WPAL_PACKET_GET_BD_POINTER(pFrame);
-  *pPhys = WPAL_PACKET_GET_BD_PHYS(pFrame);
+        *pVirt = pFrame->pBD;
+        *pPhys = pFrame->pBDPhys;
 }
 
 
 WPT_STATIC WPT_INLINE void WDI_SetBDPointers(wpt_packet *pFrame, void *pVirt, void *pPhys)
 {
-  WPAL_PACKET_SET_BD_POINTER(pFrame, pVirt);
-  WPAL_PACKET_SET_BD_PHYS(pFrame, pPhys);
+  pFrame->pBD = pVirt;
+  pFrame->pBDPhys = pPhys;
 }
 
 

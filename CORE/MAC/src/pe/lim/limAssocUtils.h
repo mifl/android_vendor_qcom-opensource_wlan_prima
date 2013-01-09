@@ -18,28 +18,9 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
+ * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limAssocUtils.h contains the utility definitions
  * LIM uses while processing Re/Association messages.
  * Author:        Chandra Modumudi
@@ -79,42 +60,18 @@ void            limRejectAssociation(tpAniSirGlobal , tSirMacAddr, tANI_U8,
                                      tANI_U8 , tAniAuthType,
                                      tANI_U16, tANI_U8, tSirResultCodes, tpPESession);
 
-#ifdef WLAN_FEATURE_11AC
-tSirRetStatus limPopulateOwnRateSet(tpAniSirGlobal pMac,
-                                         tpSirSupportedRates pRates,
-                                         tANI_U8* pSupportedMCSSet,
-                                         tANI_U8 basicOnly,
-                                         tpPESession psessionEntry,
-                                         tDot11fIEVHTCaps *pVHTCaps);
-
-#else
 tSirRetStatus limPopulateOwnRateSet(tpAniSirGlobal pMac,
                                                                 tpSirSupportedRates pRates,
                                                                 tANI_U8* pSupportedMCSSet,
                                                                 tANI_U8 basicOnly,
                                                                 tpPESession psessionEntry);
-#endif
 
-#ifdef WLAN_FEATURE_11AC
-tSirRetStatus
-limPopulateMatchingRateSet(tpAniSirGlobal pMac,
-                           tpDphHashNode pStaDs,
-                           tSirMacRateSet *pOperRateSet,
-                           tSirMacRateSet *pExtRateSet,
-                           tANI_U8* pSupportedMCSSet,
-                           tSirMacPropRateSet *pAniLegRateSet,
-                           tpPESession  psessionEntry,
-                           tDot11fIEVHTCaps *pVHTCaps);
-#else
 tSirRetStatus   limPopulateMatchingRateSet(tpAniSirGlobal,
                                            tpDphHashNode,
                                            tSirMacRateSet *,
                                            tSirMacRateSet *,
                                            tANI_U8* pSupportedMCSSet,
                                            tSirMacPropRateSet *, tpPESession);
-
-
-#endif
 tSirRetStatus   limAddSta(tpAniSirGlobal, tpDphHashNode,tpPESession);
 tSirRetStatus   limDelBss(tpAniSirGlobal, tpDphHashNode, tANI_U16, tpPESession);
 tSirRetStatus   limDelSta(tpAniSirGlobal, tpDphHashNode, tANI_BOOLEAN, tpPESession);
@@ -130,9 +87,6 @@ void            limTeardownInfraBss(tpAniSirGlobal,tpPESession);
 void            limRestorePreReassocState(tpAniSirGlobal,
                                           tSirResultCodes,
                                           tANI_U16,tpPESession); 
-void            limPostReassocFailure(tpAniSirGlobal,
-                                      tSirResultCodes,
-                                      tANI_U16,tpPESession);
 eAniBoolean     limIsReassocInProgress(tpAniSirGlobal,tpPESession);
 void
 limSendDelStaCnf(tpAniSirGlobal pMac, tSirMacAddr staDsAddr,
@@ -186,9 +140,6 @@ void limHandleAddBssInReAssocContext(tpAniSirGlobal pMac, tpDphHashNode pStaDs, 
 
 /* API to fill in RX Highest Supported data Rate */
 void limFillRxHighestSupportedRate(tpAniSirGlobal pMac, tANI_U16 *rxHighestRate, tANI_U8* pSupportedMCSSet);
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-void limSendRetryReassocReqFrame(tpAniSirGlobal pMac, tLimMlmReassocReq *pMlmReassocReq, tpPESession psessionEntry);
-#endif
 
 
 #endif /* __LIM_ASSOC_UTILS_H */

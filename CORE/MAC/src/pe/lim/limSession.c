@@ -18,29 +18,8 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
-/*
- * */
+
 /**=========================================================================
   
   \file  limSession.c
@@ -63,9 +42,6 @@
 #include "limDebug.h"
 #include "limSession.h"
 #include "limUtils.h"
-#ifdef FEATURE_WLAN_CCX
-#include "ccxApi.h"
-#endif
 
 /*--------------------------------------------------------------------------
   
@@ -156,27 +132,8 @@ tpPESession peCreateSession(tpAniSirGlobal pMac, tANI_U8 *bssid , tANI_U8* sessi
             pMac->lim.gpSession[i].limSmeState = eLIM_SME_IDLE_STATE;
             pMac->lim.gpSession[i].limCurrentAuthType = eSIR_OPEN_SYSTEM;
             peInitBeaconParams(pMac, &pMac->lim.gpSession[i]);
-#ifdef WLAN_FEATURE_VOWIFI_11R
-            pMac->lim.gpSession[i].is11Rconnection = FALSE;
-#endif
-
-#ifdef FEATURE_WLAN_CCX
-            pMac->lim.gpSession[i].isCCXconnection = FALSE;
-#endif
-
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
-            pMac->lim.gpSession[i].isFastTransitionEnabled = FALSE;
-#endif
-#ifdef FEATURE_WLAN_LFR
-            pMac->lim.gpSession[i].isFastRoamIniFeatureEnabled = FALSE;
-#endif
             *sessionId = i;
 
-            pMac->lim.gpSession[i].gLimPhyMode = WNI_CFG_PHY_MODE_11G; //TODO :Check with the team what should be default mode
-            /* Initialize CB mode variables when session is created */
-            pMac->lim.gpSession[i].htSupportedChannelWidthSet = 0;
-            pMac->lim.gpSession[i].htRecommendedTxWidthSet = 0;
-            pMac->lim.gpSession[i].htSecondaryChannelOffset = 0;
             return(&pMac->lim.gpSession[i]);
         }
     }
@@ -245,50 +202,11 @@ tpPESession peFindSessionByBssid(tpAniSirGlobal pMac,  tANI_U8*  bssid,    tANI_
     {
         return(&pMac->lim.gpSession[sessionId]);
     }
-    limLog(pMac, LOG1, FL("Session %d  not active\n "), sessionId);
+    limLog(pMac, LOGW, FL("Session %d  not active\n "), sessionId);
     return(NULL);
 
 }
 
-
-/*--------------------------------------------------------------------------
-  \brief peFindSessionByStaId() - looks up the PE session given staid.
-
-  This function returns the session context and the session ID if the session 
-  corresponding to the given StaId is found in the PE session table.
-    
-  \param pMac                   - pointer to global adapter context
-  \param staid                   - StaId of the session
-  \param sessionId             -session ID is returned here, if session is found. 
-  
-  \return tpPESession          - pointer to the session context or NULL if session is not found.
-  
-  \sa
-  --------------------------------------------------------------------------*/
-tpPESession peFindSessionByStaId(tpAniSirGlobal pMac,  tANI_U8  staid,    tANI_U8* sessionId)
-{
-    tANI_U8 i, j;
-
-    for(i =0; i < pMac->lim.maxBssId; i++)
-    {
-       if(pMac->lim.gpSession[i].valid)
-       {
-          for(j = 0; j < pMac->lim.gpSession[i].dph.dphHashTable.size; j++)
-          {
-             if((pMac->lim.gpSession[i].dph.dphHashTable.pDphNodeArray[j].valid) &&
-                 (pMac->lim.gpSession[i].dph.dphHashTable.pDphNodeArray[j].added) &&
-                (staid == pMac->lim.gpSession[i].dph.dphHashTable.pDphNodeArray[j].staIndex))
-             {
-                *sessionId = i;
-                return(&pMac->lim.gpSession[i]);
-             }
-          }
-       }
-    }
-
-    limLog(pMac, LOG4, FL("Session lookup fails for StaId: %d\n "), staid);
-    return(NULL);
-}
 
 
 
@@ -379,18 +297,11 @@ void peDeleteSession(tpAniSirGlobal pMac, tpPESession psessionEntry)
 
     if(psessionEntry->parsedAssocReq != NULL)
     {
-        // Cleanup the individual allocation first
+       // Cleanup the individual allocation first
         for (i=0; i < psessionEntry->dph.dphHashTable.size; i++)
         {
             if ( psessionEntry->parsedAssocReq[i] != NULL )
             {
-                if( ((tpSirAssocReq)(psessionEntry->parsedAssocReq[i]))->assocReqFrame )
-                {
-                   palFreeMemory(pMac->hHdd, 
-                      ((tpSirAssocReq)(psessionEntry->parsedAssocReq[i]))->assocReqFrame);
-                   ((tpSirAssocReq)(psessionEntry->parsedAssocReq[i]))->assocReqFrame = NULL;
-                   ((tpSirAssocReq)(psessionEntry->parsedAssocReq[i]))->assocReqFrameLength = 0;
-                }
                 palFreeMemory(pMac->hHdd, (void *)psessionEntry->parsedAssocReq[i]);
                 psessionEntry->parsedAssocReq[i] = NULL;
             }
@@ -400,14 +311,9 @@ void peDeleteSession(tpAniSirGlobal pMac, tpPESession psessionEntry)
         psessionEntry->parsedAssocReq = NULL;
     }
 
-#ifdef FEATURE_WLAN_CCX
-    limCleanupCcxCtxt(pMac, psessionEntry); 
-#endif
-
     psessionEntry->valid = FALSE;
     return;
 }
-
 
 /*--------------------------------------------------------------------------
   \brief peFindSessionByPeerSta() - looks up the PE session given the Station Address.
@@ -443,9 +349,7 @@ tpPESession peFindSessionByPeerSta(tpAniSirGlobal pMac,  tANI_U8*  sa,    tANI_U
          }
       }
    }   
-
-   limLog(pMac, LOG1, FL("Session lookup fails for Peer StaId: \n "));
-   limPrintMacAddr(pMac, sa, LOG1);
+   
    return NULL;
 }
 

@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
  * Airgo Networks, Inc proprietary. All rights reserved.
@@ -239,7 +219,6 @@ enum eWniMsgTypes
     eWNI_SME_SET_APWPARSNIEs_REQ,
     eWNI_SME_UPPER_LAYER_ASSOC_CNF,
     eWNI_SME_HIDE_SSID_REQ,
-    eWNI_SME_CHNG_MCC_BEACON_INTERVAL,
 #endif
 #ifdef WLAN_FEATURE_P2P
     eWNI_SME_REMAIN_ON_CHANNEL_REQ,
@@ -252,7 +231,6 @@ enum eWniMsgTypes
     eWNI_SME_ABORT_REMAIN_ON_CHAN_IND,
     eWNI_SME_UPDATE_NOA,
 #endif
-    eWNI_SME_PRE_CHANNEL_SWITCH_FULL_POWER,
     //General Power Save Messages
     eWNI_PMC_MSG_TYPES_BEGIN,
     eWNI_PMC_PWR_SAVE_CFG,
@@ -317,10 +295,6 @@ enum eWniMsgTypes
     eWNI_SME_FT_AGGR_QOS_RSP,
 #endif
 
-#if defined FEATURE_WLAN_CCX
-    eWNI_SME_CCX_ADJACENT_AP_REPORT,
-#endif
-
 #ifdef WLAN_FEATURE_P2P
     eWNI_SME_REGISTER_MGMT_FRAME_REQ,
 #endif
@@ -334,50 +308,13 @@ enum eWniMsgTypes
     eWNI_SME_TX_PER_HIT_IND,
 
     eWNI_SME_CHANGE_COUNTRY_CODE,
+
     eWNI_SME_PRE_SWITCH_CHL_IND,
     eWNI_SME_POST_SWITCH_CHL_IND,
 
     eWNI_SME_MAX_ASSOC_EXCEEDED,
 
     eWNI_SME_BTAMP_LOG_LINK_IND,//to serialize the create/accpet LL req from HCI
-
-#ifdef WLAN_FEATURE_GTK_OFFLOAD
-    eWNI_PMC_GTK_OFFLOAD_GETINFO_RSP,
-#endif // WLAN_FEATURE_GTK_OFFLOAD
-
-#ifdef WLAN_WAKEUP_EVENTS
-    eWNI_SME_WAKE_REASON_IND,
-#endif // WLAN_WAKEUP_EVENTS
-    eWNI_SME_EXCLUDE_UNENCRYPTED,
-    eWNI_SME_RSSI_IND, //RSSI indication from TL to be serialized on MC thread
-#ifdef FEATURE_WLAN_TDLS
-    eWNI_SME_TDLS_SEND_MGMT_REQ,    
-    eWNI_SME_TDLS_SEND_MGMT_RSP,    
-    eWNI_SME_TDLS_ADD_STA_REQ,    
-    eWNI_SME_TDLS_ADD_STA_RSP,    
-    eWNI_SME_TDLS_DEL_STA_REQ,    
-    eWNI_SME_TDLS_DEL_STA_RSP,    
-#endif
-    //NOTE: If you are planning to add more mesages, please make sure that 
-    //SIR_LIM_ITC_MSG_TYPES_BEGIN is moved appropriately. It is set as
-    //SIR_LIM_MSG_TYPES_BEGIN+0xB0 = 12B0 (which means max of 176 messages and
-    //eWNI_SME_TDLS_DEL_STA_RSP = 175.
-    //Should fix above issue to enable TDLS_INTERNAL
-#ifdef FEATURE_WLAN_TDLS_INTERNAL
-#error ERROR_TDLS_INTERNAL
-    eWNI_SME_TDLS_DISCOVERY_START_REQ,    
-    eWNI_SME_TDLS_DISCOVERY_START_RSP,    
-    eWNI_SME_TDLS_DISCOVERY_START_IND,    
-    eWNI_SME_TDLS_LINK_START_REQ,    
-    eWNI_SME_TDLS_LINK_START_RSP,    
-    eWNI_SME_TDLS_LINK_START_IND,    
-    eWNI_SME_TDLS_TEARDOWN_REQ,    
-    eWNI_SME_TDLS_TEARDOWN_RSP,    
-    eWNI_SME_TDLS_TEARDOWN_IND,    
-    eWNI_SME_ADD_TDLS_PEER_IND,    
-    eWNI_SME_DELETE_TDLS_PEER_IND,    
-#endif
-    eWNI_SME_SET_BCN_FILTER_REQ,
     eWNI_SME_MSG_TYPES_END
 };
 

@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
  * Airgo Networks, Inc proprietary. All rights reserved.
@@ -78,7 +58,7 @@
 
 // local functions
 static tSirRetStatus getWmmLocalParams(tpAniSirGlobal pMac, tANI_U32 params[][WNI_CFG_EDCA_ANI_ACBK_LOCAL_LEN]);
-static void setSchEdcaParams(tpAniSirGlobal pMac, tANI_U32 params[][WNI_CFG_EDCA_ANI_ACBK_LOCAL_LEN], tpPESession psessionEntry);
+static void setSchEdcaParams(tpAniSirGlobal pMac, tANI_U32 params[][WNI_CFG_EDCA_ANI_ACBK_LOCAL_LEN]);
 
 // --------------------------------------------------------------------
 /**
@@ -182,7 +162,7 @@ void schProcessMessage(tpAniSirGlobal pMac,tpSirMsgQ pSchMsg)
             {
                 palGetPacketDataPtr( pMac->hHdd, HAL_TXRX_FRM_802_11_MGMT, pSchMsg->bodyptr, (void **) &(pBD) );
             }
-#else
+#else 
             pBD = (tANI_U32 *) pSchMsg->bodyptr;
 #endif
 
@@ -305,7 +285,7 @@ void schProcessMessage(tpAniSirGlobal pMac,tpSirMsgQ pSchMsg)
                            pSchMsg->bodyval);
             }
             break;
-
+            
         default:
             schLog(pMac, LOGE, FL("Unknown message in schMsgQ type %d\n"),
                    pSchMsg->type);
@@ -478,44 +458,6 @@ schGetParams(
     return eSIR_SUCCESS;
 }
 
-static void broadcastWMMOfConcurrentSTASession(tpAniSirGlobal pMac, tpPESession psessionEntry)
-{
-    tANI_U8         i,j;
-    tpPESession     pConcurrentStaSessionEntry;
-
-    for (i =0;i < pMac->lim.maxBssId;i++)
-    {
-        /* Find another INFRA STA AP session on same operating channel. The session entry passed to this API is for GO/SoftAP session that is getting added currently */
-        if ( (pMac->lim.gpSession[i].valid == TRUE ) &&
-             (pMac->lim.gpSession[i].peSessionId != psessionEntry->peSessionId) &&
-             (pMac->lim.gpSession[i].currentOperChannel == psessionEntry->currentOperChannel) &&
-             (pMac->lim.gpSession[i].limSystemRole == eLIM_STA_ROLE)
-           )
-        {
-            pConcurrentStaSessionEntry = &(pMac->lim.gpSession[i]);
-            for (j=0; j<MAX_NUM_AC; j++)
-            {
-                psessionEntry->gLimEdcaParamsBC[j].aci.acm = pConcurrentStaSessionEntry->gLimEdcaParams[j].aci.acm;
-                psessionEntry->gLimEdcaParamsBC[j].aci.aifsn = pConcurrentStaSessionEntry->gLimEdcaParams[j].aci.aifsn;
-                psessionEntry->gLimEdcaParamsBC[j].cw.min =  pConcurrentStaSessionEntry->gLimEdcaParams[j].cw.min;
-                psessionEntry->gLimEdcaParamsBC[j].cw.max =  pConcurrentStaSessionEntry->gLimEdcaParams[j].cw.max;
-                psessionEntry->gLimEdcaParamsBC[j].txoplimit=  pConcurrentStaSessionEntry->gLimEdcaParams[j].txoplimit;
-
-               PELOG1(schLog(pMac, LOG1, "QoSUpdateBCast changed again due to concurrent INFRA STA session: AC :%d: AIFSN: %d, ACM %d, CWmin %d, CWmax %d, TxOp %d\n",
-                        j,
-                        psessionEntry->gLimEdcaParamsBC[j].aci.aifsn,
-                        psessionEntry->gLimEdcaParamsBC[j].aci.acm,
-                        psessionEntry->gLimEdcaParamsBC[j].cw.min,
-                        psessionEntry->gLimEdcaParamsBC[j].cw.max,
-                        psessionEntry->gLimEdcaParamsBC[j].txoplimit);)
-
-            }
-            /* Once atleast one concurrent session on same channel is found and WMM broadcast params for current SoftAP/GO session updated, return*/
-            break;
-        }
-    }
-}
-
 void
 schQosUpdateBroadcast(tpAniSirGlobal pMac, tpPESession psessionEntry)
 {
@@ -529,8 +471,16 @@ schQosUpdateBroadcast(tpAniSirGlobal pMac, tpPESession psessionEntry)
         PELOGE(schLog(pMac, LOGE, FL("QosUpdateBroadcast: failed\n"));)
         return;
     }
-    limGetPhyMode(pMac, &phyMode, psessionEntry);
-
+#ifdef  WLAN_SOFTAP_FEATURE
+    if (psessionEntry->limSystemRole == eLIM_AP_ROLE)
+    {
+         phyMode=psessionEntry->nwType;
+    }
+    else
+#endif  /*WLAN_SOFTAP_FEATURE*/
+    {
+      limGetPhyMode(pMac, &phyMode);
+    }
     PELOG1(schLog(pMac, LOG1, "QosUpdBcast: mode %d\n", phyMode);)
 
     if (phyMode == WNI_CFG_PHY_MODE_11G)
@@ -570,9 +520,6 @@ schQosUpdateBroadcast(tpAniSirGlobal pMac, tpPESession psessionEntry)
 
     }
 
-    /* If there exists a concurrent STA-AP session, use its WMM params to broadcast in beacons. WFA Wifi Direct test plan 6.1.14 requirement */
-    broadcastWMMOfConcurrentSTASession(pMac, psessionEntry);
-
     if (schSetFixedBeaconFields(pMac,psessionEntry) != eSIR_SUCCESS)
         PELOGE(schLog(pMac, LOGE, "Unable to set beacon fields!\n");)
 }
@@ -590,7 +537,7 @@ schQosUpdateLocal(tpAniSirGlobal pMac, tpPESession psessionEntry)
         return;
     }
 
-    setSchEdcaParams(pMac, params, psessionEntry);
+    setSchEdcaParams(pMac, params);
 
     if (psessionEntry->limSystemRole == eLIM_AP_ROLE)
     {
@@ -616,7 +563,7 @@ schQosUpdateLocal(tpAniSirGlobal pMac, tpPESession psessionEntry)
 \return  none
 \ ------------------------------------------------------------ */
 void
-schSetDefaultEdcaParams(tpAniSirGlobal pMac, tpPESession psessionEntry)
+schSetDefaultEdcaParams(tpAniSirGlobal pMac)
 {
     tANI_U32 params[4][WNI_CFG_EDCA_ANI_ACBK_LOCAL_LEN];
 
@@ -626,7 +573,7 @@ schSetDefaultEdcaParams(tpAniSirGlobal pMac, tpPESession psessionEntry)
         return;
     }
 
-    setSchEdcaParams(pMac, params, psessionEntry);
+    setSchEdcaParams(pMac, params);
     return;
 }
 
@@ -639,14 +586,22 @@ schSetDefaultEdcaParams(tpAniSirGlobal pMac, tpPESession psessionEntry)
 \return  none
 \ ------------------------------------------------------------ */
 static void
-setSchEdcaParams(tpAniSirGlobal pMac, tANI_U32 params[][WNI_CFG_EDCA_ANI_ACBK_LOCAL_LEN], tpPESession psessionEntry)
+setSchEdcaParams(tpAniSirGlobal pMac, tANI_U32 params[][WNI_CFG_EDCA_ANI_ACBK_LOCAL_LEN])
 {
     tANI_U32 i;
     tANI_U32 cwminidx, cwmaxidx, txopidx;
     tANI_U32 phyMode;
-
-    limGetPhyMode(pMac, &phyMode, psessionEntry);
-
+#ifdef  WLAN_SOFTAP_FEATURE
+    tpPESession psessionEntry = &pMac->lim.gpSession[0];  //TBD-RAJESH HOW TO GET sessionEntry?????
+    if (psessionEntry->limSystemRole == eLIM_AP_ROLE)
+    {
+         phyMode=psessionEntry->nwType;
+    }
+    else
+#endif /* WLAN_SOFTAP_FEATURE*/
+    {
+       limGetPhyMode(pMac, &phyMode);
+    }
     PELOG1(schLog(pMac, LOG1, FL("limGetPhyMode() = %d\n"), phyMode);)
 
     //if (pMac->lim.gLimPhyMode == WNI_CFG_PHY_MODE_11G)

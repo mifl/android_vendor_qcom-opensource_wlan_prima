@@ -18,29 +18,8 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
- *
  * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limSmeReqUtils.cc contains the utility functions
  * for processing SME request messages.
@@ -851,22 +830,6 @@ limIsSmeJoinReqValid(tpAniSirGlobal pMac, tpSirSmeJoinReq pJoinReq)
         // Log the event
         limLog(pMac, LOGE,
                FL("received SME_JOIN_REQ with invalid bssInfo\n"));
-
-        valid = false;
-        goto end;
-    }
-
-    /*
-       Reject Join Req if the Self Mac Address and 
-       the Ap's Mac Address is same
-    */
-    if( palEqualMemory( pMac->hHdd, (tANI_U8* ) pJoinReq->selfMacAddr, 
-                       (tANI_U8 *) pJoinReq->bssDescription.bssId, 
-                       (tANI_U8) (sizeof(tSirMacAddr))))
-    {
-        // Log the event
-        limLog(pMac, LOGE,
-               FL("received SME_JOIN_REQ with Self Mac and BSSID Same\n"));
 
         valid = false;
         goto end;

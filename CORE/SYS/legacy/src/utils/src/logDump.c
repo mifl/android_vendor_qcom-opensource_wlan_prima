@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*============================================================================
 Copyright (c) 2007 QUALCOMM Incorporated.
@@ -165,7 +145,7 @@ logDump.c
 #define HAL_LOG_DUMP_CMD_START 0
 #define HAL_LOG_DUMP_CMD_END 299
 
-static int debug;
+static int debug = 0;
 
     void
 logPrintf(tpAniSirGlobal pMac, tANI_U32 cmd, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 arg3, tANI_U32 arg4)
@@ -710,7 +690,7 @@ int logRtaiDump( tpAniSirGlobal pMac, tANI_U32 cmd, tANI_U32 arg1, tANI_U32 arg2
         pMac->menuCurrent = print_menu(pMac, p, pMac->menuCurrent);
         return pMac->gCurrentLogSize;
     }
-    if(cmd <= HAL_LOG_DUMP_CMD_END)
+    if(( cmd >= HAL_LOG_DUMP_CMD_START) && ( cmd <= HAL_LOG_DUMP_CMD_END))
     {
        WDA_HALDumpCmdReq(pMac, cmd, arg1, arg2, arg3, arg4, p);
     }

@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
  * Airgo Networks, Inc proprietary. All rights reserved.
@@ -67,10 +47,11 @@
 #include "parserApi.h"
 #include "limSession.h"
 
-#ifdef WLAN_FEATURE_P2P_INTERNAL
-void limSendP2PProbeResponse(tpAniSirGlobal pMac, tANI_U8 *pBd, 
-                      tpPESession psessionEntry);
+#if defined WLAN_FEATURE_P2P
+void
+limProcessP2PProbeReq(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession psessionEntry);
 #endif
+
 #ifdef WLAN_SOFTAP_FEATURE
 void
 
@@ -444,17 +425,6 @@ limProcessProbeReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession 
         if (pMac->lim.gLimProbeRespDisableFlag)
             break;
 
-#ifdef WLAN_FEATURE_P2P
-        // Don't send probe response if P2P go is scanning till scan come to idle state. 
-        if((psessionEntry->pePersona == VOS_P2P_GO_MODE) && ((pMac->lim.gpLimRemainOnChanReq )
-                                  || (pMac->lim.gLimHalScanState != eLIM_HAL_IDLE_SCAN_STATE)))
-        {
-           limLog(pMac, LOG3,
-              FL("While GO is scanning, don't send probe response on diff channel\n"));
-           break;
-        }
-#endif
-
        pHdr = WDA_GET_RX_MAC_HEADER(pRxPacketInfo);
 
         if ( (psessionEntry->limSystemRole == eLIM_AP_ROLE) ||
@@ -485,6 +455,7 @@ limProcessProbeReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession 
                 if (psessionEntry->pePersona == VOS_P2P_GO_MODE)
                 {
                     tANI_U8 i = 0, rate_11b = 0, other_rates = 0;
+
                     // Check 11b rates in supported rates
                     for ( i = 0 ; i < probeReq.supportedRates.numRates;
                                                                   i++ )
@@ -577,10 +548,9 @@ limProcessProbeReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession 
                         pSirSmeProbeReq->messageType = eWNI_SME_PROBE_REQ;
                         pSirSmeProbeReq->length = sizeof(tSirSmeProbeReq);
 #endif
-                        pSirSmeProbeReq->sessionId = psessionEntry->smeSessionId;
                         palCopyMemory( pMac->hHdd, pSirSmeProbeReq->peerMacAddr, pHdr->sa, sizeof(tSirMacAddr));
                         pSirSmeProbeReq->devicePasswdId = probeReq.probeReqWscIeInfo.DevicePasswordID.id;
-                        MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, msgQ.type));
+                        MTRACE(macTraceMsgTx(pMac, 0, msgQ.type));
                        if (limSysProcessMmhMsgApi(pMac, &msgQ,  ePROT) != eSIR_SUCCESS){
                             PELOG3(limLog(pMac, LOG3, FL("couldnt send the probe req to wsm "));)
                         }
@@ -798,17 +768,13 @@ limProcessProbeReqFrame_multiple_BSS(tpAniSirGlobal pMac, tANI_U8 *pBd,  tpPESes
     if (psessionEntry != NULL)
     {
 #ifdef WLAN_FEATURE_P2P
-        if ((eLIM_AP_ROLE == psessionEntry->limSystemRole)
-#ifdef WLAN_FEATURE_P2P_INTERNAL
-         || (psessionEntry->limSystemRole == eLIM_P2P_DEVICE_ROLE)
-#endif
-          )
+        if (eLIM_AP_ROLE == psessionEntry->limSystemRole)
         {
             limIndicateProbeReqToHDD(pMac, pBd, psessionEntry);
         }
 #endif
-        limProcessProbeReqFrame(pMac,pBd,psessionEntry);
-        return;
+         limProcessProbeReqFrame(pMac,pBd,psessionEntry);
+         return;
     }
 
     for(i =0; i < pMac->lim.maxBssId;i++)
@@ -817,11 +783,7 @@ limProcessProbeReqFrame_multiple_BSS(tpAniSirGlobal pMac, tANI_U8 *pBd,  tpPESes
         if ( (psessionEntry != NULL) )
         {
 #ifdef WLAN_FEATURE_P2P
-            if ((eLIM_AP_ROLE == psessionEntry->limSystemRole)
-#ifdef WLAN_FEATURE_P2P_INTERNAL
-             || (psessionEntry->limSystemRole == eLIM_P2P_DEVICE_ROLE)
-#endif
-              )
+            if (eLIM_AP_ROLE == psessionEntry->limSystemRole)
             {
                 limIndicateProbeReqToHDD(pMac, pBd, psessionEntry);
             }
@@ -890,12 +852,11 @@ limSendSmeProbeReqInd(tpAniSirGlobal pMac,
     
     pSirSmeProbeReqInd->messageType =  eWNI_SME_WPS_PBC_PROBE_REQ_IND;
     pSirSmeProbeReqInd->length = sizeof(tSirSmeProbeReq);
-    pSirSmeProbeReqInd->sessionId = psessionEntry->smeSessionId;
 
     palCopyMemory( pMac->hHdd, pSirSmeProbeReqInd->bssId, psessionEntry->bssId, sizeof(tSirMacAddr));
     palCopyMemory( pMac->hHdd, pSirSmeProbeReqInd->WPSPBCProbeReq.peerMacAddr, peerMacAddr, sizeof(tSirMacAddr));
 
-    MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, msgQ.type));
+    MTRACE(macTraceMsgTx(pMac, 0, msgQ.type));
     pSirSmeProbeReqInd->WPSPBCProbeReq.probeReqIELen = (tANI_U16)ProbeReqIELen;
     palCopyMemory( pMac->hHdd, pSirSmeProbeReqInd->WPSPBCProbeReq.probeReqIE, pProbeReqIE, ProbeReqIELen);
     
@@ -905,46 +866,5 @@ limSendSmeProbeReqInd(tpAniSirGlobal pMac,
         
 } /*** end limSendSmeProbeReqInd() ***/
 #endif
-#ifdef WLAN_FEATURE_P2P_INTERNAL
-void limSendP2PProbeResponse(tpAniSirGlobal pMac, tANI_U8 *pBd, 
-                      tpPESession psessionEntry)
-{
-    tAniSSID            ssId = { P2P_WILDCARD_SSID_LEN, P2P_WILDCARD_SSID };
-    tANI_U8             *pBody;
-    tpSirMacMgmtHdr     pHdr;
-    tANI_U32            frameLen;
-    tSirProbeReq        probeReq;
 
-    pHdr =  WDA_GET_RX_MAC_HEADER(pBd);
-    // Get pointer to Probe Request frame body
-    pBody =  WDA_GET_RX_MPDU_DATA(pBd);   
 
-    if( (pBody[0] == 0) && (pBody[1] == ssId.length) &&
-      (palEqualMemory( pMac->hHdd, ssId.ssId, pBody + 2, 
-                       ssId.length)))
-    {
-        // Parse Probe Request frame
-        frameLen = WDA_GET_RX_PAYLOAD_LEN(pBd);
-        if (eSIR_FAILURE == sirConvertProbeReqFrame2Struct(pMac, pBody, frameLen, &probeReq))
-        {
-            PELOGW(limLog(pMac, LOGW, FL("Parse error ProbeRequest, length=%d, SA is:"), frameLen);)
-            limPrintMacAddr(pMac, pHdr->sa, LOGW);
-            pMac->sys.probeError++;
-            return;
-        }
-
-        if (psessionEntry->pePersona == VOS_P2P_GO_MODE) 
-        {
-            ssId.length = psessionEntry->ssId.length;
-            palCopyMemory(pMac->hHdd, ssId.ssId, psessionEntry->ssId.ssId,psessionEntry->ssId.length);
-            limSendProbeRspMgmtFrame(pMac, pHdr->sa, &ssId, DPH_USE_MGMT_STAID, DPH_NON_KEEPALIVE_FRAME, 
-                                     psessionEntry, probeReq.p2pIePresent );
-        } 
-        else 
-        {
-            limSendProbeRspMgmtFrame(pMac, pHdr->sa, &ssId, DPH_USE_MGMT_STAID, DPH_NON_KEEPALIVE_FRAME,
-                                     psessionEntry, probeReq.p2pIePresent );
-        }
-    }
-}
-#endif //#ifdef WLAN_FEATURE_P2P_INTERNAL

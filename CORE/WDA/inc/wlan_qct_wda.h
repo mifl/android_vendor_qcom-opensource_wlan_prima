@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 #ifndef WLAN_QCT_WDA_H
 #define WLAN_QCT_WDA_H
@@ -144,18 +124,6 @@ typedef enum
 
 #define WDA_TLI_CEIL( _a, _b)  (( 0 != (_a)%(_b))? (_a)/(_b) + 1: (_a)/(_b))
 
-/*
- * Check the version number and find if MCC feature is supported or not
- */
-#define IS_MCC_SUPPORTED (WDA_IsWcnssWlanReportedVersionGreaterThanOrEqual( 0, 1, 1, 0))
-#define IS_FEATURE_SUPPORTED_BY_FW(featEnumValue) (!!WDA_getFwWlanFeatCaps(featEnumValue))
-
-#ifdef WLAN_ACTIVEMODE_OFFLOAD_FEATURE
-#define IS_ACTIVEMODE_OFFLOAD_FEATURE_ENABLE ((WDA_getFwWlanFeatCaps(WLANACTIVE_OFFLOAD)) & (WDI_getHostWlanFeatCaps(WLANACTIVE_OFFLOAD)))
-#else
-#define IS_ACTIVEMODE_OFFLOAD_FEATURE_ENABLE 0
-#endif
-
 
 /*--------------------------------------------------------------------------
   Definitions for Data path APIs
@@ -224,9 +192,9 @@ typedef enum
 
 /*DXE + SD*/
 #if defined( FEATURE_WLAN_INTEGRATED_SOC )
-#define WDA_WLAN_LIBRA_HEADER_LEN              (20 + 8)
+#define WDA_WLAN_LIBRA_HEADER_LEN              20+8
 #else /* FEATURE_WLAN_INTEGRATED_SOC */
-#define WLAN_LIBRA_HEADER_LEN              (20 + 8)
+#define WLAN_LIBRA_HEADER_LEN              20+8
 #endif /* FEATURE_WLAN_INTEGRATED_SOC */
 
 #if defined( FEATURE_WLAN_INTEGRATED_SOC )
@@ -242,8 +210,8 @@ typedef enum
 #  define WDA_TLI_MIN_RES_DATA 3
 #else
 #  define WDA_TLI_MIN_RES_MF   13 /*Keeping for MF*/
-#  define WDA_TLI_MIN_RES_BAP  (WDA_TLI_MIN_RES_MF  + 13) /*Another for BAP*/
-#  define WDA_TLI_MIN_RES_DATA (WDA_TLI_MIN_RES_BAP + 13) /*Min 12 for data*/
+#  define WDA_TLI_MIN_RES_BAP  WDA_TLI_MIN_RES_MF  + 13 /*Another for BAP*/
+#  define WDA_TLI_MIN_RES_DATA WDA_TLI_MIN_RES_BAP + 13 /*Min 12 for data*/
 #  define WLANTL_TH_RES_DATA                        254
 #endif
 
@@ -264,31 +232,19 @@ typedef enum
    _uTotalPktLen: OUT Totoal packet length including BAL header size
 
    For integrated SOC, _usPktLen and _uTotalPktLen is VOS pakcet length
-   which does include BD header length. _uResLen is hardcoded 2.
+   which does not include BD header length. _uResLen is hardcoded 1.
  */
 #if defined( FEATURE_WLAN_INTEGRATED_SOC )
 
-#ifdef WINDOWS_DT
 #define WDA_TLI_PROCESS_FRAME_LEN( _vosBuff, _usPktLen,              \
                                             _uResLen, _uTotalPktLen) \
   do                                                                 \
   {                                                                  \
-    _usPktLen = wpalPacketGetFragCount((wpt_packet*)_vosBuff) + 1/*BD*/;\
-    _uResLen  = _usPktLen;                                           \
+    _usPktLen = 1;  /* Need 1 descriptor per a packet */             \
+    _uResLen  = 1;  /* Assume that we spends one DXE descriptor */   \
     _uTotalPktLen = _usPktLen;                                       \
   }                                                                  \
   while ( 0 )
-#else /* WINDOWS_DT */
-#define WDA_TLI_PROCESS_FRAME_LEN( _vosBuff, _usPktLen,              \
-                                            _uResLen, _uTotalPktLen) \
-  do                                                                 \
-  {                                                                  \
-    _usPktLen = 2;  /* Need 1 descriptor per a packet + packet*/     \
-    _uResLen  = 2;  /* Assume that we spends two DXE descriptor */   \
-    _uTotalPktLen = _usPktLen;                                       \
-  }                                                                  \
-  while ( 0 )
-#endif /* WINDOWS_DT */
 
 #else /* FEATURE_WLAN_INTEGRATED_SOC */
 
@@ -298,7 +254,7 @@ typedef enum
 /*Minimum resources needed - arbitrary*/
 
 /*DXE + SD*/
-#define WLAN_LIBRA_HEADER_LEN              (20 + 8)
+#define WLAN_LIBRA_HEADER_LEN              20+8
 
 #define WLANTL_MAX_MSDU                    1538
 
@@ -325,9 +281,6 @@ typedef enum
 #define WDA_DS_TX_START_XMIT  WLANTL_TX_START_XMIT
 #define WDA_DS_FINISH_ULA     WLANTL_FINISH_ULA
 
-
-#define WDA_TX_PACKET_FREED      0X0
-
 /* Approximate amount of time to wait for WDA to stop WDI considering 1 pendig req too*/
 #define WDA_STOP_TIMEOUT ( (WDI_RESPONSE_TIMEOUT * 2) + WDI_SET_POWER_STATE_TIMEOUT + 5)
 /*--------------------------------------------------------------------------
@@ -337,7 +290,7 @@ typedef enum
 /* For data client */
 typedef VOS_STATUS (*WDA_DS_TxCompleteCallback) ( v_PVOID_t pContext, vos_pkt_t *pFrameDataBuff, VOS_STATUS txStatus );
 typedef VOS_STATUS (*WDA_DS_RxPacketCallback)   ( v_PVOID_t pContext, vos_pkt_t *pFrameDataBuff );
-typedef v_U32_t   (*WDA_DS_TxPacketCallback)   ( v_PVOID_t pContext, 
+typedef v_BOOL_t   (*WDA_DS_TxPacketCallback)   ( v_PVOID_t pContext, 
                                                   vos_pkt_t **ppFrameDataBuff, 
                                                   v_U32_t uSize, 
 #if defined( FEATURE_WLAN_INTEGRATED_SOC )
@@ -367,7 +320,6 @@ typedef struct
     * tid0 ..bit0, tid1..bit1 and so on..
     */
    tANI_U8    ucUseBaBitmap ;
-   tANI_U8    bssIdx;
    tANI_U32   framesTxed[STACFG_MAX_TC];
 }tWdaStaInfo, *tpWdaStaInfo ;
 
@@ -398,7 +350,7 @@ typedef struct
    pWDATxRxCompFunc     pTxCbFunc;
    /* call back function for tx packet ack */
    pWDAAckFnTxComp      pAckTxCbFunc;   
-   tANI_U32             frameTransRequired;
+   tANI_U32             frameTransRequired;   
    tSirMacAddr          macBSSID;             /*BSSID of the network */
    tSirMacAddr          macSTASelf;     /*Self STA MAC*/
 
@@ -444,9 +396,7 @@ typedef struct
    tSirLinkState        linkState;
    /* set, when BT AMP session is going on */
    v_BOOL_t             wdaAmpSessionOn;
-   v_U32_t              VosPacketToFree;
    v_BOOL_t             needShutdown;
-   v_BOOL_t             wdiFailed;
    v_BOOL_t             wdaTimersCreated;
 } tWDA_CbContext ; 
 
@@ -496,10 +446,10 @@ VOS_STATUS WDA_close(v_PVOID_t pVosContext);
 VOS_STATUS WDA_shutdown(v_PVOID_t pVosContext, wpt_boolean closeTransport);
 
 /*
- * FUNCTION: WDA_setNeedShutdown
- * WDA stop failed or WDA NV Download failed
+ * FUNCTION: WDA_stopFailed
+ * WDA stop is failed
  */
-void WDA_setNeedShutdown(v_PVOID_t pVosContext);
+void WDA_stopFailed(v_PVOID_t pVosContext);
 /*
  * FUNCTION: WDA_needShutdown
  * WDA requires a shutdown rather than a close
@@ -890,7 +840,7 @@ tBssSystemRole wdaGetGlobalSystemRole(tpAniSirGlobal pMac);
 #if defined( FEATURE_WLAN_INTEGRATED_SOC )
 /* FIXME WDA should provide the meta info which indicates FC frame 
           In the meantime, use hardcoded FALSE, since we don't support FC yet */
-#  define WDA_IS_RX_FC(pRxMeta)    (((WDI_DS_RxMetaInfoType*)(pRxMeta))->fc)
+#  define WDA_IS_RX_FC(pRxMeta)    VOS_FALSE 
 #else
 #  define WDA_IS_RX_FC(bdHd)        WLANHAL_RX_BD_GET_FC(bdHd)
 #endif
@@ -921,10 +871,6 @@ tBssSystemRole wdaGetGlobalSystemRole(tpAniSirGlobal pMac);
 #  define WDA_GET_RX_FC_STA_THRD_IND_MASK(bdHd) \
                                     WLANHAL_RX_BD_GET_STA_TH_IND(bdHd)
 #endif
-
-/* WDA_GET_RX_FC_FORCED_STA_TX_DISABLED_BITMAP ********************************************/
-#  define WDA_GET_RX_FC_STA_TX_DISABLED_BITMAP(pRxMeta) \
-                     (((WDI_DS_RxMetaInfoType*)(pRxMeta))->fcStaTxDisabledBitmap)
 
 /* WDA_GET_RX_FC_STA_TXQ_LEN *************************************************/
 #if defined( FEATURE_WLAN_INTEGRATED_SOC )
@@ -1012,7 +958,7 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_RADIO_ON_OFF_IND SIR_HAL_RADIO_ON_OFF_IND
 #define WDA_RESET_CNF SIR_HAL_RESET_CNF
 #define WDA_SetRegDomain \
-    (eHalStatus halPhySetRegDomain(tHalHandle hHal, eRegDomainId regDomain))
+        eHalStatus halPhySetRegDomain(tHalHandle hHal, eRegDomainId regDomain);
 #endif
 
 #define WDA_APP_SETUP_NTF  SIR_HAL_APP_SETUP_NTF 
@@ -1106,7 +1052,6 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 
 #define WDA_SWITCH_CHANNEL_RSP         SIR_HAL_SWITCH_CHANNEL_RSP
 #define WDA_P2P_NOA_ATTR_IND           SIR_HAL_P2P_NOA_ATTR_IND
-#define WDA_P2P_NOA_START_IND          SIR_HAL_P2P_NOA_START_IND
 #define WDA_PWR_SAVE_CFG               SIR_HAL_PWR_SAVE_CFG
 
 #define WDA_REGISTER_PE_CALLBACK       SIR_HAL_REGISTER_PE_CALLBACK
@@ -1122,7 +1067,6 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_ADDBA_RSP                  SIR_HAL_ADDBA_RSP
 #define WDA_DELBA_IND                  SIR_HAL_DELBA_IND
 #define WDA_DEL_BA_IND                 SIR_HAL_DEL_BA_IND
-#define WDA_MIC_FAILURE_IND            SIR_HAL_MIC_FAILURE_IND
 
 //message from sme to initiate delete block ack session.
 #define WDA_DELBA_REQ                  SIR_HAL_DELBA_REQ
@@ -1159,10 +1103,6 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_TIMER_TRAFFIC_ACTIVITY_REQ SIR_HAL_TIMER_TRAFFIC_ACTIVITY_REQ
 #define WDA_TIMER_ADC_RSSI_STATS       SIR_HAL_TIMER_ADC_RSSI_STATS
 
-#ifdef FEATURE_WLAN_CCX
-#define WDA_TSM_STATS_REQ              SIR_HAL_TSM_STATS_REQ
-#define WDA_TSM_STATS_RSP              SIR_HAL_TSM_STATS_RSP
-#endif
 #ifdef WLAN_SOFTAP_FEATURE
 #define WDA_UPDATE_PROBE_RSP_IE_BITMAP_IND SIR_HAL_UPDATE_PROBE_RSP_IE_BITMAP_IND
 #define WDA_UPDATE_UAPSD_IND           SIR_HAL_UPDATE_UAPSD_IND
@@ -1234,9 +1174,6 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 /// PE <-> HAL Keep Alive message
 #define WDA_SET_KEEP_ALIVE             SIR_HAL_SET_KEEP_ALIVE
 
-#ifdef WLAN_NS_OFFLOAD
-#define WDA_SET_NS_OFFLOAD             SIR_HAL_SET_NS_OFFLOAD
-#endif //WLAN_NS_OFFLOAD
 #define WDA_ADD_STA_SELF_REQ           SIR_HAL_ADD_STA_SELF_REQ
 #define WDA_DEL_STA_SELF_REQ           SIR_HAL_DEL_STA_SELF_REQ
 
@@ -1244,10 +1181,13 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_SET_P2P_GO_NOA_REQ         SIR_HAL_SET_P2P_GO_NOA_REQ
 #endif
 
-#define WDA_TX_COMPLETE_TIMEOUT_IND  (WDA_MSG_TYPES_END - 1)
+#define WDA_TX_COMPLETE_TIMEOUT_IND  WDA_MSG_TYPES_END - 1
 #define WDA_WLAN_SUSPEND_IND           SIR_HAL_WLAN_SUSPEND_IND
 #define WDA_WLAN_RESUME_REQ           SIR_HAL_WLAN_RESUME_REQ
 #define WDA_MSG_TYPES_END    SIR_HAL_MSG_TYPES_END
+
+#define WDA_SUSPEND_ACTIVITY_RSP SIR_HAL_SUSPEND_ACTIVITY_RSP
+
 
 #define WDA_MMH_TXMB_READY_EVT SIR_HAL_MMH_TXMB_READY_EVT     
 #define WDA_MMH_RXMB_DONE_EVT  SIR_HAL_MMH_RXMB_DONE_EVT    
@@ -1275,10 +1215,6 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_SET_PNO_CHANGED_IND     SIR_HAL_SET_PNO_CHANGED_IND
 #endif // FEATURE_WLAN_SCAN_PNO
 
-#ifdef WLAN_WAKEUP_EVENTS
-#define WDA_WAKE_REASON_IND    SIR_HAL_WAKE_REASON_IND  
-#endif // WLAN_WAKEUP_EVENTS
-
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 #define WDA_8023_MULTICAST_LIST_REQ                     SIR_HAL_8023_MULTICAST_LIST_REQ
 #define WDA_RECEIVE_FILTER_SET_FILTER_REQ               SIR_HAL_RECEIVE_FILTER_SET_FILTER_REQ
@@ -1288,18 +1224,6 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #endif // WLAN_FEATURE_PACKET_FILTERING
 
 #define WDA_SET_POWER_PARAMS_REQ   SIR_HAL_SET_POWER_PARAMS_REQ
-
-#ifdef WLAN_FEATURE_GTK_OFFLOAD
-#define WDA_GTK_OFFLOAD_REQ             SIR_HAL_GTK_OFFLOAD_REQ
-#define WDA_GTK_OFFLOAD_GETINFO_REQ     SIR_HAL_GTK_OFFLOAD_GETINFO_REQ
-#define WDA_GTK_OFFLOAD_GETINFO_RSP     SIR_HAL_GTK_OFFLOAD_GETINFO_RSP
-#endif //WLAN_FEATURE_GTK_OFFLOAD
-
-#define WDA_SET_TM_LEVEL_REQ       SIR_HAL_SET_TM_LEVEL_REQ
-
-#ifdef WLAN_FEATURE_11AC
-#define WDA_UPDATE_OP_MODE         SIR_HAL_UPDATE_OP_MODE
-#endif
 
 #ifdef FEATURE_WLAN_INTEGRATED_SOC
 tSirRetStatus wdaPostCtrlMsg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
@@ -1386,7 +1310,7 @@ v_BOOL_t WDA_IsHwFrameTxTranslationCapable(v_PVOID_t pVosGCtx,
 
 #if defined( FEATURE_WLAN_INTEGRATED_SOC )
 #define WDA_UpdateRssiBmps(pvosGCtx,  staId, rssi) \
-        WLANTL_UpdateRssiBmps(pvosGCtx, staId, rssi)
+        WLANTL_UpdateRssiBmps (pvosGCtx, staId, rssi)
 #endif
 
 #ifdef WLAN_PERF 
@@ -1998,89 +1922,15 @@ VOS_STATUS WDA_HALDumpCmdReq(tpAniSirGlobal   pMac,tANI_U32 cmd,
                  tANI_U32   arg4, tANI_U8   *pBuffer);
 
 /*==========================================================================
-   FUNCTION    WDA_featureCapsExchange
-
-  DESCRIPTION
-    WDA API to invoke capability exchange between host and FW
-
-  DEPENDENCIES
-
-  PARAMETERS
-
-   IN
-    pVosContext         VOS context
-
-   OUT
-    NONE
-
-  RETURN VALUE
-    NONE
-    
-  SIDE EFFECTS
-============================================================================*/
-void WDA_featureCapsExchange(v_PVOID_t pVosContext);
-
-void WDA_disableCapablityFeature(tANI_U8 feature_index);
-/*==========================================================================
-   FUNCTION    WDA_getHostWlanFeatCaps
-
-  DESCRIPTION
-    Wrapper for WDI API, that will return if the feature (enum value).passed
-    to this API is supported or not in Host
-
-  DEPENDENCIES
-
-  PARAMETERS
-
-   IN
-    featEnumValue     enum value for the feature as in placeHolderInCapBitmap in wlan_hal_msg.h.
-
-   OUT
-    NONE
-
-  RETURN VALUE
-    0 - implies feature is NOT Supported
-    any non zero value - implies feature is SUPPORTED
-    
-  SIDE EFFECTS
-============================================================================*/
-tANI_U8 WDA_getHostWlanFeatCaps(tANI_U8 featEnumValue);
-
-/*==========================================================================
-   FUNCTION    WDA_getFwWlanFeatCaps
-
-  DESCRIPTION
-    Wrapper for WDI API, that will return if the feature (enum value).passed
-    to this API is supported or not in FW
-
-  DEPENDENCIES
-
-  PARAMETERS
-
-   IN
-    featEnumValue     enum value for the feature as in placeHolderInCapBitmap in wlan_hal_msg.h.
-
-   OUT
-    NONE
-
-  RETURN VALUE
-    0 - implies feature is NOT Supported
-    any non zero value - implies feature is SUPPORTED
-    
-  SIDE EFFECTS
-============================================================================*/
-tANI_U8 WDA_getFwWlanFeatCaps(tANI_U8 featEnumValue);
-
-/*==========================================================================
   FUNCTION   WDA_TransportChannelDebug
 
-  DESCRIPTION
+  DESCRIPTION 
     Display Transport Channel debugging information
     User may request to display DXE channel snapshot
     Or if host driver detects any abnormal stcuk may display
 
   PARAMETERS
-    displaySnapshot : Display DXE snapshot option
+    displaySnapshot : Dispaly DXE snapshot option
     enableStallDetect : Enable stall detect feature
                         This feature will take effect to data performance
                         Not integrate till fully verification

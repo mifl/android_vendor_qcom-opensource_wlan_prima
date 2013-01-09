@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /**=========================================================================
   
@@ -132,7 +112,6 @@ rrmGetMgmtTxPower ( tpAniSirGlobal pMac, tpPESession pSessionEntry )
    
    return pSessionEntry->txMgmtPower;
 }
-
 // --------------------------------------------------------------------
 /**
  * rrmSendSetMaxTxPowerReq
@@ -183,7 +162,7 @@ rrmSendSetMaxTxPowerReq ( tpAniSirGlobal pMac, tPowerdBm txPower, tpPESession pS
 
    PELOGW(limLog(pMac, LOGW, FL( "Sending WDA_SET_MAX_TX_POWER_REQ to HAL"));)
 
-      MTRACE(macTraceMsgTx(pMac, pSessionEntry->peSessionId, msgQ.type));
+      MTRACE(macTraceMsgTx(pMac, 0, msgQ.type));
    if( eSIR_SUCCESS != (retCode = wdaPostCtrlMsg( pMac, &msgQ )))
    {
       limLog( pMac, LOGP, FL("Posting WDA_SET_MAX_TX_POWER_REQ to HAL failed, reason=%X"), retCode );
@@ -195,8 +174,6 @@ rrmSendSetMaxTxPowerReq ( tpAniSirGlobal pMac, tPowerdBm txPower, tpPESession pS
    }
    return retCode;
 }
-
-
 // --------------------------------------------------------------------
 /**
  * rrmSetMaxTxPowerRsp
@@ -231,8 +208,6 @@ rrmSetMaxTxPowerRsp ( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
       rrmCacheMgmtTxPower ( pMac, pMaxTxParams->power, pSessionEntry );
    }
 
-   palFreeMemory(pMac->hHdd, (void*)limMsgQ->bodyptr);
-   limMsgQ->bodyptr = NULL;
    return retCode;
 }
 // --------------------------------------------------------------------
@@ -376,16 +351,16 @@ rrmProcessNeighborReportResponse( tpAniSirGlobal pMac,
       pSmeNeighborRpt->sNeighborBssDescription[i].length = sizeof( tSirNeighborBssDescription ); /*+ any optional ies */
       palCopyMemory( pMac->hHdd, pSmeNeighborRpt->sNeighborBssDescription[i].bssId,
             pNeighborRep->NeighborReport[i].bssid, sizeof(tSirMacAddr) );
-      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.rrmInfo.fApPreauthReachable = pNeighborRep->NeighborReport[i].APReachability;
-      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.rrmInfo.fSameSecurityMode = pNeighborRep->NeighborReport[i].Security;
-      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.rrmInfo.fSameAuthenticator = pNeighborRep->NeighborReport[i].KeyScope;
-      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.rrmInfo.fCapSpectrumMeasurement = pNeighborRep->NeighborReport[i].SpecMgmtCap;
-      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.rrmInfo.fCapQos = pNeighborRep->NeighborReport[i].QosCap;
-      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.rrmInfo.fCapApsd = pNeighborRep->NeighborReport[i].apsd;
-      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.rrmInfo.fCapRadioMeasurement = pNeighborRep->NeighborReport[i].rrm;
-      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.rrmInfo.fCapDelayedBlockAck = pNeighborRep->NeighborReport[i].DelayedBA;
-      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.rrmInfo.fCapImmediateBlockAck = pNeighborRep->NeighborReport[i].ImmBA;
-      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.rrmInfo.fMobilityDomain = pNeighborRep->NeighborReport[i].MobilityDomain;
+      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.fApPreauthReachable = pNeighborRep->NeighborReport[i].APReachability;
+      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.fSameSecurityMode = pNeighborRep->NeighborReport[i].Security;
+      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.fSameAuthenticator = pNeighborRep->NeighborReport[i].KeyScope;
+      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.fCapSpectrumMeasurement = pNeighborRep->NeighborReport[i].SpecMgmtCap;
+      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.fCapQos = pNeighborRep->NeighborReport[i].QosCap;
+      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.fCapApsd = pNeighborRep->NeighborReport[i].apsd;
+      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.fCapRadioMeasurement = pNeighborRep->NeighborReport[i].rrm;
+      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.fCapDelayedBlockAck = pNeighborRep->NeighborReport[i].DelayedBA;
+      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.fCapImmediateBlockAck = pNeighborRep->NeighborReport[i].ImmBA;
+      pSmeNeighborRpt->sNeighborBssDescription[i].bssidInfo.fMobilityDomain = pNeighborRep->NeighborReport[i].MobilityDomain;
 
       pSmeNeighborRpt->sNeighborBssDescription[i].regClass = pNeighborRep->NeighborReport[i].regulatoryClass;
       pSmeNeighborRpt->sNeighborBssDescription[i].channel = pNeighborRep->NeighborReport[i].channel;
@@ -400,7 +375,7 @@ rrmProcessNeighborReportResponse( tpAniSirGlobal pMac,
    //Send request to SME.
    mmhMsg.type    = pSmeNeighborRpt->messageType;
    mmhMsg.bodyptr = pSmeNeighborRpt;
-   MTRACE(macTraceMsgTx(pMac, pSessionEntry->peSessionId, mmhMsg.type));
+   MTRACE(macTraceMsgTx(pMac, 0, mmhMsg.type));
    status = limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 
    return status;
@@ -422,7 +397,7 @@ rrmProcessNeighborReportResponse( tpAniSirGlobal pMac,
  * @param pNeighborReq Neighbor report request params .
  * @return None
  */
-tSirRetStatus
+static tSirRetStatus
 rrmProcessNeighborReportReq( tpAniSirGlobal pMac,
                             tpSirNeighborReportReqInd pNeighborReq )
 {
@@ -503,7 +478,7 @@ rrmProcessBeaconReportReq( tpAniSirGlobal pMac,
       //Beacon reporting should not be included in request if number of repetitons is zero.
       // IEEE Std 802.11k-2008 Table 7-29g and section 11.10.8.1
 
-      PELOGE(limLog( pMac, LOGE, "Dropping the request: Reporting condition included in beacon report request and it is not zero\n");)
+      PELOGE(limLog( pMac, LOGE, "Droping the request: Reporting condition included in beacon report request and it is not zero\n");)
       return eRRM_INCAPABLE;
    }
 
@@ -535,7 +510,7 @@ rrmProcessBeaconReportReq( tpAniSirGlobal pMac,
    {
       if( pBeaconReq->durationMandatory )
       {
-         limLog( pMac, LOGE, "Dropping the request: duration mandatory and maxduration > measduration\n");
+         limLog( pMac, LOGE, "Droping the request: duration mandatory and maxduration > measduration\n");
          return eRRM_REFUSED;
       }
       else
@@ -627,7 +602,7 @@ rrmProcessBeaconReportReq( tpAniSirGlobal pMac,
    //Send request to SME.
    mmhMsg.type    = eWNI_SME_BEACON_REPORT_REQ_IND;
    mmhMsg.bodyptr = pSmeBcnReportReq;
-   MTRACE(macTraceMsgTx(pMac, pSessionEntry->peSessionId, mmhMsg.type));
+   MTRACE(macTraceMsgTx(pMac, 0, mmhMsg.type));
    return limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
 }
 
@@ -769,17 +744,17 @@ rrmProcessBeaconReportXmit( tpAniSirGlobal pMac,
    if ( pBcnReport->length > sizeof( tSirBeaconReportXmitInd ) )
    {
       pReport->report.beaconReport.regClass =  pBcnReport->regClass;  
-      pReport->report.beaconReport.channel = pBcnReport->pBssDescription[0]->channelId;
-      palCopyMemory( pMac->hHdd, pReport->report.beaconReport.measStartTime, pBcnReport->pBssDescription[0]->startTSF, sizeof( pBcnReport->pBssDescription[0]->startTSF) );
+      pReport->report.beaconReport.channel = pBcnReport->bssDescription[0].channelId;
+      palCopyMemory( pMac->hHdd, pReport->report.beaconReport.measStartTime, pBcnReport->bssDescription[0].startTSF, sizeof( pBcnReport->bssDescription[0].startTSF) );
       pReport->report.beaconReport.measDuration = SYS_MS_TO_TU(pBcnReport->duration);
-      pReport->report.beaconReport.phyType = pBcnReport->pBssDescription[0]->nwType; //TODO: check this.
+      pReport->report.beaconReport.phyType = pBcnReport->bssDescription[0].nwType; //TODO: check this.
       pReport->report.beaconReport.bcnProbeRsp = 1;
-      pReport->report.beaconReport.rsni = pBcnReport->pBssDescription[0]->sinr;
-      pReport->report.beaconReport.rcpi = pBcnReport->pBssDescription[0]->rssi;
+      pReport->report.beaconReport.rsni = pBcnReport->bssDescription[0].sinr;
+      pReport->report.beaconReport.rcpi = pBcnReport->bssDescription[0].rssi;
 
       pReport->report.beaconReport.antennaId = 0;
-      pReport->report.beaconReport.parentTSF = pBcnReport->pBssDescription[0]->parentTSF; 
-      palCopyMemory(pMac->hHdd, pReport->report.beaconReport.bssid, pBcnReport->pBssDescription[0]->bssId, sizeof(tSirMacAddr));
+      pReport->report.beaconReport.parentTSF = pBcnReport->bssDescription[0].parentTSF; 
+      palCopyMemory(pMac->hHdd, pReport->report.beaconReport.bssid, pBcnReport->bssDescription[0].bssId, sizeof(tSirMacAddr));
 
       switch ( pCurrentReq->request.Beacon.reportingDetail )
       {
@@ -796,7 +771,7 @@ rrmProcessBeaconReportXmit( tpAniSirGlobal pMac,
             rrmFillBeaconIes( pMac, (tANI_U8*) &pReport->report.beaconReport.Ies[0], 
                   (tANI_U8*) &pReport->report.beaconReport.numIes, BEACON_REPORT_MAX_IES,
                   pCurrentReq->request.Beacon.reqIes.pElementIds, pCurrentReq->request.Beacon.reqIes.num,
-                  pBcnReport->pBssDescription[0] );
+                  &pBcnReport->bssDescription[0] );
 
             break;
          case BEACON_REPORTING_DETAIL_ALL_FF_IE: //2 / default - Include all FFs and all Ies.
@@ -807,7 +782,7 @@ rrmProcessBeaconReportXmit( tpAniSirGlobal pMac,
             rrmFillBeaconIes( pMac, (tANI_U8*) &pReport->report.beaconReport.Ies[0], 
                   (tANI_U8*) &pReport->report.beaconReport.numIes, BEACON_REPORT_MAX_IES,
                   NULL, 0,
-                  pBcnReport->pBssDescription[0] );
+                  &pBcnReport->bssDescription[0] );
             break;
       }
 

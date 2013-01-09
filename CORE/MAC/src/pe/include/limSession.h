@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 #if !defined( __LIM_SESSION_H )
 #define __LIM_SESSION_H
@@ -52,6 +32,7 @@
   \author Sunit Bhatia
   
    Copyright 2008 (c) Qualcomm, Incorporated.  All Rights Reserved.
+   
    Qualcomm Confidential and Proprietary.
   
   ========================================================================*/
@@ -69,6 +50,7 @@
 #ifdef WLAN_SOFTAP_FEATURE
 #define NUM_WEP_KEYS 4
 #endif
+
 
 /*-------------------------------------------------------------------------- 
   Type declarations
@@ -114,22 +96,10 @@ typedef struct sPESession           // Added to Support BT-AMP
     tpSirSmeJoinReq         pLimJoinReq;            // handle to sme join req
     tpSirSmeReassocReq      pLimReAssocReq;         //handle to sme reassoc req
     tpLimMlmJoinReq         pLimMlmJoinReq;         //handle to MLM join Req
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-    void                    *pLimMlmReassocRetryReq; //keep reasoc req for retry
-#endif
     void                    *pLimMlmReassocReq;      //handle to MLM reassoc Req
     tANI_U16                channelChangeReasonCode;
     tANI_U8                 dot11mode;
-    tANI_U8                 htCapability;
-    /* Supported Channel Width Set: 0-20MHz 1 - 40MHz */
-    tANI_U8                 htSupportedChannelWidthSet;
-    /* Recommended Tx Width Set
-     * 0 - use 20 MHz channel (control channel)
-     * 1 - use channel width enabled under Supported Channel Width Set
-     */
-    tANI_U8                 htRecommendedTxWidthSet;
-    /* Identifies the 40 MHz extension channel */
-    ePhyChanBondState       htSecondaryChannelOffset;
+    tANI_U8                 htCapabality;
     tSirRFBand              limRFBand;
     tANI_U8                 limIbssActive;          //TO SUPPORT CONCURRENCY
 
@@ -139,19 +109,17 @@ typedef struct sPESession           // Added to Support BT-AMP
     tANI_U8                 limCurrentBssQosCaps;
     tANI_U16                limCurrentBssPropCap;
     tANI_U8                 limSentCapsChangeNtf;
+    tANI_U32                limCurrentTitanHtCaps;
     tANI_U16                limAID;
 
     /* Parameters  For Reassociation */
     tSirMacAddr             limReAssocbssId;
     tSirMacChanNum          limReassocChannelId;
-    /* CB paramaters required/duplicated for Reassoc since re-assoc mantains its own params in lim */
-    tANI_U8                 reAssocHtSupportedChannelWidthSet;
-    tANI_U8                 reAssocHtRecommendedTxWidthSet;
-    ePhyChanBondState       reAssocHtSecondaryChannelOffset;
     tSirMacSSid             limReassocSSID;
     tANI_U16                limReassocBssCaps;
     tANI_U8                 limReassocBssQosCaps;
     tANI_U16                limReassocBssPropCap;
+    tANI_U32                limReassocTitanHtCaps;
 
     // Assoc or ReAssoc Response Data/Frame
     void                   *limAssocResponseData;
@@ -162,11 +130,11 @@ typedef struct sPESession           // Added to Support BT-AMP
 
 
     /*
-    * staId:  Start BSS: this is the  Sta Id for the BSS.
-                 Join: this is the selfStaId
+    * staId:  Start BSS:     this is the  Sta Id for the BSS.
+                 Join:         this is the selfStaId
       In both cases above, the peer STA ID wll be stored in dph hash table.
     */
-    tANI_U16                staId;
+    tANI_U16                staId;            
     tANI_U16                statypeForBss;          //to know session is for PEER or SELF
     tANI_U8                 shortSlotTimeSupported;
     tANI_U8                 dtimPeriod;
@@ -193,27 +161,20 @@ typedef struct sPESession           // Added to Support BT-AMP
     tANI_U32                assocRspLen;
     tANI_U8                 *assocRsp;              //Used to store association response received while associating
     tAniSirDph              dph;
-    void *                  *parsedAssocReq;        //Used to store parsed assoc req from various requesting station
-#ifdef WLAN_FEATURE_VOWIFI_11R    
-    tANI_U32                RICDataLen;             //Used to store the Ric data received in the assoc response
-    tANI_U8                 *ricData;
-#endif
-#ifdef FEATURE_WLAN_CCX    
-    tANI_U32                tspecLen;               //Used to store the TSPEC IEs received in the assoc response
-    tANI_U8                 *tspecIes;
-#endif
-    tANI_U32                encryptType;
+    void *                  *parsedAssocReq;        // Used to store parsed assoc req from various requesting station
+    
+    tANI_U32                   encryptType;
 
 #ifdef WLAN_SOFTAP_FEATURE
     tANI_BOOLEAN            bTkipCntrMeasActive;    // Used to keep record of TKIP counter measures start/stop
 
     tANI_U8                 gLimProtectionControl;  //used for 11n protection
 
-    tANI_U8                 gHTNonGFDevicesPresent;
+    tANI_U8                 gHTNonGFDevicesPresent;    
 
     //protection related config cache
     tCfgProtection          cfgProtection;
-
+    
     // Number of legacy STAs associated
     tLimProtStaParams          gLim11bParams;
 
@@ -277,31 +238,14 @@ typedef struct sPESession           // Added to Support BT-AMP
 
     tANI_U32           lim11hEnable;
 
-    tPowerdBm  maxTxPower;   //MIN (Regulatory and local power constraint)
+    tPowerdBm          maxTxPower;   //MIN (Regulatory and local power constraint)
     tVOS_CON_MODE      pePersona;
 #if defined WLAN_FEATURE_VOWIFI
-    tPowerdBm  txMgmtPower;
-#endif
-
-#ifdef WLAN_FEATURE_VOWIFI_11R
-    tAniBool            is11Rconnection;
-#endif
-
-#ifdef FEATURE_WLAN_CCX
-    tAniBool            isCCXconnection;
-    tCcxPEContext       ccxContext;
-#endif
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
-    tAniBool            isFastTransitionEnabled;
-#endif
-#ifdef FEATURE_WLAN_LFR
-    tAniBool            isFastRoamIniFeatureEnabled;
+    tPowerdBm          txMgmtPower;
 #endif
 #ifdef WLAN_FEATURE_P2P
     tSirNoAParam p2pNoA;
     tSirP2PNoaAttr p2pGoPsUpdate;
-    tANI_U32 defaultAuthFailureTimeout;
-    tSirP2PNoaStart p2pGoPsNoaStartInd;
 #endif
 
     /* EDCA QoS parameters
@@ -324,26 +268,8 @@ typedef struct sPESession           // Added to Support BT-AMP
     tANI_U8  gLimEdcaParamSetCount;
 
     tBeaconParams beaconParams;
-#ifdef WLAN_FEATURE_11AC
-    tANI_U8 vhtCapability;
-    tANI_U8 vhtTxChannelWidthSet;
-    tLimOperatingModeInfo  gLimOperatingMode;
-    tLimWiderBWChannelSwitchInfo  gLimWiderBWChannelSwitch;
-    tANI_U8    vhtCapabilityPresentInBeacon;
-    tANI_U8    apCenterChan;
-    tANI_U8    apChanWidth;
-#endif
-    tANI_U8            spectrumMgtEnabled;
-    /* *********************11H related*****************************/
-    //tANI_U32           gLim11hEnable;
-    tLimSpecMgmtInfo   gLimSpecMgmt;
-    // CB Primary/Secondary Channel Switch Info
-    tLimChannelSwitchInfo  gLimChannelSwitch;
-    /* *********************End 11H related*****************************/
 
-    /*Flag to Track Status/Indicate HBFailure on this session */
-    tANI_BOOLEAN LimHBFailureStatus;
-    tANI_U32           gLimPhyMode;
+    tANI_U8            spectrumMgtEnabled;
 
 }tPESession, *tpPESession;
 
@@ -422,22 +348,6 @@ tpPESession peFindSessionByPeerSta(tpAniSirGlobal pMac, tANI_U8*  sa, tANI_U8* s
   \sa
   --------------------------------------------------------------------------*/
  tpPESession peFindSessionBySessionId(tpAniSirGlobal pMac , tANI_U8 sessionId);
-
-/*--------------------------------------------------------------------------
-  \brief peFindSessionByBssid() - looks up the PE session given staid.
-
-  This function returns the session context and the session ID if the session
-  corresponding to the given StaId is found in the PE session table.
-   
-  \param pMac                  - pointer to global adapter context
-  \param staid                 - StaId of the session
-  \param sessionId             - session ID is returned here, if session is found.
-
-  \return tpPESession          - pointer to the session context or NULL if session is not found.
-
---------------------------------------------------------------------------*/
- tpPESession peFindSessionByStaId(tpAniSirGlobal pMac,  tANI_U8  staid,    tANI_U8* sessionId);
- 
 
 
 

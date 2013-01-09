@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /*
  * Airgo Networks, Inc proprietary. All rights reserved
@@ -187,6 +167,7 @@ sysBbtProcessMessageCore(tpAniSirGlobal pMac, tpSirMsgQ pMsg, tANI_U32 type,
     vos_pkt_t  *pVosPkt = (vos_pkt_t *)pMsg->bodyptr;
     VOS_STATUS  vosStatus =
               WDA_DS_PeekRxPacketInfo( pVosPkt, (v_PVOID_t *)&pBd, VOS_FALSE );
+
     pMac->sys.gSysBbtReceived++;
 
     if ( !VOS_IS_STATUS_SUCCESS(vosStatus) )
@@ -206,7 +187,7 @@ sysBbtProcessMessageCore(tpAniSirGlobal pMac, tpSirMsgQ pMsg, tANI_U32 type,
             if( (dropReason = limIsPktCandidateForDrop(pMac, pBd, subType)) != eMGMT_DROP_NO_DROP)
             {
                 PELOG1(sysLog(pMac, LOG1, FL("Mgmt Frame %d being dropped, reason: %d\n"), subType, dropReason);)
-                MTRACE(macTrace(pMac,   TRACE_CODE_RX_MGMT_DROP, NO_SESSION, dropReason);)
+                MTRACE(macTrace(pMac,   TRACE_CODE_RX_MGMT_DROP, 0, dropReason);)
                 goto fail;
             }
             //Post the message to PE Queue
@@ -217,67 +198,7 @@ sysBbtProcessMessageCore(tpAniSirGlobal pMac, tpSirMsgQ pMsg, tANI_U32 type,
                 goto fail;
             }
             pMac->sys.gSysBbtPostedToLim++;
-    }
-    else if (type == SIR_MAC_DATA_FRAME)
-    {
-#ifdef FEATURE_WLAN_TDLS_INTERNAL
-       /*
-        * if we reached here, probably this frame can be TDLS frame.
-        */
-       v_U16_t ethType = 0 ;
-       v_U8_t *mpduHdr =  NULL ;
-       v_U8_t *ethTypeOffset = NULL ; 
-       
-       /*
-        * Peek into payload and extract ethtype.
-        * In TDLS we can recieve TDLS frames with MAC HEADER (802.11) and also
-        * without MAC Header (Particularly TDLS action frames on direct link.
-        */
-       mpduHdr = (v_U8_t *)WDA_GET_RX_MAC_HEADER(pBd) ;
-       
-#define SIR_MAC_ETH_HDR_LEN                       (14)
-       if(0 != WDA_GET_RX_FT_DONE(pBd))
-       {
-           ethTypeOffset = mpduHdr + SIR_MAC_ETH_HDR_LEN - sizeof(ethType) ;
-       }
-       else
-       {
-           ethTypeOffset = mpduHdr + WDA_GET_RX_MPDU_HEADER_LEN(pBd) 
-                                                     + RFC1042_HDR_LENGTH ; 
-       }
-       
-       ethType = GET_BE16(ethTypeOffset) ;
-       if(ETH_TYPE_89_0d == ethType)
-       {
-       
-           VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR, 
-                                                   ("TDLS Data Frame \n")) ;
-           /* Post the message to PE Queue */
-           PELOGE(sysLog(pMac, LOGE, FL("posting to TDLS frame to lim\n"));)
 
-           ret = (tSirRetStatus) limPostMsgApi(pMac, pMsg);
-           if (ret != eSIR_SUCCESS)
-           {
-               PELOGE(sysLog(pMac, LOGE, FL("posting to LIM2 failed, \
-                                                        ret %d\n"), ret);)
-               goto fail;
-           }
-           else 
-               return eSIR_SUCCESS;
-       }
-       /* fall through if ethType != TDLS, which is error case */
-#endif            
-#ifdef FEATURE_WLAN_CCX
-        PELOGW(sysLog(pMac, LOGW, FL("IAPP Frame...\n")););
-        //Post the message to PE Queue
-        ret = (tSirRetStatus) limPostMsgApi(pMac, pMsg);
-        if (ret != eSIR_SUCCESS)
-        {
-            PELOGE(sysLog(pMac, LOGE, FL("posting to LIM2 failed, ret %d\n"), ret);)
-            goto fail;
-        }
-        pMac->sys.gSysBbtPostedToLim++;
-#endif
     }
     else
     {
@@ -287,7 +208,8 @@ sysBbtProcessMessageCore(tpAniSirGlobal pMac, tpSirMsgQ pMsg, tANI_U32 type,
         sirDumpBuf(pMac, SIR_SYS_MODULE_ID, LOG3,
                        (tANI_U8 *) pBd, WLANHAL_RX_BD_HEADER_SIZE);)
 
-        goto fail;
+            goto fail;
+
     }
 
     return eSIR_SUCCESS;
@@ -352,7 +274,7 @@ void sysBbtProcessMessage( tHalHandle hHal, void *pBD )
     if(pBD->swBdType != SMAC_SWBD_TYPE_CTLMSG)
         sysLog( pMac, LOG3,
             FL( "%s: RX Mesg Type %d, subType %d, MPDU Len %d, RXP Flags 0x%x\n" ),
-            __func__,
+            __FUNCTION__,
             mHdr->fc.type,
             mHdr->fc.subType,
             pBD->mpduLength,

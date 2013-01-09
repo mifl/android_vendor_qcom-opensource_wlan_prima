@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 /**=========================================================================
  *     
@@ -181,19 +161,15 @@ WDI_Status WDI_DS_TxPacket(void *pContext,
   switch(ucType)
   {
     case WDI_MAC_DATA_FRAME:
-       if(!pTxMetadata->isEapol)
-       {
        pMemPool = &(pClientData->dataMemPool);
        ucBdPoolType = WDI_DATA_POOL_ID;
-       break;
-       }
-    // intentional fall-through to handle eapol packet as mgmt
+    break;
     case WDI_MAC_MGMT_FRAME:
        pMemPool = &(pClientData->mgmtMemPool);
        ucBdPoolType = WDI_MGMT_POOL_ID;
     break;
     default:
-      return WDI_STATUS_E_FAILURE;
+      return WDI_STATUS_E_FAILURE;;
   }
 
   // Allocate BD header from pool
@@ -219,8 +195,7 @@ WDI_Status WDI_DS_TxPacket(void *pContext,
   }  
 
   /* resource count only for data packet */
-  // EAPOL packet doesn't use data mem pool if being treated as higher priority
-  if(WDI_MAC_DATA_FRAME == ucType && (!pTxMetadata->isEapol))
+  if(WDI_MAC_DATA_FRAME == ucType)
   {
     WDI_DS_MemPoolIncreaseReserveCount(pMemPool, staId);
   }
@@ -231,21 +206,20 @@ WDI_Status WDI_DS_TxPacket(void *pContext,
 /* DAL Transmit Complete function. 
  * Parameters:
  *  pContext:Cookie that should be passed back to the caller along with the callback.
- *  ucTxResReq:TX resource number required by TL
  * Return Value: SUCCESS  Completed successfully.
  *     FAILURE_XXX  Request was rejected due XXX Reason.
  *
  */
 
 
-WDI_Status WDI_DS_TxComplete(void *pContext, wpt_uint32 ucTxResReq)
+WDI_Status WDI_DS_TxComplete(void *pContext)
 {
   // Do Sanity checks
   if(NULL == pContext)
     return WDI_STATUS_E_FAILURE;
   
   // Send notification to transport layer.
-  if(eWLAN_PAL_STATUS_SUCCESS !=WDTS_CompleteTx(pContext, ucTxResReq))
+  if(eWLAN_PAL_STATUS_SUCCESS !=WDTS_CompleteTx(pContext))
   {
     return WDI_STATUS_E_FAILURE;
   }  
@@ -293,12 +267,10 @@ WDI_Status WDI_DS_TxResume(void *pContext)
 }
 
 /* DAL Get Available Resource Count. 
- * This is the number of free descririptor in DXE
  * Parameters:
  *  pContext:Cookie that should be passed back to the caller along with the callback.
  *  wdiResPool: - identifier of resource pool
  * Return Value: number of resources available
- *               This is the number of free descririptor in DXE
  *
  */
 
@@ -306,13 +278,12 @@ wpt_uint32 WDI_GetAvailableResCount(void *pContext,WDI_ResPoolType wdiResPool)
 {
   WDI_DS_ClientDataType *pClientData =  
     (WDI_DS_ClientDataType *) WDI_DS_GetDatapathContext(pContext);
-
   switch(wdiResPool)
   {
     case WDI_MGMT_POOL_ID:
-      return (WDI_DS_HI_PRI_RES_NUM - 2*WDI_DS_GetAvailableResCount(&pClientData->mgmtMemPool));
+      return (WDI_DS_HI_PRI_RES_NUM - WDI_DS_GetAvailableResCount(&pClientData->mgmtMemPool));
     case WDI_DATA_POOL_ID:
-      return WDTS_GetFreeTxDataResNumber(pContext);
+      return (WDI_DS_LO_PRI_RES_NUM - WDI_DS_GetAvailableResCount(&pClientData->dataMemPool));
     default:
       return 0;
   }

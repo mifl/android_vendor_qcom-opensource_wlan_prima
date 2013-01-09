@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 #if !defined( __SME_API_H )
 #define __SME_API_H
@@ -69,7 +49,6 @@
 #include "sirApi.h"
 #include "btcApi.h"
 #include "vos_nvitem.h"
-#include "p2p_Api.h"
 #ifdef FEATURE_WLAN_NON_INTEGRATED_SOC
 #include "halFw.h"
 #endif
@@ -103,19 +82,6 @@ typedef struct _smeConfigParams
    tCsrConfigParam  csrConfig;
 #if defined WLAN_FEATURE_VOWIFI
    tRrmConfigParam  rrmConfig;
-#endif
-#if defined FEATURE_WLAN_LFR
-    tANI_U8   isFastRoamIniFeatureEnabled;
-#endif
-#if defined FEATURE_WLAN_CCX
-    tANI_U8   isCcxIniFeatureEnabled;
-#endif
-#if defined WLAN_FEATURE_P2P_INTERNAL
-   tP2PConfigParam  p2pConfig;
-#endif
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-    tANI_U8   isFastTransitionEnabled;
-    tANI_U8   RoamRssiDiff;
 #endif
 } tSmeConfigParams, *tpSmeConfigParams;
 
@@ -442,7 +408,7 @@ eHalStatus sme_ScanGetResult(tHalHandle hHal, tANI_U8 sessionId, tCsrScanResultF
     \return eHalStatus     
   ---------------------------------------------------------------------------*/
 eHalStatus sme_ScanFlushResult(tHalHandle hHal, tANI_U8 sessionId);
-eHalStatus sme_ScanFlushP2PResult(tHalHandle hHal, tANI_U8 sessionId);
+
 
 /* ---------------------------------------------------------------------------
     \fn sme_ScanResultGetFirst
@@ -545,7 +511,7 @@ eHalStatus sme_RoamConnect(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamProfile *
   -------------------------------------------------------------------------------*/
 eHalStatus sme_RoamReassoc(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamProfile *pProfile,
                           tCsrRoamModifyProfileFields modProfileFields,
-                          tANI_U32 *pRoamId, v_BOOL_t fForce);
+                          tANI_U32 *pRoamId);
 
 /* ---------------------------------------------------------------------------
     \fn sme_RoamConnectToLastProfile
@@ -777,7 +743,7 @@ eHalStatus sme_GetStatistics(tHalHandle hHal, eCsrStatsRequesterType requesterId
 
 eHalStatus sme_GetRssi(tHalHandle hHal, 
                              tCsrRssiCallback callback, 
-                             tANI_U8 staId, tCsrBssid bssId, void *pContext, void* pVosContext);
+                             tANI_U8 staId, void *pContext, void* pVosContext);
 
 /* ---------------------------------------------------------------------------
     \fn sme_CfgSetInt
@@ -1126,8 +1092,7 @@ extern eHalStatus sme_DeregisterDeviceStateUpdateInd (
   ---------------------------------------------------------------------------*/
 extern eHalStatus sme_WowlAddBcastPattern (
    tHalHandle hHal, 
-   tpSirWowlAddBcastPtrn pattern,
-   tANI_U8 sessionId);
+   tpSirWowlAddBcastPtrn pattern);
 
 /* ---------------------------------------------------------------------------
     \fn sme_WowlDelBcastPattern
@@ -1140,8 +1105,7 @@ extern eHalStatus sme_WowlAddBcastPattern (
   ---------------------------------------------------------------------------*/
 extern eHalStatus sme_WowlDelBcastPattern (
    tHalHandle hHal, 
-   tpSirWowlDelBcastPtrn pattern,
-   tANI_U8   sessionId);
+   tpSirWowlDelBcastPtrn pattern);
 
 /* ---------------------------------------------------------------------------
     \fn sme_EnterWowl
@@ -1163,13 +1127,9 @@ extern eHalStatus sme_WowlDelBcastPattern (
             Note 5. Request for WoWL is rejected if BMPS is disabled.
             
     \param  hHal - The handle returned by macOpen.
-    \param  enterWowlCallbackRoutine -  Callback routine provided by HDD.
+    \param  callbackRoutine -  Callback routine provided by HDD. 
                                Used for success/failure notification by SME
-    \param  enterWowlCallbackContext - A cookie passed by HDD, that is passed back to HDD
-                              at the time of callback.
-    \param  wakeReasonIndCB -  Callback routine provided by HDD.
-                               Used for Wake Reason Indication by SME
-    \param  wakeReasonIndCBContext - A cookie passed by HDD, that is passed back to HDD
+    \param  callbackContext - A cookie passed by HDD, that is passed back to HDD 
                               at the time of callback.
     \return eHalStatus
             eHAL_STATUS_SUCCESS  Device is already in WoWLAN mode
@@ -1177,15 +1137,10 @@ extern eHalStatus sme_WowlDelBcastPattern (
             eHAL_STATUS_PMC_PENDING  Request accepted. SME will enable WOWL when BMPS
                                       mode is entered.
   ---------------------------------------------------------------------------*/
-extern eHalStatus sme_EnterWowl (
-    tHalHandle hHal,
-    void (*enterWowlCallbackRoutine) (void *callbackContext, eHalStatus status),
-    void *enterWowlCallbackContext,
-#ifdef WLAN_WAKEUP_EVENTS
-    void (*wakeReasonIndCB) (void *callbackContext, tpSirWakeReasonInd pWakeReasonInd),
-    void *wakeReasonIndCBContext,
-#endif // WLAN_WAKEUP_EVENTS
-    tpSirSmeWowlEnterParams wowlEnterParams, tANI_U8 sessionId);
+extern eHalStatus sme_EnterWowl ( 
+    tHalHandle hHal, 
+    void (*callbackRoutine) (void *callbackContext, eHalStatus status),   
+    void *callbackContext, tpSirSmeWowlEnterParams wowlEnterParams);
 
 /* ---------------------------------------------------------------------------
     \fn sme_ExitWowl
@@ -1615,9 +1570,9 @@ eHalStatus sme_getOemDataRsp(tHalHandle hHal,
 
     \param pAPWPSIES - pointer to a caller allocated object of tCsrRoamAPWPSIES
 
-    \return eHalStatus  SUCCESS  Roam callback will be called indicate actually results
+    \return eHalStatus  SUCCESS  Roam callback will be called indicate actually results
 
-                         FAILURE or RESOURCES  The API finished and failed.
+                         FAILURE or RESOURCES  The API finished and failed.
 
   -------------------------------------------------------------------------------*/
 
@@ -1631,25 +1586,12 @@ eHalStatus sme_RoamUpdateAPWPSIE(tHalHandle, tANI_U8 sessionId, tSirAPWPSIEs *pA
 
     \param pAPSirRSNie - pointer to a caller allocated object of tSirRSNie with WPS/RSN IEs
 
-    \return eHalStatus  SUCCESS  
+    \return eHalStatus  SUCCESS  
 
-                         FAILURE or RESOURCES  The API finished and failed.
+                         FAILURE or RESOURCES  The API finished and failed.
 
   -------------------------------------------------------------------------------*/
 eHalStatus sme_RoamUpdateAPWPARSNIEs(tHalHandle hHal, tANI_U8 sessionId, tSirRSNie * pAPSirRSNie);
-
-/* ---------------------------------------------------------------------------
-
-    sme_ChangeMCCBeaconInterval
-
-    \brief To update P2P-GO's beacon Interval. 
-
-    \return eHalStatus  SUCCESS 
-                        FAILURE or RESOURCES 
-                        The API finished and failed.
-  -------------------------------------------------------------------------------*/
-eHalStatus sme_ChangeMCCBeaconInterval(tHalHandle hHal, tANI_U8 sessionId);
-
 
 #endif
 
@@ -1658,8 +1600,9 @@ eHalStatus sme_ChangeMCCBeaconInterval(tHalHandle hHal, tANI_U8 sessionId);
   \brief API to send the btAMPstate to FW
   \param  hHal - The handle returned by macOpen.
   \param  btAmpEvent -- btAMP event
-  \return eHalStatus  SUCCESS 
-                         FAILURE or RESOURCES  The API finished and failed.
+  \return eHalStatus  SUCCESS 
+
+                         FAILURE or RESOURCES  The API finished and failed.
 
 --------------------------------------------------------------------------- */
 
@@ -1674,8 +1617,7 @@ eHalStatus sme_sendBTAmpEvent(tHalHandle hHal, tSmeBtAmpEvent btAmpEvent);
     \param  pRequest -  Pointer to the offload request.
     \return eHalStatus
    ---------------------------------------------------------------------------*/
-eHalStatus sme_SetHostOffload (tHalHandle hHal, tANI_U8 sessionId,
-                                    tpSirHostOffloadReq pRequest);
+eHalStatus sme_SetHostOffload (tHalHandle hHal, tpSirHostOffloadReq pRequest);
 
 /* ---------------------------------------------------------------------------
     \fn sme_SetKeepAlive
@@ -1684,8 +1626,7 @@ eHalStatus sme_SetHostOffload (tHalHandle hHal, tANI_U8 sessionId,
     \param  pRequest -  Pointer to the Keep Alive request.
     \return eHalStatus
   ---------------------------------------------------------------------------*/
-eHalStatus sme_SetKeepAlive (tHalHandle hHal, tANI_U8 sessionId,
-                                  tpSirKeepAliveReq pRequest);
+eHalStatus sme_SetKeepAlive (tHalHandle hHal, tpSirKeepAliveReq pRequest);
 
 
 /* ---------------------------------------------------------------------------
@@ -1702,11 +1643,11 @@ eHalStatus sme_AbortMacScan(tHalHandle hHal);
    \fn sme_GetOperationChannel
    \brief API to get current channel on which STA is parked
    this function gives channel information only of infra station or IBSS station.
-   \param hHal, pointer to memory location and sessionId 
+   \param hHal and poiter to memory location 
    \returns eHAL_STATUS_SUCCESS
             eHAL_STATUS_FAILURE
 -------------------------------------------------------------------------------*/
-eHalStatus sme_GetOperationChannel(tHalHandle hHal, tANI_U32 *pChannel, tANI_U8 sessionId);
+eHalStatus sme_GetOperationChannel(tHalHandle hHal, tANI_U32 *pChannel);
 
 #ifdef WLAN_FEATURE_P2P
 /* ---------------------------------------------------------------------------
@@ -1878,28 +1819,7 @@ tANI_U8 sme_GetInfraOperationChannel( tHalHandle hHal, tANI_U8 sessionId);
   -------------------------------------------------------------------------------*/
 tANI_U8 sme_GetConcurrentOperationChannel( tHalHandle hHal );
 
-/* ---------------------------------------------------------------------------
-    \fn sme_AbortMacScan
-    \brief  API to cancel MAC scan.
-    \param  hHal - The handle returned by macOpen.
-    \return VOS_STATUS
-            VOS_STATUS_E_FAILURE - failure
-            VOS_STATUS_SUCCESS  success
-  ---------------------------------------------------------------------------*/
-eHalStatus sme_AbortMacScan(tHalHandle hHal);
-
-/* ---------------------------------------------------------------------------
-    \fn sme_GetCfgValidChannels
-    \brief  API to get valid channel list
-    \param  hHal - The handle returned by macOpen.
-    \param  aValidChannels -  Pointer to the valid channel list
-    \param  len -  valid channel list length
-    \return eHalStatus
-  ---------------------------------------------------------------------------*/
-eHalStatus sme_GetCfgValidChannels(tHalHandle hHal, tANI_U8 *aValidChannels, tANI_U32 *len);
-
 #ifdef FEATURE_WLAN_SCAN_PNO
-
 /* ---------------------------------------------------------------------------
     \fn sme_SetPreferredNetworkList
     \brief  API to set the Preferred Network List Offload feature.
@@ -1907,7 +1827,7 @@ eHalStatus sme_GetCfgValidChannels(tHalHandle hHal, tANI_U8 *aValidChannels, tAN
     \param  pRequest -  Pointer to the offload request.
     \return eHalStatus
   ---------------------------------------------------------------------------*/
-eHalStatus sme_SetPreferredNetworkList (tHalHandle hHal, tpSirPNOScanReq pRequest, tANI_U8 sessionId, preferredNetworkFoundIndCallback callbackRoutine, void *callbackContext );
+eHalStatus sme_SetPreferredNetworkList (tHalHandle hHal, tpSirPNOScanReq pRequest, tANI_U8 sessionId, void (*callbackRoutine) (void *callbackContext, tSirPrefNetworkFoundInd *pPrefNetworkFoundInd), void *callbackContext );
 
 /* ---------------------------------------------------------------------------
     \fn sme_SetRSSIFilter
@@ -1974,11 +1894,10 @@ eHalStatus sme_8023MulticastList(tHalHandle hHal, tpSirRcvFltMcAddrList pMultica
     \param  pRcvPktFilterCfg - Receive Packet Filter parameter
     \return eHalStatus   
   ---------------------------------------------------------------------------*/
-eHalStatus sme_ReceiveFilterSetFilter(tHalHandle hHal, tpSirRcvPktFilterCfgType pRcvPktFilterCfg,
-                                           tANI_U8 sessionId);
+eHalStatus sme_ReceiveFilterSetFilter(tHalHandle hHal, tpSirRcvPktFilterCfgType pRcvPktFilterCfg);
 
 /* ---------------------------------------------------------------------------
-    \fn sme_GetFilterMatchCount
+    \fn sme_GetPCFilterMatchCount
     \brief  API to get D0 PC Filter Match Count
     \param  hHal - The handle returned by macOpen 
     \param  callbackRoutine - Callback routine invoked to receive Packet Coalescing Filter Match Count
@@ -1987,8 +1906,7 @@ eHalStatus sme_ReceiveFilterSetFilter(tHalHandle hHal, tpSirRcvPktFilterCfgType 
   ---------------------------------------------------------------------------*/
 eHalStatus sme_GetFilterMatchCount(tHalHandle hHal, 
                                    FilterMatchCountCallback callbackRoutine, 
-                                   void *callbackContext,
-                                   tANI_U8 sessionId);
+                                   void *callbackContext );
 
 /* ---------------------------------------------------------------------------
     \fn sme_ReceiveFilterClearFilter
@@ -1998,12 +1916,12 @@ eHalStatus sme_GetFilterMatchCount(tHalHandle hHal,
     \return eHalStatus   
   ---------------------------------------------------------------------------*/
 eHalStatus sme_ReceiveFilterClearFilter(tHalHandle hHal,
-                                        tpSirRcvFltPktClearParam pRcvFltPktClearParam,
-                                        tANI_U8  sessionId);
+                                        tpSirRcvFltPktClearParam pRcvFltPktClearParam);
 #endif // WLAN_FEATURE_PACKET_FILTERING
 /* ---------------------------------------------------------------------------
 
     \fn sme_IsChannelValid
+
     \brief To check if the channel is valid for currently established domain
     This is a synchronous API.
 
@@ -2033,82 +1951,6 @@ eHalStatus sme_SetFreqBand(tHalHandle hHal, eCsrBand eBand);
     -------------------------------------------------------------------------*/
 eHalStatus sme_GetFreqBand(tHalHandle hHal, eCsrBand *pBand);
 
-/* ---------------------------------------------------------------------------
-
-    \fn sme_SetTxPerTracking
-    \brief  Set Tx PER tracking configuration parameters
-    \param  hHal - The handle returned by macOpen.
-    \param  pTxPerTrackingParam - Tx PER configuration parameters
-    \return eHalStatus     
-  ---------------------------------------------------------------------------*/
-eHalStatus sme_SetTxPerTracking (
-   tHalHandle hHal,
-   void (*pCallbackfn) (void *pCallbackContext),
-   void *pCallbackContext,
-   tpSirTxPerTrackingParam pTxPerTrackingParam);
-
-#ifdef WLAN_FEATURE_GTK_OFFLOAD
-/* ---------------------------------------------------------------------------
-    \fn sme_SetGTKOffload
-    \brief  API to set GTK offload feature.
-    \param  hHal - The handle returned by macOpen.
-    \param  pRequest -  Pointer to the GTK offload request.
-    \return eHalStatus
-  ---------------------------------------------------------------------------*/
-eHalStatus sme_SetGTKOffload (tHalHandle hHal, tpSirGtkOffloadParams pRequest, tANI_U8 sessionId);
-
-/* ---------------------------------------------------------------------------
-    \fn sme_GetGTKOffload
-    \brief  API to get GTK offload information.
-    \param  hHal - The handle returned by macOpen.
-    \param  pRequest -  Pointer to the GTK offload response.
-    \return eHalStatus
-  ---------------------------------------------------------------------------*/
-eHalStatus sme_GetGTKOffload (tHalHandle hHal, GTKOffloadGetInfoCallback callbackRoutine, 
-                                    void *callbackContext, tANI_U8 sessionId);
-#endif // WLAN_FEATURE_GTK_OFFLOAD
-
-#ifdef WLAN_WAKEUP_EVENTS
-eHalStatus sme_WakeReasonIndCallback (tHalHandle hHal, void* pMsg);
-#endif // WLAN_WAKEUP_EVENTS
-
-/* ---------------------------------------------------------------------------
-    \fn sme_SetTxPerTracking
-    \brief  Set Tx PER tracking configuration parameters
-    \param  hHal - The handle returned by macOpen.
-    \param  pTxPerTrackingParam - Tx PER configuration parameters
-    \return eHalStatus     
-  ---------------------------------------------------------------------------*/
-eHalStatus sme_SetTxPerTracking (
-   tHalHandle hHal,
-   void (*pCallbackfn) (void *pCallbackContext),
-   void *pCallbackContext,
-   tpSirTxPerTrackingParam pTxPerTrackingParam);
-
-
-//return frequency for a particular channel
-tANI_U16 sme_ChnToFreq(tANI_U8 chanNum);
-
-tANI_BOOLEAN sme_IsChannelValid(tHalHandle hHal, tANI_U8 channel);
-
-#if defined WLAN_FEATURE_P2P_INTERNAL
-
-eHalStatus sme_p2pResetSession(tHalHandle hHal, tANI_U8 HDDSessionId);
-
-/* ---------------------------------------------------------------------------
-    \fn sme_p2pFlushDeviceList
-    \brief  Remove cached P2P result from scan results
-    \param  hHal - The handle returned by macOpen.
-    \param  HDDSessionId - HDD's sessionId. Currently unused.
-    \return eHalStatus     
-  ---------------------------------------------------------------------------*/
-eHalStatus sme_p2pFlushDeviceList(tHalHandle hHal, tANI_U8 HDDSessionId);
-
-eHalStatus sme_p2pGetResultFilter(tHalHandle hHal, tANI_U8 HDDSessionId,
-                              tCsrScanResultFilter *pFilter);
-
-#endif //#if defined WLAN_FEATURE_P2P_INTERNAL
-   
 /* ---------------------------------------------------------------------------
     \fn sme_SetMaxTxPower
     \brief  Used to set the Maximum Transmit Power dynamically. Note: this
@@ -2164,18 +2006,6 @@ void sme_featureCapsExchange(tHalHandle hHal);
 
 /*---------------------------------------------------------------------------
 
-  \brief sme_disableActiveModeOffload() - SME interface to disable Active mode Offload capabilitu
-  between in Host.
-
-  \param  hHal - HAL handle for device
-
-  \return NONE
-
----------------------------------------------------------------------------*/
-void sme_disableFeatureCapablity(tANI_U8 feature_index);
-
-/*---------------------------------------------------------------------------
-
   \brief sme_GetDefaultCountryCodeFrmNv() - SME interface to get the default 
          country code
   Host and FW.
@@ -2183,7 +2013,7 @@ void sme_disableFeatureCapablity(tANI_U8 feature_index);
   \param  hHal - HAL handle for device
   \param  pCountry - pointer to country code
 
-  \return Success or failure
+  \return Sucess or failure
 
   ---------------------------------------------------------------------------*/
 eHalStatus sme_GetDefaultCountryCodeFrmNv(tHalHandle hHal, tANI_U8 *pCountry);
@@ -2205,7 +2035,7 @@ eHalStatus sme_GetCurrentCountryCode(tHalHandle hHal, tANI_U8 *pCountry);
     \fn sme_transportDebug
     \brief  Dynamically monitoring Transport channels
             Private IOCTL will querry transport channel status if driver loaded
-    \param  displaySnapshot Display transport channel snapshot option
+    \param  displaySnapshot Dispaly transport cahnnel snapshot option
     \param  toggleStallDetect Enable stall detect feature
                               This feature will take effect to data performance
                               Not integrate till fully verification
@@ -2216,90 +2046,4 @@ void sme_transportDebug
    v_BOOL_t  displaySnapshot,
    v_BOOL_t  toggleStallDetect
 );
-
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-/* ---------------------------------------------------------------------------
-    \fn sme_UpdateRoamPrefer5GHz
-    \brief  enable/disable Roam prefer 5G runtime option
-            This function is called through dynamic setConfig callback function
-            to configure the Roam prefer 5G runtime option 
-    \param  hHal - HAL handle for device
-    \param  nRoamPrefer5GHz Enable/Disable Roam prefer 5G runtime option
-    \- return Success or failure
-    -------------------------------------------------------------------------*/
-
-eHalStatus sme_UpdateRoamPrefer5GHz(tHalHandle hHal, v_BOOL_t nRoamPrefer5GHz);
-
-/* ---------------------------------------------------------------------------
-    \fn sme_UpdateImmediateRoamRssiDiff
-    \brief  Update nImmediateRoamRssiDiff
-            This function is called through dynamic setConfig callback function
-            to configure nImmediateRoamRssiDiff
-            Usage: adb shell iwpriv wlan0 setConfig gImmediateRoamRssiDiff=[0 .. 125]
-    \param  hHal - HAL handle for device
-    \param  nImmediateRoamRssiDiff - minimum rssi difference between potential 
-            candidate and current AP.
-    \- return Success or failure
-    -------------------------------------------------------------------------*/
-
-eHalStatus sme_UpdateImmediateRoamRssiDiff(tHalHandle hHal, v_U8_t nImmediateRoamRssiDiff);
-#endif
-
-/* ---------------------------------------------------------------------------
-    \fn sme_IsFeatureSupportedByFW
-    \brief  Check if an feature is enabled by FW
-            
-    \param  feattEnumValue - Enumeration value of the feature to be checked.
-                A value from enum placeHolderInCapBitmap
-                              
-    \- return 1/0 (TRUE/FALSE) 
-    -------------------------------------------------------------------------*/
-tANI_U8 sme_IsFeatureSupportedByFW(tANI_U8 featEnumValue);
-#ifdef FEATURE_WLAN_TDLS
-/* ---------------------------------------------------------------------------
-    \fn sme_SendTdlsMgmtFrame
-    \brief  API to send TDLS management frames.
-            
-    \param  peerMac - peer's Mac Adress.
-    \param frame_type - Type of TDLS mgmt frame to be sent.
-    \param dialog - dialog token used in the frame.
-    \param status - status to be incuded in the frame.
-    \param buf - additional IEs to be included
-    \param len - lenght of additional Ies
-    \- return VOS_STATUS_SUCCES
-    -------------------------------------------------------------------------*/
-VOS_STATUS sme_SendTdlsMgmtFrame(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr peerMac,
-      tANI_U8 frame_type, tANI_U8 dialog, tANI_U16 status, tANI_U8 *buf, tANI_U8 len);
-/* ---------------------------------------------------------------------------
-    \fn sme_AddTdlsPeerSta
-    \brief  API to Add TDLS peer sta entry.
-            
-    \param  peerMac - peer's Mac Adress.
-    \- return VOS_STATUS_SUCCES
-    -------------------------------------------------------------------------*/
-VOS_STATUS sme_AddTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr peerMac);
-/* ---------------------------------------------------------------------------
-    \fn sme_DeleteTdlsPeerSta
-    \brief  API to Delete TDLS peer sta entry.
-            
-    \param  peerMac - peer's Mac Adress.
-    \- return VOS_STATUS_SUCCES
-    -------------------------------------------------------------------------*/
-VOS_STATUS sme_DeleteTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr peerMac);
-#endif
-#ifdef FEATURE_WLAN_TDLS_INTERNAL
-typedef struct smeTdlsDisResult
-{
-      tSirMacAddr tdlsPeerMac;
-          v_S7_t tdlsPeerRssi;
-} tSmeTdlsDisResult;
-
-VOS_STATUS sme_StartTdlsDiscoveryReq(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr peerMac);
-v_U8_t sme_GetTdlsDiscoveryResult(tHalHandle hHal,
-                                 tSmeTdlsDisResult *disResult, v_U8_t listType);
-VOS_STATUS sme_StartTdlsLinkSetupReq(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr peerMac);
-VOS_STATUS sme_StartTdlsLinkTeardownReq(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr peerMac);
-
-#endif /* FEATURE_WLAN_TDLS */
-
 #endif //#if !defined( __SME_API_H )

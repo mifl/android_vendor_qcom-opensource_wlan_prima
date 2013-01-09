@@ -18,26 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
 
 #if defined WLAN_FEATURE_VOWIFI_11R
 /**=========================================================================
@@ -74,8 +54,6 @@ typedef struct sSirFTPreAuthReq
 {
    tANI_U16    messageType;      // eWNI_SME_FT_PRE_AUTH_REQ
    tANI_U16    length;
-   tANI_BOOLEAN bPreAuthRspProcessed; /* Track if response is processed for this request
-                                         We expect only one response per request. */
    tANI_U8     preAuthchannelNum;
    tSirMacAddr currbssId;        // BSSID currently associated to suspend the link
    tSirMacAddr preAuthbssId;     // BSSID to preauth to
@@ -91,9 +69,9 @@ typedef struct sSirFTPreAuthRsp
 {
    tANI_U16    messageType;      // eWNI_SME_FT_PRE_AUTH_RSP
    tANI_U16    length;
-   tANI_U8     smeSessionId;
    tSirMacAddr preAuthbssId;     // BSSID to preauth to
    tANI_U8     status;
+   tANI_U8     smeSessionId;
    tANI_U16    ft_ies_length;
    tANI_U8     ft_ies[MAX_FTIE_SIZE];
    tANI_U16    ric_ies_length;
