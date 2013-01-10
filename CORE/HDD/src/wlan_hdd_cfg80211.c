@@ -1876,6 +1876,7 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
 #else
                 pAdapter->device_mode = WLAN_HDD_SOFTAP;
 #endif
+
                 hdd_set_ap_ops( pAdapter->dev );
 
                 status = hdd_init_ap_mode(pAdapter);
@@ -1922,6 +1923,8 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
            case NL80211_IFTYPE_P2P_CLIENT:
 #endif
            case NL80211_IFTYPE_ADHOC:
+                hdd_stop_adapter( pHddCtx, pAdapter );
+                hdd_deinit_adapter( pHddCtx, pAdapter );
                 wdev->iftype = type;
 #ifdef WLAN_FEATURE_P2P
                 pAdapter->device_mode = (type == NL80211_IFTYPE_STATION) ?
@@ -1929,8 +1932,6 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
 #endif
                 hdd_set_conparam(0);
                 pHddCtx->change_iface = type;
-                hdd_stop_adapter( pHddCtx, pAdapter );
-                hdd_deinit_adapter( pHddCtx, pAdapter );
                 memset(&pAdapter->sessionCtx, 0, sizeof(pAdapter->sessionCtx));
                 hdd_set_station_ops( pAdapter->dev );
                 status = hdd_init_station_mode( pAdapter );
@@ -3330,6 +3331,15 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
                   "%s:Unloading/Loading in Progress. Ignore!!!", __func__);
         return -EAGAIN;
     }
+    //Don't Allow Scan and return busy if Remain On 
+    //Channel and action frame is pending
+    //Otherwise Cancel Remain On Channel and allow Scan
+    //If no action frame pending
+    if(0 != wlan_hdd_check_remain_on_channel(pAdapter))
+    {
+        hddLog(VOS_TRACE_LEVEL_INFO, "%s: Remain On Channel Pending", __func__);
+        return -EBUSY;
+    }
 
     vos_mem_zero( &scanRequest, sizeof(scanRequest));
 
@@ -3347,7 +3357,7 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy, struct net_device *dev,
             request->n_ssids = -1;
         }
 
-        if (0 < request->n_ssids)
+        if ((request->ssids) && (0 < request->n_ssids))
         {
             tCsrSSIDInfo *SsidInfo;
             int j;

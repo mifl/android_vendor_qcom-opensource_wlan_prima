@@ -1311,6 +1311,12 @@ static wpt_status dxeChannelClose
 
          currentCtrlBlk    = nextCtrlBlk;
          currentDescriptor = nextDescriptor;
+         if(NULL == currentCtrlBlk)
+         {
+            /* Already reach last of the control block
+             * Not need to process anymore, break */
+            break;
+         }
       }
    }
 
@@ -3716,8 +3722,8 @@ void *WLANDXE_Open
       {
          dxeChannelClose(tempDxeCtrlBlk, &tempDxeCtrlBlk->dxeChannel[idx]);
       }
-      wpalMemoryFree((void *)&tempDxeCtrlBlk->rxIsrMsg);
-      wpalMemoryFree((void *)&tempDxeCtrlBlk->txIsrMsg);
+      wpalMemoryFree(tempDxeCtrlBlk->rxIsrMsg);
+      wpalMemoryFree(tempDxeCtrlBlk->txIsrMsg);
       wpalMemoryFree(tempDxeCtrlBlk);
       return NULL;
    }

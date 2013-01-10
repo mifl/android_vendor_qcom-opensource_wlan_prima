@@ -1483,6 +1483,11 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
 #endif
          /* This workqueue will be used to transmit management packet over
           * monitor interface. */
+         if (NULL == pAdapter->sessionCtx.monitor.pAdapterForTx) {
+             hddLog(VOS_TRACE_LEVEL_ERROR,"%s:Failed:hdd_get_adapter",__func__);
+             return NULL;
+         }
+	 
          INIT_WORK(&pAdapter->sessionCtx.monitor.pAdapterForTx->monTxWorkQueue,
                    hdd_mon_tx_work_queue);
 #endif
@@ -3276,7 +3281,7 @@ int hdd_wlan_startup(struct device *dev )
       {
          hddLog(VOS_TRACE_LEVEL_ERROR,"%s: Failed to set MAC Address. "
                 "HALStatus is %08d [x%08x]",__func__, halStatus, halStatus );
-         return VOS_STATUS_E_FAILURE;
+         goto err_vosclose;
       }
    }
 #endif // FEATURE_WLAN_INTEGRATED_SOC
