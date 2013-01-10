@@ -1344,6 +1344,13 @@ REG_TABLE_ENTRY g_registry_table[] =
               CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_MIN,
               CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_MAX ),
 #endif
+
+REG_VARIABLE( CFG_SCAN_AGING_PARAM_NAME, WLAN_PARAM_Integer,
+             hdd_config_t, scanAgingTimeout,
+             VAR_FLAGS_OPTIONAL,
+             CFG_SCAN_AGING_PARAM_DEFAULT,
+             CFG_SCAN_AGING_PARAM_MIN,
+             CFG_SCAN_AGING_PARAM_MAX ),
 };
 
 /*
@@ -2650,6 +2657,9 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 
    smeConfig.csrConfig.addTSWhenACMIsOff = pConfig->AddTSWhenACMIsOff;
    smeConfig.csrConfig.fValidateList = pConfig->fValidateScanList;
+
+   //Scan Results Aging Time out value
+   smeConfig.csrConfig.scanCfgAgingTime = pConfig->scanAgingTimeout;
 
    halStatus = sme_UpdateConfig( pHddCtx->hHal, &smeConfig);    
    if ( !HAL_STATUS_SUCCESS( halStatus ) )

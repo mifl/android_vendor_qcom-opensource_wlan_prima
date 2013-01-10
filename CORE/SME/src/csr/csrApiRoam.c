@@ -571,7 +571,12 @@ eHalStatus csrReady(tpAniSirGlobal pMac)
     csrInitBGScanChannelList(pMac);
     /* HDD issues the init scan */
     csrScanStartResultAgingTimer(pMac);
-
+    /* If the gScanAgingTime is set to '0' then scan results aging timeout 
+         based  on timer feature is not enabled*/  
+    if(0 != pMac->scan.scanResultCfgAgingTime )
+    {
+       csrScanStartResultCfgAgingTimer(pMac);
+    }
     //Store the AC weights in TL for later use
     WLANTL_GetACWeights(pMac->roam.gVosContext, pMac->roam.ucACWeights);
 
@@ -1225,6 +1230,7 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         pMac->scan.fValidateList = pParam->fValidateList;
         pMac->scan.fEnableBypass11d = pParam->fEnableBypass11d;
         pMac->scan.fEnableDFSChnlScan = pParam->fEnableDFSChnlScan;
+        pMac->scan.scanResultCfgAgingTime = pParam->scanCfgAgingTime;
     }
     
     return status;

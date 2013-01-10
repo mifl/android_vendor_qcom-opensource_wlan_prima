@@ -940,6 +940,7 @@ typedef struct tagCsrConfigParam
     * (apprx 1.3 sec) */
     tANI_BOOLEAN fEnableDFSChnlScan;
 
+    tANI_U8 scanCfgAgingTime;
 }tCsrConfigParam;   
 
 //Tush
