@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -75,6 +95,9 @@ extern tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 
 #include <wlan_qct_pal_api.h>
 #endif
+
+#define READ_MEMORY_DUMP_CMD     9
+#define READ_REG_DUMP_CMD        7
 
 // TxMB Functions
 extern eHalStatus pmcPrepareCommand( tpAniSirGlobal pMac, eSmeCommandType cmdType, void *pvParam,
@@ -601,6 +624,14 @@ tANI_BOOLEAN smeProcessCommand( tpAniSirGlobal pMac )
                         case eSmeCommandRoam:
                             csrLLUnlock( &pMac->sme.smeCmdActiveList );
                             status  = csrRoamProcessCommand( pMac, pCommand );
+                            if(!HAL_STATUS_SUCCESS(status))
+                            {
+                                if( csrLLRemoveEntry( &pMac->sme.smeCmdActiveList, 
+                                            &pCommand->Link, LL_ACCESS_LOCK ) )
+                                {
+                                    csrReleaseCommandRoam( pMac, pCommand );
+                                }
+                            }
                             break;
 
                         case eSmeCommandWmStatusChange:
@@ -2005,12 +2036,15 @@ eHalStatus sme_ScanRequest(tHalHandle hHal, tANI_U8 sessionId, tCsrScanRequest *
             {
                 {
 #ifdef FEATURE_WLAN_LFR
-                    if(csrIsScanAllowed(pMac)) {
+                    if(csrIsScanAllowed(pMac)) 
+                    {
 #endif
-                            status = csrScanRequest( hHal, sessionId, pscanReq,
-                                                     pScanRequestID, callback, pContext );
+                        status = csrScanRequest( hHal, sessionId, pscanReq,
+                                                 pScanRequestID, callback, pContext );
 #ifdef FEATURE_WLAN_LFR
-                    } else {
+                    } 
+                    else 
+                    {
                         smsLog(pMac, LOGE, FL("Scan denied in state %d (sub-state %d)"),
                                 pMac->roam.neighborRoamInfo.neighborRoamState,
                                 pMac->roam.curSubState[sessionId]);
@@ -2022,7 +2056,15 @@ eHalStatus sme_ScanRequest(tHalHandle hHal, tANI_U8 sessionId, tCsrScanRequest *
                   
                 sme_ReleaseGlobalLock( &pMac->sme );
             } //sme_AcquireGlobalLock success
+            else
+            {
+                smsLog(pMac, LOGE, FL("sme_AcquireGlobalLock failed"));
+            }
         } //if(pMac->scan.fScanEnable)
+        else
+        {
+            smsLog(pMac, LOGE, FL("fScanEnable FALSE"));
+        }
     } while( 0 );
 
     return (status);
@@ -2304,9 +2346,14 @@ eHalStatus sme_RoamConnect(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamProfile *
         }
         else
         {
+            smsLog(pMac, LOGE, FL("invalid sessionID %d"), sessionId);
             status = eHAL_STATUS_INVALID_PARAMETER;
         }
         sme_ReleaseGlobalLock( &pMac->sme );
+    }
+    else
+    {
+        smsLog(pMac, LOGE, FL("sme_AcquireGlobalLock failed"));
     }
 
     return (status);
@@ -4309,6 +4356,11 @@ VOS_STATUS sme_DbgReadRegister(tHalHandle hHal, v_U32_t regAddr, v_U32_t *pRegVa
 #endif
    tPmcPowerState PowerState;
    tANI_U32  sessionId = 0;
+   tANI_U32 cmd  = READ_REG_DUMP_CMD;
+   tANI_U32 arg1 = regAddr;
+   tANI_U32 arg2 = 0;
+   tANI_U32 arg3 = 0;
+   tANI_U32 arg4 = 0;
 
    /* 1) To make Quarky work in FTM mode **************************************/
 
@@ -4317,7 +4369,7 @@ VOS_STATUS sme_DbgReadRegister(tHalHandle hHal, v_U32_t regAddr, v_U32_t *pRegVa
 #if defined(FEATURE_WLAN_NON_INTEGRATED_SOC)
       if (HAL_STATUS_SUCCESS(palReadRegister(hHdd, regAddr, pRegValue)))
 #elif defined(FEATURE_WLAN_INTEGRATED_SOC)
-      if (eWLAN_PAL_STATUS_SUCCESS == wpalDbgReadRegister(regAddr, pRegValue))
+      if (VOS_STATUS_SUCCESS == WDA_HALDumpCmdReq(pMac, cmd, arg1, arg2, arg3, arg4, (tANI_U8 *)pRegValue))
 #endif
       {
          return VOS_STATUS_SUCCESS;
@@ -4341,7 +4393,7 @@ VOS_STATUS sme_DbgReadRegister(tHalHandle hHal, v_U32_t regAddr, v_U32_t *pRegVa
 #if defined(FEATURE_WLAN_NON_INTEGRATED_SOC)
          if (HAL_STATUS_SUCCESS(palReadRegister(hHdd, regAddr, pRegValue )))
 #elif defined(FEATURE_WLAN_INTEGRATED_SOC)
-         if (eWLAN_PAL_STATUS_SUCCESS == wpalDbgReadRegister(regAddr, pRegValue))
+         if (VOS_STATUS_SUCCESS == WDA_HALDumpCmdReq(pMac, cmd, arg1, arg2, arg3, arg4, (tANI_U8 *)pRegValue))
 #endif
          {
             status = VOS_STATUS_SUCCESS;
@@ -4452,7 +4504,11 @@ VOS_STATUS sme_DbgReadMemory(tHalHandle hHal, v_U32_t memAddr, v_U8_t *pBuf, v_U
 #endif
    tPmcPowerState PowerState;
    tANI_U32 sessionId  = 0;
-
+   tANI_U32 cmd = READ_MEMORY_DUMP_CMD;
+   tANI_U32 arg1 = memAddr;
+   tANI_U32 arg2 = nLen/4;
+   tANI_U32 arg3 = 4;
+   tANI_U32 arg4 = 0;
    /* 1) To make Quarky work in FTM mode **************************************/
 
    if(eDRIVER_TYPE_MFG == pMac->gDriverType)
@@ -4460,7 +4516,7 @@ VOS_STATUS sme_DbgReadMemory(tHalHandle hHal, v_U32_t memAddr, v_U8_t *pBuf, v_U
 #if defined(FEATURE_WLAN_NON_INTEGRATED_SOC)
       if (HAL_STATUS_SUCCESS(palReadDeviceMemory(hHdd, memAddr, (void *)pBuf, nLen)))
 #elif defined(FEATURE_WLAN_INTEGRATED_SOC)
-      if (eWLAN_PAL_STATUS_SUCCESS == wpalDbgReadMemory(memAddr, (void *)pBuf, nLen))
+      if (VOS_STATUS_SUCCESS == WDA_HALDumpCmdReq(pMac, cmd, arg1, arg2, arg3, arg4, (tANI_U8*)pBuf))
 #endif
       {
          return VOS_STATUS_SUCCESS;
@@ -4484,7 +4540,7 @@ VOS_STATUS sme_DbgReadMemory(tHalHandle hHal, v_U32_t memAddr, v_U8_t *pBuf, v_U
 #if defined(FEATURE_WLAN_NON_INTEGRATED_SOC)
          if (HAL_STATUS_SUCCESS(palReadDeviceMemory(pvosGCTx, memAddr, (void *)pBuf, nLen)))
 #elif defined(FEATURE_WLAN_INTEGRATED_SOC)
-         if (eWLAN_PAL_STATUS_SUCCESS == wpalDbgReadMemory(memAddr, (void *)pBuf, nLen)) 
+         if (VOS_STATUS_SUCCESS == WDA_HALDumpCmdReq(pMac, cmd, arg1, arg2, arg3, arg4, (tANI_U8 *)pBuf))
 #endif
          {
             status = VOS_STATUS_SUCCESS;
@@ -6159,7 +6215,7 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
    }
 
    /* reset info based on new cc, and we are done */
-   csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE);
+   csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
    if( pMsg->changeCCCallback )
    {
       ((tSmeChangeCountryCallback)(pMsg->changeCCCallback))((void *)pMsg->pDevContext);
@@ -6866,7 +6922,139 @@ eHalStatus sme_UpdateImmediateRoamRssiDiff(tHalHandle hHal, v_U8_t nImmediateRoa
     pMac->roam.configParam.nImmediateRoamRssiDiff = nImmediateRoamRssiDiff;
     return(eHAL_STATUS_SUCCESS);
 }
+
+/*--------------------------------------------------------------------------
+  \brief sme_UpdateFastTransitionEnabled() - enable/disable Fast Transition support at runtime
+  It is used at in the REG_DYNAMIC_VARIABLE macro definition of 
+  isFastTransitionEnabled.
+  This is a synchronuous call
+  \param hHal - The handle returned by macOpen.
+  \return eHAL_STATUS_SUCCESS - SME update isFastTransitionEnabled config successfully.
+          Other status means SME is failed to update isFastTransitionEnabled.
+  \sa
+  --------------------------------------------------------------------------*/
+eHalStatus sme_UpdateFastTransitionEnabled(tHalHandle hHal, 
+        v_BOOL_t isFastTransitionEnabled)
+{
+  tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+  pMac->roam.configParam.isFastTransitionEnabled = isFastTransitionEnabled;
+  return eHAL_STATUS_SUCCESS;
+}
+#endif /* (WLAN_FEATURE_VOWIFI_11R) || (FEATURE_WLAN_CCX) || (FEATURE_WLAN_LFR) */
+
+#ifdef FEATURE_WLAN_LFR
+/*--------------------------------------------------------------------------
+  \brief sme_UpdateIsFastRoamIniFeatureEnabled() - enable/disable LFR support at runtime
+  It is used at in the REG_DYNAMIC_VARIABLE macro definition of 
+  isFastRoamIniFeatureEnabled.
+  This is a synchronuous call
+  \param hHal - The handle returned by macOpen.
+  \return eHAL_STATUS_SUCCESS - SME update isFastRoamIniFeatureEnabled config successfully.
+          Other status means SME is failed to update isFastRoamIniFeatureEnabled.
+  \sa
+  --------------------------------------------------------------------------*/
+eHalStatus sme_UpdateIsFastRoamIniFeatureEnabled(tHalHandle hHal, 
+        v_BOOL_t isFastRoamIniFeatureEnabled)
+{
+  tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+  pMac->roam.configParam.isFastRoamIniFeatureEnabled = isFastRoamIniFeatureEnabled;
+
+  if(TRUE == isFastRoamIniFeatureEnabled)
+  {
+      sme_UpdateFastTransitionEnabled(hHal, TRUE);
+      sme_UpdateConfigFwRssiMonitoring(hHal, TRUE);
+  }
+  else
+  {
+      /* CCX also depend on FW Monitoring/FastTransition.
+         Hence Disabling LFR should check for CCX enable before disabling FW Monitoring and Fast Transition */
+#ifdef FEATURE_WLAN_CCX
+      if(FALSE == pMac->roam.configParam.isCcxIniFeatureEnabled)
 #endif
+      {
+          VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                     "%s: Turn off FW Monitoring/Fast Transition", __func__);
+          sme_UpdateFastTransitionEnabled(hHal, FALSE);
+          sme_UpdateConfigFwRssiMonitoring(hHal, FALSE);
+      }
+  }
+
+  return eHAL_STATUS_SUCCESS;
+}
+#endif /* FEATURE_WLAN_LFR */
+
+#ifdef FEATURE_WLAN_CCX
+/*--------------------------------------------------------------------------
+  \brief sme_UpdateIsCcxFeatureEnabled() - enable/disable CCX support at runtime
+  It is used at in the REG_DYNAMIC_VARIABLE macro definition of
+  isCcxIniFeatureEnabled.
+  This is a synchronuous call
+  \param hHal - The handle returned by macOpen.
+  \return eHAL_STATUS_SUCCESS - SME update isCcxIniFeatureEnabled config successfully.
+          Other status means SME is failed to update isCcxIniFeatureEnabled.
+  \sa
+  --------------------------------------------------------------------------*/
+
+eHalStatus sme_UpdateIsCcxFeatureEnabled(tHalHandle hHal,
+        v_BOOL_t isCcxIniFeatureEnabled)
+{
+  tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+  pMac->roam.configParam.isCcxIniFeatureEnabled = isCcxIniFeatureEnabled;
+
+  if(TRUE == isCcxIniFeatureEnabled)
+  {
+      sme_UpdateFastTransitionEnabled(hHal, TRUE);
+      sme_UpdateConfigFwRssiMonitoring(hHal, TRUE);
+  }
+  else
+  {
+      /* LFR also depend on FW Monitoring/FastTransition.
+         Hence Disabling CCX should check for LFR enable before disabling FW Monitoring and Fast Transition */
+#ifdef FEATURE_WLAN_LFR
+      if(FALSE == pMac->roam.configParam.isFastRoamIniFeatureEnabled)
+#endif
+      {
+          VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                     "%s: Turn off FW Monitoring/Fast Transition", __func__);
+          sme_UpdateFastTransitionEnabled(hHal, FALSE);
+          sme_UpdateConfigFwRssiMonitoring(hHal, FALSE);
+      }
+  }
+  return eHAL_STATUS_SUCCESS;
+}
+#endif /* FEATURE_WLAN_CCX */
+
+/*--------------------------------------------------------------------------
+  \brief sme_UpdateConfigFwRssiMonitoring() - enable/disable firmware RSSI Monitoring at runtime
+  It is used at in the REG_DYNAMIC_VARIABLE macro definition of
+  fEnableFwRssiMonitoring.
+  This is a synchronuous call
+  \param hHal - The handle returned by macOpen.
+  \return eHAL_STATUS_SUCCESS - SME update fEnableFwRssiMonitoring. config successfully.
+          Other status means SME is failed to update fEnableFwRssiMonitoring.
+  \sa
+  --------------------------------------------------------------------------*/
+
+eHalStatus sme_UpdateConfigFwRssiMonitoring(tHalHandle hHal,
+        v_BOOL_t fEnableFwRssiMonitoring)
+{
+    eHalStatus halStatus = eHAL_STATUS_SUCCESS;
+
+
+    if (ccmCfgSetInt(hHal, WNI_CFG_PS_ENABLE_RSSI_MONITOR, fEnableFwRssiMonitoring,
+                    NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
+    {
+        halStatus = eHAL_STATUS_FAILURE;
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "Failure: Could not pass on WNI_CFG_PS_RSSI_MONITOR configuration info to CCM\n");
+    }
+
+    return (halStatus);
+}
+
 
 
 /* ---------------------------------------------------------------------------

@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -394,7 +414,8 @@ typedef struct
   /*Negative crossing of Rssi Thresh3*/
    wpt_uint32             bRssiThres3NegCross : 1;
 
-   wpt_uint32             bReserved           : 26;
+   wpt_uint32             avgRssi             : 8;
+   wpt_uint32             bReserved           : 18;
 
 }WDI_LowRSSIThIndType;
 
@@ -1326,6 +1347,9 @@ typedef struct
   wpt_uint8                 ucVhtCapableSta;
   wpt_uint8                 ucVhtTxChannelWidthSet;
 #endif
+
+  wpt_uint8                 ucHtLdpcEnabled;
+  wpt_uint8                 ucVhtLdpcEnabled;
 }WDI_ConfigStaReqInfoType;
 
 
@@ -3938,6 +3962,38 @@ typedef struct
   void*             pUserData;
 
 }WDI_SuspendParamsType;
+
+/*---------------------------------------------------------------------------
+  WDI_TrafficStatsType - This is collected for each STA
+---------------------------------------------------------------------------*/
+
+typedef struct
+{
+  /* TX stats */
+  wpt_uint32 txBytesPushed;
+  wpt_uint32 txPacketsPushed;
+
+  /* RX stats */
+  wpt_uint32 rxBytesRcvd;
+  wpt_uint32 rxPacketsRcvd;
+  wpt_uint32 rxTimeTotal;
+}WDI_TrafficStatsType;
+
+typedef struct
+{
+  WDI_TrafficStatsType *pTrafficStats;
+  wpt_uint32 length;
+  wpt_uint32 duration;
+
+   /*Request status callback offered by UMAC - it is called if the current
+    req has returned PENDING as status; it delivers the status of sending
+    the message over the BUS */
+  WDI_ReqStatusCb   wdiReqStatusCB; 
+
+  /*The user data passed in by UMAC, it will be sent back when the above
+    function pointer will be called */
+  void*             pUserData;  
+}WDI_TrafficStatsIndType;
 
 /*---------------------------------------------------------------------------
   WDI_WlanResumeInfoType
@@ -8636,6 +8692,24 @@ WDI_Status
 WDI_HostSuspendInd
 (
   WDI_SuspendParamsType*    pwdiSuspendIndParams
+);
+
+/**
+ @brief WDI_TrafficStatsInd
+
+       Traffic Stats from the upper layer will be sent
+        down to HAL
+
+ @param WDI_TrafficStatsIndType
+
+ @see
+
+ @return Status of the request
+*/
+WDI_Status
+WDI_TrafficStatsInd
+(
+  WDI_TrafficStatsIndType *pWdiTrafficStatsIndParams
 );
 
 #ifdef FEATURE_WLAN_SCAN_PNO

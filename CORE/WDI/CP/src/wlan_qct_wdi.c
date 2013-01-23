@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -335,6 +355,7 @@ WDI_ReqProcFuncType  pfnReqProcTbl[WDI_MAX_UMAC_IND] =
     Indications
   -------------------------------------------------------------------------*/
   WDI_ProcessHostSuspendInd,            /* WDI_HOST_SUSPEND_IND*/
+  WDI_ProcessTrafficStatsInd,           /* WDI_TRAFFIC_STATS_IND*/
 };
 
 
@@ -841,6 +862,7 @@ static char *WDI_getReqMsgString(wpt_uint16 wdiReqMsgId)
     CASE_RETURN_STRING( WDI_HAL_DUMP_CMD_REQ );
     CASE_RETURN_STRING( WDI_SHUTDOWN_REQ );
     CASE_RETURN_STRING( WDI_SET_POWER_PARAMS_REQ );
+    CASE_RETURN_STRING( WDI_TRAFFIC_STATS_IND );
     default:
         return "Unknown WDI MessageId";
   }
@@ -5542,6 +5564,51 @@ WDI_HostSuspendInd
 }/*WDI_HostSuspendInd*/
 
 /**
+ @brief WDI_TrafficStatsInd
+       Traffic Stats from the upper layer will be sent
+        down to HAL
+
+ @param WDI_TrafficStatsIndType
+
+ @see
+
+ @return Status of the request
+*/
+WDI_Status
+WDI_TrafficStatsInd
+(
+  WDI_TrafficStatsIndType *pWdiTrafficStatsIndParams
+)
+{
+
+  WDI_EventInfoType      wdiEventData;
+  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+  /*------------------------------------------------------------------------
+    Sanity Check
+  ------------------------------------------------------------------------*/
+  if ( eWLAN_PAL_FALSE == gWDIInitialized )
+  {
+    WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+              "WDI API call before module is initialized - Fail request");
+
+    return WDI_STATUS_E_NOT_ALLOWED;
+  }
+
+  /*------------------------------------------------------------------------
+    Fill in Event data and post to the Main FSM
+  ------------------------------------------------------------------------*/
+  wdiEventData.wdiRequest      = WDI_TRAFFIC_STATS_IND;
+  wdiEventData.pEventData      = pWdiTrafficStatsIndParams;
+  wdiEventData.uEventDataSize  = sizeof(*pWdiTrafficStatsIndParams);
+  wdiEventData.pCBfnc          = NULL;
+  wdiEventData.pUserData       = NULL;
+
+  return WDI_PostMainEvent(&gWDICb, WDI_REQUEST_EVENT, &wdiEventData);
+
+}/*WDI_TrafficStatsInd*/
+
+/**
  @brief WDI_HALDumpCmdReq
         Post HAL DUMP Command Event
 
@@ -6508,7 +6575,14 @@ WDI_ProcessStopReq
         return VOS_STATUS_E_FAILURE;
      }
      /* Stop Transport Driver, DXE */
-     WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_DOWN, WDI_SetPowerStateCb);
+     status = WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_DOWN, WDI_SetPowerStateCb);
+     if( eWLAN_PAL_STATUS_SUCCESS != status ) 
+     {
+        WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                "WDTS_SetPowerState returned with status %d when trying to notify DTS that host is entering Power Down state\n", status);
+        WDI_ASSERT(0);
+        return WDI_STATUS_E_FAILURE;
+     }
      /*
       * Wait for the event to be set once the ACK comes back from DXE
       */
@@ -6663,7 +6737,6 @@ WDI_ProcessInitScanReq
 
   wpalMutexRelease(&pWDICtx->wptMutex);
 #endif
-
   if ((pwdiInitScanParams->wdiReqInfo.bUseNOA) && (!WDI_getFwWlanFeatCaps(P2P_GO_NOA_DECOUPLE_INIT_SCAN)))
   {
     /*This is temporary fix.
@@ -6998,7 +7071,7 @@ WDI_ProcessFinishScanReq
   wpt_uint16                    usDataOffset         = 0;
   wpt_uint16                    usSendSize           = 0;
   wpt_uint8                     i                    = 0;
-
+  wpt_status                    wptStatus;
   tHalFinishScanReqMsg          halFinishScanReqMsg;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -7034,7 +7107,7 @@ WDI_ProcessFinishScanReq
                pWDICtx->bScanInProgress );
 
     wpalMutexRelease(&pWDICtx->wptMutex);
-    return WDI_STATUS_E_NOT_ALLOWED;
+    return WDI_STATUS_E_NOT_ALLOWED; 
   }
 
   /*-----------------------------------------------------------------------
@@ -7049,7 +7122,13 @@ WDI_ProcessFinishScanReq
   if ( pWDICtx->bInBmps )
   {
      // notify DTS that we are entering BMPS
-     WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_BMPS, NULL);
+     wptStatus = WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_BMPS, NULL);
+     if( eWLAN_PAL_STATUS_SUCCESS != wptStatus ) 
+     {
+        WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                "WDTS_SetPowerState returned with status %d when trying to notify DTS that host is entering BMPS\n", wptStatus);
+        WDI_ASSERT(0);
+     }
   }
 
   /*-----------------------------------------------------------------------
@@ -10275,6 +10354,86 @@ WDI_ProcessHostSuspendInd
   return  ( wdiStatus != WDI_STATUS_SUCCESS )?wdiStatus:WDI_STATUS_SUCCESS_SYNC;
 }/*WDI_ProcessHostSuspendInd*/
 
+
+
+/**
+ @brief Process Traffic Stats Indications function (called when Main FSM allows it)
+
+ @param  pWDICtx:         pointer to the WLAN DAL context
+              pEventData:      pointer to the event information structure
+
+ @see
+ @return Result of the function call
+*/
+WDI_Status
+WDI_ProcessTrafficStatsInd
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+)
+{
+  WDI_TrafficStatsIndType*       pTrafficStatsIndParams;
+  wpt_uint8*                     pSendBuffer         = NULL;
+  wpt_uint16                     usDataOffset        = 0;
+  wpt_uint16                     usSendSize          = 0;
+  WDI_Status                     wdiStatus;
+  tStatsClassBIndParams*         pStatsClassBIndParams;
+  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+  /*-------------------------------------------------------------------------
+     Sanity check
+  -------------------------------------------------------------------------*/
+  if (( NULL == pEventData ) || ( NULL == pEventData->pEventData ))
+  {
+      WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_WARN,
+               "%s: Invalid parameters in Traffic Stats ind",__func__);
+      WDI_ASSERT(0);
+      return WDI_STATUS_E_FAILURE;
+  }
+
+  pTrafficStatsIndParams = (WDI_TrafficStatsIndType *)pEventData->pEventData;
+
+  if(pTrafficStatsIndParams->length != sizeof(tStaStatsClassB)*(HAL_NUM_STA))
+  {
+      WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_WARN,
+               "%s: Invalid parameters in Traffic Stats ind",__func__);
+      WDI_ASSERT(0);
+      return WDI_STATUS_E_FAILURE;
+  }
+
+   /*-----------------------------------------------------------------------
+     Get message buffer
+   -----------------------------------------------------------------------*/
+  if (( WDI_STATUS_SUCCESS != WDI_GetMessageBuffer( pWDICtx,
+                         WDI_TRAFFIC_STATS_IND,
+                     sizeof(tStatsClassBIndParams),
+                     &pSendBuffer, &usDataOffset, &usSendSize))||
+        (usSendSize < (usDataOffset + sizeof(tStatsClassBIndParams))))
+  {
+      WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_FATAL,
+                  "Unable to get send buffer in Traffic Stats Ind ");
+      WDI_ASSERT(0);
+      return WDI_STATUS_E_FAILURE;
+  }
+
+  pStatsClassBIndParams = (tStatsClassBIndParams*)(pSendBuffer+usDataOffset);
+
+  pStatsClassBIndParams->duration = pTrafficStatsIndParams->duration;
+
+  wpalMemoryCopy(pStatsClassBIndParams->staStatsClassB,
+                 pTrafficStatsIndParams->pTrafficStats,
+                 pTrafficStatsIndParams->length);
+
+  /*-------------------------------------------------------------------------
+    Send Suspend Request to HAL
+  -------------------------------------------------------------------------*/
+  pWDICtx->wdiReqStatusCB     = pTrafficStatsIndParams->wdiReqStatusCB;
+  pWDICtx->pReqStatusUserData = pTrafficStatsIndParams->pUserData;
+
+  wdiStatus = WDI_SendIndication( pWDICtx, pSendBuffer, usSendSize);
+  return  ( wdiStatus != WDI_STATUS_SUCCESS )?wdiStatus:WDI_STATUS_SUCCESS_SYNC;
+}/*WDI_ProcessTrafficStatsInd*/
+
 /*==========================================================================
                   MISC CONTROL PROCESSING REQUEST API
 ==========================================================================*/
@@ -11754,7 +11913,13 @@ WDI_ProcessEnterImpsReq
    }
 
    // notify DTS that we are entering IMPS
-   WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_IMPS, WDI_SetPowerStateCb);
+   wptStatus = WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_IMPS, WDI_SetPowerStateCb);
+   if( eWLAN_PAL_STATUS_SUCCESS != wptStatus ) {
+        WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                "WDTS_SetPowerState returned with status %d when trying to notify DTS that host is entering IMPS\n", wptStatus);
+        WDI_ASSERT(0);
+        return WDI_STATUS_E_FAILURE;
+    }
 
    /*
     * Wait for the event to be set once the ACK comes back from DXE
@@ -11903,7 +12068,14 @@ WDI_ProcessEnterBmpsReq
    }
 
    // notify DTS that we are entering BMPS
-   WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_BMPS, WDI_SetPowerStateCb);
+   wptStatus = WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_BMPS, WDI_SetPowerStateCb);
+   if( eWLAN_PAL_STATUS_SUCCESS != wptStatus ) 
+   {
+        WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                "WDTS_SetPowerState returned with status %d when trying to notify DTS that we are entering BMPS\n", wptStatus);
+        WDI_ASSERT(0);
+        return WDI_STATUS_E_FAILURE;
+    }
 
 /*
     * Wait for the event to be set once the ACK comes back from DXE
@@ -11916,7 +12088,7 @@ WDI_ProcessEnterBmpsReq
                 "WDI Init failed to wait on an event");
 
       WDI_ASSERT(0);
-      return VOS_STATUS_E_FAILURE;
+      return VOS_STATUS_E_FAILURE; 
    }
 
    pWDICtx->bInBmps = eWLAN_PAL_TRUE;
@@ -13916,6 +14088,7 @@ WDI_ProcessInitScanRsp
   WDI_Status            wdiStatus;
   WDI_InitScanRspCb     wdiInitScanRspCb;
   tHalInitScanRspMsg    halInitScanRspMsg;
+  wpt_status            wptStatus;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*-------------------------------------------------------------------------
@@ -13952,7 +14125,12 @@ WDI_ProcessInitScanRsp
   if ( pWDICtx->bInBmps )
   {
      // notify DTS that we are entering Full power
-     WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
+     wptStatus = WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
+     if( eWLAN_PAL_STATUS_SUCCESS != wptStatus ) {
+        WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                "WDTS_SetPowerState returned with status %d when trying to notify DTS that host is entering Full Power state\n", wptStatus);
+        WDI_ASSERT(0);
+    }
   }
 
   /*Notify UMAC*/
@@ -16783,6 +16961,7 @@ WDI_ProcessEnterImpsRsp
   WDI_Status           wdiStatus;
   eHalStatus           halStatus;
   WDI_EnterImpsRspCb   wdiEnterImpsRspCb;
+  wpt_status wptStatus;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*-------------------------------------------------------------------------
@@ -16817,7 +16996,13 @@ WDI_ProcessEnterImpsRsp
                 halStatus);
      /* Call Back is not required as we are putting the DXE in FULL
       * and riva is already in full (IMPS RSP Failed)*/
-     WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
+     wptStatus = WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
+     
+     if( eWLAN_PAL_STATUS_SUCCESS != wptStatus ) {
+          WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                "WDTS_SetPowerState returned with status %d when trying to notify DTS that host is entering Full Power state\n", wptStatus);
+          WDI_ASSERT(0);
+     }
   }
   /*Notify UMAC*/
   wdiEnterImpsRspCb( wdiStatus, pWDICtx->pRspCBUserData);
@@ -16845,6 +17030,7 @@ WDI_ProcessExitImpsRsp
   WDI_Status           wdiStatus;
   eHalStatus           halStatus;
   WDI_ExitImpsRspCb    wdiExitImpsRspCb;
+  wpt_status           wptStatus;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*-------------------------------------------------------------------------
@@ -16868,8 +17054,13 @@ WDI_ProcessExitImpsRsp
   wdiStatus   =   WDI_HAL_2_WDI_STATUS(halStatus);
 
   // notify DTS that we are entering Full power
-  WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
-
+  wptStatus = WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
+  if( eWLAN_PAL_STATUS_SUCCESS != wptStatus ) 
+  {
+    WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                "WDTS_SetPowerState returned with status %d when trying to notify DTS that host is entering Full Power state\n", wptStatus);
+    WDI_ASSERT(0);
+  }
   /*Notify UMAC*/
   wdiExitImpsRspCb( wdiStatus, pWDICtx->pRspCBUserData);
 
@@ -16897,7 +17088,7 @@ WDI_ProcessEnterBmpsRsp
   tHalEnterBmpsRspParams halEnterBmpsRsp;
   WDI_EnterBmpsRspCb     wdiEnterBmpsRspCb;
   WDI_EnterBmpsRspParamsType wdiEnterBmpsRspparams;
-  
+  wpt_status             wptStatus;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*-------------------------------------------------------------------------
@@ -16946,7 +17137,13 @@ WDI_ProcessEnterBmpsRsp
                   halStatus); 
        /* Call Back is not required as we are putting the DXE in FULL
         * and riva is already in FULL (BMPS RSP Failed)*/
-       WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
+       wptStatus = WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
+       if( eWLAN_PAL_STATUS_SUCCESS != wptStatus ) 
+       {
+           WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                "WDTS_SetPowerState returned with status %d when trying to notify DTS that host is entering Full Power state\n", wptStatus);
+           WDI_ASSERT(0);
+       }
        pWDICtx->bInBmps = eWLAN_PAL_FALSE;
    }
   
@@ -16976,7 +17173,8 @@ WDI_ProcessExitBmpsRsp
   eHalStatus           halStatus;
   WDI_ExitBmpsRspCb   wdiExitBmpsRspCb;
   tHalExitBmpsRspParams halExitBmpsRsp;
-  WDI_ExitBmpsRspParamsType wdiExitBmpsRspParams; 
+  WDI_ExitBmpsRspParamsType wdiExitBmpsRspParams;
+  wpt_status                wptStatus;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*-------------------------------------------------------------------------
@@ -17013,8 +17211,13 @@ WDI_ProcessExitBmpsRsp
   }
 
   // notify DTS that we are entering Full power
-  WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
-
+  wptStatus = WDTS_SetPowerState(pWDICtx, WDTS_POWER_STATE_FULL, NULL);
+  if( eWLAN_PAL_STATUS_SUCCESS != wptStatus ) 
+  {
+    WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                "WDTS_SetPowerState returned with status %d when trying to notify DTS that host is entering Full Power state\n", wptStatus);
+    WDI_ASSERT(0);
+  }
   pWDICtx->bInBmps = eWLAN_PAL_FALSE;
 
   /*Notify UMAC*/
@@ -18127,6 +18330,8 @@ WDI_ProcessLowRSSIInd
      halRSSINotificationIndMsg.rssiNotificationParams.bRssiThres3PosCross;
   wdiInd.wdiIndicationData.wdiLowRSSIInfo.bRssiThres3NegCross =
      halRSSINotificationIndMsg.rssiNotificationParams.bRssiThres3NegCross;
+  wdiInd.wdiIndicationData.wdiLowRSSIInfo.avgRssi =
+     halRSSINotificationIndMsg.rssiNotificationParams.avgRssi;
 
   /*Notify UMAC*/
   pWDICtx->wdiLowLevelIndCB( &wdiInd, pWDICtx->pIndUserData );
@@ -18920,7 +19125,7 @@ WDI_ProcessHALDumpCmdRsp
 )
 {
   WDI_HALDumpCmdRspCb     wdiHALDumpCmdRspCb;
-  tpHalDumpCmdRspParams   halDumpCmdRspParams;
+  tHalDumpCmdRspParams   halDumpCmdRspParams;
   WDI_HALDumpCmdRspParamsType wdiHALDumpCmdRsp;
 
   /*-------------------------------------------------------------------------
@@ -18941,19 +19146,22 @@ WDI_ProcessHALDumpCmdRsp
   wdiHALDumpCmdRsp.usBufferLen = 0;
   wdiHALDumpCmdRsp.pBuffer = NULL;
 
-  halDumpCmdRspParams = (tHalDumpCmdRspParams *)pEventData->pEventData;
+  wpalMemoryCopy( &halDumpCmdRspParams, 
+                 pEventData->pEventData, 
+                 sizeof(tHalDumpCmdRspParams));
 
   wdiHALDumpCmdRsp.wdiStatus   =
-              WDI_HAL_2_WDI_STATUS(halDumpCmdRspParams->status);
+              WDI_HAL_2_WDI_STATUS(halDumpCmdRspParams.status);
 
   if (( wdiHALDumpCmdRsp.wdiStatus  ==  WDI_STATUS_SUCCESS) &&
-      (halDumpCmdRspParams->rspLength != 0))
+      (halDumpCmdRspParams.rspLength != 0))
   {
       /* Copy the response data */
-      wdiHALDumpCmdRsp.usBufferLen = halDumpCmdRspParams->rspLength;
-      wdiHALDumpCmdRsp.pBuffer = wpalMemoryAllocate(halDumpCmdRspParams->rspLength);
-      wpalMemoryCopy( &halDumpCmdRspParams->rspBuffer,
-                  wdiHALDumpCmdRsp.pBuffer,
+      wdiHALDumpCmdRsp.usBufferLen = halDumpCmdRspParams.rspLength;
+      wdiHALDumpCmdRsp.pBuffer = wpalMemoryAllocate(halDumpCmdRspParams.rspLength);
+
+      wpalMemoryCopy( wdiHALDumpCmdRsp.pBuffer,
+                  &halDumpCmdRspParams.rspBuffer, 
                   sizeof(wdiHALDumpCmdRsp.usBufferLen));
   }
 
@@ -19321,6 +19529,7 @@ WDI_SendMsg
 )
 {
   WDI_Status wdiStatus = WDI_STATUS_SUCCESS;
+  wpt_uint32 ret;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
   /*------------------------------------------------------------------------
@@ -19335,12 +19544,29 @@ WDI_SendMsg
      - notify transport failure
      Note: CTS is reponsible for freeing the message buffer.
    -----------------------------------------------------------------------*/
-   if ( 0 != WCTS_SendMessage( pWDICtx->wctsHandle, (void*)pSendBuffer, usSendSize ))
+   ret = WCTS_SendMessage(pWDICtx->wctsHandle, (void*)pSendBuffer, usSendSize);
+   if ((eWLAN_PAL_STATUS_SUCCESS != ret) &&
+       (eWLAN_PAL_STATUS_E_RESOURCES != ret))
    {
      WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
                 "Failed to send message over the bus - catastrophic failure");
 
      wdiStatus = WDI_STATUS_E_FAILURE;
+   }
+   else
+   {
+     /* even when message was placed in CTS deferred Q, we will treat it
+        success but log this info
+      */
+     if (eWLAN_PAL_STATUS_E_RESOURCES == ret)
+     {
+       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                  "WDI_SendMsg: message placed in CTS deferred Q, expected "
+                  "response %s (%d)",
+                  WDI_getRespMsgString(pWDICtx->wdiExpectedResponse),
+                  pWDICtx->wdiExpectedResponse);
+       WDI_ASSERT(0);
+     }
    }
 
   /*Check if originator provided a request status callback*/
@@ -19366,6 +19592,9 @@ WDI_SendMsg
   {
    /*Start timer for the expected response */
    wpalTimerStart(&pWDICtx->wptResponseTimer, WDI_RESPONSE_TIMEOUT);
+
+   /*cache current timestamp for debugging */
+   pWDICtx->uTimeStampRspTmrStart = wpalGetSystemTime();
   }
   else
   {
@@ -19415,14 +19644,18 @@ WDI_SendIndication
       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_INFO,
                 "Send indication status : %d", uStatus);
 
-      pWDICtx->wdiReqStatusCB( (uStatus != 0 ) ? WDI_STATUS_E_FAILURE:
-                                                 WDI_STATUS_SUCCESS,
+      /* even if CTS placed indication into its deferred Q, we treat it
+       * as success and let CTS drain its queue as per smd interrupt to CTS
+       */
+      pWDICtx->wdiReqStatusCB( ((uStatus != eWLAN_PAL_STATUS_SUCCESS) && (uStatus != eWLAN_PAL_STATUS_E_RESOURCES)) ? WDI_STATUS_E_FAILURE: WDI_STATUS_SUCCESS,
                                pWDICtx->pReqStatusUserData);
    }
 
    /*If sending of the message failed - it is considered catastrophic and
      indicates an error with the device*/
-   if ( 0 != uStatus)
+   if (( eWLAN_PAL_STATUS_SUCCESS != uStatus) &&
+       ( eWLAN_PAL_STATUS_E_RESOURCES != uStatus))
+
    {
       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
                 "Failed to send indication over the bus - catastrophic failure");
@@ -19520,14 +19753,32 @@ WDI_ResponseTimerCB
     return;
   }
 
+  /*cache current timestamp for debugging */
+  pWDICtx->uTimeStampRspTmrExp = wpalGetSystemTime();
+
+  /* If response timer is running at this time that means this timer
+   * event is not for the last request but rather last-to-last request and
+   * this timer event has come after we recevied respone for last-to-last
+   * message
+   */
+  if (VOS_TIMER_STATE_RUNNING == wpalTimerGetCurStatus(&pWDICtx->wptResponseTimer))
+  {
+    WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+               "WDI_ResponseTimerCB: timer in running state on timer event, "
+               "ignore tmr event, timeStampTmrStart: %ld, timeStampTmrExp: %ld",
+               pWDICtx->uTimeStampRspTmrStart, pWDICtx->uTimeStampRspTmrExp);
+    return;
+  }
+
   if ( WDI_MAX_RESP != pWDICtx->wdiExpectedResponse )
   {
 
   WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
             "Timeout occurred while waiting for %s (%d) message from device "
-            " - catastrophic failure",
+            " - catastrophic failure, timeStampTmrStart: %ld, timeStampTmrExp: %ld",
             WDI_getRespMsgString(pWDICtx->wdiExpectedResponse),
-            pWDICtx->wdiExpectedResponse);
+            pWDICtx->wdiExpectedResponse, pWDICtx->uTimeStampRspTmrStart,
+            pWDICtx->uTimeStampRspTmrExp);
   /* WDI timeout means Riva is not responding or SMD communication to Riva
    * is not happening. The only possible way to recover from this error
    * is to initiate SSR from APPS 
@@ -19546,8 +19797,10 @@ WDI_ResponseTimerCB
   else
   {
      WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
-                 "Timeout occurred but not waiting for any response %d", 
-                 pWDICtx->wdiExpectedResponse);
+                 "Timeout occurred but not waiting for any response %d "
+                 "timeStampTmrStart: %ld, timeStampTmrExp: %ld",
+                 pWDICtx->wdiExpectedResponse, pWDICtx->uTimeStampRspTmrStart,
+                 pWDICtx->uTimeStampRspTmrExp);
   }
 
   return; 
@@ -20873,6 +21126,8 @@ WDI_2_HAL_REQ_TYPE
     return WLAN_HAL_HOST_RESUME_REQ;
   case WDI_HOST_SUSPEND_IND:
     return WLAN_HAL_HOST_SUSPEND_IND;
+  case WDI_TRAFFIC_STATS_IND:
+    return WLAN_HAL_CLASS_B_STATS_IND;
   case WDI_KEEP_ALIVE_REQ:
     return WLAN_HAL_KEEP_ALIVE_REQ;
 
@@ -21628,6 +21883,9 @@ WDI_CopyWDIStaCtxToHALStaCtx
   {
      phalConfigSta_V1->vhtCapable = pwdiConfigSta->ucVhtCapableSta;
      phalConfigSta_V1->vhtTxChannelWidthSet = pwdiConfigSta->ucVhtTxChannelWidthSet;
+     phalConfigSta_V1->htLdpcEnabled = pwdiConfigSta->ucHtLdpcEnabled;
+     phalConfigSta_V1->vhtLdpcEnabled = pwdiConfigSta->ucVhtLdpcEnabled;
+
   }
 #endif
 }/*WDI_CopyWDIStaCtxToHALStaCtx*/;
@@ -22136,6 +22394,15 @@ WDI_IsHwFrameTxTranslationCapable
     return WDI_STATUS_E_NOT_ALLOWED;
   }
 
+#ifdef WLAN_SOFTAP_VSTA_FEATURE
+  if (IS_VSTA_IDX(uSTAIdx))
+  {
+    WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
+              "STA %d is a Virtual STA, "
+              "HW frame translation disabled", uSTAIdx);
+    return eWLAN_PAL_FALSE;
+  }
+#endif
 
   return gWDICb.bFrameTransEnabled;
 }/*WDI_IsHwFrameTxTranslationCapable*/
@@ -22922,10 +23189,8 @@ WDI_ProcessUpdateScanParamsReq
    WDI_UpdateScanParamsInfoType* pwdiUpdateScanParams  = NULL;
    WDI_UpdateScanParamsCb        wdiUpdateScanParamsCb = NULL;
    wpt_uint8*                    pSendBuffer           = NULL;
-   wpt_uint16                    usDataOffset          = 0;
    wpt_uint16                    usSendSize            = 0;
-   tUpdateScanParams             updateScanParams = {0};
-
+   WDI_Status                    wdiStatus;
 
    /*-------------------------------------------------------------------------
      Sanity check
@@ -22942,33 +23207,25 @@ WDI_ProcessUpdateScanParamsReq
 
    WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_INFO,
                "Begin WDI Update Scan Parameters");
-   /*-----------------------------------------------------------------------
-     Get message buffer
-   -----------------------------------------------------------------------*/
-   if (( WDI_STATUS_SUCCESS != WDI_GetMessageBuffer( pWDICtx, WDI_UPDATE_SCAN_PARAMS_REQ,
-                         sizeof(updateScanParams),
-                         &pSendBuffer, &usDataOffset, &usSendSize))||
-       ( usSendSize < (usDataOffset + sizeof(updateScanParams) )))
-   {
-      WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_WARN,
-                  "Unable to get send buffer in Update Scan Params req %x %x %x",
-                  pEventData, pwdiUpdateScanParams, wdiUpdateScanParamsCb);
-      WDI_ASSERT(0);
-      return WDI_STATUS_E_FAILURE;
-   }
 
    //
    // Fill updateScanParams from pwdiUpdateScanParams->wdiUpdateScanParamsInfo
    //
    if ( pWDICtx->wlanVersion.revision < 1 ) 
    {
-     WDI_PackUpdateScanParamsReq( pWDICtx, pwdiUpdateScanParams,
+     wdiStatus = WDI_PackUpdateScanParamsReq( pWDICtx, pwdiUpdateScanParams,
                                   &pSendBuffer, &usSendSize);
    }
    else
    {
-     WDI_PackUpdateScanParamsReqEx( pWDICtx, pwdiUpdateScanParams,
-                                    &pSendBuffer, &usSendSize);
+     wdiStatus = WDI_PackUpdateScanParamsReqEx( pWDICtx, pwdiUpdateScanParams,
+                                  &pSendBuffer, &usSendSize);
+   }
+   
+   if(WDI_STATUS_SUCCESS != wdiStatus)
+   {
+        //memory allocation failed
+        return WDI_STATUS_E_FAILURE;
    }
 
    /*-------------------------------------------------------------------------
@@ -25303,7 +25560,6 @@ WDI_ProcessFeatureCapsExchangeRsp
       gpFwWlanFeatCaps->featCaps[2],
       gpFwWlanFeatCaps->featCaps[3]
      );
-
    wdiFeatureCapsExchangeCb = (WDI_featureCapsExchangeCb) pWDICtx -> pfncRspCB; 
 
    /*Notify UMAC - there is no callback right now but can be used in future if reqd */

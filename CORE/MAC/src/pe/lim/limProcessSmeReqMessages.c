@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -83,6 +103,8 @@
  * taking care of sending null data and receiving ACK to/from AP.
  */
 #define SCAN_MESSAGING_OVERHEAD 5 // in msecs
+
+#define CONV_MS_TO_US 1024 //conversion factor from ms to us
 
 // SME REQ processing function templates
 static void __limProcessSmeStartReq(tpAniSirGlobal, tANI_U32 *);
@@ -648,6 +670,10 @@ __limHandleSmeStartBssRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         VOS_TRACE(VOS_MODULE_ID_PE,VOS_TRACE_LEVEL_INFO,
             FL("*****psessionEntry->vhtCapability = %d"),psessionEntry->vhtCapability);
 #endif
+
+        psessionEntry->txLdpcIniFeatureEnabled = 
+                                    pSmeStartBssReq->txLdpcIniFeatureEnabled;
+
         palCopyMemory(pMac->hHdd, (void*)&psessionEntry->rateSet,
             (void*)&pSmeStartBssReq->operationalRateSet,
             sizeof(tSirMacRateSet));
@@ -1602,6 +1628,8 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 #ifdef FEATURE_WLAN_LFR
             psessionEntry->isFastRoamIniFeatureEnabled = pSmeJoinReq->isFastRoamIniFeatureEnabled;
 #endif
+            psessionEntry->txLdpcIniFeatureEnabled = pSmeJoinReq->txLdpcIniFeatureEnabled;
+
             if(psessionEntry->bssType == eSIR_INFRASTRUCTURE_MODE)
             {
                 psessionEntry->limSystemRole = eLIM_STA_ROLE;
@@ -2825,19 +2853,6 @@ __limProcessSmeSetContextReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 #endif
 
         limPostMlmMessage(pMac, LIM_MLM_SETKEYS_REQ, (tANI_U32 *) pMlmSetKeysReq);
-
-#ifdef ANI_AP_SDK
-        /* For SDK acting as STA under Linux, need to consider the AP as *
-         * as authenticatated.                                           */
-        if ( (psessionEntry->limSystemRole == eLIM_STA_ROLE) &&
-             (psessionEntry->limSmeState == eLIM_SME_LINK_EST_STATE))
-        {
-            tpDphHashNode pSta;
-            pSta = dphGetHashEntry(pMac, 0, &psessionEntry->dph.dphHashTable);
-            if (pSta)
-                pSta->staAuthenticated = 1;
-        }
-#endif
     }
     else
     {
@@ -4876,6 +4891,9 @@ __limInsertSingleShotNOAForScan(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     tpP2pPsParams pMsgNoA;
     tSirMsgQ msg;
     tpSirSmeScanReq     pScanReq;
+    tANI_U32 val = 0;
+    tANI_U8 i = 0;
+
     pScanReq = (tpSirSmeScanReq) pMsgBuf;
     if( eHAL_STATUS_SUCCESS != palAllocateMemory(
                   pMac->hHdd, (void **) &pMsgNoA, sizeof( tP2pPsConfig )))
@@ -4892,14 +4910,47 @@ __limInsertSingleShotNOAForScan(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     pMsgNoA->duration = 0;
     pMsgNoA->interval = 0;
     pMsgNoA->count = 0;
-    /* Below params used for Single Shot NOA - so assign proper values */
-    /* Use min + max channel time to calculate the total duration of scan.
-    * Adding an overhead of 5ms to account for the scan messaging delays
-    */
-    pMsgNoA->single_noa_duration = ((pScanReq->minChannelTime + pScanReq->maxChannelTime)*
-                                    pScanReq->channelList.numChannels) + SCAN_MESSAGING_OVERHEAD;
-    pMsgNoA->psSelection = P2P_SINGLE_NOA;
+
     pMac->lim.gpLimSmeScanReq = pScanReq;
+
+    /* Below params used for Single Shot NOA - so assign proper values */
+    pMsgNoA->psSelection = P2P_SINGLE_NOA;
+
+    /* Calculate the total duration of scan for all the channels
+     * listed in the channel list */
+    pMsgNoA->single_noa_duration = 0;
+
+    if (wlan_cfgGetInt(pMac, WNI_CFG_PASSIVE_MAXIMUM_CHANNEL_TIME, &val) != eSIR_SUCCESS)
+    {
+        /*
+         * Could not get max channel value
+         * from CFG. Log error.
+         */
+        limLog(pMac, LOGP, FL("could not retrieve passive max channel value\n"));
+
+        /* use a default value of 110ms */
+        val = 110;
+    }
+
+    for (i = 0; i < pMac->lim.gpLimSmeScanReq->channelList.numChannels; i++) {
+        tANI_U8 channelNum = pMac->lim.gpLimSmeScanReq->channelList.channelNumber[i];
+
+        if (limActiveScanAllowed(pMac, channelNum)) {
+            /* Use min + max channel time to calculate the total duration of scan */
+            pMsgNoA->single_noa_duration += pMac->lim.gpLimSmeScanReq->minChannelTime + pMac->lim.gpLimSmeScanReq->maxChannelTime;
+        } else {
+            /* using the value from WNI_CFG_PASSIVE_MINIMUM_CHANNEL_TIME as is done in
+             * void limContinuePostChannelScan(tpAniSirGlobal pMac)
+             */
+            pMsgNoA->single_noa_duration += val;
+        }
+    }
+
+    /* Adding an overhead of 5ms to account for the scan messaging delays */
+    pMsgNoA->single_noa_duration += SCAN_MESSAGING_OVERHEAD;
+
+    /* Multiplying with 1024 since riva is expecting in micro Seconds */
+     pMsgNoA->single_noa_duration *= CONV_MS_TO_US;
 
     /* Start Insert NOA timer
      * If insert NOA req fails or NOA rsp fails or start NOA indication doesn't come from FW due to GO session deletion

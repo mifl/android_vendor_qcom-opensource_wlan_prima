@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -50,6 +70,9 @@ Qualcomm Confidential and Proprietary
 #include <limFT.h>
 #endif
 #include "smeInside.h"
+#include "wlan_qct_wda.h"
+
+void WDA_TimerTrafficStatsInd(tWDA_CbContext *pWDA);
 
 static char *getRole( tLimSystemRole role )
 {
@@ -122,7 +145,7 @@ char *dumpLim( tpAniSirGlobal pMac, char *p, tANI_U32 sessionId)
   else if (pMac->lim.gLimSystemRole == eLIM_AP_ROLE)
   {
       p += log_sprintf( pMac,p, "Num of STAs associated                     = %d\n",
-                      pMac->lim.gLimNumOfCurrentSTAs);
+                      peGetCurrentSTAsCount(pMac));
 
       p += log_sprintf( pMac,p, "Num of Pre-auth contexts                   = %d\n",
                       pMac->lim.gLimNumPreAuthContexts);
@@ -1052,15 +1075,15 @@ dump_lim_add_sta( tpAniSirGlobal pMac, tANI_U32 arg1, tANI_U32 arg2, tANI_U32 ar
     tpDphHashNode pStaDs;
     tpPESession psessionEntry = &pMac->lim.gpSession[0];  //TBD-RAJESH HOW TO GET sessionEntry?????
     tSirMacAddr staMac = {0};
-    tANI_U16 aid;
+    tANI_U16 peerIdx;
     if(arg2 > 5)
       goto addStaFail;
-    aid = limAssignAID(pMac);
-    pStaDs = dphGetHashEntry(pMac, aid);
+    peerIdx = limAssignPeerIdx(pMac, psessionEntry);
+    pStaDs = dphGetHashEntry(pMac, peerIdx);
     if(NULL == pStaDs)
     {
         staMac[5] = (tANI_U8) arg1;
-        pStaDs = dphAddHashEntry(pMac, staMac, aid, &psessionEntry->dph.dphHashTable);
+        pStaDs = dphAddHashEntry(pMac, staMac, peerIdx, &psessionEntry->dph.dphHashTable);
         if(NULL == pStaDs)
           goto addStaFail;
 
@@ -2446,6 +2469,65 @@ dump_lim_cancel_channel_switch_announcement( tpAniSirGlobal pMac, tANI_U32 arg1,
 
   return p;
 }
+
+
+static char *
+dump_lim_mcc_policy_maker(tpAniSirGlobal pMac, tANI_U32 arg1,tANI_U32 arg2,tANI_U32 arg3, tANI_U32 arg4, char *p)
+{
+   VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_FATAL, "dump_lim_mcc_policy_maker arg = %d",arg1);
+    
+   if(arg1 == 0) //Disable feature completely
+   {  
+      WDA_TrafficStatsTimerActivate(FALSE);
+      if (ccmCfgSetInt(pMac, WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED, FALSE,
+          NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
+      {
+         limLog( pMac, LOGE, FL("Could not get WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED"));
+      }
+   }
+   else if(arg1 == 1) //Enable feature
+   {   
+      if (ccmCfgSetInt(pMac, WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED, TRUE,
+         NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
+      {
+        limLog( pMac, LOGE, FL("Could not set WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED"));
+      }    
+   }
+   else if(arg1 == 2) //Enable feature and activate periodic timer
+   {   
+      if (ccmCfgSetInt(pMac, WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED, TRUE,
+          NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
+      {
+         limLog( pMac, LOGE, FL("Could not set WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED"));
+      }
+      WDA_TrafficStatsTimerActivate(TRUE);
+   }
+   else if(arg1 == 3) //Enable only stats collection - Used for unit testing
+   {
+      VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_FATAL, "Enabling Traffic Stats in DTS");
+      WDI_DS_ActivateTrafficStats();
+   }
+   else if(arg1 == 4) //Send current stats snapshot to Riva -- Used for unit testing
+   {
+      v_VOID_t * pVosContext = vos_get_global_context(VOS_MODULE_ID_WDA, NULL);
+      tWDA_CbContext *pWDA =  vos_get_context(VOS_MODULE_ID_WDA, pVosContext);
+      ccmCfgSetInt(pMac, WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED, TRUE, NULL, eANI_BOOLEAN_FALSE);
+      WDA_TimerTrafficStatsInd(pWDA);
+      WDA_TrafficStatsTimerActivate(FALSE);
+      ccmCfgSetInt(pMac, WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED, FALSE,NULL, eANI_BOOLEAN_FALSE);
+   }
+   else if (arg1 == 5) //Change the periodicity of TX stats timer
+   {
+      v_VOID_t * pVosContext = vos_get_global_context(VOS_MODULE_ID_WDA, NULL);
+      tWDA_CbContext *pWDA =  vos_get_context(VOS_MODULE_ID_WDA, pVosContext);
+      if (tx_timer_change(&pWDA->wdaTimers.trafficStatsTimer, arg2, arg2) != TX_SUCCESS)
+      {
+          limLog(pMac, LOGP, FL("Disable timer before changing timeout value"));
+      }
+   }
+   return p;
+}
+
 static tDumpFuncEntry limMenuDumpTable[] = {
     {0,     "PE (300-499)",                                          NULL},
     {300,   "LIM: Dump state(s)/statistics <session id>",            dump_lim_info},
@@ -2515,6 +2597,7 @@ static tDumpFuncEntry limMenuDumpTable[] = {
 #ifdef WLAN_FEATURE_11AC
     {366,   "PE.LIM: Send a VHT OPMode Action Frame",                dump_lim_vht_opmode_notification},
     {367,   "PE.LIM: Send a VHT Channel Switch Announcement",        dump_lim_vht_channel_switch_notification},
+    {368,   "PE.LIM: MCC Policy Maker",                              dump_lim_mcc_policy_maker},
 #endif
 };
 

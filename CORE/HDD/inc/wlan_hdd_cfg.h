@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -85,6 +105,11 @@
 #define CFG_11D_SUPPORT_ENABLED_MIN            WNI_CFG_11D_ENABLED_STAMIN 
 #define CFG_11D_SUPPORT_ENABLED_MAX            WNI_CFG_11D_ENABLED_STAMAX 
 #define CFG_11D_SUPPORT_ENABLED_DEFAULT        WNI_CFG_11D_ENABLED_STADEF    // Default is ON 
+
+#define CFG_11H_SUPPORT_ENABLED_NAME           "g11hSupportEnabled"
+#define CFG_11H_SUPPORT_ENABLED_MIN            ( 0 )
+#define CFG_11H_SUPPORT_ENABLED_MAX            ( 1 )
+#define CFG_11H_SUPPORT_ENABLED_DEFAULT        ( 1 ) // Default is ON 
 
 #define CFG_ENFORCE_11D_CHANNELS_NAME          "gEnforce11dChannel"
 #define CFG_ENFORCE_11D_CHANNELS_MIN           ( 0 )
@@ -561,6 +586,11 @@ typedef enum
 #define CFG_REST_TIME_CONC_MAX                      ( 10000 )
 #define CFG_REST_TIME_CONC_DEFAULT                  ( 100 )
 
+#define CFG_NUM_CHAN_COMBINED_CONC_NAME             "gNumChanCombinedConc"
+#define CFG_NUM_CHAN_COMBINED_CONC_MIN              ( 1 )
+#define CFG_NUM_CHAN_COMBINED_CONC_MAX              ( 255 )
+#define CFG_NUM_CHAN_COMBINED_CONC_DEFAULT          ( 1 )
+
 #endif
 
 #define CFG_MAX_PS_POLL_NAME                   "gMaxPsPoll"
@@ -714,11 +744,6 @@ typedef enum
 #endif // FEATURE_WLAN_LFR
 
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-#define CFG_FT_RSSI_FILTER_PERIOD_NAME                     "FTRssiFilterPeriod"
-#define CFG_FT_RSSI_FILTER_PERIOD_MIN                      WNI_CFG_FT_RSSI_FILTER_PERIOD_STAMIN
-#define CFG_FT_RSSI_FILTER_PERIOD_MAX                      WNI_CFG_FT_RSSI_FILTER_PERIOD_STAMAX
-#define CFG_FT_RSSI_FILTER_PERIOD_DEFAULT                  WNI_CFG_FT_RSSI_FILTER_PERIOD_STADEF 
-
 // This flag will control fasttransition in case of 11r and ccx.
 // Basically with this the whole neighbor roam, pre-auth, reassoc
 // can be turned ON/OFF. 
@@ -748,13 +773,11 @@ typedef enum
  * of any available candidate is better than the currently associated 
  * AP by at least gImmediateRoamRssiDiff, then being to roam 
  * immediately. 
- * NOTE: Value of 0 means that we register for reassoc threshold and 
- * wait for notification before triggering roam.
  */
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_NAME                   "gImmediateRoamRssiDiff"
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_MIN                    (0)
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_MAX                    (125)
-#define CFG_IMMEDIATE_ROAM_RSSI_DIFF_DEFAULT                (0)
+#define CFG_IMMEDIATE_ROAM_RSSI_DIFF_DEFAULT                (3)
 #endif /* (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR) */
 
 #define CFG_QOS_WMM_PKT_CLASSIFY_BASIS_NAME                "PktClassificationBasis" // DSCP or 802.1Q
@@ -1424,6 +1447,16 @@ typedef enum
 #define CFG_ENABLE_RX_STBC_MAX                   ( 1 )
 #define CFG_ENABLE_RX_STBC_DEFAULT               ( 1 )
 
+/* 
+ * Enable/Disable vsta based on MAX Assoc limit 
+ * defined in WCNSS_qcom_cfg.ini.
+ */
+#ifdef WLAN_SOFTAP_VSTA_FEATURE
+#define CFG_VSTA_SUPPORT_ENABLE               "gEnableVSTASupport"
+#define CFG_VSTA_SUPPORT_ENABLE_MIN           ( 0 )
+#define CFG_VSTA_SUPPORT_ENABLE_MAX           ( 1 )
+#define CFG_VSTA_SUPPORT_ENABLE_DEFAULT       ( 0 )
+#endif
 
 #ifdef FEATURE_WLAN_TDLS
 #define CFG_TDLS_SUPPORT_ENABLE               "gEnableTDLSSupport"
@@ -1445,6 +1478,34 @@ typedef enum
 #define CFG_ACTIVEMODE_OFFLOAD_ENABLE_MAX     ( 1 )
 #define CFG_ACTIVEMODE_OFFLOAD_ENABLE_DEFAULT ( 0 )
 #endif
+
+/*
+ * Scan Aging timeout value in seconds
+ */
+#define CFG_SCAN_AGING_PARAM_NAME          "gScanAgingTime"
+#define CFG_SCAN_AGING_PARAM_MIN           ( 0 )
+#define CFG_SCAN_AGING_PARAM_MAX           ( 200 )
+#define CFG_SCAN_AGING_PARAM_DEFAULT       ( 60 )
+
+/* Config Param to enable the txLdpc capability 
+ * 0 - disable 
+ * 1 - HT LDPC enable
+ * 2 - VHT LDPC enable
+ * 3 - HT & VHT LDPC enable */
+#define CFG_TX_LDPC_ENABLE_FEATURE         "gTxLdpcEnable"
+#define CFG_TX_LDPC_ENABLE_FEATURE_MIN     ( 0 )
+#define CFG_TX_LDPC_ENABLE_FEATURE_MAX     ( 3 )
+#define CFG_TX_LDPC_ENABLE_FEATURE_DEFAULT ( 0 )
+
+/*
+ * Enable / Disable MCC Adaptive Scheduler feature
+ * Default: Enable
+ */
+#define CFG_ENABLE_MCC_ADATIVE_SCHEDULER_ENABLED_NAME             "gEnableMCCAdaptiveScheduler"      
+#define CFG_ENABLE_MCC_ADATIVE_SCHEDULER_ENABLED_MIN              ( 0 )
+#define CFG_ENABLE_MCC_ADATIVE_SCHEDULER_ENABLED_MAX              ( 1 )
+#define CFG_ENABLE_MCC_ADATIVE_SCHEDULER_ENABLED_DEFAULT          ( 0 ) 
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -1463,6 +1524,7 @@ typedef struct
    v_U8_t        OperatingChannel;
    v_BOOL_t      ShortSlotTimeEnabled;
    v_BOOL_t      Is11dSupportEnabled;
+   v_BOOL_t      Is11hSupportEnabled;
    v_BOOL_t      fEnforce11dChannels;
    v_BOOL_t      fSupplicantCountryCodeHasPriority;
    v_BOOL_t      fEnforceCountryCodeMatch;
@@ -1599,6 +1661,8 @@ typedef struct
    v_U32_t        nActiveMinChnTimeConc;     //in units of milliseconds
    v_U32_t        nActiveMaxChnTimeConc;     //in units of milliseconds
    v_U32_t        nRestTimeConc;             //in units of milliseconds
+   v_U8_t         nNumChanCombinedConc;      //number of channels combined
+                                             //in each split scan operation
 #endif
 
    v_U8_t         nMaxPsPoll;
@@ -1609,7 +1673,7 @@ typedef struct
    v_U8_t         nRxAnt;
    v_U8_t         fEnableFwHeartBeatMonitoring;
    v_U8_t         fEnableFwBeaconFiltering;
-   v_U8_t         fEnableFwRssiMonitoring;
+   v_BOOL_t       fEnableFwRssiMonitoring;
    v_U8_t         nDataInactivityTimeout;
    v_U8_t         nthBeaconFilter;
 
@@ -1634,7 +1698,6 @@ typedef struct
    v_BOOL_t                     isCcxIniFeatureEnabled;
 #endif
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-   v_U8_t                       FTRssiFilterPeriod;
    v_BOOL_t                     isFastTransitionEnabled;
    v_U8_t                       RoamRssiDiff;
    v_U8_t                       nImmediateRoamRssiDiff;
@@ -1761,9 +1824,15 @@ typedef struct
    v_BOOL_t                    fEnableTDLSSupport;
 #endif
    v_U32_t                     enableLpwrImgTransition;
+#ifdef WLAN_SOFTAP_VSTA_FEATURE
+   v_BOOL_t                    fEnableVSTASupport;
+#endif
 #ifdef WLAN_ACTIVEMODE_OFFLOAD_FEATURE
    v_BOOL_t                    fEnableActiveModeOffload;
 #endif
+   v_U8_t                      scanAgingTimeout;
+   v_BOOL_t                    enableTxLdpc;
+   v_U8_t                      enableMCCAdaptiveScheduler;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

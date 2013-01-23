@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -151,11 +171,12 @@
 #define QWLAN_HAL_CFG_ENABLE_UNICAST_FILTER              97
 #define QWLAN_HAL_CFG_MAX_ASSOC_LIMIT                    98
 #define QWLAN_HAL_CFG_ENABLE_LPWR_IMG_TRANSITION         99
-#define QWLAN_HAL_CFG_MAX_PARAMS                         100
+#define QWLAN_HAL_CFG_ENABLE_MCC_ADAPTIVE_SCHEDULER     100
+#define QWLAN_HAL_CFG_MAX_PARAMS                        101
 
 
 /* Total number of Integer CFGs. This is used while allocating the memory for TLV */
-#define QWLAN_HAL_CFG_INTEGER_PARAM                      96
+#define QWLAN_HAL_CFG_INTEGER_PARAM                      97
 
 
 /*-------------------------------------------------------------------------
@@ -725,6 +746,10 @@
 #define QWLAN_HAL_CFG_ENABLE_LPWR_IMG_TRANSITION_MAX    1
 #define QWLAN_HAL_CFG_ENABLE_LPWR_IMG_TRANSITION_DEF    0
 
+/* QWLAN_HAL_CFG_ENABLE_MCC_ADAPTIVE_SCHEDULER */
+#define QWLAN_HAL_CFG_ENABLE_MCC_ADAPTIVE_SCHEDULER_MIN    0
+#define QWLAN_HAL_CFG_ENABLE_MCC_ADAPTIVE_SCHEDULER_MAX    1
+#define QWLAN_HAL_CFG_ENABLE_MCC_ADAPTIVE_SCHEDULER_DEF    0
 
 typedef struct 
 {

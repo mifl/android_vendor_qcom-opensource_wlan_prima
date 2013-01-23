@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -88,7 +108,12 @@ when        who    what, where, why
 /*In prima 12 HW stations are supported including BCAST STA(staId 0)
  and SELF STA(staId 1) so total ASSOC stations which can connect to Prima
  SoftAP = 12 - 1(Self STa) - 1(Bcast Sta) = 10 Stations. */
+ 
+#ifdef WLAN_SOFTAP_VSTA_FEATURE
+#define WDI_MAX_SUPPORTED_STAS    38 
+#else
 #define WDI_MAX_SUPPORTED_STAS    12 
+#endif
 #define WDI_MAX_SUPPORTED_BSS     5 
 
 /* Control transport channel size*/
@@ -420,6 +445,9 @@ typedef enum
 
   /*Send a suspend Indication down to HAL*/
   WDI_HOST_SUSPEND_IND          = WDI_MAX_REQ ,
+
+  /* Send a traffic stats indication to HAL */
+  WDI_TRAFFIC_STATS_IND,
 
   /*Keep adding the indications to the max request
     such that we keep them sepparate */
@@ -1045,6 +1073,11 @@ typedef struct
   /*Version of the WLAN HAL API received on start resp*/
   WDI_WlanVersionType wlanVersion;
 
+  /*timestamp when we start response timer*/
+  wpt_uint32                  uTimeStampRspTmrStart;
+
+  /*timestamp when we get response timer event*/
+  wpt_uint32                  uTimeStampRspTmrExp;
 }WDI_ControlBlockType; 
 
 
@@ -2618,6 +2651,21 @@ WDI_ProcessHostSuspendInd
 );
 
 
+/**
+ @brief Process Traffic Stats Indications function (called when Main FSM allows it)
+
+ @param  pWDICtx:         pointer to the WLAN DAL context
+         pEventData:      pointer to the event information structure
+
+ @see
+ @return Result of the function call
+*/
+WDI_Status
+WDI_ProcessTrafficStatsInd
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
 /*========================================================================
           Main DAL Control Path Response Processing API 
 ========================================================================*/

@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -113,6 +133,7 @@
 #define WDA_INVALID_KEY_INDEX  0xFF
 #define WDA_NUM_PWR_SAVE_CFG       11
 #define WDA_TX_COMPLETE_TIME_OUT_VALUE 1000
+#define WDA_TRAFFIC_STATS_TIME_OUT_VALUE 1000
   
 #define WDA_MAX_RETRIES_TILL_RING_EMPTY  1000   /* MAX 10000 msec = 10 seconds wait */
 
@@ -123,6 +144,8 @@
 
 #define WDA_MAC_ADDR_ARRAY(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 #define WDA_MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
+#define WDA_DUMPCMD_WAIT_TIMEOUT 10000
+
 /* extern declarations */
 extern void vos_WDAComplete_cback(v_PVOID_t pVosContext);
 /* forward declarations */
@@ -146,6 +169,7 @@ void WDA_lowLevelIndCallback(WDI_LowLevelIndType *wdiLowLevelInd,
 static VOS_STATUS wdaCreateTimers(tWDA_CbContext *pWDA) ;
 static VOS_STATUS wdaDestroyTimers(tWDA_CbContext *pWDA);
 void WDA_BaCheckActivity(tWDA_CbContext *pWDA) ;
+void WDA_TimerTrafficStatsInd(tWDA_CbContext *pWDA);
 void WDA_HALDumpCmdCallback(WDI_HALDumpCmdRspParamsType *wdiRspParams, void* pUserData);
 #ifdef WLAN_FEATURE_VOWIFI_11R
 VOS_STATUS WDA_ProcessAggrAddTSReq(tWDA_CbContext *pWDA, tAggrAddTsParams *pAggrAddTsReqParams);
@@ -1403,6 +1427,37 @@ VOS_STATUS WDA_prepareConfigTLV(v_PVOID_t pVosContext,
       
    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct 
                             + sizeof(tHalCfg) + tlvStruct->length) ; 
+#ifdef WLAN_SOFTAP_VSTA_FEATURE
+   tlvStruct->type = QWLAN_HAL_CFG_MAX_ASSOC_LIMIT;
+   tlvStruct->length = sizeof(tANI_U32);
+   configDataValue = (tANI_U32 *)(tlvStruct + 1);
+   if(wlan_cfgGetInt(pMac, WNI_CFG_ASSOC_STA_LIMIT, configDataValue)
+                                                     != eSIR_SUCCESS)
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                    "Failed to get value for WNI_CFG_ASSOC_STA_LIMIT");
+      goto handle_failure;
+   }
+      
+   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
+                            + sizeof(tHalCfg) + tlvStruct->length) ;
+#endif
+
+   /* QWLAN_HAL_CFG_ENABLE_MCC_ADAPTIVE_SCHEDULER */
+   tlvStruct->type = QWLAN_HAL_CFG_ENABLE_MCC_ADAPTIVE_SCHEDULER;
+   tlvStruct->length = sizeof(tANI_U32);
+   configDataValue = (tANI_U32 *)(tlvStruct + 1);
+
+   if(wlan_cfgGetInt(pMac, WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED, configDataValue) 
+                                                      != eSIR_SUCCESS)
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                    "Failed to get value for WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED");
+      goto handle_failure;
+   }
+
+   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct 
+                            + sizeof(tHalCfg) + tlvStruct->length) ;
 
    wdiStartParams->usConfigBufferLen = (tANI_U8 *)tlvStruct - tlvStructStart ;
 #ifdef WLAN_DEBUG
@@ -3755,6 +3810,8 @@ void WDA_UpdateSTAParams(tWDA_CbContext *pWDA,
    wdiStaParams->ucVhtCapableSta = wdaStaParams->vhtCapable;
    wdiStaParams->ucVhtTxChannelWidthSet = wdaStaParams->vhtTxChannelWidthSet;
 #endif
+   wdiStaParams->ucHtLdpcEnabled= wdaStaParams->htLdpcCapable;
+   wdiStaParams->ucVhtLdpcEnabled = wdaStaParams->vhtLdpcCapable;
    return ;
 }
 /*
@@ -9050,7 +9107,7 @@ VOS_STATUS WDA_HALDumpCmdReq(tpAniSirGlobal   pMac, tANI_U32  cmd,
    pWdaParams->wdaWdiApiMsgParam = (void *)wdiHALDumpCmdReqParam ;
    /* Send command to WDI */
    status = WDI_HALDumpCmdReq(wdiHALDumpCmdReqParam, WDA_HALDumpCmdCallback, pWdaParams);
-   vStatus = vos_wait_single_event( &(pVosContext->wdaCompleteEvent), 1000 );
+   vStatus = vos_wait_single_event( &(pVosContext->wdaCompleteEvent), WDA_DUMPCMD_WAIT_TIMEOUT );
    if ( vStatus != VOS_STATUS_SUCCESS )
    {
       if ( vStatus == VOS_STATUS_E_TIMEOUT )
@@ -9306,19 +9363,18 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
    }
    else
    {
-   /* Get system role, use the self station if in unknown role or STA role */
-   systemRole = wdaGetGlobalSystemRole(pMac);
-   if (( eSYSTEM_UNKNOWN_ROLE == systemRole ) || 
-       (( eSYSTEM_STA_ROLE == systemRole )
+      /* Get system role, use the self station if in unknown role or STA role */
+      systemRole = wdaGetGlobalSystemRole(pMac);
+      if (( eSYSTEM_UNKNOWN_ROLE == systemRole ) || 
+          (( eSYSTEM_STA_ROLE == systemRole )
 #if defined FEATURE_WLAN_CCX || defined FEATURE_WLAN_TDLS
-      && frmType == HAL_TXRX_FRM_802_11_MGMT
+         && frmType == HAL_TXRX_FRM_802_11_MGMT
 #endif
-            ))
-   {
-       txFlag |= HAL_USE_SELF_STA_REQUESTED_MASK;
+         ))
+      {
+         txFlag |= HAL_USE_SELF_STA_REQUESTED_MASK;
+      }
    }
-   }
-
 
    /* Divert Disassoc/Deauth frames thru self station, as by the time unicast
       disassoc frame reaches the HW, HAL has already deleted the peer station */
@@ -9385,7 +9441,7 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
                                 after the packet gets completed(packet freed once)*/
 
       /* TX MGMT fail with COMP timeout, try to detect DXE stall */
-      WDA_TransportChannelDebug(0, 1);
+      WDA_TransportChannelDebug(1, 0);
 
       /*Tag Frame as timed out for later deletion*/
       vos_pkt_set_user_data_ptr( (vos_pkt_t *)pFrmBuf, VOS_PKT_USER_DATA_ID_WDA, 
@@ -9871,6 +9927,13 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
          WDA_BaCheckActivity(pWDA) ;
          break ;
       }
+
+      /* timer related messages */
+      case WDA_TIMER_TRAFFIC_STATS_IND:
+      {
+         WDA_TimerTrafficStatsInd(pWDA);
+         break;
+      }
 #ifdef WLAN_FEATURE_VOWIFI_11R
       case WDA_AGGR_QOS_REQ:
       {
@@ -10066,6 +10129,8 @@ void WDA_lowLevelIndCallback(WDI_LowLevelIndType *wdiLowLevelInd,
             wdiLowLevelInd->wdiIndicationData.wdiLowRSSIInfo.bRssiThres3NegCross;
          rssiNotification.bRssiThres3PosCross = 
             wdiLowLevelInd->wdiIndicationData.wdiLowRSSIInfo.bRssiThres3PosCross;
+         rssiNotification.avgRssi = (v_S7_t) 
+            ((-1)*wdiLowLevelInd->wdiIndicationData.wdiLowRSSIInfo.avgRssi);
          WLANTL_BMPSRSSIRegionChangedNotification(
             pWDA->pVosContext,
             &rssiNotification);
@@ -10490,6 +10555,132 @@ void WDA_TriggerBaReqCallback(WDI_TriggerBARspParamsType *wdiTriggerBaRsp,
    }
    return ;
 }
+
+
+/*
+ * API to activate/deactivate Traffic Stats timer. Traffic stats timer is only needed
+ * during MCC
+ */
+void WDA_TrafficStatsTimerActivate(wpt_boolean activate)
+{
+   wpt_uint32 enabled;
+   v_VOID_t * pVosContext = vos_get_global_context(VOS_MODULE_ID_WDA, NULL);
+   tWDA_CbContext *pWDA =  vos_get_context(VOS_MODULE_ID_WDA, pVosContext);
+   tpAniSirGlobal pMac = (tpAniSirGlobal )VOS_GET_MAC_CTXT(pVosContext);
+   
+   if(wlan_cfgGetInt(pMac, WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED, &enabled) 
+                                                      != eSIR_SUCCESS)
+   {
+      VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                 "Failed to get WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED");
+      return;
+   }
+
+   if(!enabled)
+   {
+      return;
+   }
+
+   if(NULL == pWDA)
+   {
+      VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                 "%s:WDA context is NULL", __func__);
+      VOS_ASSERT(0);
+      return;
+   }
+
+   if(activate)
+   {
+      if( VOS_STATUS_SUCCESS != 
+         WDA_START_TIMER(&pWDA->wdaTimers.trafficStatsTimer))
+      {
+         VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+                    "Traffic Stats Timer Start Failed ");
+         return;
+      }
+      WDI_DS_ActivateTrafficStats();
+   }
+   else
+   {
+      WDI_DS_DeactivateTrafficStats();
+      WDI_DS_ClearTrafficStats();
+
+      if( VOS_STATUS_SUCCESS !=
+         WDA_STOP_TIMER(&pWDA->wdaTimers.trafficStatsTimer))
+      {
+         VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+                    "Traffic Stats Timer Stop Failed ");
+         return;
+      }
+   }
+}
+
+/*
+ * Traffic Stats Timer handler
+ */
+void WDA_TimerTrafficStatsInd(tWDA_CbContext *pWDA)
+{
+   WDI_Status wdiStatus;
+   WDI_TrafficStatsType *pWdiTrafficStats = NULL;
+   WDI_TrafficStatsIndType trafficStatsIndParams;
+   wpt_uint32 length, enabled;
+   tpAniSirGlobal pMac = (tpAniSirGlobal )VOS_GET_MAC_CTXT(pWDA->pVosContext);
+
+   if(wlan_cfgGetInt(pMac, WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED, &enabled) 
+                                                      != eSIR_SUCCESS)
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                    "Failed to get WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED");
+      return;
+   }
+
+   if(!enabled)
+   {
+      WDI_DS_DeactivateTrafficStats();
+      return;
+   }
+
+   WDI_DS_GetTrafficStats(&pWdiTrafficStats, &length);
+
+   if(pWdiTrafficStats != NULL)
+   {
+      trafficStatsIndParams.pTrafficStats = pWdiTrafficStats;
+      trafficStatsIndParams.length = length;
+      trafficStatsIndParams.duration =
+         pWDA->wdaTimers.trafficStatsTimer.rescheduleTimeInMsecs;
+      trafficStatsIndParams.wdiReqStatusCB = WDA_WdiIndicationCallback;
+      trafficStatsIndParams.pUserData = pWDA;
+
+      wdiStatus = WDI_TrafficStatsInd(&trafficStatsIndParams);
+
+      if(WDI_STATUS_PENDING == wdiStatus)
+      {
+         VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+                 "Pending received for %s:%d ",__func__,__LINE__ );
+      }
+      else if( WDI_STATUS_SUCCESS_SYNC != wdiStatus )
+      {
+         VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                 "Failure in %s:%d ",__func__,__LINE__ );
+      }
+      
+      WDI_DS_ClearTrafficStats();
+   }
+   else
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_WARN,
+         "pWdiTrafficStats is Null");
+   }
+
+   if( VOS_STATUS_SUCCESS != 
+      WDA_START_TIMER(&pWDA->wdaTimers.trafficStatsTimer))
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_WARN,
+                              "Traffic Stats Timer Start Failed ");
+      return;
+   }
+}
+
 /*
  * BA Activity check timer handler
  */
@@ -10518,8 +10709,15 @@ void WDA_BaCheckActivity(tWDA_CbContext *pWDA)
    /* walk through all STA entries and find out TX packet count */ 
    for(curSta = 0 ; curSta < pWDA->wdaMaxSta ; curSta++)
    {
-      for(tid = 0 ; tid < STACFG_MAX_TC ; tid++)
-      {
+#ifdef WLAN_SOFTAP_VSTA_FEATURE
+        // We can only do BA on "hard" STAs.  
+         if (!(IS_HWSTA_IDX(curSta)))
+         {
+             continue;
+         }
+#endif //WLAN_SOFTAP_VSTA_FEATURE
+    for(tid = 0 ; tid < STACFG_MAX_TC ; tid++)
+    {
          WLANTL_STAStateType tlSTAState ;
          tANI_U32 txPktCount = 0 ;
          tANI_U8 validStaIndex = pWDA->wdaStaInfo[curSta].ucValidStaIndex ;
@@ -10684,6 +10882,33 @@ static VOS_STATUS wdaCreateTimers(tWDA_CbContext *pWDA)
       } 
       return VOS_STATUS_E_FAILURE ;
    }
+
+   val = SYS_MS_TO_TICKS( WDA_TRAFFIC_STATS_TIME_OUT_VALUE );
+
+   /* Traffic Stats timer */
+   status = WDA_CREATE_TIMER(&pWDA->wdaTimers.trafficStatsTimer,
+                         "Traffic Stats timer", WDA_TimerHandler,
+                         WDA_TIMER_TRAFFIC_STATS_IND, val, val, TX_NO_ACTIVATE) ;
+   if(status != TX_SUCCESS)
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                               "Unable to create traffic stats timer");
+      /* Destroy timer of BA activity check timer */
+      status = WDA_DESTROY_TIMER(&pWDA->wdaTimers.baActivityChkTmr);
+      if(status != TX_SUCCESS)
+      {
+         VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                                  "Unable to Destroy BA activity timer");
+      }
+      /* Destroy timer of tx complete timer */
+      status = WDA_DESTROY_TIMER(&pWDA->wdaTimers.TxCompleteTimer);
+      if(status != TX_SUCCESS)
+      {
+         VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                                  "Unable to Tx complete timer");
+      }
+      return VOS_STATUS_E_FAILURE ;
+   }
    return VOS_STATUS_SUCCESS ;
 }
 /*
@@ -10706,7 +10931,13 @@ static VOS_STATUS wdaDestroyTimers(tWDA_CbContext *pWDA)
                                "Unable to Destroy BA activity timer");
       return eSIR_FAILURE ;
    }
-                           
+   status = WDA_DESTROY_TIMER(&pWDA->wdaTimers.trafficStatsTimer);
+   if(status != TX_SUCCESS)
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                               "Unable to Destroy traffic stats timer");
+      return eSIR_FAILURE ;
+   }
    return eSIR_SUCCESS ;
 }
 /*

@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -472,3 +492,46 @@ WDI_Status WDI_DS_ClearStaIdxPerBssIdx(void *pContext, wpt_uint8 bssIdx, wpt_uin
   /* Could not find associated STA index with BSS index */
   return WDI_STATUS_E_FAILURE;
 }
+
+/* Tx/Rx stats function
+ * This function should be invoked to fetch the current stats
+  * Parameters:
+ *  pStats:Pointer to the collected stats
+ *  len: length of buffer pointed to by pStats
+ *  Return Status: None
+ */
+void WDI_DS_GetTrafficStats(WDI_TrafficStatsType** pStats, wpt_uint32 *len)
+{
+   return WDTS_GetTrafficStats(pStats, len);
+}
+
+/* WDI_DS_DeactivateTrafficStats
+ * This function should be invoked to deactivate traffic stats collection
+  * Parameters: None
+ *  Return Status: None
+ */
+void WDI_DS_DeactivateTrafficStats(void)
+{
+   return WDTS_DeactivateTrafficStats();
+}
+
+/* WDI_DS_ActivateTrafficStats
+ * This function should be invoked to activate traffic stats collection
+  * Parameters: None
+ *  Return Status: None
+ */
+void WDI_DS_ActivateTrafficStats(void)
+{
+   return WDTS_ActivateTrafficStats();
+}
+
+/* WDI_DS_ClearTrafficStats
+ * This function should be invoked to clear all past stats
+  * Parameters: None
+ *  Return Status: None
+ */
+void WDI_DS_ClearTrafficStats(void)
+{
+   return WDTS_ClearTrafficStats();
+}
+

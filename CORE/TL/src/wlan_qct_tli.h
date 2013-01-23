@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -560,6 +580,13 @@ typedef struct
   /*Begining of the cached packets chain*/
   vos_pkt_t*                 vosEndCachedFrame;
 
+  /* ULA notfication is pending */
+  v_U8_t                ucULANotificationPending;
+
+  void (*callbackRoutine) (void *callbackContext);
+
+  void                 *callbackContext;
+
 #ifdef WLAN_SOFTAP_FEATURE
 
   /* LWM related fields */
@@ -809,6 +836,8 @@ typedef struct
 #endif
   /*whether we are in BMPS/UAPSD/WOWL mode, since the latter 2 need to be BMPS first*/
   v_BOOL_t                  isBMPS;
+  /* Whether WDA_DS_TX_START_XMIT msg is pending or not */
+  v_BOOL_t   isTxTranmitMsgPending;
 }WLANTL_CbType;
 
 /*==========================================================================
@@ -1242,7 +1271,9 @@ WLANTL_PrepareBDHeader
 
    IN
     pTLCb:            TL control block
-    ucStaId:          station ID
+
+    *pucStaId         Station ID. In case of TDLS, this return the actual
+                      station index used to transmit.
 
    IN/OUT
     vosDataBuff:      vos data buffer, will contain the new header on output
@@ -1262,12 +1293,11 @@ WLANTL_Translate8023To80211Header
   vos_pkt_t*      vosDataBuff,
   VOS_STATUS*     pvosStatus,
   WLANTL_CbType*  pTLCb,
-  v_U8_t          ucStaId,
+  v_U8_t          *pucStaId,
   v_U8_t          ucUP,
   v_U8_t          *ucWDSEnabled,
   v_U8_t          *extraHeadSpace
 );
-
 /*==========================================================================
   FUNCTION    WLANTL_Translate80211To8023Header
 

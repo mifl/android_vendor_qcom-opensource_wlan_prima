@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -110,8 +130,8 @@ tANI_U8           limIsGroupAddr(tSirMacAddr);
 tANI_U8 limActiveScanAllowed(tpAniSirGlobal, tANI_U8);
 
 // AID pool management functions
-void    limInitAIDpool(tpAniSirGlobal,tpPESession);
-tANI_U16     limAssignAID(tpAniSirGlobal);
+void    limInitPeerIdxpool(tpAniSirGlobal,tpPESession);
+tANI_U16     limAssignPeerIdx(tpAniSirGlobal,tpPESession);
 
 void limEnableOverlap11gProtection(tpAniSirGlobal pMac, tpUpdateBeaconParams pBeaconParams, tpSirMacMgmtHdr pMh,tpPESession psessionEntry);
 void limUpdateOverlapStaParam(tpAniSirGlobal pMac, tSirMacAddr bssId, tpLimProtStaParams pStaParams);
@@ -122,7 +142,7 @@ void limUpdateShortSlotTime(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr, tpUpda
  * The below 'product' check tobe removed if 'Association' is
  * allowed in IBSS.
  */
-void    limReleaseAID(tpAniSirGlobal, tANI_U16);
+void    limReleasePeerIdx(tpAniSirGlobal, tANI_U16, tpPESession);
 
 #if (WNI_POLARIS_FW_PRODUCT == AP)
 // LIM informs WSM that radar is detected

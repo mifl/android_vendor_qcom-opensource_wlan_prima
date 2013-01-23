@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -359,10 +379,15 @@ typedef struct
 
    /* Tx Complete Timeout timer */
    TX_TIMER TxCompleteTimer ;
+
+   /* Traffic Stats timer */
+   TX_TIMER trafficStatsTimer ;
 }tWdaTimers ;
-
+#ifdef WLAN_SOFTAP_VSTA_FEATURE
+#define WDA_MAX_STA    (38)
+#else
 #define WDA_MAX_STA    (16)
-
+#endif
 typedef struct
 {
    v_PVOID_t            pVosContext;             /* global VOSS context*/
@@ -1138,6 +1163,8 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_TIMER_CHIP_MONITOR_TIMEOUT SIR_HAL_TIMER_CHIP_MONITOR_TIMEOUT
 #define WDA_TIMER_TRAFFIC_ACTIVITY_REQ SIR_HAL_TIMER_TRAFFIC_ACTIVITY_REQ
 #define WDA_TIMER_ADC_RSSI_STATS       SIR_HAL_TIMER_ADC_RSSI_STATS
+#define WDA_TIMER_TRAFFIC_STATS_IND    SIR_HAL_TRAFFIC_STATS_IND
+
 
 #ifdef FEATURE_WLAN_CCX
 #define WDA_TSM_STATS_REQ              SIR_HAL_TSM_STATS_REQ
@@ -1524,7 +1551,8 @@ VOS_STATUS
 WDA_DS_FinishULA
 (
  void (*callbackRoutine) (void *callbackContext),
- void  *callbackContext
+ void  *callbackContext,
+ v_U8_t staId
 );
 
 /*==========================================================================
@@ -2074,4 +2102,19 @@ void WDA_TransportChannelDebug
    v_BOOL_t   displaySnapshot,
    v_BOOL_t   toggleStallDetect
 );
+
+/*==========================================================================
+  FUNCTION   WDA_TrafficStatsTimerActivate
+
+  DESCRIPTION
+    API to activate/deactivate Traffic Stats timer. Traffic stats timer is only needed during MCC
+  PARAMETERS
+    activate : Activate or not
+
+  RETURN VALUE
+    NONE
+
+===========================================================================*/
+void WDA_TrafficStatsTimerActivate(wpt_boolean activate);
+
 #endif

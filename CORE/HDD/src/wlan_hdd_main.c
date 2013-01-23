@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -202,7 +222,7 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
 
    if(NULL == pAdapter)
    {
-      hddLog(VOS_TRACE_LEVEL_FATAL,"%s: HDD Adaptor Null Pointer", __func__);
+      hddLog(VOS_TRACE_LEVEL_FATAL,"%s: HDD Adapter Null Pointer", __func__);
       VOS_ASSERT(0);
       return NOTIFY_DONE;
    }
@@ -2684,8 +2704,13 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
 
    ENTER();
 
-   // Unloading, restart logic is no more required.
-   wlan_hdd_restart_deinit(pHddCtx);
+#ifdef ANI_MANF_DIAG
+      if (VOS_FTM_MODE != hdd_get_conparam())
+#endif /* ANI_MANF_DIAG */
+      {
+         // Unloading, restart logic is no more required.
+         wlan_hdd_restart_deinit(pHddCtx);
+      }
 
 #ifdef CONFIG_CFG80211
 #ifdef WLAN_SOFTAP_FEATURE
@@ -4458,10 +4483,10 @@ void hdd_set_conparam ( v_UINT_t newParam )
 
   --------------------------------------------------------------------------*/
 
-void hdd_softap_sta_deauth(hdd_adapter_t *pAdapter, v_U8_t *pDestMacAddress)
+VOS_STATUS hdd_softap_sta_deauth(hdd_adapter_t *pAdapter, v_U8_t *pDestMacAddress)
 {
-    v_U8_t STAId;
     v_CONTEXT_t pVosContext = (WLAN_HDD_GET_CTX(pAdapter))->pvosContext;
+    VOS_STATUS vosStatus = VOS_STATUS_E_FAULT;
 #ifdef FEATURE_WLAN_NON_INTEGRATED_SOC
     tHalHandle hHalHandle;
 #endif
@@ -4472,29 +4497,12 @@ void hdd_softap_sta_deauth(hdd_adapter_t *pAdapter, v_U8_t *pDestMacAddress)
 
     //Ignore request to deauth bcmc station
     if( pDestMacAddress[0] & 0x1 )
-       return;
+       return vosStatus;
 
-    WLANSAP_DeauthSta(pVosContext,pDestMacAddress);
-
-    /*Get the Station ID*/
-#ifdef FEATURE_WLAN_NON_INTEGRATED_SOC
-    hHalHandle = (tHalHandle ) vos_get_context(VOS_MODULE_ID_HAL, pVosContext);
-    if (eHAL_STATUS_SUCCESS ==
-        halTable_FindStaidByAddr(hHalHandle, (tANI_U8 *)pDestMacAddress,
-                                 &STAId))
-    {
-       hdd_softap_DeregisterSTA(pAdapter, STAId);
-    }
-#else
-    if (VOS_STATUS_SUCCESS ==
-        hdd_softap_GetStaId(pAdapter, (v_MACADDR_t *)pDestMacAddress,
-                            &STAId))
-    {
-      hdd_softap_DeregisterSTA(pAdapter, STAId);
-    }
-#endif
+    vosStatus = WLANSAP_DeauthSta(pVosContext,pDestMacAddress);
 
     EXIT();
+    return vosStatus;
 }
 
 /**---------------------------------------------------------------------------

@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -274,6 +294,14 @@ limSendProbeReqMgmtFrame(tpAniSirGlobal pMac,
                PopulateDot11fHTCaps( pMac, psessionEntry, &pr.HTCaps );
            }
     }
+
+    /* Set channelbonding information as "disabled" when tunned to a 2.4 GHz channel */
+    if( nChannelNum <= SIR_11B_CHANNEL_END)
+    {
+        pr.HTCaps.supportedChannelWidthSet = eHT_CHANNEL_WIDTH_20MHZ;
+        pr.HTCaps.shortGI40MHz = 0;
+    }
+
 #ifdef WLAN_FEATURE_11AC
     if (psessionEntry != NULL ) {
        psessionEntry->vhtCapability = IS_DOT11_MODE_VHT(dot11mode);
@@ -2587,10 +2615,10 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
     }
 
 #ifdef WLAN_FEATURE_P2P
-	if(psessionEntry->pePersona == VOS_P2P_CLIENT_MODE)
-	{
-		txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
-	}
+    if(psessionEntry->pePersona == VOS_P2P_CLIENT_MODE)
+    {
+        txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
+    }
 #endif
 
     halstatus = halTxFrame( pMac, pPacket, ( tANI_U16 ) (sizeof(tSirMacMgmtHdr) + nPayload),
@@ -3369,10 +3397,10 @@ limSendReassocReqMgmtFrame(tpAniSirGlobal     pMac,
     }
 
 #ifdef WLAN_FEATURE_P2P
-	if(psessionEntry->pePersona == VOS_P2P_CLIENT_MODE)
-	{
-		txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
-	}
+    if(psessionEntry->pePersona == VOS_P2P_CLIENT_MODE)
+    {
+        txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
+    }
 #endif
 
     halstatus = halTxFrame( pMac, pPacket, ( tANI_U16 ) (sizeof(tSirMacMgmtHdr) + nPayload),
@@ -3680,10 +3708,10 @@ limSendAuthMgmtFrame(tpAniSirGlobal pMac,
     }
 
 #ifdef WLAN_FEATURE_P2P
-	if(psessionEntry->pePersona == VOS_P2P_CLIENT_MODE)
-	{
-		txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
-	}
+    if(psessionEntry->pePersona == VOS_P2P_CLIENT_MODE)
+    {
+        txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
+    }
 #endif
 
     /// Queue Authentication frame in high priority WQ
@@ -4005,11 +4033,11 @@ limSendDisassocMgmtFrame(tpAniSirGlobal pMac,
     }
 
 #ifdef WLAN_FEATURE_P2P
-	if((psessionEntry->pePersona == VOS_P2P_CLIENT_MODE) ||
-	   (psessionEntry->pePersona == VOS_P2P_GO_MODE))
-	{
-		txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
-	}
+    if((psessionEntry->pePersona == VOS_P2P_CLIENT_MODE) ||
+       (psessionEntry->pePersona == VOS_P2P_GO_MODE))
+    {
+        txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
+    }
 #endif
 
     if (waitForAck)
@@ -4180,11 +4208,11 @@ limSendDeauthMgmtFrame(tpAniSirGlobal pMac,
     }
 
 #ifdef WLAN_FEATURE_P2P
-	if((psessionEntry->pePersona == VOS_P2P_CLIENT_MODE) ||
-	   (psessionEntry->pePersona == VOS_P2P_GO_MODE))
-	{
-		txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
-	}
+    if((psessionEntry->pePersona == VOS_P2P_CLIENT_MODE) ||
+       (psessionEntry->pePersona == VOS_P2P_GO_MODE))
+    {
+        txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
+    }
 #endif
 
     if (waitForAck)
@@ -4200,7 +4228,12 @@ limSendDeauthMgmtFrame(tpAniSirGlobal pMac,
             limLog( pMac, LOGE, FL("Failed to send De-Authentication "
                         "(%X)!\n"),
                     nSirStatus );
-            //Pkt will be freed up by the callback
+            //Pkt will be freed up by the callback limTxComplete
+
+            /*Call limProcessDeauthAckTimeout which will send
+            * DeauthCnf for this frame
+            */
+            limProcessDeauthAckTimeout(pMac);
             return;
         }
 

@@ -1,4 +1,24 @@
 /*
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
@@ -65,7 +85,34 @@ static void cbNotifySetImmediateRoamRssiDiff(hdd_context_t *pHddCtx, unsigned lo
     sme_UpdateImmediateRoamRssiDiff((tHalHandle)(pHddCtx->hHal), 
                                     pHddCtx->cfg_ini->nImmediateRoamRssiDiff);
 }
+
+static void cbNotifySetFastTransitionEnabled(hdd_context_t *pHddCtx, unsigned long NotifyId)
+{
+    sme_UpdateFastTransitionEnabled((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->isFastTransitionEnabled);
+}
 #endif
+
+#ifdef FEATURE_WLAN_LFR
+static void NotifyIsFastRoamIniFeatureEnabled(hdd_context_t *pHddCtx, unsigned long NotifyId)
+{
+    // at the point this routine is called, the value in the cfg_ini table has already been updated
+    sme_UpdateIsFastRoamIniFeatureEnabled((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->isFastRoamIniFeatureEnabled );
+}
+#endif
+
+#ifdef FEATURE_WLAN_CCX
+static void cbNotifySetCcxFeatureEnabled(hdd_context_t *pHddCtx, unsigned long NotifyId)
+{
+    // at the point this routine is called, the value in the cfg_ini table has already been updated
+    sme_UpdateIsCcxFeatureEnabled((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->isCcxIniFeatureEnabled );
+}
+#endif
+
+static void cbNotifySetFwRssiMonitoring(hdd_context_t *pHddCtx, unsigned long NotifyId)
+{
+    // at the point this routine is called, the value in the cfg_ini table has already been updated
+    sme_UpdateConfigFwRssiMonitoring((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->fEnableFwRssiMonitoring );
+}
 
 REG_TABLE_ENTRY g_registry_table[] =
 {
@@ -117,6 +164,13 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_11D_SUPPORT_ENABLED_DEFAULT, 
                  CFG_11D_SUPPORT_ENABLED_MIN, 
                  CFG_11D_SUPPORT_ENABLED_MAX ),
+   
+   REG_VARIABLE( CFG_11H_SUPPORT_ENABLED_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, Is11hSupportEnabled, 
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK, 
+                 CFG_11H_SUPPORT_ENABLED_DEFAULT, 
+                 CFG_11H_SUPPORT_ENABLED_MIN, 
+                 CFG_11H_SUPPORT_ENABLED_MAX ),
 
    REG_VARIABLE( CFG_ENFORCE_11D_CHANNELS_NAME, WLAN_PARAM_Integer,
                  hdd_config_t, fEnforce11dChannels, 
@@ -679,6 +733,13 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_REST_TIME_CONC_DEFAULT, 
                  CFG_REST_TIME_CONC_MIN, 
                  CFG_REST_TIME_CONC_MAX ),
+
+   REG_VARIABLE( CFG_NUM_CHAN_COMBINED_CONC_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, nNumChanCombinedConc,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_NUM_CHAN_COMBINED_CONC_DEFAULT,
+                 CFG_NUM_CHAN_COMBINED_CONC_MIN,
+                 CFG_NUM_CHAN_COMBINED_CONC_MAX ),
 #endif
    
    REG_VARIABLE( CFG_MAX_PS_POLL_NAME, WLAN_PARAM_Integer,
@@ -737,12 +798,13 @@ REG_TABLE_ENTRY g_registry_table[] =
                 CFG_FW_BEACON_FILTERING_MIN, 
                 CFG_FW_BEACON_FILTERING_MAX ),
 
-   REG_VARIABLE( CFG_FW_RSSI_MONITORING_NAME, WLAN_PARAM_Integer,
+   REG_DYNAMIC_VARIABLE( CFG_FW_RSSI_MONITORING_NAME, WLAN_PARAM_Integer,
                 hdd_config_t, fEnableFwRssiMonitoring, 
                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT, 
                 CFG_FW_RSSI_MONITORING_DEFAULT, 
                 CFG_FW_RSSI_MONITORING_MIN, 
-                CFG_FW_RSSI_MONITORING_MAX ),
+                CFG_FW_RSSI_MONITORING_MAX,
+                cbNotifySetFwRssiMonitoring, 0 ),
 
    REG_VARIABLE( CFG_DATA_INACTIVITY_TIMEOUT_NAME, WLAN_PARAM_Integer,
                 hdd_config_t, nDataInactivityTimeout, 
@@ -849,40 +911,35 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_QOS_WMM_INFRA_INACTIVITY_INTERVAL_DEFAULT, 
                  CFG_QOS_WMM_INFRA_INACTIVITY_INTERVAL_MIN, 
                  CFG_QOS_WMM_INFRA_INACTIVITY_INTERVAL_MAX),
-   REG_VARIABLE( CFG_CCX_FEATURE_ENABLED_NAME, WLAN_PARAM_Integer,
+   REG_DYNAMIC_VARIABLE( CFG_CCX_FEATURE_ENABLED_NAME, WLAN_PARAM_Integer,
                  hdd_config_t, isCcxIniFeatureEnabled, 
                  VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT, 
                  CFG_CCX_FEATURE_ENABLED_DEFAULT, 
                  CFG_CCX_FEATURE_ENABLED_MIN, 
-                 CFG_CCX_FEATURE_ENABLED_MAX),
+                 CFG_CCX_FEATURE_ENABLED_MAX,
+                 cbNotifySetCcxFeatureEnabled, 0 ),
 #endif // FEATURE_WLAN_CCX
 
 #ifdef FEATURE_WLAN_LFR
    // flag to turn ON/OFF Legacy Fast Roaming
-   REG_VARIABLE( CFG_LFR_FEATURE_ENABLED_NAME, WLAN_PARAM_Integer,
+   REG_DYNAMIC_VARIABLE( CFG_LFR_FEATURE_ENABLED_NAME, WLAN_PARAM_Integer,
                  hdd_config_t, isFastRoamIniFeatureEnabled, 
                  VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT, 
                  CFG_LFR_FEATURE_ENABLED_DEFAULT, 
                  CFG_LFR_FEATURE_ENABLED_MIN, 
-                 CFG_LFR_FEATURE_ENABLED_MAX),
+                       CFG_LFR_FEATURE_ENABLED_MAX,
+                       NotifyIsFastRoamIniFeatureEnabled, 0 ),
 #endif // FEATURE_WLAN_LFR
 
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-   REG_VARIABLE( CFG_FT_RSSI_FILTER_PERIOD_NAME, WLAN_PARAM_Integer,
-                 hdd_config_t, FTRssiFilterPeriod,
-                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT, 
-                 CFG_FT_RSSI_FILTER_PERIOD_DEFAULT, 
-                 CFG_FT_RSSI_FILTER_PERIOD_MIN, 
-                 CFG_FT_RSSI_FILTER_PERIOD_MAX ),
-
-
    // flag to turn ON/OFF 11r and CCX FastTransition
-   REG_VARIABLE( CFG_FAST_TRANSITION_ENABLED_NAME, WLAN_PARAM_Integer,
+   REG_DYNAMIC_VARIABLE( CFG_FAST_TRANSITION_ENABLED_NAME, WLAN_PARAM_Integer,
                  hdd_config_t, isFastTransitionEnabled,
                  VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT, 
                  CFG_FAST_TRANSITION_ENABLED_NAME_DEFAULT, 
                  CFG_FAST_TRANSITION_ENABLED_NAME_MIN, 
-                 CFG_FAST_TRANSITION_ENABLED_NAME_MAX),
+                 CFG_FAST_TRANSITION_ENABLED_NAME_MAX,
+                 cbNotifySetFastTransitionEnabled, 0 ),
 
    /* Variable to specify the delta/difference between the RSSI of current AP 
     * and roamable AP while roaming */
@@ -1736,6 +1793,14 @@ REG_VARIABLE( CFG_TDLS_SUPPORT_ENABLE, WLAN_PARAM_Integer,
               CFG_TDLS_SUPPORT_ENABLE_MAX ),
 #endif
 
+#ifdef WLAN_SOFTAP_VSTA_FEATURE
+REG_VARIABLE( CFG_VSTA_SUPPORT_ENABLE, WLAN_PARAM_Integer,
+              hdd_config_t, fEnableVSTASupport,
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+              CFG_VSTA_SUPPORT_ENABLE_DEFAULT,
+              CFG_VSTA_SUPPORT_ENABLE_MIN,
+              CFG_VSTA_SUPPORT_ENABLE_MAX ),
+#endif
 REG_VARIABLE( CFG_ENABLE_LPWR_IMG_TRANSITION_NAME, WLAN_PARAM_Integer,
              hdd_config_t, enableLpwrImgTransition, 
              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT, 
@@ -1751,6 +1816,27 @@ REG_VARIABLE( CFG_ACTIVEMODE_OFFLOAD_ENABLE, WLAN_PARAM_Integer,
               CFG_ACTIVEMODE_OFFLOAD_ENABLE_MIN,
               CFG_ACTIVEMODE_OFFLOAD_ENABLE_MAX ),
 #endif
+
+REG_VARIABLE( CFG_SCAN_AGING_PARAM_NAME, WLAN_PARAM_Integer,
+             hdd_config_t, scanAgingTimeout,
+             VAR_FLAGS_OPTIONAL,
+             CFG_SCAN_AGING_PARAM_DEFAULT,
+             CFG_SCAN_AGING_PARAM_MIN,
+             CFG_SCAN_AGING_PARAM_MAX ),
+
+REG_VARIABLE( CFG_TX_LDPC_ENABLE_FEATURE, WLAN_PARAM_Integer,
+              hdd_config_t, enableTxLdpc,
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+              CFG_TX_LDPC_ENABLE_FEATURE_DEFAULT,
+              CFG_TX_LDPC_ENABLE_FEATURE_MIN,
+              CFG_TX_LDPC_ENABLE_FEATURE_MAX ),
+
+REG_VARIABLE( CFG_ENABLE_MCC_ADATIVE_SCHEDULER_ENABLED_NAME, WLAN_PARAM_Integer,
+             hdd_config_t, enableMCCAdaptiveScheduler, 
+             VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT, 
+             CFG_ENABLE_MCC_ADATIVE_SCHEDULER_ENABLED_DEFAULT, 
+             CFG_ENABLE_MCC_ADATIVE_SCHEDULER_ENABLED_MIN, 
+             CFG_ENABLE_MCC_ADATIVE_SCHEDULER_ENABLED_MAX ),             
 };
 
 /*
@@ -2635,7 +2721,6 @@ static VOS_STATUS hdd_string_to_u8_array( char *str, tANI_U8 *intArray, tANI_U8 
    }
    *len = 0;
 
-#ifdef VERSION_USING_STRPBRK
    while ( (s != NULL) && (*len < intArrayMaxLen) )
    {
       int val;
@@ -2650,24 +2735,6 @@ static VOS_STATUS hdd_string_to_u8_array( char *str, tANI_U8 *intArray, tANI_U8 
       if( s )
          s++;
    }
-#else
-   while( (*s != '\0')  && (*len < intArrayMaxLen) )
-   {
-      unsigned long val;
-      int rv;
-
-      rv = kstrtoul( s, 10, &val );
-      if (rv < 0)
-          return VOS_STATUS_E_INVAL;
-      if( val )
-      {
-         intArray[*len] = (tANI_U8) val;
-         *len += 1;
-      }
-      if( *s )
-         s++;
-   }
-#endif
 
    return VOS_STATUS_SUCCESS;
    
@@ -2678,6 +2745,9 @@ static VOS_STATUS hdd_string_to_u8_array( char *str, tANI_U8 *intArray, tANI_U8 
 v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
 {
    v_BOOL_t  fStatus = TRUE;
+#ifdef WLAN_SOFTAP_VSTA_FEATURE
+   tANI_U32 val;
+#endif
 
    hdd_config_t *pConfig = pHddCtx->cfg_ini;
    tSirMacHTCapabilityInfo htCapInfo;
@@ -2848,15 +2918,6 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
       hddLog(LOGE, "Could not pass on WNI_CFG_RSSI_FILTER_PERIOD to CCM\n");
    }
 
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_FT_RSSI_FILTER_PERIOD, pConfig->FTRssiFilterPeriod,
-         NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
-   {
-      fStatus = FALSE;
-      hddLog(LOGE, "Could not pass on WNI_CFG_FT_RSSI_FILTER_PERIOD to CCM\n");
-   }
-#endif
-
    if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_IGNORE_DTIM, pConfig->fIgnoreDtim,
          NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
    {
@@ -2878,6 +2939,18 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
       hddLog(LOGE, "Failure: Could not pass on WNI_CFG_PS_BCN_FILTER configuration info to CCM\n");
    }
 
+#ifdef FEATURE_WLAN_LFR
+   if (pConfig->isFastRoamIniFeatureEnabled)
+   {
+       pConfig->fEnableFwRssiMonitoring = TRUE;
+   }
+#endif
+#ifdef FEATURE_WLAN_CCX
+   if (pConfig->isCcxIniFeatureEnabled)
+   {
+       pConfig->fEnableFwRssiMonitoring = TRUE;
+   }
+#endif
    if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_PS_ENABLE_RSSI_MONITOR, pConfig->fEnableFwRssiMonitoring, 
                     NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
    {
@@ -3176,6 +3249,25 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
          fStatus = FALSE;
          hddLog(LOGE, "Could not pass on WNI_CFG_VHT_RXSTBC to CCM\n");
      }
+
+#ifdef WLAN_SOFTAP_VSTA_FEATURE
+     if(pConfig->fEnableVSTASupport)
+     {
+        ccmCfgGetInt(pHddCtx->hHal, WNI_CFG_ASSOC_STA_LIMIT, &val);
+        if( val <= WNI_CFG_ASSOC_STA_LIMIT_STADEF)
+            val = WNI_CFG_ASSOC_STA_LIMIT_STAMAX;
+     }
+     else
+     {
+            val = WNI_CFG_ASSOC_STA_LIMIT_STADEF;
+     }
+     if(ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_ASSOC_STA_LIMIT, val, 
+         NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+     {
+         fStatus = FALSE;
+         hddLog(LOGE,"Failure: Could not pass on WNI_CFG_ASSOC_STA_LIMIT configuration info to CCM\n"  );
+     }
+#endif
    if(ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_ENABLE_LPWR_IMG_TRANSITION, 
                    pConfig->enableLpwrImgTransition, NULL, eANI_BOOLEAN_FALSE)
        ==eHAL_STATUS_FAILURE)
@@ -3184,6 +3276,12 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
       hddLog(LOGE, "Could not pass on WNI_CFG_ENABLE_LPWR_IMG_TRANSITION to CCM\n");
    }
 
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED, pConfig->enableMCCAdaptiveScheduler,
+      NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
+   {
+      fStatus = FALSE;
+      hddLog(LOGE, "Could not pass on WNI_CFG_ENABLE_MCC_ADAPTIVE_SCHED to CCM\n");
+   }
    return fStatus;
 }
 
@@ -3253,6 +3351,7 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig.csrConfig.nPassiveMaxChnTimeConc   = pConfig->nPassiveMaxChnTimeConc;
    smeConfig.csrConfig.nPassiveMinChnTimeConc   = pConfig->nPassiveMinChnTimeConc;
    smeConfig.csrConfig.nRestTimeConc            = pConfig->nRestTimeConc;
+   smeConfig.csrConfig.nNumChanCombinedConc     = pConfig->nNumChanCombinedConc;
 #endif
    smeConfig.csrConfig.Is11eSupportEnabled      = pConfig->b80211eIsEnabled;
    smeConfig.csrConfig.WMMSupportMode           = pConfig->WmmMode;
@@ -3269,8 +3368,13 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig.csrConfig.AdHocChannel5G            = 44; 
    smeConfig.csrConfig.ProprietaryRatesEnabled   = 0;  
    smeConfig.csrConfig.HeartbeatThresh50         = 40; 
-   smeConfig.csrConfig.Is11hSupportEnabled       = 1;
    smeConfig.csrConfig.bandCapability            = pConfig->nBandCapability; 
+   if (pConfig->nBandCapability == eCSR_BAND_24)
+   {
+       smeConfig.csrConfig.Is11hSupportEnabled       = 0;
+   } else {
+       smeConfig.csrConfig.Is11hSupportEnabled       = pConfig->Is11hSupportEnabled;
+   }
    smeConfig.csrConfig.cbChoice                  = 0;   
    smeConfig.csrConfig.bgScanInterval            = 0; 
    smeConfig.csrConfig.eBand                     = pConfig->nBandCapability; 
@@ -3313,9 +3417,17 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 #endif
 #ifdef FEATURE_WLAN_LFR
    smeConfig.csrConfig.isFastRoamIniFeatureEnabled = pConfig->isFastRoamIniFeatureEnabled;
+   if( pConfig->isFastRoamIniFeatureEnabled )
+   {
+       pConfig->isFastTransitionEnabled = TRUE;
+   }
 #endif
 #ifdef FEATURE_WLAN_CCX
    smeConfig.csrConfig.isCcxIniFeatureEnabled = pConfig->isCcxIniFeatureEnabled;
+   if( pConfig->isCcxIniFeatureEnabled )
+   {
+       pConfig->isFastTransitionEnabled = TRUE;
+   }
 #endif
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
    smeConfig.csrConfig.isFastTransitionEnabled = pConfig->isFastTransitionEnabled;
@@ -3343,6 +3455,11 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    //Enable/Disable MCC 
    smeConfig.csrConfig.fEnableMCCMode = pConfig->enableMCC;
    smeConfig.csrConfig.fAllowMCCGODiffBI = pConfig->allowMCCGODiffBI;
+
+   //Scan Results Aging Time out value
+   smeConfig.csrConfig.scanCfgAgingTime = pConfig->scanAgingTimeout;
+
+   smeConfig.csrConfig.enableTxLdpc = pConfig->enableTxLdpc;
 
    halStatus = sme_UpdateConfig( pHddCtx->hHal, &smeConfig);    
    if ( !HAL_STATUS_SUCCESS( halStatus ) )

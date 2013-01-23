@@ -1,23 +1,8 @@
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
+* Copyright (c) 2012 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+*/
 
 /*==========================================================================
  *
@@ -353,7 +338,7 @@ typedef enum
   WLAN_HAL_UPDATE_VHT_OP_MODE_RSP           = 183,
 
   WLAN_HAL_P2P_NOA_START_IND                = 184,
-
+   WLAN_HAL_CLASS_B_STATS_IND               = 197,
   WLAN_HAL_MSG_MAX = WLAN_HAL_MSG_TYPE_MAX_ENUM_SIZE
 }tHalHostMsgType;
 
@@ -1426,13 +1411,16 @@ typedef PACKED_PRE struct PACKED_POST
     tANI_U8  p2pCapableSta;
 
     /*Reserved to align next field on a dword boundary*/
-    tANI_U8  reserved;
-        /*These rates are the intersection of peer and self capabilities.*/
+    tANI_U8 htLdpcEnabled:1;
+    tANI_U8 vhtLdpcEnabled:1;
+    tANI_U8 reserved:6;
+
+    /*These rates are the intersection of peer and self capabilities.*/
     tSirSupportedRates_V1 supportedRates;
 
     tANI_U8  vhtCapable;
     tANI_U8  vhtTxChannelWidthSet;
-
+    
 } tConfigStaParams_V1, *tpConfigStaParams_V1;
 
 typedef PACKED_PRE struct PACKED_POST
@@ -4100,7 +4088,8 @@ typedef PACKED_PRE struct PACKED_POST
     tANI_U32             bRssiThres2NegCross : 1;
     tANI_U32             bRssiThres3PosCross : 1;
     tANI_U32             bRssiThres3NegCross : 1;
-    tANI_U32             bReserved           : 26;
+    tANI_U32             avgRssi             : 8;
+    tANI_U32             bReserved           : 18;
 } tHalRSSINotification, *tpHalRSSINotification;
 
 typedef PACKED_PRE struct PACKED_POST
@@ -5705,6 +5694,36 @@ typedef PACKED_PRE struct PACKED_POST{
    tANI_U32   status;
 
 }  tSetThermalMitigationResp, *tpSetThermalMitigationResp;
+
+/* Per STA Class B Statistics. Class B statistics are STA TX/RX stats  
+provided to FW from Host via periodic messages */
+typedef PACKED_PRE struct PACKED_POST {
+   /* TX stats */
+   uint32 txBytesPushed;
+   uint32 txPacketsPushed;
+
+   /* RX stats */
+   uint32 rxBytesRcvd;
+   uint32 rxPacketsRcvd;
+   uint32 rxTimeTotal;
+} tStaStatsClassB, *tpStaStatsClassB;
+
+typedef PACKED_PRE struct PACKED_POST {
+
+   /* Duration over which this stats was collected */
+   tANI_U32 duration;
+
+   /* Per STA Stats */
+   tStaStatsClassB staStatsClassB[HAL_NUM_STA];
+} tStatsClassBIndParams, *tpStatsClassBIndParams;
+
+typedef PACKED_PRE struct PACKED_POST {
+
+   tHalMsgHeader header;
+
+   /* Class B Stats */
+   tStatsClassBIndParams statsClassBIndParams;
+} tStatsClassBInd, *tpStatsClassBInd;
 
 #if defined(__ANI_COMPILER_PRAGMA_PACK_STACK)
 #pragma pack(pop)
