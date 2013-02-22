@@ -628,6 +628,9 @@ ifeq ($(KERNEL_BUILD),1)
 CDEFINES += -DWLAN_OPEN_SOURCE
 endif
 
+# Fix build for GCC 4.7
+EXTRA_CFLAGS += -Wno-maybe-uninitialized -Wno-unused-function
+
 KBUILD_CPPFLAGS += $(CDEFINES)
 
 # Module information used by KBuild framework
