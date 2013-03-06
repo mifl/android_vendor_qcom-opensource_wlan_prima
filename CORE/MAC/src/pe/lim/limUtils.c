@@ -1511,12 +1511,8 @@ limSysProcessMmhMsgApi(tpAniSirGlobal pMac,
                     tANI_U8 qType)
 {
 // FIXME
-#if defined( FEATURE_WLAN_INTEGRATED_SOC )
    SysProcessMmhMsg(pMac, pMsg);
    return eSIR_SUCCESS;
-#else
-   return(halMmhPostMsgApi(pMac, pMsg, qType));
-#endif
 }
 
 char *limFrameStr(tANI_U32 type, tANI_U32 subType)
@@ -3469,15 +3465,7 @@ void limSwitchChannelCback(tpAniSirGlobal pMac, eHalStatus status,
    
    MTRACE(macTraceMsgTx(pMac, psessionEntry->peSessionId, mmhMsg.type));
    
-#if defined( FEATURE_WLAN_INTEGRATED_SOC )
    SysProcessMmhMsg(pMac, &mmhMsg);
-#else
-   if(halMmhPostMsgApi(pMac, &mmhMsg, ePROT) != eSIR_SUCCESS)
-   {
-      palFreeMemory(pMac->hHdd, (void *)msg2Hdd);
-      limLog(pMac, LOGP, FL("Message posting to HAL failed\n"));
-   }
-#endif
 }
 
 /**
@@ -7432,6 +7420,10 @@ void limHandleHeartBeatFailureTimeout(tpAniSirGlobal pMac)
                     if (!LIM_IS_CONNECTION_ACTIVE(psessionEntry))
                     {
                         limLog(pMac, LOGE, FL("Probe_hb_failure: for session:%d \n" ),psessionEntry->peSessionId);
+#ifdef FEATURE_WLAN_TDLS
+                        /* Delete all TDLS peers connected before leaving BSS*/
+                        limDeleteTDLSPeers(pMac, psessionEntry);
+#endif
                         /* AP did not respond to Probe Request. Tear down link with it.*/
                         limTearDownLinkWithAp(pMac,
                                               psessionEntry->peSessionId,

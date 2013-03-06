@@ -31,6 +31,10 @@ ifeq ($(KERNEL_BUILD),0)
 
 	#Flag to enable TDLS feature
 	CONFIG_QCOM_TDLS := y
+
+	#Flag to enable Fast Transition (11r) feature
+	CONFIG_QCOM_VOWIFI_11R := n
+
 endif
 
 # Feature flags which are not (currently) configurable via Kconfig
@@ -520,7 +524,6 @@ CDEFINES :=	-DANI_PRODUCT_TYPE_CLIENT=1 \
 		-DWLAN_FEATURE_VOWIFI \
 		-DWLAN_FEATURE_11AC \
 		-DWLAN_FEATURE_P2P_DEBUG \
-                -DWLAN_FEATURE_TDLS_DEBUG \
 		-DWLAN_ENABLE_AGEIE_ON_SCAN_RESULTS \
 		-DWLANTL_DEBUG\
 		-DWLAN_ACTIVEMODE_OFFLOAD_FEATURE \
@@ -563,6 +566,7 @@ endif
 #normally, TDLS negative behavior is not needed
 ifeq ($(CONFIG_QCOM_TDLS),y)
 CDEFINES += -DFEATURE_WLAN_TDLS
+CDEFINES += -DWLAN_FEATURE_TDLS_DEBUG
 CDEFINES += -DCONFIG_TDLS_IMPLICIT
 #CDEFINES += -DFEATURE_WLAN_TDLS_NEGATIVE
 #Code under FEATURE_WLAN_TDLS_INTERNAL is ported from volans, This code
@@ -627,6 +631,13 @@ endif
 ifeq ($(KERNEL_BUILD),1)
 CDEFINES += -DWLAN_OPEN_SOURCE
 endif
+
+ifeq ($(findstring opensource, $(WLAN_ROOT)), opensource)
+CDEFINES += -DWLAN_OPEN_SOURCE
+endif
+
+# Fix build for GCC 4.7
+EXTRA_CFLAGS += -Wno-maybe-uninitialized -Wno-unused-function
 
 KBUILD_CPPFLAGS += $(CDEFINES)
 
