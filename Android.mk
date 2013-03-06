@@ -12,6 +12,12 @@ WLAN_CHIPSET := pronto
 WLAN_SELECT := CONFIG_PRONTO_WLAN=m
 endif
 
+# Build/Package options for 8226 target
+ifeq ($(call is-board-platform,msm8226),true)
+WLAN_CHIPSET := pronto
+WLAN_SELECT := CONFIG_PRONTO_WLAN=m
+endif
+
 # Build/Package only in case of supported target
 ifneq ($(WLAN_CHIPSET),)
 
