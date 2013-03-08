@@ -1342,6 +1342,8 @@ __limProcessSmeScanReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         pMlmScanReq->backgroundScanMode = pScanReq->backgroundScanMode;
         pMlmScanReq->minChannelTime = pScanReq->minChannelTime;
         pMlmScanReq->maxChannelTime = pScanReq->maxChannelTime;
+        pMlmScanReq->minChannelTimeBtc = pScanReq->minChannelTimeBtc;
+        pMlmScanReq->maxChannelTimeBtc = pScanReq->maxChannelTimeBtc;
         pMlmScanReq->dot11mode = pScanReq->dot11mode;
 #ifdef WLAN_FEATURE_P2P
         pMlmScanReq->p2pSearch = pScanReq->p2pSearch;
@@ -1606,7 +1608,10 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                     retCode = eSIR_LOGP_EXCEPTION;
                     goto end;
                 }
-                if (cfgSetInt(pMac, WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED, WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED_STAMAX)
+                VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO_MED,
+                "***__limProcessSmeJoinReq: txBFCsnValue=%d****\n",pSmeJoinReq->txBFCsnValue);
+
+                if (cfgSetInt(pMac, WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED, pSmeJoinReq->txBFCsnValue)
                                                              != eSIR_SUCCESS)
                 {
                     limLog(pMac, LOGP, FL("could not set  WNI_CFG_VHT_CSN_BEAMFORMEE_ANT_SUPPORTED at CFG\n"));
@@ -1979,7 +1984,7 @@ __limProcessSmeReassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         if (psessionEntry->limSmeState == eLIM_SME_WT_REASSOC_STATE)
         {
             // May be from 11r FT pre-auth. So lets check it before we bail out
-            limLog(pMac, LOGE, FL("Session in reassoc state is %d\n"), 
+            limLog(pMac, LOG1, FL("Session in reassoc state is %d"),
                 psessionEntry->peSessionId);
 
             // Make sure its our preauth bssid
@@ -2626,7 +2631,7 @@ __limProcessSmeDeauthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                 case eLIM_SME_IDLE_STATE:
                     psessionEntry->limPrevSmeState = psessionEntry->limSmeState;
                     psessionEntry->limSmeState = eLIM_SME_WT_DEAUTH_STATE;
-              MTRACE(macTrace(pMac, TRACE_CODE_SME_STATE, psessionEntry->peSessionId, pMac->lim.gLimSmeState));
+                    MTRACE(macTrace(pMac, TRACE_CODE_SME_STATE, psessionEntry->peSessionId, psessionEntry->limSmeState));
 
                     // Send Deauthentication request to MLM below
 
@@ -4701,6 +4706,7 @@ limSendSetMaxTxPowerReq ( tpAniSirGlobal pMac, tPowerdBm txPower, tpPESession pS
     msgQ.bodyptr = pMaxTxParams;
     msgQ.bodyval = 0;
     PELOGW(limLog(pMac, LOG1, FL("Posting WDA_SET_MAX_TX_POWER_REQ to WDA\n"));)
+    MTRACE(macTraceMsgTx(pMac, pSessionEntry->peSessionId, msgQ.type));
     if(eSIR_SUCCESS != (retCode = wdaPostCtrlMsg(pMac, &msgQ)))
     {
        PELOGW(limLog(pMac, LOGW, FL("wdaPostCtrlMsg() failed\n"));)
