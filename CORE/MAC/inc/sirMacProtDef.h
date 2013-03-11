@@ -54,7 +54,7 @@
 
 #include "palTypes.h"
 #include "sirTypes.h"
-#include "wniCfgAp.h"
+#include "wniCfgSta.h"
 #include "aniCompiler.h"
 
 
@@ -2626,4 +2626,5 @@ typedef __ani_attr_pre_packed struct sSirPhy11aHdr
 #endif
 } __ani_attr_packed tSirPhy11aHdr, *tpSirPhy11aHdr;
 
+#define SIR_MAC_MIN_IE_LEN 2 // Minimum IE length for IE validation
 #endif /* __MAC_PROT_DEFS_H */

@@ -1370,13 +1370,11 @@ tANI_BOOLEAN csrIsConnStateConnectedWds( tpAniSirGlobal pMac, tANI_U32 sessionId
     return( eCSR_ASSOC_STATE_TYPE_WDS_CONNECTED == pMac->roam.roamSession[sessionId].connectState );
 }
 
-#ifdef WLAN_SOFTAP_FEATURE
 tANI_BOOLEAN csrIsConnStateConnectedInfraAp( tpAniSirGlobal pMac, tANI_U32 sessionId )
 {
     return( (eCSR_ASSOC_STATE_TYPE_INFRA_CONNECTED == pMac->roam.roamSession[sessionId].connectState) ||
         (eCSR_ASSOC_STATE_TYPE_INFRA_DISCONNECTED == pMac->roam.roamSession[sessionId].connectState ) );
 }
-#endif
 
 tANI_BOOLEAN csrIsConnStateDisconnectedWds( tpAniSirGlobal pMac, tANI_U32 sessionId )
 {
@@ -2240,14 +2238,12 @@ tANI_U32 csrTranslateToWNICfgDot11Mode(tpAniSirGlobal pMac, eCsrCfgDot11Mode csr
     case eCSR_CFG_DOT11_MODE_TITAN:
         ret = WNI_CFG_DOT11_MODE_TITAN;
         break;
-#ifdef WLAN_SOFTAP_FEATURE
     case eCSR_CFG_DOT11_MODE_11G_ONLY:
        ret = WNI_CFG_DOT11_MODE_11G_ONLY;
        break;
     case eCSR_CFG_DOT11_MODE_11N_ONLY:
        ret = WNI_CFG_DOT11_MODE_11N_ONLY;
        break;
-#endif
 
 #ifdef WLAN_FEATURE_11AC
      case eCSR_CFG_DOT11_MODE_11AC_ONLY:
@@ -2817,15 +2813,17 @@ csrIsconcurrentsessionValid(tpAniSirGlobal pMac,tANI_U32 cursessionId,
                     break;
 
                 case VOS_STA_SAP_MODE:
-                    if(pMac->roam.roamSession[sessionId].bssParams.bssPersona
-                                      == VOS_STA_SAP_MODE)
+                    if((pMac->roam.roamSession[sessionId].bssParams.bssPersona
+                                      == VOS_STA_SAP_MODE)&&
+                    (pMac->roam.roamSession[sessionId].connectState != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
                     {
                         smsLog(pMac, LOGE, FL(" ****SoftAP mode already exists ****\n"));
                         return eHAL_STATUS_FAILURE;
                     }
                     
-                    else if(pMac->roam.roamSession[sessionId].bssParams.bssPersona
-                                      == VOS_P2P_GO_MODE)
+                    else if((pMac->roam.roamSession[sessionId].bssParams.bssPersona
+                                      == VOS_P2P_GO_MODE) &&
+                    (pMac->roam.roamSession[sessionId].connectState != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
                     {
                         smsLog(pMac, LOGE, FL(" ****Cannot start Multiple Beaconing Role ****\n"));
                         return eHAL_STATUS_FAILURE;
@@ -2843,14 +2841,16 @@ csrIsconcurrentsessionValid(tpAniSirGlobal pMac,tANI_U32 cursessionId,
                     break;
 
                 case VOS_P2P_GO_MODE:
-                    if(pMac->roam.roamSession[sessionId].bssParams.bssPersona
-                                      == VOS_P2P_GO_MODE)
+                    if((pMac->roam.roamSession[sessionId].bssParams.bssPersona
+                                      == VOS_P2P_GO_MODE) &&
+                    (pMac->roam.roamSession[sessionId].connectState != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
                     {
                         smsLog(pMac, LOGE, FL(" ****P2P GO mode already exists ****\n"));
                         return eHAL_STATUS_FAILURE;
                     }
-                    else if(pMac->roam.roamSession[sessionId].bssParams.bssPersona
-                                      == VOS_STA_SAP_MODE)
+                    else if((pMac->roam.roamSession[sessionId].bssParams.bssPersona
+                                      == VOS_STA_SAP_MODE) &&
+                    (pMac->roam.roamSession[sessionId].connectState != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
                     {
                         smsLog(pMac, LOGE, FL(" ****Cannot start Multiple Beaconing Role ****\n"));
                         return eHAL_STATUS_FAILURE;
@@ -5933,11 +5933,9 @@ tSirBssType csrTranslateBsstypeToMacType(eCsrRoamBssType csrtype)
     case eCSR_BSS_TYPE_WDS_STA:
         ret = eSIR_BTAMP_STA_MODE;
         break;
-#ifdef WLAN_SOFTAP_FEATURE
     case eCSR_BSS_TYPE_INFRA_AP:
         ret = eSIR_INFRA_AP_MODE;
         break;
-#endif
     case eCSR_BSS_TYPE_ANY:
     default:
         ret = eSIR_AUTO_MODE;
@@ -5951,11 +5949,7 @@ tSirBssType csrTranslateBsstypeToMacType(eCsrRoamBssType csrtype)
 //This function use the parameters to decide the CFG value.
 //CSR never sets WNI_CFG_DOT11_MODE_ALL to the CFG
 //So PE should not see WNI_CFG_DOT11_MODE_ALL when it gets the CFG value
-#ifdef WLAN_SOFTAP_FEATURE
 eCsrCfgDot11Mode csrGetCfgDot11ModeFromCsrPhyMode(tCsrRoamProfile *pProfile, eCsrPhyMode phyMode, tANI_BOOLEAN fProprietary)
-#else
-eCsrCfgDot11Mode csrGetCfgDot11ModeFromCsrPhyMode(eCsrPhyMode phyMode, tANI_BOOLEAN fProprietary)
-#endif
 {
     tANI_U32 cfgDot11Mode = eCSR_CFG_DOT11_MODE_ABG;
 
@@ -5971,11 +5965,9 @@ eCsrCfgDot11Mode csrGetCfgDot11ModeFromCsrPhyMode(eCsrPhyMode phyMode, tANI_BOOL
         break;
     case eCSR_DOT11_MODE_11g:
     case eCSR_DOT11_MODE_11g_ONLY:
-#ifdef WLAN_SOFTAP_FEATURE
         if(pProfile && (CSR_IS_INFRA_AP(pProfile)) && (phyMode == eCSR_DOT11_MODE_11g_ONLY))
             cfgDot11Mode = eCSR_CFG_DOT11_MODE_11G_ONLY;
         else
-#endif
         cfgDot11Mode = eCSR_CFG_DOT11_MODE_11G;
         break;
     case eCSR_DOT11_MODE_11n:
@@ -5989,11 +5981,9 @@ eCsrCfgDot11Mode csrGetCfgDot11ModeFromCsrPhyMode(eCsrPhyMode phyMode, tANI_BOOL
         }
         break;
     case eCSR_DOT11_MODE_11n_ONLY:
-#ifdef WLAN_SOFTAP_FEATURE
        if(pProfile && CSR_IS_INFRA_AP(pProfile))
            cfgDot11Mode = eCSR_CFG_DOT11_MODE_11N_ONLY;
        else
-#endif
        cfgDot11Mode = eCSR_CFG_DOT11_MODE_11N;
        break;
     case eCSR_DOT11_MODE_TAURUS:
@@ -6432,7 +6422,6 @@ eHalStatus csrScanGetBaseChannels( tpAniSirGlobal pMac, tCsrChannelInfo * pChann
 tANI_BOOLEAN csrIsSetKeyAllowed(tpAniSirGlobal pMac, tANI_U32 sessionId)
 {
     tANI_BOOLEAN fRet = eANI_BOOLEAN_TRUE;
-#ifdef WLAN_SOFTAP_FEATURE
     tCsrRoamSession *pSession;
 
     pSession =CSR_GET_SESSION(pMac, sessionId);
@@ -6453,9 +6442,6 @@ tANI_BOOLEAN csrIsSetKeyAllowed(tpAniSirGlobal pMac, tANI_U32 sessionId)
     {
         fRet = eANI_BOOLEAN_FALSE;
     }
-#else
-    fRet = !( csrIsConnStateDisconnected( pMac, sessionId ) );
-#endif
 
     return ( fRet );
 }
