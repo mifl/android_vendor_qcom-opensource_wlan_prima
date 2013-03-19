@@ -2720,7 +2720,18 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
         return -EBUSY;
     }
 
-    if ((0 == update) && wlan_hdd_tdls_is_progress(pAdapter, mac, FALSE))
+    /* when self is on-going, we dont' want to change link_status */
+    if ((0 == update) && wlan_hdd_tdls_is_peer_progress(pAdapter, mac))
+    {
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                   "%s: " MAC_ADDRESS_STR
+                   " TDLS setup is ongoing. Request declined.",
+                   __func__, MAC_ADDR_ARRAY(mac));
+        return -EPERM;
+    }
+
+    /* when others are on-going, we want to change link_status to idle */
+    if (wlan_hdd_tdls_is_progress(pAdapter, mac, TRUE))
     {
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                    "%s: " MAC_ADDRESS_STR
@@ -2776,13 +2787,13 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "%s: timeout waiting for tdls add station indication",
                 __func__);
-        goto error;
+        return -EPERM;
     }
     if ( eHAL_STATUS_SUCCESS != pAdapter->tdlsAddStaStatus)
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "%s: Add Station is unsucessful", __func__);
-        goto error;
+        return -EPERM;
     }
 
     return 0;
@@ -6753,8 +6764,8 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
         {
              VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
                         "%s: " MAC_ADDRESS_STR
-                        " TDLS mode is disabled. Request declined.",
-                        __func__, MAC_ADDR_ARRAY(peer));
+                        " TDLS mode is disabled. action %d declined.",
+                        __func__, MAC_ADDR_ARRAY(peer), action_code);
 
         return -ENOTSUPP;
         }
@@ -6766,9 +6777,9 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
         {
             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                        "%s: " MAC_ADDRESS_STR
-                       " TDLS setup is ongoing. Request declined.",
-                       __func__, MAC_ADDR_ARRAY(peer));
-            goto error;
+                       " TDLS setup is ongoing. action %d declined.",
+                       __func__, MAC_ADDR_ARRAY(peer), action_code);
+            return -EPERM;
         }
     }
 
@@ -6785,8 +6796,8 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
             {
                 VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                            "%s: " MAC_ADDRESS_STR
-                           " TDLS Max peer already connected. Request declined.",
-                           __func__, MAC_ADDR_ARRAY(peer));
+                           " TDLS Max peer already connected. action %d declined.",
+                           __func__, MAC_ADDR_ARRAY(peer), action_code);
                 goto error;
             }
             else
@@ -6810,8 +6821,8 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
             if (pTdlsPeer && (eTDLS_LINK_CONNECTED == pTdlsPeer->link_status))
             {
                 VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                        "%s:" MAC_ADDRESS_STR " already connected. Request declined.",
-                        __func__, MAC_ADDR_ARRAY(peer));
+                        "%s:" MAC_ADDRESS_STR " already connected. action %d declined.",
+                        __func__, MAC_ADDR_ARRAY(peer), action_code);
                 return -EPERM;
             }
         }
@@ -6858,7 +6869,7 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "%s: sme_SendTdlsMgmtFrame failed!", __func__);
-        goto error;
+        return -EPERM;
     }
 
     /* not block discovery request, as it is called from timer callback */
@@ -6874,7 +6885,7 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                       "%s: Mgmt Tx Completion failed status %ld TxCompletion %lu",
                       __func__, rc, pAdapter->mgmtTxCompletionStatus);
-            goto error;
+            return -EPERM;
         }
     }
 
