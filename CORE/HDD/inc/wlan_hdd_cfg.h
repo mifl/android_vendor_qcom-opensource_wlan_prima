@@ -65,7 +65,7 @@
 #include <csrApi.h>
 
 //Number of items that can be configured
-#define MAX_CFG_INI_ITEMS   256
+#define MAX_CFG_INI_ITEMS   320
 
 // Defines for all of the things we read from the configuration (registry).
 
@@ -356,7 +356,7 @@ typedef enum
 #define CFG_RSSI_CATEGORY_GAP_NAME             "gRssiCatGap"
 #define CFG_RSSI_CATEGORY_GAP_MIN              ( 5 )  
 #define CFG_RSSI_CATEGORY_GAP_MAX              ( 100 )  
-#define CFG_RSSI_CATEGORY_GAP_DEFAULT          ( 30 )
+#define CFG_RSSI_CATEGORY_GAP_DEFAULT          ( 5 )
 
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
 #define CFG_ROAM_PREFER_5GHZ                   "gRoamPrefer5GHz"
@@ -410,7 +410,6 @@ typedef enum
 #define CFG_CRDA_DEFAULT_COUNTRY_CODE_MAX        "ZZ"
 #define CFG_CRDA_DEFAULT_COUNTRY_CODE_DEFAULT    "ZZ"
 
-#ifdef WLAN_SOFTAP_FEATURE
 #define CFG_AP_QOS_UAPSD_MODE_NAME             "gEnableApUapsd" // ACs to setup U-APSD for at assoc
 #define CFG_AP_QOS_UAPSD_MODE_MIN              ( 0 )
 #define CFG_AP_QOS_UAPSD_MODE_MAX              ( 1 ) 
@@ -504,7 +503,10 @@ typedef enum
 #define CFG_GO_KEEP_ALIVE_PERIOD_MAX           ( 255)
 #define CFG_GO_KEEP_ALIVE_PERIOD_DEFAULT       ( 20 )
 
-#endif
+#define CFG_AP_LINK_MONITOR_PERIOD_NAME          "gApLinkMonitorPeriod"
+#define CFG_AP_LINK_MONITOR_PERIOD_MIN           ( 0 )
+#define CFG_AP_LINK_MONITOR_PERIOD_MAX           ( 255)
+#define CFG_AP_LINK_MONITOR_PERIOD_DEFAULT       ( 3 )
 
 #define CFG_BEACON_INTERVAL_NAME               "gBeaconInterval"
 #define CFG_BEACON_INTERVAL_MIN                WNI_CFG_BEACON_INTERVAL_STAMIN
@@ -559,6 +561,16 @@ typedef enum
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_MAX        ( 10000 )
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_DEFAULT    ( 20 )
 
+#define CFG_ACTIVE_MAX_CHANNEL_TIME_BTC_NAME       "gActiveMaxChannelTimeBtc"
+#define CFG_ACTIVE_MAX_CHANNEL_TIME_BTC_MIN        ( 0 )
+#define CFG_ACTIVE_MAX_CHANNEL_TIME_BTC_MAX        ( 10000 )
+#define CFG_ACTIVE_MAX_CHANNEL_TIME_BTC_DEFAULT    ( 120 )
+
+#define CFG_ACTIVE_MIN_CHANNEL_TIME_BTC_NAME       "gActiveMinChannelTimeBtc"
+#define CFG_ACTIVE_MIN_CHANNEL_TIME_BTC_MIN        ( 0 )
+#define CFG_ACTIVE_MIN_CHANNEL_TIME_BTC_MAX        ( 10000 )
+#define CFG_ACTIVE_MIN_CHANNEL_TIME_BTC_DEFAULT    ( 60 )
+
 #ifdef WLAN_AP_STA_CONCURRENCY
 
 #define CFG_PASSIVE_MAX_CHANNEL_TIME_CONC_NAME      "gPassiveMaxChannelTimeConc"
@@ -574,7 +586,7 @@ typedef enum
 #define CFG_ACTIVE_MAX_CHANNEL_TIME_CONC_NAME       "gActiveMaxChannelTimeConc"
 #define CFG_ACTIVE_MAX_CHANNEL_TIME_CONC_MIN        ( 0 )
 #define CFG_ACTIVE_MAX_CHANNEL_TIME_CONC_MAX        ( 10000 )
-#define CFG_ACTIVE_MAX_CHANNEL_TIME_CONC_DEFAULT    ( 27 )
+#define CFG_ACTIVE_MAX_CHANNEL_TIME_CONC_DEFAULT    ( 40 )
 
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_CONC_NAME       "gActiveMinChannelTimeConc"
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_CONC_MIN        ( 0 )
@@ -763,7 +775,7 @@ typedef enum
  * This check is not done if the value is Zero */
 #define CFG_ROAM_RSSI_DIFF_NAME                             "RoamRssiDiff"
 #define CFG_ROAM_RSSI_DIFF_MIN                              (0)
-#define CFG_ROAM_RSSI_DIFF_MAX                              (125)
+#define CFG_ROAM_RSSI_DIFF_MAX                              (30)
 #define CFG_ROAM_RSSI_DIFF_DEFAULT                          (0)
 
 /*
@@ -1108,6 +1120,11 @@ typedef enum
 #define CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MIN          (1000)
 #define CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MAX          (60000)
 #define CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_DEFAULT      (20000)
+
+#define CFG_EMPTY_SCAN_REFRESH_PERIOD_NAME         "gEmptyScanRefreshPeriod"
+#define CFG_EMPTY_SCAN_REFRESH_PERIOD_MIN          (1000)
+#define CFG_EMPTY_SCAN_REFRESH_PERIOD_MAX          (60000)
+#define CFG_EMPTY_SCAN_REFRESH_PERIOD_DEFAULT      (0)
 #endif /* WLAN_FEATURE_NEIGHBOR_ROAMING */
 
 #define CFG_QOS_WMM_BURST_SIZE_DEFN_NAME                        "burstSizeDefinition" 
@@ -1255,12 +1272,10 @@ typedef enum
 #define CFG_LINK_SPEED_RSSI_LOW_MAX                (  0 )
 #define CFG_LINK_SPEED_RSSI_LOW_DEFAULT            ( -80 )
 
-#ifdef WLAN_FEATURE_P2P
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_NAME                "isP2pDeviceAddrAdministrated"
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_MIN                 ( 0 )
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_MAX                 ( 1 )
 #define CFG_P2P_DEVICE_ADDRESS_ADMINISTRATED_DEFAULT             ( 0 )
-#endif
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 #define CFG_MC_ADDR_LIST_FILTER_NAME               "isMcAddrListFilter"
@@ -1299,10 +1314,8 @@ typedef enum
 #define CFG_VOS_TRACE_ENABLE_WDA_NAME     "vosTraceEnableWDA"
 #define CFG_VOS_TRACE_ENABLE_SYS_NAME     "vosTraceEnableSYS"
 #define CFG_VOS_TRACE_ENABLE_VOSS_NAME    "vosTraceEnableVOSS"
-#ifdef WLAN_SOFTAP_FEATURE
 #define CFG_VOS_TRACE_ENABLE_SAP_NAME     "vosTraceEnableSAP"
 #define CFG_VOS_TRACE_ENABLE_HDD_SAP_NAME "vosTraceEnableHDDSAP"
-#endif
 
 #define CFG_VOS_TRACE_ENABLE_MIN          (0)
 #define CFG_VOS_TRACE_ENABLE_MAX          (0xff)
@@ -1723,7 +1736,6 @@ typedef struct
    v_MACADDR_t   intfMacAddr[VOS_MAX_CONCURRENCY_PERSONA];
    v_U8_t        crdaDefaultCountryCode [3];
 
-#ifdef WLAN_SOFTAP_FEATURE
    v_BOOL_t      apUapsdEnabled;
    v_BOOL_t      apRandomBssidEnabled;
    v_BOOL_t      apProtEnabled;
@@ -1741,7 +1753,7 @@ typedef struct
    v_U8_t        enableLTECoex;
    v_U32_t       apKeepAlivePeriod;
    v_U32_t       goKeepAlivePeriod;
-#endif
+   v_U32_t       apLinkMonitorPeriod;
    v_U32_t       nBeaconInterval;
    v_U8_t        nTxPowerCap;   //In dBm
    v_BOOL_t      fIsLowGainOverride;
@@ -1761,13 +1773,14 @@ typedef struct
 
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
    v_U16_t       nNeighborScanPeriod;
-   v_U16_t       nNeighborReassocRssiThreshold;
-   v_U16_t       nNeighborLookupRssiThreshold;
-   char          neighborScanChanList[100];         
+   v_U8_t        nNeighborReassocRssiThreshold;
+   v_U8_t        nNeighborLookupRssiThreshold;
+   v_U8_t        neighborScanChanList[WNI_CFG_VALID_CHANNEL_LIST_LEN];
    v_U16_t       nNeighborScanMinChanTime; 
    v_U16_t       nNeighborScanMaxChanTime; 
    v_U16_t       nMaxNeighborReqTries;
-   v_U16_t       nNeighborResultsRefreshPeriod; 
+   v_U16_t       nNeighborResultsRefreshPeriod;
+   v_U16_t       nEmptyScanRefreshPeriod;
 #endif
 
    //Handoff Parameters
@@ -1784,6 +1797,8 @@ typedef struct
    v_U32_t        nActiveMinChnTime;     //in units of milliseconds
    v_U32_t        nActiveMaxChnTime;     //in units of milliseconds
 
+   v_U32_t        nActiveMinChnTimeBtc;     //in units of milliseconds
+   v_U32_t        nActiveMaxChnTimeBtc;     //in units of milliseconds
 #ifdef WLAN_AP_STA_CONCURRENCY
    v_U32_t        nPassiveMinChnTimeConc;    //in units of milliseconds
    v_U32_t        nPassiveMaxChnTimeConc;    //in units of milliseconds
@@ -1911,18 +1926,14 @@ typedef struct
    v_U16_t                     vosTraceEnableWDA;
    v_U16_t                     vosTraceEnableSYS;
    v_U16_t                     vosTraceEnableVOSS;
-#ifdef WLAN_SOFTAP_FEATURE
    v_U16_t                     vosTraceEnableSAP;
    v_U16_t                     vosTraceEnableHDDSAP;
-#endif
 
-#ifdef FEATURE_WLAN_INTEGRATED_SOC
    /* WDI Trace Control */
    v_U32_t                     wdiTraceEnableDAL;
    v_U32_t                     wdiTraceEnableCTL;
    v_U32_t                     wdiTraceEnableDAT;
    v_U32_t                     wdiTraceEnablePAL;
-#endif /* FEATURE_WLAN_INTEGRATED_SOC */
    v_U16_t                     nTeleBcnTransListenInterval;
    v_U16_t                     nTeleBcnMaxListenInterval;
    v_U16_t                     nTeleBcnTransLiNumIdleBeacons;
@@ -1943,9 +1954,7 @@ typedef struct
    v_S31_t                     linkSpeedRssiLow;
    v_U8_t                      enableMCC;
    v_U8_t                      allowMCCGODiffBI;
-#ifdef WLAN_FEATURE_P2P
    v_BOOL_t                    isP2pDeviceAddrAdministrated;
-#endif
    v_U8_t                      thermalMitigationEnable;
 #ifdef WLAN_FEATURE_PACKET_FILTERING
    v_BOOL_t                    isMcAddrListFilter;

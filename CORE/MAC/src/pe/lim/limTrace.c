@@ -60,9 +60,7 @@
   Include Files
   ------------------------------------------------------------------------*/
 
-#ifdef FEATURE_WLAN_INTEGRATED_SOC
 #include "aniGlobal.h" //for tpAniSirGlobal
-#endif
 
 #include "limTrace.h"
 #include "limTimerUtils.h"
@@ -87,9 +85,6 @@ static tANI_U8* __limTraceGetTimerString( tANI_U16 timerId )
         CASE_RETURN_STRING(eLIM_PRE_AUTH_CLEANUP_TIMER);
         CASE_RETURN_STRING(eLIM_HEART_BEAT_TIMER);
         CASE_RETURN_STRING(eLIM_BACKGROUND_SCAN_TIMER);
-#ifdef ANI_PRODUCT_TYPE_AP
-        CASE_RETURN_STRING(eLIM_LEARN_INTERVAL_TIMER);
-#endif
         CASE_RETURN_STRING(eLIM_KEEPALIVE_TIMER);
         CASE_RETURN_STRING(eLIM_CNF_WAIT_TIMER);
         CASE_RETURN_STRING(eLIM_AUTH_RSP_TIMER);
@@ -100,15 +95,11 @@ static tANI_U8* __limTraceGetTimerString( tANI_U16 timerId )
         CASE_RETURN_STRING(eLIM_LEARN_DURATION_TIMER);
         CASE_RETURN_STRING(eLIM_QUIET_TIMER);
         CASE_RETURN_STRING(eLIM_QUIET_BSS_TIMER);
-#ifdef WLAN_SOFTAP_FEATURE
         CASE_RETURN_STRING(eLIM_WPS_OVERLAP_TIMER);
-#endif
 #ifdef WLAN_FEATURE_VOWIFI_11R
         CASE_RETURN_STRING(eLIM_FT_PREAUTH_RSP_TIMER);
 #endif
-#ifdef WLAN_FEATURE_P2P
         CASE_RETURN_STRING(eLIM_REMAIN_CHN_TIMER);
-#endif
         CASE_RETURN_STRING(eLIM_PERIODIC_PROBE_REQ_TIMER);
 #ifdef FEATURE_WLAN_CCX
         CASE_RETURN_STRING(eLIM_TSM_TIMER);

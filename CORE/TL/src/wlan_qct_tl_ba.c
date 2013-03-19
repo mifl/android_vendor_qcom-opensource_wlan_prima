@@ -312,13 +312,11 @@ v_VOID_t WLANTL_ReorderingAgingTimerExpierCB
       return;
    }
 
-#ifdef WLAN_SOFTAP_FEATURE  
    if( WLAN_STA_SOFTAP == pClientSTA->wSTADesc.wSTAType)
    {
       WLANTL_FwdPktToHDD( expireHandle->pAdapter, vosDataBuff, ucSTAID);
    }
    else
-#endif
    {
       wRxMetaInfo.ucUP = ucTID;
       pClientSTA->pfnSTARx(expireHandle->pAdapter,
@@ -511,7 +509,6 @@ WLANTL_BaSessionAdd
     }
   }
 
-#ifdef WLAN_SOFTAP_FEATURE  
   
   if( WLAN_STA_SOFTAP == pClientSTA->wSTADesc.wSTAType)
   {
@@ -522,7 +519,6 @@ WLANTL_BaSessionAdd
           return VOS_STATUS_E_NOSUPPORT;
       }
   }
-#endif
   reorderInfo->timerUdata.pAdapter     = pvosGCtx;
   reorderInfo->timerUdata.pTLHandle    = (v_PVOID_t)pTLCb;
   reorderInfo->timerUdata.STAID        = ucSTAId;
@@ -735,13 +731,11 @@ WLANTL_BaSessionDel
              "WLAN TL: Chaining was successful sending all pkts to HDD : %x",
               vosDataBuff ));
 
-#ifdef WLAN_SOFTAP_FEATURE
     if ( WLAN_STA_SOFTAP == pClientSTA->wSTADesc.wSTAType )
     {
       WLANTL_FwdPktToHDD( pvosGCtx, vosDataBuff, ucSTAId);
     }
     else
-#endif
     {
       wRxMetaInfo.ucUP = ucTid;
       pClientSTA->pfnSTARx( pvosGCtx, vosDataBuff, ucSTAId,
@@ -920,12 +914,8 @@ WLANTL_AMSDUProcess
    ------------------------------------------------------------------------*/
   ucAef =  (v_U8_t)WDA_GET_RX_AEF( pvBDHeader );
   ucFsf =  (v_U8_t)WDA_GET_RX_ESF( pvBDHeader );
-#ifndef FEATURE_WLAN_INTEGRATED_SOC
-  MPDUDataOffset = (v_U16_t)WDA_GET_RX_MPDU_DATA_OFFSET(pvBDHeader) - WLANHAL_RX_BD_HEADER_SIZE;
-#else
   /* On Prima, MPDU data offset not includes BD header size */
   MPDUDataOffset = (v_U16_t)WDA_GET_RX_MPDU_DATA_OFFSET(pvBDHeader);
-#endif /* FEATURE_WLAN_INTEGRATED_SOC */
 
   if ( WLANHAL_RX_BD_AEF_SET == ucAef ) 
   {
@@ -944,6 +934,15 @@ WLANTL_AMSDUProcess
      * AMSDU Header should be removed
      * MPDU header should be stored into context to recover next frames
      */
+    /* Assumed here Address4 is never part of AMSDU received at TL */
+    if (ucMPDUHLen > WLANTL_MPDU_HEADER_LEN)
+    {
+      TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,"MPDU Header length (%d) is greater",ucMPDUHLen));
+      vos_pkt_return_packet(vosDataBuff);
+      *ppVosDataBuff = NULL;
+      return VOS_STATUS_SUCCESS; /*Not a transport error*/
+    }
+
     vStatus = vos_pkt_pop_head(vosDataBuff, MPDUHeaderAMSDUHeader, ucMPDUHLen + TL_AMSDU_SUBFRM_HEADER_LEN);
     if(!VOS_IS_STATUS_SUCCESS(vStatus))
     {

@@ -58,12 +58,7 @@
 #include "sirMacProtDef.h"
 #include "utilsApi.h"
 
-#ifdef FEATURE_WLAN_NON_INTEGRATED_SOC
-#include "halCommonApi.h"
-#endif 
-#ifdef FEATURE_WLAN_INTEGRATED_SOC
 #include "wlan_qct_wdi_ds.h"
-#endif
 
 #include "limApi.h"
 #include "limDebug.h"
@@ -208,11 +203,9 @@ typedef struct sLimMlmStartReq
     tSirMacHTOperatingMode     htOperMode;
     tANI_U8                    dualCTSProtection;
     tANI_U8                    txChannelWidthSet;
-#ifdef WLAN_SOFTAP_FEATURE
     tANI_U8              ssidHidden;
     tANI_U8              wps_state;
     tANI_U8              obssProtEnabled;
-#endif
 } tLimMlmStartReq, *tpLimMlmStartReq;
 
 typedef struct sLimMlmStartCnf
@@ -273,21 +266,8 @@ typedef struct sLimMlmAssocInd
     tANI_U8                 sessionId;
 
 
-#ifdef WLAN_SOFTAP_FEATURE
     tAniBool               WmmStaInfoPresent;
-#endif
 
-#if (WNI_POLARIS_FW_PACKAGE == ADVANCED) 
-    tANI_U16                  seqNum;
-    tAniBool             wniIndicator;
-    tAniBool             bpIndicator;
-    tSirBpIndicatorType  bpType;
-    tSirNwType           nwType;
-    tSirAssocType        assocType; // Indicates whether STA is LB'ed or not
-    tSirLoad             load; // Current load on the radio for LB
-    tANI_U32                  numBss; // List received from STA
-    tSirNeighborBssInfo  neighborList[1]; // List received from STA
-#endif
     // Required for indicating the frames to upper layer
     tANI_U32             beaconLength;
     tANI_U8*             beaconPtr;
@@ -325,21 +305,8 @@ typedef struct sLimMlmReassocInd
     tSirMacPowerCapInfo     powerCap;
     tSirSupChnl             supportedChannels;
 
-#ifdef WLAN_SOFTAP_FEATURE
     tAniBool               WmmStaInfoPresent;
-#endif
 
-#if (WNI_POLARIS_FW_PACKAGE == ADVANCED) 
-    tANI_U16                  seqNum;
-    tAniBool             wniIndicator;
-    tAniBool             bpIndicator;
-    tSirBpIndicatorType  bpType;
-    tSirNwType           nwType;
-    tSirAssocType        reassocType; // Indicates whether STA is LB'ed or not
-    tSirLoad             load; // Current load on the radio for LB
-    tANI_U32                  numBss; // List received from STA
-    tSirNeighborBssInfo  neighborList[1]; // List received from STA
-#endif
     // Required for indicating the frames to upper layer
     tANI_U32             beaconLength;
     tANI_U8*             beaconPtr;
@@ -488,9 +455,6 @@ typedef struct sLimMlmLinkTestStopReq
 {
     tSirMacAddr    peerMacAddr;
     tANI_U8       sessionId;
-#ifdef ANI_PRODUCT_TYPE_AP
-    tANI_U16             aid;
-#endif
 } tLimMlmLinkTestStopReq, *tpLimMlmLinkTestStopReq;
 
 
@@ -675,11 +639,7 @@ void limHandleCFGparamUpdate(tpAniSirGlobal, tANI_U32);
 // Function to apply CFG parameters before join/reassoc/start BSS
 void limApplyConfiguration(tpAniSirGlobal,tpPESession);
 
-#ifdef WLAN_SOFTAP_FEATURE
 void limSetCfgProtection(tpAniSirGlobal pMac, tpPESession pesessionEntry);
-#else
-void limSetCfgProtection(tpAniSirGlobal pMac);
-#endif
 
 
 // Function to Initialize MLM state machine on STA
@@ -714,9 +674,7 @@ void limProcessAssocRspFrame(tpAniSirGlobal, tANI_U8 *, tANI_U8,tpPESession);
 void limProcessDisassocFrame(tpAniSirGlobal, tANI_U8 *,tpPESession);
 void limProcessDeauthFrame(tpAniSirGlobal, tANI_U8 *,tpPESession);
 void limProcessActionFrame(tpAniSirGlobal, tANI_U8 *,tpPESession);
-#if defined WLAN_FEATURE_P2P
 void limProcessActionFrameNoSession(tpAniSirGlobal pMac, tANI_U8 *pRxMetaInfo);
-#endif
 
 
 tSirRetStatus limPopulateMacHeader(tpAniSirGlobal, tANI_U8*, tANI_U8, tANI_U8, tSirMacAddr,tSirMacAddr);
@@ -737,9 +695,6 @@ void limSendAddtsReqActionFrame(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
 void limSendAddtsRspActionFrame(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
                            tANI_U16 statusCode, tSirAddtsReqInfo *addts, tSirMacScheduleIE *pSchedule,tpPESession);
 
-#ifdef ANI_PRODUCT_TYPE_AP
-void limSendAssocRspMgmtFrame(tpAniSirGlobal, tANI_U16, tANI_U16, tSirMacAddr, tANI_U8, tpDphHashNode pSta,tpPESession);
-#endif
 void limSendAssocRspMgmtFrame(tpAniSirGlobal, tANI_U16, tANI_U16, tSirMacAddr, tANI_U8, tpDphHashNode pSta,tpPESession);
 
 void limSendNullDataFrame(tpAniSirGlobal, tpDphHashNode);
@@ -749,9 +704,7 @@ void limSendDeauthMgmtFrame(tpAniSirGlobal, tANI_U16, tSirMacAddr, tpPESession, 
 void limContinueChannelScan(tpAniSirGlobal);
 tSirResultCodes limMlmAddBss(tpAniSirGlobal, tLimMlmStartReq *,tpPESession psessionEntry);
 
-#if 1 //(WNI_POLARIS_FW_PACKAGE == ADVANCED) && defined(ANI_PRODUCT_TYPE_AP)
 tSirRetStatus limSendChannelSwitchMgmtFrame(tpAniSirGlobal, tSirMacAddr, tANI_U8, tANI_U8, tANI_U8, tpPESession);
-#endif
 
 #ifdef WLAN_FEATURE_11AC
 tSirRetStatus limSendVHTOpmodeNotificationFrame(tpAniSirGlobal pMac,tSirMacAddr peer,tANI_U8 nMode, tpPESession  psessionEntry );
@@ -789,6 +742,9 @@ tSirRetStatus limProcessSmeTdlsAddStaReq(tpAniSirGlobal pMac,
 tSirRetStatus limProcessSmeTdlsDelStaReq(tpAniSirGlobal pMac, 
                                                            tANI_U32 *pMsgBuf);
 void limSendSmeTDLSDeleteAllPeerInd(tpAniSirGlobal pMac, tpPESession psessionEntry);
+void limSendSmeMgmtTXCompletion(tpAniSirGlobal pMac,
+                                tpPESession psessionEntry,
+                                tANI_U32 txCompleteStatus);
 tSirRetStatus limDeleteTDLSPeers(tpAniSirGlobal pMac, tpPESession psessionEntry);
 eHalStatus limProcessTdlsAddStaRsp(tpAniSirGlobal pMac, void *msg, tpPESession);
 tSirRetStatus limSendTdlsTeardownFrame(tpAniSirGlobal pMac,
@@ -807,19 +763,6 @@ void limHandleHeartBeatFailure(tpAniSirGlobal,tpPESession);
 /// Function that triggers link tear down with AP upon HB failure
 void limTearDownLinkWithAp(tpAniSirGlobal,tANI_U8, tSirMacReasonCodes);
 
-#ifdef ANI_PRODUCT_TYPE_AP
-/// Function that performs periodic release of AIDs
-void limReleaseAIDHandler(tpAniSirGlobal);
-
-/// Function that performs periodic cleanup of Pre-auth contexts
-void limPreAuthClnupHandler(tpAniSirGlobal);
-
-/// Function that processes CF-poll response message from SCH
-void limHandleCFpollRsp(tANI_U32);
-
-/// Function that processes PS-poll message from PMM
-void limHandlePSpoll(tANI_U32);
-#endif
 
 /// Function that sends keep alive message to peer(s)
 void limSendKeepAliveToPeer(tpAniSirGlobal);
@@ -1078,7 +1021,6 @@ limGetIElenFromBssDescription(tpSirBssDescription pBssDescr)
                    sizeof(tANI_U32) - sizeof(tSirBssDescription)));
 } /*** end limGetIElenFromBssDescription() ***/
 
-#ifdef WLAN_SOFTAP_FEATURE
 /**
  * limSendBeaconInd()
  *
@@ -1095,9 +1037,7 @@ limGetIElenFromBssDescription(tpSirBssDescription pBssDescr)
 
 void 
 limSendBeaconInd(tpAniSirGlobal pMac, tpPESession psessionEntry);
-#endif
 
-#ifdef WLAN_SOFTAP_FEATURE
 
 void limGetWPSPBCSessions(tpAniSirGlobal pMac, tANI_U8 *addr, tANI_U8 *uuid_e, eWPSPBCOverlap *overlap, tpPESession psessionEntry);
 void limWPSPBCTimeout(tpAniSirGlobal pMac, tpPESession psessionEntry);
@@ -1109,7 +1049,6 @@ tSirRetStatus
 limIsSmeGetWPSPBCSessionsReqValid(tpAniSirGlobal pMac, tSirSmeGetWPSPBCSessionsReq *pGetWPSPBCSessionsReq, tANI_U8 *pBuf);
 
 #define LIM_WPS_OVERLAP_TIMER_MS                 10000
-#endif
 
 void
 limSuspendLink(tpAniSirGlobal pMac, tSirLinkTrafficCheck trafficCheck,  SUSPEND_RESUME_LINK_CALLBACK callback, tANI_U32 *data);
@@ -1120,7 +1059,6 @@ void
 limChangeChannelWithCallback(tpAniSirGlobal pMac, tANI_U8 newChannel, 
    CHANGE_CHANNEL_CALLBACK callback, tANI_U32 *cbdata, tpPESession psessionEntry);
 
-#ifdef WLAN_FEATURE_P2P
 void limSendSmeMgmtFrameInd(
                     tpAniSirGlobal pMac, tANI_U8 frameType,
                     tANI_U8  *frame, tANI_U32 frameLen, tANI_U16 sessionId,
@@ -1131,7 +1069,6 @@ void limProcessInsertSingleShotNOATimeout(tpAniSirGlobal pMac);
 void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg);
 void limAbortRemainOnChan(tpAniSirGlobal pMac);
 tSirRetStatus __limProcessSmeNoAUpdate(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf);
-#endif
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
 void limProcessTdlsFrame(tpAniSirGlobal, tANI_U32 *);
 void limProcessTdlsPublicActionFrame(tpAniSirGlobal pMac, tANI_U32 *pBd, 

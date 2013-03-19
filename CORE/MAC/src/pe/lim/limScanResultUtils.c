@@ -160,6 +160,7 @@ limCollectBssDescription(tpAniSirGlobal pMac,
     tANI_U8             rxChannel;
 
     pHdr = WDA_GET_RX_MAC_HEADER(pRxPacketInfo);
+    VOS_ASSERT(WDA_GET_RX_PAYLOAD_LEN(pRxPacketInfo) >= SIR_MAC_B_PR_SSID_OFFSET);
     ieLen    = WDA_GET_RX_PAYLOAD_LEN(pRxPacketInfo) - SIR_MAC_B_PR_SSID_OFFSET;
     rxChannel = WDA_GET_RX_CH(pRxPacketInfo);
     pBody = WDA_GET_RX_MPDU_DATA(pRxPacketInfo);
@@ -363,7 +364,6 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
     eHalStatus            status;
     tANI_U8               dontUpdateAll = 0;
 
-#ifdef WLAN_FEATURE_P2P
     tSirMacAddr bssid = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     tANI_BOOLEAN fFound = FALSE;
     tpSirMacDataHdr3a pHdr;
@@ -384,7 +384,6 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
             }
         }
     }
-#endif
 
     /**
      * Compare SSID with the one sent in
@@ -465,8 +464,17 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
      * Include size of fixed fields and IEs length
      */
 
-    ieLen    = WDA_GET_RX_PAYLOAD_LEN(pRxPacketInfo) - SIR_MAC_B_PR_SSID_OFFSET;
-    frameLen = sizeof(tLimScanResultNode) + ieLen - sizeof(tANI_U32);   // Sizeof(tANI_U32) is for ieFields[1]
+    ieLen = WDA_GET_RX_PAYLOAD_LEN(pRxPacketInfo);
+    if (ieLen <= SIR_MAC_B_PR_SSID_OFFSET)
+    {
+               limLog(pMac, LOGP,
+                   FL("RX packet has invalid length %d\n"), ieLen);
+                  return;
+    }
+
+    ieLen -= SIR_MAC_B_PR_SSID_OFFSET;
+
+    frameLen = sizeof(tLimScanResultNode) + ieLen - sizeof(tANI_U32); //Sizeof(tANI_U32) is for ieFields[1]
 
     if( eHAL_STATUS_SUCCESS != palAllocateMemory( pMac->hHdd, (void **)&pBssDescr, frameLen))
     {
@@ -519,21 +527,8 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
 
         if ( ( pMac->lim.gLimReturnAfterFirstMatch & 0x01 ) ||
              ( pMac->lim.gLim24Band11dScanDone && ( pMac->lim.gLimReturnAfterFirstMatch & 0x40 ) ) ||
-             ( pMac->lim.gLim50Band11dScanDone && ( pMac->lim.gLimReturnAfterFirstMatch & 0x80 ) ) 
-#ifdef WLAN_FEATURE_P2P
-             || fFound
-#endif
-             )
-/*
-        if ((pMac->lim.gLimReturnAfterFirstMatch & 0x01) ||
-            (pMac->lim.gLim24Band11dScanDone &&
-             !(pMac->lim.gLimReturnAfterFirstMatch & 0xC0)) ||
-            (pMac->lim.gLim50Band11dScanDone &&
-             !(pMac->lim.gLimReturnAfterFirstMatch & 0xC0)) ||
-            (pMac->lim.gLim24Band11dScanDone &&
-             pMac->lim.gLim50Band11dScanDone &&
-             pMac->lim.gLimReturnAfterFirstMatch & 0xC0))
-*/
+             ( pMac->lim.gLim50Band11dScanDone && ( pMac->lim.gLimReturnAfterFirstMatch & 0x80 ) ) ||
+              fFound )
         {
             /**
              * Stop scanning and return the BSS description(s)
