@@ -50,7 +50,6 @@
   Qualcomm Confidential and Proprietary.
 
   ========================================================================*/
-#ifdef CONFIG_CFG80211
 
 #include <wlan_hdd_includes.h>
 #include <wlan_hdd_hostapd.h>
@@ -119,7 +118,6 @@ static void hdd_sendMgmtFrameOverMonitorIface( hdd_adapter_t *pMonAdapter,
                                                tANI_U8* pbFrames,
                                                tANI_U8 frameType );
 
-#ifdef WLAN_FEATURE_P2P
 eHalStatus wlan_hdd_remain_on_channel_callback( tHalHandle hHal, void* pCtx,
                                                 eHalStatus status )
 {
@@ -1114,7 +1112,6 @@ int hdd_setP2pPs( struct net_device *dev, void *msgData )
     sme_p2pSetPs(hHal, &NoA);
     return status;
 }
-#endif
 
 static tANI_U8 wlan_hdd_get_session_type( enum nl80211_iftype type )
 {
@@ -1490,7 +1487,7 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
 #ifdef FEATURE_WLAN_TDLS
             else if(pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET+1] == WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP)
             {
-                wlan_hdd_tdls_set_cap(&pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET+6], 1);
+                wlan_hdd_tdls_recv_discovery_resp(&pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET+6]);
                 wlan_hdd_tdls_set_rssi(&pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET+6], rxRssi);
                 hddLog(VOS_TRACE_LEVEL_ERROR,"[TDLS] TDLS Discovery Response <--- OTA");
             }
@@ -1656,4 +1653,3 @@ static void hdd_wlan_tx_complete( hdd_adapter_t* pAdapter,
     netif_tx_start_all_queues( pAdapter->dev ); 
 
 }
-#endif // CONFIG_CFG80211

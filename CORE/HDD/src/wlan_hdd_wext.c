@@ -84,9 +84,7 @@
 #include <wlan_hdd_cfg.h>
 #include <wlan_hdd_wmm.h>
 #include "utilsApi.h"
-#ifdef WLAN_FEATURE_P2P
 #include "wlan_hdd_p2p.h"
-#endif
 #ifdef FEATURE_WLAN_TDLS
 #include "wlan_hdd_tdls.h"
 #endif
@@ -103,10 +101,8 @@
 #include "wlan_hdd_packet_filtering.h"
 #endif
 
-#ifdef CONFIG_CFG80211
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
-#endif
 #include "wlan_qct_pal_trace.h"
 
 #include "wlan_hdd_misc.h"
@@ -227,9 +223,7 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WLAN_PRIV_SET_VAR_INT_GET_NONE   (SIOCIWFIRSTPRIV + 7)
 #define WE_LOG_DUMP_CMD      1
 
-#ifdef WLAN_FEATURE_P2P
 #define WE_P2P_NOA_CMD       2
-#endif
 //IOCTL to configure MCC params
 #define WE_MCC_CONFIG_CREDENTIAL 3
 #define WE_MCC_CONFIG_PARAMS  4
@@ -918,9 +912,7 @@ static int iw_set_mode(struct net_device *dev,
     eCsrRoamBssType          LastBSSType;
     eMib_dot11DesiredBssType connectedBssType;
     hdd_config_t             *pConfig;
-#ifdef CONFIG_CFG80211
     struct wireless_dev      *wdev;
-#endif
 
     ENTER();
 
@@ -943,9 +935,7 @@ static int iw_set_mode(struct net_device *dev,
         return -EINVAL;
     }
 
-#ifdef CONFIG_CFG80211
     wdev = dev->ieee80211_ptr;
-#endif
     pRoamProfile = &pWextState->roamProfile;
     LastBSSType = pRoamProfile->BSSType;
 
@@ -959,16 +949,12 @@ static int iw_set_mode(struct net_device *dev,
         // Set the phymode correctly for IBSS.
         pConfig  = (WLAN_HDD_GET_CTX(pAdapter))->cfg_ini;
         pWextState->roamProfile.phyMode = hdd_cfg_xlate_to_csr_phy_mode(pConfig->dot11Mode);
-#ifdef CONFIG_CFG80211
         wdev->iftype = NL80211_IFTYPE_ADHOC;
-#endif
         break;
     case IW_MODE_INFRA:
         hddLog( LOG1, "%s Setting AP Mode as IW_MODE_INFRA", __func__);
         pRoamProfile->BSSType = eCSR_BSS_TYPE_INFRASTRUCTURE;
-#ifdef CONFIG_CFG80211
         wdev->iftype = NL80211_IFTYPE_STATION;
-#endif
         break;
     case IW_MODE_AUTO:
         hddLog(LOG1,"%s Setting AP Mode as IW_MODE_AUTO", __func__);
@@ -3745,14 +3731,10 @@ static int iw_setchar_getnone(struct net_device *dev, struct iw_request_info *in
           }
           break;
 #endif
-#ifdef WLAN_FEATURE_P2P
        case WE_SET_AP_WPS_IE:
           hddLog( LOGE, "Received WE_SET_AP_WPS_IE" );
-#ifdef WLAN_FEATURE_P2P
           sme_updateP2pIe( WLAN_HDD_GET_HAL_CTX(pAdapter), wrqu->data.pointer, wrqu->data.length );
-#endif // WLAN_FEATURE_P2P
           break;
-#endif
        case WE_SET_CONFIG:
           vstatus = hdd_execute_config_command(pHddCtx, wrqu->data.pointer);
           if (VOS_STATUS_SUCCESS != vstatus)
@@ -4321,7 +4303,6 @@ int iw_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info
             }
             break;
 
-#ifdef WLAN_FEATURE_P2P
         case WE_P2P_NOA_CMD:
             {
                 p2p_app_setP2pPs_t p2pNoA;
@@ -4343,7 +4324,6 @@ int iw_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info
 
             }
             break;
-#endif
 
         case WE_MCC_CONFIG_CREDENTIAL :
             {
@@ -5993,9 +5973,7 @@ int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr)
                         __func__, band);
              return -EINVAL;
         }
-#ifdef CONFIG_CFG80211
         wlan_hdd_cfg80211_update_band(pHddCtx->wiphy, (eCsrBand)band);
-#endif
     }
     return 0;
 }

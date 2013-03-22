@@ -1871,6 +1871,49 @@ eHalStatus csrIsValidChannel(tpAniSirGlobal pMac, tANI_U8 chnNum)
     }
     return status;
 }
+
+eHalStatus csrGet5GChannels(tpAniSirGlobal pMac)
+{
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tANI_U8 num20MHzChannelsFound = 0;
+    VOS_STATUS vosStatus;
+    tANI_U8 num40MHzChannelsFound = 0;
+    tANI_U8 Index = 0;
+
+    vosStatus = vos_nv_get5GChannelListWithPower( pMac->scan.defaultPowerTable, &num20MHzChannelsFound,
+                                                  NULL, &num40MHzChannelsFound);
+    if ( (VOS_STATUS_SUCCESS != vosStatus) || (num20MHzChannelsFound == 0) )
+    {
+        smsLog( pMac, LOGE, FL("failed to get channels"));
+        status = eHAL_STATUS_FAILURE;
+    }
+    else
+    {
+        if ( num20MHzChannelsFound > WNI_CFG_VALID_CHANNEL_LIST_LEN )
+        {
+            num20MHzChannelsFound = WNI_CFG_VALID_CHANNEL_LIST_LEN;
+        }
+        pMac->scan.numChannelsDefault = num20MHzChannelsFound;
+        // Move the channel list to the global data
+        // structure -- this will be used as the scan list
+        for ( Index = 0; Index < num20MHzChannelsFound; Index++)
+        {
+           pMac->scan.base20MHzChannels.channelList[ Index ] = pMac->scan.defaultPowerTable[ Index ].chanId;
+        }
+        pMac->scan.base20MHzChannels.numChannels = num20MHzChannelsFound;
+        if ( num40MHzChannelsFound > WNI_CFG_VALID_CHANNEL_LIST_LEN )
+        {
+            num40MHzChannelsFound = WNI_CFG_VALID_CHANNEL_LIST_LEN;
+        }
+        for ( Index = 0; Index < num40MHzChannelsFound; Index++)
+        {
+            pMac->scan.base40MHzChannels.channelList[ Index ] = pMac->scan.defaultPowerTable40MHz[ Index ].chanId;
+        }
+        pMac->scan.base40MHzChannels.numChannels = num40MHzChannelsFound;
+    }
+    return status;
+}
+
 eHalStatus csrInitGetChannels(tpAniSirGlobal pMac)
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
@@ -10384,7 +10427,6 @@ static void csrRoamGetBssStartParms( tpAniSirGlobal pMac, tCsrRoamProfile *pProf
     
     cfgDot11Mode = csrRoamGetPhyModeBandForBss( pMac, pProfile, operationChannel, &eBand );
     
-#ifdef WLAN_FEATURE_P2P
     if( ( (pProfile->csrPersona == VOS_P2P_CLIENT_MODE) ||
           (pProfile->csrPersona == VOS_P2P_GO_MODE) )
      && ( cfgDot11Mode == eCSR_CFG_DOT11_MODE_11B)
@@ -10396,7 +10438,6 @@ static void csrRoamGetBssStartParms( tpAniSirGlobal pMac, tCsrRoamProfile *pProf
               pProfile->csrPersona);
         VOS_ASSERT(0);
     }
-#endif
     switch( cfgDot11Mode )
     {
         case eCSR_CFG_DOT11_MODE_11G:
@@ -10484,7 +10525,6 @@ static void csrRoamGetBssStartParms( tpAniSirGlobal pMac, tCsrRoamProfile *pProf
             
             break;     
         case eSIR_11G_NW_TYPE:
-#ifdef WLAN_FEATURE_P2P
             /* For P2P Client and P2P GO, disable 11b rates */ 
             if( (pProfile->csrPersona == VOS_P2P_CLIENT_MODE) ||
                 (pProfile->csrPersona == VOS_P2P_GO_MODE)
@@ -10502,7 +10542,6 @@ static void csrRoamGetBssStartParms( tpAniSirGlobal pMac, tCsrRoamProfile *pProf
                 pParam->operationalRateSet.rate[7] = SIR_MAC_RATE_54;
             }
             else
-#endif            
             {
             pParam->operationalRateSet.numRates = 4;
             pParam->operationalRateSet.rate[0] = SIR_MAC_RATE_1 | CSR_DOT11_BASIC_RATE_MASK;
@@ -12018,9 +12057,9 @@ eHalStatus csrSendMBDisassocReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSi
         *( pBuf + 1 ) = 0;
         pBuf += sizeof(tANI_U16);
      
-        if ( (pSession->pCurRoamProfile != NULL ) && 
-             ( reasonCode == eSIR_MAC_UNSPEC_FAILURE_REASON ) && 
-             ((CSR_IS_INFRA_AP(pSession->pCurRoamProfile)) || (CSR_IS_WDS_AP(pSession->pCurRoamProfile))))
+        if ( (pSession->pCurRoamProfile != NULL) &&
+             ((CSR_IS_INFRA_AP(pSession->pCurRoamProfile)) ||
+              (CSR_IS_WDS_AP(pSession->pCurRoamProfile))) )
         {
             // Set the bssid address before sending the message to LIM
             status = palCopyMemory( pMac->hHdd, (tSirMacAddr *)pBuf, pSession->selfMacAddr, sizeof( tSirMacAddr ) );
