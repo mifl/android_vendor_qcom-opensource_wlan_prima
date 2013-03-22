@@ -387,10 +387,8 @@ typedef enum
   /* Tx PER Tracking Indication */
   WDI_TX_PER_HIT_IND,
 
-#ifdef WLAN_FEATURE_P2P
   /* P2P_NOA_Start_Indication */
   WDI_P2P_NOA_START_IND,
-#endif
 
   WDI_MAX_IND
 }WDI_LowLevelIndEnumType;
@@ -518,7 +516,6 @@ typedef struct
 } WDI_PrefNetworkFoundInd;
 #endif // FEATURE_WLAN_SCAN_PNO
 
-#ifdef WLAN_FEATURE_P2P
 /*---------------------------------------------------------------------------
  *WDI_P2pNoaAttrIndType
  *-------------------------------------------------------------------------*/
@@ -552,7 +549,6 @@ typedef struct
   wpt_uint32      bssIdx;
 }WDI_P2pNoaStartIndType;
 
-#endif
 
 #ifdef WLAN_WAKEUP_EVENTS
 /*---------------------------------------------------------------------------
@@ -570,6 +566,15 @@ typedef struct
                              see specific wake type */ 
 } WDI_WakeReasonIndType;
 #endif // WLAN_WAKEUP_EVENTS
+
+/*---------------------------------------------------------------------------
+ WDI_MissedBeaconIndType
+-----------------------------------------------------------------------------*/
+typedef struct
+{
+    wpt_uint8       bssIdx;  /*bssidx on which beacon is missed*/
+} WDI_MissedBeaconIndType;
+
 
 /*---------------------------------------------------------------------------
   WDI_LowLevelIndType
@@ -605,11 +610,9 @@ typedef struct
     /* Tx Complete Indication */
     wpt_uint32                  tx_complete_status;
 
-#ifdef WLAN_FEATURE_P2P
     /* P2P NOA ATTR Indication */
     WDI_P2pNoaAttrIndType        wdiP2pNoaAttrInfo;
     WDI_P2pNoaStartIndType       wdiP2pNoaStartInfo;
-#endif
 
 
 #ifdef FEATURE_WLAN_SCAN_PNO
@@ -619,6 +622,7 @@ typedef struct
 #ifdef WLAN_WAKEUP_EVENTS
     WDI_WakeReasonIndType        wdiWakeReasonInd;
 #endif // WLAN_WAKEUP_EVENTS
+    WDI_MissedBeaconIndType      wdiMissedBeaconInd;
   }  wdiIndicationData;
 }WDI_LowLevelIndType;
 
@@ -1607,9 +1611,7 @@ typedef enum
     WDI_TX_ONLY,
     WDI_RX_ONLY,
     WDI_TX_RX,
-#ifdef WLAN_SOFTAP_FEATURE
     WDI_TX_DEFAULT,
-#endif
     WDI_DONOT_USE_KEY_DIRECTION
 } WDI_KeyDirectionType;
 
@@ -2541,15 +2543,11 @@ typedef struct {
    /* length of the template */
    wpt_uint32   beaconLength;
 
-#ifdef WLAN_SOFTAP_FEATURE
    /* TIM IE offset from the beginning of the template.*/
    wpt_uint32   timIeOffset; 
-#endif
 
-#ifdef WLAN_FEATURE_P2P
    /* P2P IE offset from the beginning of the template */
    wpt_uint16   usP2PIeOffset;
-#endif
 } WDI_SendBeaconParamsInfoType;
 
 /*---------------------------------------------------------------------------
@@ -2593,9 +2591,7 @@ typedef enum
     WDI_LINK_FINISH_SCAN_STATE       = 11,
     WDI_LINK_INIT_CAL_STATE          = 12,
     WDI_LINK_FINISH_CAL_STATE        = 13,
-#ifdef WLAN_FEATURE_P2P
     WDI_LINK_LISTEN_STATE            = 14,
-#endif
     WDI_LINK_MAX                     = 0x7FFFFFFF
 } WDI_LinkStateType;
 
@@ -2929,7 +2925,6 @@ typedef struct
  
 }WDI_SetMaxTxPowerRspMsg;
 
-#ifdef WLAN_FEATURE_P2P
 typedef struct
 {
   wpt_uint8   ucOpp_ps;
@@ -2958,7 +2953,6 @@ typedef struct
     function pointer will be called */
   void*             pUserData;
 }WDI_SetP2PGONOAReqParamsType;
-#endif
 
 
 /*---------------------------------------------------------------------------
@@ -3924,7 +3918,6 @@ typedef struct
 
 #endif /* WLAN_FEATURE_VOWIFI_11R */
 
-#ifdef ANI_MANF_DIAG
 /*---------------------------------------------------------------------------
   WDI_FTMCommandReqType
 ---------------------------------------------------------------------------*/
@@ -3935,7 +3928,6 @@ typedef struct
    /* Actual FTM Command body */
    void        *FTMCommandBody;
 }WDI_FTMCommandReqType;
-#endif /* ANI_MANF_DIAG */
 
 /*---------------------------------------------------------------------------
   WDI_WlanSuspendInfoType
@@ -5451,7 +5443,6 @@ typedef void (*WDA_SetMaxTxPowerRspCb)(WDI_SetMaxTxPowerRspMsg *wdiSetMaxTxPower
 typedef void  (*WDI_UpdateProbeRspTemplateRspCb)(WDI_Status   wdiStatus,
                                                void*        pUserData);
 
-#ifdef WLAN_FEATURE_P2P
 /*---------------------------------------------------------------------------
    WDI_SetP2PGONOAReqParamsRspCb
  
@@ -5473,7 +5464,6 @@ typedef void  (*WDI_UpdateProbeRspTemplateRspCb)(WDI_Status   wdiStatus,
 ---------------------------------------------------------------------------*/
 typedef void  (*WDI_SetP2PGONOAReqParamsRspCb)(WDI_Status   wdiStatus,
                                 void*        pUserData);
-#endif
 
 
 /*---------------------------------------------------------------------------
@@ -6051,7 +6041,6 @@ typedef void  (*WDI_AggrAddTsRspCb)(WDI_Status   wdiStatus,
                                     void*        pUserData);
 #endif /* WLAN_FEATURE_VOWIFI_11R */
 
-#ifdef ANI_MANF_DIAG
 /*---------------------------------------------------------------------------
    WDI_FTMCommandRspCb
  
@@ -6071,7 +6060,6 @@ typedef void  (*WDI_AggrAddTsRspCb)(WDI_Status   wdiStatus,
 ---------------------------------------------------------------------------*/
 typedef void (*WDI_FTMCommandRspCb)(void *ftmCMDRspdata,
                                     void *pUserData);
-#endif /* ANI_MANF_DIAG */
 
 /*---------------------------------------------------------------------------
    WDI_AddSTASelfParamsRspCb 
@@ -7453,7 +7441,6 @@ WDI_UpdateProbeRspTemplateReq
   void*                                  pUserData
 );
 
-#ifdef WLAN_FEATURE_P2P
 /**
  @brief WDI_SetP2PGONOAReq will be called when the 
         upper MAC wants to send Notice of Absence
@@ -7485,7 +7472,6 @@ WDI_SetP2PGONOAReq
   WDI_SetP2PGONOAReqParamsRspCb    wdiP2PGONOAReqParamsRspCb,
   void*                            pUserData
 );
-#endif
 
 
 /*======================================================================== 
@@ -8567,7 +8553,6 @@ WDI_Status WDI_StubRunTest
    wpt_uint8   ucTestNo
 );
 
-#ifdef ANI_MANF_DIAG
 /**
  @brief WDI_FTMCommandReq -  
         Route FTMRequest Command to HAL
@@ -8584,7 +8569,6 @@ WDI_Status WDI_FTMCommandReq
   WDI_FTMCommandRspCb    ftmCommandRspCb,
   void                  *pUserData
 );
-#endif /* ANI_MANF_DIAG */
 
 /**
  @brief WDI_HostResumeReq will be called 

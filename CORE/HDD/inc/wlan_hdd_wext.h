@@ -75,6 +75,12 @@
 
 #define MHZ 6
 
+#define WE_MAX_STR_LEN                                 1024
+#define WLAN_HDD_UI_BAND_AUTO                          0
+#define WLAN_HDD_UI_BAND_5_GHZ                         1
+#define WLAN_HDD_UI_BAND_2_4_GHZ                       2
+#define WLAN_HDD_UI_SET_BAND_VALUE_OFFSET              8
+
 typedef enum
 {
    HDD_WLAN_WMM_DIRECTION_UPSTREAM      = 0,
@@ -195,7 +201,6 @@ typedef enum
 
 #define HDD_WPA_ELEM_VENDOR_EXTENSION       0x1049
 
-#ifdef WLAN_SOFTAP_FEATURE
 #define HDD_WPS_MANUFACTURER_LEN            64
 #define HDD_WPS_MODEL_NAME_LEN              32
 #define HDD_WPS_MODEL_NUM_LEN               32
@@ -213,17 +218,14 @@ typedef enum
 #define HDD_WPS_ELEM_SERIAL_NUM             0x1042 
 #define HDD_WPS_ELEM_DEVICE_NAME            0x1011
 #define HDD_WPS_ELEM_REGISTRA_CONF_METHODS  0x1053
-#endif
 
 
  
 #define WPS_OUI_TYPE   "\x00\x50\xf2\x04"
 #define WPS_OUI_TYPE_SIZE  4
  
-#ifdef WLAN_FEATURE_P2P
 #define P2P_OUI_TYPE   "\x50\x6f\x9a\x09"
 #define P2P_OUI_TYPE_SIZE  4
-#endif
 
 #define HS20_OUI_TYPE   "\x50\x6f\x9a\x10"
 #define HS20_OUI_TYPE_SIZE  4
@@ -318,10 +320,8 @@ typedef struct ccp_freq_chan_map_s{
 #define wlan_hdd_get_wps_ie_ptr(ie, ie_len) \
     wlan_hdd_get_vendor_oui_ie_ptr(WPS_OUI_TYPE, WPS_OUI_TYPE_SIZE, ie, ie_len)
 
-#ifdef WLAN_FEATURE_P2P
 #define wlan_hdd_get_p2p_ie_ptr(ie, ie_len) \
     wlan_hdd_get_vendor_oui_ie_ptr(P2P_OUI_TYPE, P2P_OUI_TYPE_SIZE, ie, ie_len)
-#endif
 
 #ifdef WLAN_FEATURE_WFD
 #define wlan_hdd_get_wfd_ie_ptr(ie, ie_len) \
@@ -415,6 +415,10 @@ VOS_STATUS wlan_hdd_get_roam_rssi(hdd_adapter_t *pAdapter, v_S7_t *rssi_value);
 
 #ifdef FEATURE_WLAN_TDLS
 VOS_STATUS iw_set_tdls_params(struct net_device *dev, struct iw_request_info *info, union iwreq_data *wrqu, char *extra, int nOffset);
+#endif
+
+#ifdef WLAN_FEATURE_PACKET_FILTERING
+void wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, v_U8_t set);
 #endif
 
 #endif // __WEXT_IW_H__

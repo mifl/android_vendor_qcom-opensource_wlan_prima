@@ -110,9 +110,9 @@ when        who    what, where, why
  SoftAP = 12 - 1(Self STa) - 1(Bcast Sta) = 10 Stations. */
  
 #ifdef WLAN_SOFTAP_VSTA_FEATURE
-#define WDI_MAX_SUPPORTED_STAS    38 
+#define WDI_MAX_SUPPORTED_STAS   41
 #else
-#define WDI_MAX_SUPPORTED_STAS    12 
+#define WDI_MAX_SUPPORTED_STAS   12
 #endif
 #define WDI_MAX_SUPPORTED_BSS     5 
 
@@ -122,9 +122,7 @@ when        who    what, where, why
 /*Invalid BSS index ! TO DO: Must come from the HAL header file*/
 #define WDI_BSS_INVALID_IDX 0xFF
 
-#ifdef ANI_MANF_DIAG
 #define WDI_FTM_MAX_RECEIVE_BUFFER   6500
-#endif /* ANI_MANF_DIAG */
 
 /*---------------------------------------------------------------------------
   DAL Control Path Main States
@@ -1056,10 +1054,8 @@ typedef struct
   /* Driver Type */
   tDriverType                 driverMode;  
 
-#ifdef ANI_MANF_DIAG
   /* Statically allocated FTM Response Buffer */
   wpt_uint8                   ucFTMCommandRspBuffer[WDI_FTM_MAX_RECEIVE_BUFFER];
-#endif /* ANI_MANF_DIAG */
 
   /*Driver in BMPS state*/
   wpt_boolean                 bInBmps;
@@ -2134,7 +2130,6 @@ WDI_Status WDI_ProcessSetMaxTxPowerReq
   WDI_EventInfoType*     pEventData
 );
 
-#ifdef WLAN_FEATURE_P2P
 /**
  @brief Process P2P Notice Of Absence Request function (called when Main FSM
         allows it)
@@ -2151,7 +2146,6 @@ WDI_ProcessP2PGONOAReq
   WDI_ControlBlockType*  pWDICtx,
   WDI_EventInfoType*     pEventData
 );
-#endif
 
 /**
  @brief Process Enter IMPS Request function (called when 
@@ -3320,7 +3314,6 @@ WDI_ProcessNvDownloadRsp
   WDI_EventInfoType*     pEventData
 );
 
-#ifdef WLAN_FEATURE_P2P
 /**
  @brief Process P2P Group Owner Notice Of Absense Rsp function (called 
         when a response is being received over the bus from HAL)
@@ -3337,7 +3330,6 @@ WDI_ProcessP2PGONOARsp
   WDI_ControlBlockType*  pWDICtx,
   WDI_EventInfoType*     pEventData
 );
-#endif
 
 /**
  @brief Process Enter IMPS Rsp function (called when a response 
@@ -3967,7 +3959,6 @@ WDI_ProcessTxCompleteInd
   WDI_EventInfoType*     pEventData
 );
 
-#ifdef WLAN_FEATURE_P2P
 /**
 *@brief Process Noa Start Indication function (called when
         an indication of this kind is being received over the
@@ -4003,7 +3994,6 @@ WDI_ProcessP2pNoaAttrInd
   WDI_ControlBlockType*  pWDICtx,
   WDI_EventInfoType*     pEventData
 );
-#endif
 
 /**
 *@brief Process Tx Per Hit Indication function (called when
@@ -4060,7 +4050,6 @@ WDI_ProcessAggrAddTSpecRsp
 
 #endif /* WLAN_FEATURE_VOWIFI_11R */
 
-#ifdef ANI_MANF_DIAG
 /**
  @brief WDI_ProcessFTMCommandReq
         Process FTM Command, simply route to HAL
@@ -4094,7 +4083,6 @@ WDI_ProcessFTMCommandRsp
   WDI_ControlBlockType*  pWDICtx,
   WDI_EventInfoType*     pEventData
 );
-#endif /* ANI_MANF_DIAG */
 /**
  @brief WDI_ProcessHALDumpCmdReq
         Process Hal Dump Command, simply route to HAL

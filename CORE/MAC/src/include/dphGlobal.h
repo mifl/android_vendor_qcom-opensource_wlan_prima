@@ -262,7 +262,6 @@ typedef struct sDphQueueAttr
 } tDphQueueAttr, *tpDphQueueAttr;
 
 
-#if defined( FEATURE_WLAN_INTEGRATED_SOC )
 
 typedef struct sCfgTrafficClass {
 
@@ -325,7 +324,6 @@ typedef struct sCfgTrafficClass {
 
 } tCfgTrafficClass;
 
-#endif /* EATURE_WLAN_INTEGRATED_SOC */
 
 
 /// STA state node
@@ -389,15 +387,9 @@ typedef struct sDphHashNode
 
     tANI_U8  fAniCount:1;
 
-#if (WNI_POLARIS_FW_PRODUCT == AP)
-
-    tANI_U8   hcfEnabled : 1;
-
-#else
 
     tANI_U8   rsvd:1;
 
-#endif
 
 
     /// Fragmentation size

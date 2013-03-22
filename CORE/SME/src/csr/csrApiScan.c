@@ -396,6 +396,8 @@ static void csrSetDefaultScanTiming( tpAniSirGlobal pMac, tSirScanType scanType,
             pScanRequest->maxChnTime = pMac->roam.configParam.nPassiveMaxChnTimeConc;
             pScanRequest->minChnTime = pMac->roam.configParam.nPassiveMinChnTimeConc;
         }
+	pScanRequest->maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
+	pScanRequest->minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
 
         pScanRequest->restTime = pMac->roam.configParam.nRestTimeConc;
         
@@ -417,6 +419,8 @@ static void csrSetDefaultScanTiming( tpAniSirGlobal pMac, tSirScanType scanType,
         pScanRequest->maxChnTime = pMac->roam.configParam.nPassiveMaxChnTime;
         pScanRequest->minChnTime = pMac->roam.configParam.nPassiveMinChnTime;
     }
+	pScanRequest->maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
+	pScanRequest->minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
 
 #ifdef WLAN_AP_STA_CONCURRENCY
     //No rest time if no sessions are connected.
@@ -711,12 +715,10 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                 {
                     pScanCmd->u.scanCmd.reason = eCsrScanProbeBss;
                 }
-#if defined WLAN_FEATURE_P2P
                 else if(eCSR_SCAN_P2P_FIND_PEER == pScanRequest->requestType)
                 {
                     pScanCmd->u.scanCmd.reason = eCsrScanP2PFindPeer;
                 }
-#endif                
                 else
                 {
                     pScanCmd->u.scanCmd.reason = eCsrScanIdleScan;
@@ -728,7 +730,7 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                 }
 #ifdef WLAN_AP_STA_CONCURRENCY
                 if(pScanRequest->restTime == 0)
-                    {
+                {
                     //Need to set restTime only if at least one session is connected
                     if(csrIsAnySessionConnected(pMac))
                     {
@@ -737,11 +739,11 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                 }
 #endif
                  /*For Standalone wlan : channel time will remain the same.
-                                  For BTC with A2DP up: Channel time = Channel time * 2 , if station is not already associated.
-                                  This has been done to provide a larger scan window for faster connection during btc.Else Scan is seen
-                                  to take a long time.
-                                  For BTC with A2DP up: Channel time will not be doubled, if station is already associated.
-                               */
+                   For BTC with A2DP up: Channel time = Channel time * 2 , if station is not already associated.
+                   This has been done to provide a larger scan window for faster connection during btc.Else Scan is seen
+                   to take a long time.
+                   For BTC with A2DP up: Channel time will not be doubled, if station is already associated.
+                 */
                 status = csrRoamGetConnectState(pMac,sessionId,&ConnectState);
                 if (HAL_STATUS_SUCCESS(status) &&
                     pMac->btc.fA2DPUp &&
@@ -751,6 +753,9 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                     pScanRequest->maxChnTime = pScanRequest->maxChnTime << 1;
                     pScanRequest->minChnTime = pScanRequest->minChnTime << 1;
                 }  
+
+		pScanRequest->maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
+		pScanRequest->minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
                 //Need to make the following atomic
                 pScanCmd->u.scanCmd.scanID = pMac->scan.nextScanID++; //let it wrap around
                 
@@ -762,7 +767,7 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                 // If it is the first scan request from HDD, CSR checks if it is for 11d. 
                 // If it is not, CSR will save the scan request in the pending cmd queue 
                 // & issue an 11d scan request to PE.
-                if(((0 == pScanCmd->u.scanCmd.scanID)
+                if (((0 == pScanCmd->u.scanCmd.scanID)
                    && (eCSR_SCAN_REQUEST_11D_SCAN != pScanRequest->requestType))
 #ifdef SOFTAP_CHANNEL_RANGE
                    && (eCSR_SCAN_SOFTAP_CHANNEL_RANGE != pScanRequest->requestType)
@@ -777,19 +782,19 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                     palZeroMemory(pMac->hHdd, &scanReq, sizeof(tCsrScanRequest));
 
                     p11dScanCmd = csrGetCommandBuffer(pMac);
-                    if(p11dScanCmd)
+                    if (p11dScanCmd)
                     {
                         tANI_U32 numChn = pMac->scan.baseChannels.numChannels;
 
                         palZeroMemory(pMac->hHdd, &p11dScanCmd->u.scanCmd, sizeof(tScanCmd));
                         status = palAllocateMemory( pMac->hHdd, (void **)&pChnInfo->ChannelList, numChn );
-                        if( !HAL_STATUS_SUCCESS( status ) )
+                        if ( !HAL_STATUS_SUCCESS( status ) )
                         {
                             break;
                         }
                         status = palCopyMemory( pMac->hHdd, pChnInfo->ChannelList, 
                                     pMac->scan.baseChannels.channelList, numChn );
-                        if( !HAL_STATUS_SUCCESS( status ) )
+                        if ( !HAL_STATUS_SUCCESS( status ) )
                         {
                             palFreeMemory( pMac->hHdd, pChnInfo->ChannelList );
                             pChnInfo->ChannelList = NULL;
@@ -817,13 +822,16 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                             p11dScanCmd->u.scanCmd.reason = eCsrScanIdleScan;
                             scanReq.maxChnTime = pMac->roam.configParam.nActiveMaxChnTime;
                             scanReq.minChnTime = pMac->roam.configParam.nActiveMinChnTime;
+
+			    scanReq.maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
+			    scanReq.minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
                         }
 
                         status = csrScanCopyRequest(pMac, &p11dScanCmd->u.scanCmd.u.scanRequest, &scanReq);
                         //Free the channel list
                         palFreeMemory( pMac->hHdd, pChnInfo->ChannelList );
 
-                        if(HAL_STATUS_SUCCESS(status))
+                        if (HAL_STATUS_SUCCESS(status))
                         {
                             //Start process the command
 #ifdef WLAN_AP_STA_CONCURRENCY
@@ -949,6 +957,8 @@ eHalStatus csrScanAllChannels(tpAniSirGlobal pMac, eCsrRequestType reqType)
     scanReq.requestType = reqType;
     scanReq.maxChnTime = pMac->roam.configParam.nActiveMaxChnTime;
     scanReq.minChnTime = pMac->roam.configParam.nActiveMinChnTime;
+    scanReq.maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
+    scanReq.minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
     //Scan with invalid sessionId. 
     //This results in SME using the first available session to scan.
     status = csrScanRequest(pMac, CSR_SESSION_ID_INVALID, &scanReq, 
@@ -1218,6 +1228,8 @@ eHalStatus csrScanRequestLostLink1( tpAniSirGlobal pMac, tANI_U32 sessionId )
         pCommand->u.scanCmd.pContext = NULL;
         pCommand->u.scanCmd.u.scanRequest.maxChnTime = pMac->roam.configParam.nActiveMaxChnTime;
         pCommand->u.scanCmd.u.scanRequest.minChnTime = pMac->roam.configParam.nActiveMinChnTime;
+        pCommand->u.scanCmd.u.scanRequest.maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
+        pCommand->u.scanCmd.u.scanRequest.minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
         pCommand->u.scanCmd.u.scanRequest.scanType = eSIR_ACTIVE_SCAN;
         if(pSession->connectedProfile.SSID.length)
         {
@@ -1378,6 +1390,8 @@ eHalStatus csrScanRequestLostLink2( tpAniSirGlobal pMac, tANI_U32 sessionId )
         pCommand->u.scanCmd.pContext = NULL;
         pCommand->u.scanCmd.u.scanRequest.maxChnTime = pMac->roam.configParam.nActiveMaxChnTime;
         pCommand->u.scanCmd.u.scanRequest.minChnTime = pMac->roam.configParam.nActiveMinChnTime;
+        pCommand->u.scanCmd.u.scanRequest.maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
+        pCommand->u.scanCmd.u.scanRequest.minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
         pCommand->u.scanCmd.u.scanRequest.scanType = eSIR_ACTIVE_SCAN;
         if(pSession->pCurRoamProfile)
         {
@@ -1482,6 +1496,8 @@ eHalStatus csrScanRequestLostLink3( tpAniSirGlobal pMac, tANI_U32 sessionId )
         pCommand->u.scanCmd.pContext = NULL;
         pCommand->u.scanCmd.u.scanRequest.maxChnTime = pMac->roam.configParam.nActiveMaxChnTime;
         pCommand->u.scanCmd.u.scanRequest.minChnTime = pMac->roam.configParam.nActiveMinChnTime;
+        pCommand->u.scanCmd.u.scanRequest.maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
+        pCommand->u.scanCmd.u.scanRequest.minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
         pCommand->u.scanCmd.u.scanRequest.scanType = eSIR_ACTIVE_SCAN;
         palCopyMemory(pMac->hHdd, &pCommand->u.scanCmd.u.scanRequest.bssid, bAddr, sizeof(tCsrBssid));
         //Put to the head of pending queue
@@ -2358,7 +2374,6 @@ eHalStatus csrScanningStateMsgProcessor( tpAniSirGlobal pMac, void *pMsgBuf )
     }
     else
     {
-#ifdef WLAN_SOFTAP_FEATURE
         if(pMsg->type == eWNI_SME_UPPER_LAYER_ASSOC_CNF) 
         {
             tCsrRoamSession  *pSession;
@@ -2405,7 +2420,6 @@ eHalStatus csrScanningStateMsgProcessor( tpAniSirGlobal pMac, void *pMsgBuf )
 
         }
         else
-#endif
         {
 
             if( csrIsAnySessionInConnectState( pMac ) )
@@ -2560,7 +2574,7 @@ eHalStatus csrAddPMKIDCandidateList( tpAniSirGlobal pMac, tANI_U32 sessionId,
             
                 if( HAL_STATUS_SUCCESS( status ) )
                 {
-                    if ( pIes->RSN.preauth )
+                    if ( (pIes->RSN.RSN_Cap[0] >> 0) & 0x1 ) // Bit 0 offirst byte - PreAuthentication Capability
                     {
                         pSession->PmkidCandidateInfo[pSession->NumPmkidCandidate].preAuthSupported = eANI_BOOLEAN_TRUE;
                     }
@@ -3437,16 +3451,25 @@ void csrSaveChannelPowerForBand( tpAniSirGlobal pMac, tANI_BOOLEAN fPopulate5GBa
     tANI_U32 Index, count=0;
     tSirMacChanInfo *pChanInfo;
     tSirMacChanInfo *pChanInfoStart;
+    tANI_S32 maxChannelIndex;
+
+    maxChannelIndex = ( pMac->scan.base20MHzChannels.numChannels < WNI_CFG_VALID_CHANNEL_LIST_LEN ) ?
+                      pMac->scan.base20MHzChannels.numChannels : WNI_CFG_VALID_CHANNEL_LIST_LEN ;
 
     if(HAL_STATUS_SUCCESS(palAllocateMemory(pMac->hHdd, (void **)&pChanInfo, sizeof(tSirMacChanInfo) * WNI_CFG_VALID_CHANNEL_LIST_LEN)))
     {
         palZeroMemory(pMac->hHdd, pChanInfo, sizeof(tSirMacChanInfo) * WNI_CFG_VALID_CHANNEL_LIST_LEN);
         pChanInfoStart = pChanInfo;
-        for (Index=0; Index < pMac->scan.base20MHzChannels.numChannels; Index++)
+        for (Index=0; Index < maxChannelIndex; Index++)
         {
             if ((fPopulate5GBand && (CSR_IS_CHANNEL_5GHZ(pMac->scan.defaultPowerTable[Index].chanId))) ||
                 (!fPopulate5GBand && (CSR_IS_CHANNEL_24GHZ(pMac->scan.defaultPowerTable[Index].chanId))) )
             {
+                if(count >= WNI_CFG_VALID_CHANNEL_LIST_LEN)
+                {
+                    smsLog( pMac, LOGW, FL(" csrSaveChannelPowerForBand, count exceeded, count =  %d"), count);
+                    break;
+                }
                 pChanInfo->firstChanNum = pMac->scan.defaultPowerTable[Index].chanId;
                 pChanInfo->numChannels  = 1;
                 pChanInfo->maxTxPower   = CSR_ROAM_MIN( pMac->scan.defaultPowerTable[Index].pwr, pMac->roam.configParam.nTxPowerCap );
@@ -3483,7 +3506,6 @@ void csrSetOppositeBandChannelInfo( tpAniSirGlobal pMac )
         {
             // else, we found channel info in the 2.4 GHz band.  If the 5.0 band is empty
             // set the 5.0 band info from the 2.4 country code.
-            if ( !csrLLIsListEmpty( &pMac->scan.channelPowerInfoList5G, LL_ACCESS_LOCK ) ) break;
             fPopulate5GBand = TRUE;
         }
         csrSaveChannelPowerForBand( pMac, fPopulate5GBand );
@@ -3584,10 +3606,8 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
     v_REGDOMAIN_t domainId;
     tDot11fBeaconIEs *pIesLocal = pIes;
 
-#ifdef WLAN_SOFTAP_FEATURE
     if (VOS_STA_SAP_MODE == vos_get_conparam ())
         return eHAL_STATUS_SUCCESS;
-#endif
 
     do
     {
@@ -3711,6 +3731,12 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
 
         // set the indicator of the channel where the country IE was found...
         pMac->scan.channelOf11dInfo = pSirBssDesc->channelId;
+        csrGetRegulatoryDomainForCountry(pMac, pIesLocal->Country.country, &domainId );
+        if ( domainId != pMac->scan.domainIdCurrent )
+        {
+            WDA_SetRegDomain(pMac, domainId);
+            csrGet5GChannels(pMac );
+        }
         // Populate both band channel lists based on what we found in the country information...
         csrSetOppositeBandChannelInfo( pMac );
         bMaxNumChn = WNI_CFG_VALID_CHANNEL_LIST_LEN;
@@ -4270,14 +4296,12 @@ tANI_BOOLEAN csrIsDuplicateBssDescription( tpAniSirGlobal pMac, tSirBssDescripti
                 }
             }while(0);
         }
-#if defined WLAN_FEATURE_P2P
         /* In case of P2P devices, ess and ibss will be set to zero */
         else if (!pCap1->ess && 
                 csrIsMacAddressEqual( pMac, (tCsrBssid *)pSirBssDesc1->bssId, (tCsrBssid *)pSirBssDesc2->bssId))
         {
             fMatch = TRUE;
         }
-#endif
     }
 
     if(pIes1)
@@ -4625,12 +4649,10 @@ eHalStatus csrScanSmeScanResponse( tpAniSirGlobal pMac, void *pMsgBuf )
             case eCsrScanForCapsChange:
                 csrScanProcessScanResults( pMac, pCommand, pScanRsp, &fRemoveCommand );
                 break;
-#if WLAN_FEATURE_P2P
             case eCsrScanP2PFindPeer:
               scanStatus = ((eSIR_SME_SUCCESS == pScanRsp->statusCode) && (pScanRsp->length > 50)) ? eCSR_SCAN_FOUND_PEER : eCSR_SCAN_FAILURE;
               csrScanProcessScanResults( pMac, pCommand, pScanRsp, NULL );
               break;
-#endif                
             case eCsrScanSetBGScanParam:
             default:
                 if(csrScanProcessScanResults( pMac, pCommand, pScanRsp, &fRemoveCommand ))
@@ -4983,6 +5005,8 @@ eHalStatus csrSendMBScanReq( tpAniSirGlobal pMac, tANI_U16 sessionId,
 #else
 #error unknown chipset
 #endif
+            pMsg->minChannelTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
+            pMsg->maxChannelTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
             //hidden SSID option
             pMsg->hiddenSsid = pScanReqParam->hiddenSsid;
             //rest time
@@ -5010,9 +5034,7 @@ eHalStatus csrSendMBScanReq( tpAniSirGlobal pMac, tANI_U16 sessionId,
                 palCopyMemory(pMac->hHdd, (tANI_U8 *)pMsg+pMsg->uIEFieldOffset,
                                     pScanReq->pIEField, pScanReq->uIEFieldLen );
             }
-#ifdef WLAN_FEATURE_P2P
             pMsg->p2pSearch = pScanReq->p2pSearch;
-#endif
 
             if (pScanReq->requestType == eCSR_SCAN_HO_BG_SCAN) 
             {
@@ -5503,8 +5525,7 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
                                       */
                                      || ((eCSR_SCAN_HO_BG_SCAN == pSrcReq->requestType) &&
                                          (pSrcReq->ChannelInfo.numOfChannels > 1) &&
-                                         (pSrcReq->ChannelInfo.ChannelList[index] > 48 &&
-                                          pSrcReq->ChannelInfo.ChannelList[index] < 149))
+                                         (CSR_IS_CHANNEL_DFS(pSrcReq->ChannelInfo.ChannelList[index])))
 #endif
                                   )
                                 {
@@ -5579,10 +5600,8 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
                     break;
                 }
             }//Allocate memory for SSID List
-#ifdef WLAN_FEATURE_P2P
             pDstReq->p2pSearch = pSrcReq->p2pSearch;
             pDstReq->skipDfsChnlInP2pSearch = pSrcReq->skipDfsChnlInP2pSearch;
-#endif
 
         }
     }while(0);
@@ -6174,11 +6193,9 @@ void csrScanCancelIdleScan(tpAniSirGlobal pMac)
 {
     if(eANI_BOOLEAN_FALSE == pMac->scan.fCancelIdleScan)
     {
-#ifdef WLAN_SOFTAP_FEATURE
         if (vos_concurrent_sessions_running()) {
             return;
         }
-#endif
         smsLog(pMac, LOG1, "  csrScanCancelIdleScan\n");
         pMac->scan.fCancelIdleScan = eANI_BOOLEAN_TRUE;
         //Set the restart flag in case later on it is uncancelled
@@ -6553,6 +6570,8 @@ eHalStatus csrScanForSSID(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrRoamProfi
                  pScanCmd->u.scanCmd.u.scanRequest.maxChnTime = pMac->roam.configParam.nActiveMaxChnTime;
                  pScanCmd->u.scanCmd.u.scanRequest.minChnTime = pMac->roam.configParam.nActiveMinChnTime;
             }
+	    pScanCmd->u.scanCmd.u.scanRequest.maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
+	    pScanCmd->u.scanCmd.u.scanRequest.minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
             if(pProfile->BSSIDs.numOfBSSIDs == 1)
             {
                 palCopyMemory(pMac->hHdd, pScanCmd->u.scanCmd.u.scanRequest.bssid, pProfile->BSSIDs.bssid, sizeof(tCsrBssid));
@@ -6827,11 +6846,7 @@ void csrSaveTxPowerToCfg( tpAniSirGlobal pMac, tDblLinkList *pList, tANI_U32 cfg
                     pChannelPowerSet->firstChanNum = (tSirMacChanNum)(pChannelSet->firstChannel + ( idx * pChannelSet->interChannelOffset ));
                     smsLog(pMac, LOG3, " Setting Channel Number %d\n", pChannelPowerSet->firstChanNum);
                     pChannelPowerSet->numChannels  = 1;
-#ifdef WLAN_SOFTAP_FEATURE
                     pChannelPowerSet->maxTxPower = CSR_ROAM_MIN( pChannelSet->txPower, pMac->roam.configParam.nTxPowerCap );
-#else
-                    pChannelPowerSet->maxTxPower = pChannelSet->txPower;
-#endif
                     smsLog(pMac, LOG3, " Setting Max Transmit Power %d\n", pChannelPowerSet->maxTxPower);
                     cbLen += sizeof( tSirMacChanInfo );
                     pChannelPowerSet++;
@@ -6853,11 +6868,7 @@ void csrSaveTxPowerToCfg( tpAniSirGlobal pMac, tDblLinkList *pList, tANI_U32 cfg
                 pChannelPowerSet->firstChanNum = pChannelSet->firstChannel;
                 smsLog(pMac, LOG3, " Setting Channel Number %d\n", pChannelPowerSet->firstChanNum);
                 pChannelPowerSet->numChannels = pChannelSet->numChannels;
-#ifdef WLAN_SOFTAP_FEATURE
                 pChannelPowerSet->maxTxPower = CSR_ROAM_MIN( pChannelSet->txPower, pMac->roam.configParam.nTxPowerCap );
-#else
-                pChannelPowerSet->maxTxPower = pChannelSet->txPower;
-#endif
                 smsLog(pMac, LOG3, " Setting Max Transmit Power %d, nTxPower %d\n", pChannelPowerSet->maxTxPower,pMac->roam.configParam.nTxPowerCap );
 
 

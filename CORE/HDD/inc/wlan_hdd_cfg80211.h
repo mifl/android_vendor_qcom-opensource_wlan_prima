@@ -57,7 +57,6 @@
   
 /* $HEADER$ */
 
-#ifdef CONFIG_CFG80211
 
 //value for initial part of frames and number of bytes to be compared
 #define GAS_INITIAL_REQ "\x04\x0a"  
@@ -98,6 +97,11 @@
 #define QCOM_OUI3         0xC6
 #define QCOM_VENDOR_IE_AGE_TYPE  0x100
 #define QCOM_VENDOR_IE_AGE_LEN   4
+
+#ifdef FEATURE_WLAN_TDLS
+#define WLAN_IS_TDLS_SETUP_ACTION(action) \
+         ((SIR_MAC_TDLS_SETUP_REQ <= action) && (SIR_MAC_TDLS_SETUP_CNF >= action))
+#endif
 
 typedef struct {
    u8 element_id;
@@ -144,6 +148,5 @@ int wlan_hdd_cfg80211_send_tdls_discover_req(struct wiphy *wiphy,
                             struct net_device *dev, u8 *peer);
 #endif
 
-#endif // CONFIG_CFG80211
 
 #endif
