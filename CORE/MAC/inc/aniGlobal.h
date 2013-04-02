@@ -310,7 +310,12 @@ typedef struct sAniSirLim
     tANI_U32   gLimCurrentScanChannelId;
 
     // Hold onto SCAN criteria
-    tSirSmeScanReq *gpLimSmeScanReq; // this one is used in P2P GO case when scan needs to be actually done a few BIs later after publishing NOA
+    /* The below is used in P2P GO case when we need to defer processing SME Req
+     * to LIM and insert NOA first and process SME req once SNOA is started
+     */
+    tANI_U16 gDeferMsgTypeForNOA;
+    tANI_U32 *gpDefdSmeMsgForNOA;
+
     tLimMlmScanReq *gpLimMlmScanReq;
 
     /// This indicates total length of 'matched' scan results
@@ -1031,6 +1036,9 @@ typedef struct sAniSirGlobal
     /* Instead of static allocation I will dyanamically allocate memory for dumpTableEntry
         Thinking of using linkedlist  */ 
     tDumpModuleEntry *dumpTableEntry[MAX_DUMP_TABLE_ENTRY];
+#ifdef FEATURE_WLAN_TDLS
+    v_BOOL_t isTdlsPowerSaveProhibited;
+#endif
     
 } tAniSirGlobal;
 

@@ -2943,6 +2943,18 @@ typedef struct
 }WDI_SetMaxTxPowerInfoType;
 
 /*---------------------------------------------------------------------------
+  WDI_SetTxPowerInfoType
+---------------------------------------------------------------------------*/
+
+typedef struct
+{
+  wpt_uint8  bssIdx;
+  /* In request  power == MaxTxpower to be used.*/
+  wpt_uint8  ucPower;
+
+}WDI_SetTxPowerInfoType;
+
+/*---------------------------------------------------------------------------
   WDI_SetMaxTxPowerParamsType
 ---------------------------------------------------------------------------*/
 typedef struct
@@ -2960,6 +2972,23 @@ typedef struct
   void*             pUserData;
 }WDI_SetMaxTxPowerParamsType;
 
+/*---------------------------------------------------------------------------
+  WDI_SetTxPowerParamsType
+---------------------------------------------------------------------------*/
+typedef struct
+{
+  /*Link Info*/
+  WDI_SetTxPowerInfoType  wdiTxPowerInfo;
+
+  /*Request status callback offered by UMAC - it is called if the current
+    req has returned PENDING as status; it delivers the status of sending
+    the message over the BUS */
+  WDI_ReqStatusCb   wdiReqStatusCB;
+
+  /*The user data passed in by UMAC, it will be sent back when the above
+    function pointer will be called */
+  void*             pUserData;
+}WDI_SetTxPowerParamsType;
 
 /*---------------------------------------------------------------------------
   WDI_SetMaxTxPowerRspMsg
@@ -2974,6 +3003,20 @@ typedef struct
   WDI_Status wdiStatus;
  
 }WDI_SetMaxTxPowerRspMsg;
+
+/*---------------------------------------------------------------------------
+  WDI_SetTxPowerRspMsg
+---------------------------------------------------------------------------*/
+
+typedef struct
+{
+  /* In response, power==tx power used for management frames*/
+  wpt_int8  ucPower;
+
+  /*Result of the operation*/
+  WDI_Status wdiStatus;
+
+}WDI_SetTxPowerRspMsg;
 
 typedef struct
 {
@@ -4037,6 +4080,23 @@ typedef struct
     function pointer will be called */
   void*             pUserData;  
 }WDI_TrafficStatsIndType;
+
+#ifdef WLAN_FEATURE_11W
+typedef struct
+{
+
+    wpt_boolean   bExcludeUnencrypt;
+    wpt_macAddr   bssid;
+   /*Request status callback offered by UMAC - it is called if the current
+    req has returned PENDING as status; it delivers the status of sending
+    the message over the BUS */
+    WDI_ReqStatusCb wdiReqStatusCB;
+
+  /*The user data passed in by UMAC, it will be sent back when the above
+    function pointer will be called */
+    void*         pUserData;
+}WDI_ExcludeUnencryptIndType;
+#endif
 
 /*---------------------------------------------------------------------------
   WDI_WlanResumeInfoType
@@ -5492,6 +5552,26 @@ typedef void  (*WDI_SendBeaconParamsRspCb)(WDI_Status   wdiStatus,
     The result code associated with performing the operation
 ---------------------------------------------------------------------------*/
 typedef void (*WDA_SetMaxTxPowerRspCb)(WDI_SetMaxTxPowerRspMsg *wdiSetMaxTxPowerRsp,
+                                             void* pUserData);
+
+/*---------------------------------------------------------------------------
+   WDA_SetTxPowerRspCb
+
+   DESCRIPTION
+
+   This callback is invoked by DAL when it has received a set max Tx Power response from
+   the underlying device.
+
+   PARAMETERS
+
+    IN
+    wdiStatus:  response status received from HAL
+    pUserData:  user data
+
+  RETURN VALUE
+    The result code associated with performing the operation
+---------------------------------------------------------------------------*/
+typedef void (*WDA_SetTxPowerRspCb)(WDI_SetTxPowerRspMsg *wdiSetTxPowerRsp,
                                              void* pUserData);
 
 /*---------------------------------------------------------------------------
@@ -7170,6 +7250,32 @@ WDI_RemoveSTABcastKeyReq
   void*                          pUserData
 );
 
+
+/**
+ @brief WDI_SetTxPowerReq will be called when the upper
+        MAC wants to set Tx Power to HW.
+        In state BUSY this request will be queued. Request won't
+        be allowed in any other state.
+
+
+ @param pwdiSetTxPowerParams: set TS Power parameters
+           BSSID and target TX Power with dbm included
+
+        wdiReqStatusCb: callback for passing back the response
+
+        pUserData: user data will be passed back with the
+        callback
+
+ @return Result of the function call
+*/
+WDI_Status
+WDI_SetTxPowerReq
+(
+  WDI_SetTxPowerParamsType*   pwdiSetTxPowerParams,
+  WDA_SetTxPowerRspCb         wdiReqStatusCb,
+  void*                       pUserData
+);
+
 /**
  @brief WDI_SetMaxTxPowerReq will be called when the upper 
         MAC wants to set Max Tx Power to HW. Upon the
@@ -8802,6 +8908,24 @@ WDI_TrafficStatsInd
 (
   WDI_TrafficStatsIndType *pWdiTrafficStatsIndParams
 );
+
+#ifdef WLAN_FEATURE_11W
+/**
+ @brief WDI_ExcludeUnencryptedInd
+       Register with HAL to receive/drop unencrypted frames
+
+ @param WDI_ExcludeUnencryptIndType
+
+ @see
+
+ @return Status of the request
+*/
+WDI_Status
+WDI_ExcludeUnencryptedInd
+(
+  WDI_ExcludeUnencryptIndType *pWdiExcUnencParams
+);
+#endif
 
 #ifdef FEATURE_WLAN_SCAN_PNO
 /**

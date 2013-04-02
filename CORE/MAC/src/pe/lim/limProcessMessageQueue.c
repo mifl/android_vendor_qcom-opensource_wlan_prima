@@ -90,9 +90,6 @@
 #include "vos_packet.h"
 #include "vos_memory.h"
 
-/* In P2P GO case, we want to call scan on NOA start indication from limProcessMessages */
-extern void __limProcessSmeScanReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf);
-
 void limLogSessionStates(tpAniSirGlobal pMac);
 
 /** -------------------------------------------------------------
@@ -153,6 +150,7 @@ defMsgDecision(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
         (limMsg->type != WDA_WOWL_EXIT_RSP) &&
         (limMsg->type != WDA_SWITCH_CHANNEL_RSP) &&
         (limMsg->type != WDA_P2P_NOA_ATTR_IND) &&
+        (limMsg->type != WDA_P2P_NOA_START_IND) &&
 #ifdef FEATURE_OEM_DATA_SUPPORT
         (limMsg->type != WDA_START_OEM_DATA_RSP) &&
 #endif
@@ -339,93 +337,6 @@ limHandleFramesInScanState(tpAniSirGlobal pMac, tpSirMsgQ limMsg, tANI_U8 *pRxPa
 \ -------------------------------------------------------------- */
 static void limHandleUnknownA2IndexFrames(tpAniSirGlobal pMac, void *pRxPacketInfo,tpPESession psessionEntry)
 {
-#ifndef ANI_CHIPSET_VOLANS
-    tpSirMacDataHdr3a pMacHdr;
-
-    /** This prevents from disassoc/deauth being sent in a burst,
-        and gLimDisassocFrameCredit is reset for every 10 seconds.*/
-    if (pMac->lim.gLimDisassocFrameCredit > pMac->lim.gLimDisassocFrameThreshold)
-        return;
-
-    pMac->lim.gLimDisassocFrameCredit++;
-
-    pMacHdr = WDA_GET_RX_MPDUHEADER3A(pRxPacketInfo);
-
-    if (limIsGroupAddr(pMacHdr->addr2))
-    {
-        PELOG2(limLog(pMac, LOG2, FL("Ignoring A2 Invalid Packet received for MC/BC:\n"));
-        limPrintMacAddr(pMac, pMacHdr->addr2, LOG2);)
-
-        return;
-    }
-
-    if (((psessionEntry->limSystemRole == eLIM_AP_ROLE) || (psessionEntry->limSystemRole == eLIM_BT_AMP_AP_ROLE) )&&
-        (psessionEntry->limMlmState == eLIM_MLM_BSS_STARTED_STATE))
-    {
-        switch (pMacHdr->fc.type)
-        {
-            case SIR_MAC_MGMT_FRAME:
-                switch (pMacHdr->fc.subType)
-                {
-                    case SIR_MAC_MGMT_ACTION:
-                        // Send Disassociation frame to
-                        // sender if role is AP
-                        PELOG1(limLog(pMac, LOG1, FL("Send Disassoc Frame due to Invalid Addr2 packet"));
-                        limPrintMacAddr(pMac, pMacHdr->addr2, LOG1);)
-                        limSendDisassocMgmtFrame(pMac,
-                           eSIR_MAC_CLASS3_FRAME_FROM_NON_ASSOC_STA_REASON, pMacHdr->addr2, psessionEntry, FALSE);
-                        break;
-
-                    default:
-                        break;
-
-                }
-                break;
-
-            case SIR_MAC_CTRL_FRAME:
-                switch (pMacHdr->fc.subType)
-                {
-                    case SIR_MAC_CTRL_PS_POLL:
-                    case SIR_MAC_CTRL_BAR:
-                        // Send Disassociation frame to
-                        // sender if role is AP
-                        PELOG1(limLog(pMac, LOG1, FL("Send Disassoc Frame due to Invalid Addr2 packet"));
-                        limPrintMacAddr(pMac, pMacHdr->addr2, LOG1);)
-                        limSendDisassocMgmtFrame(pMac,
-                           eSIR_MAC_CLASS3_FRAME_FROM_NON_ASSOC_STA_REASON, pMacHdr->addr2, psessionEntry, FALSE);
-                        break;
-
-                    default:
-                        break;
-                }
-                break;
-
-            case SIR_MAC_DATA_FRAME:
-                switch (pMacHdr->fc.subType)
-                {
-                    case SIR_MAC_DATA_NULL:
-                    case SIR_MAC_DATA_QOS_NULL:
-                        // Send Disassociation frame to
-                        // sender if role is AP
-                        PELOG1(limLog(pMac, LOG1, FL("Send Disassoc Frame due to Invalid Addr2 packet"));
-                        limPrintMacAddr(pMac, pMacHdr->addr2, LOG1);)
-                        limSendDisassocMgmtFrame(pMac,
-                           eSIR_MAC_CLASS3_FRAME_FROM_NON_ASSOC_STA_REASON, pMacHdr->addr2, psessionEntry, FALSE);
-                        break;
-
-                    default:
-                        // Send Deauthentication frame to
-                        // sender if role is AP
-                        PELOG1(limLog(pMac, LOG1, FL("Sending Deauth frame due to Invalid Addr2 packet"));
-                        limPrintMacAddr(pMac, pMacHdr->addr2, LOG1);)
-                        limSendDeauthMgmtFrame(pMac,
-                           eSIR_MAC_CLASS3_FRAME_FROM_NON_ASSOC_STA_REASON, pMacHdr->addr2,psessionEntry);
-                        break;
-                }
-                break;
-        }
-    }
-#else
       /* addr2 mismatch interrupt occurred this means previous 
        disassociation was not successful
        In Volans pRxPacketInfo only contains pointer 48-bit address2 field */
@@ -482,7 +393,6 @@ static void limHandleUnknownA2IndexFrames(tpAniSirGlobal pMac, void *pRxPacketIn
     }
 #endif
 
-#endif
 
     return;
 }
@@ -702,7 +612,13 @@ limHandle80211Frames(tpAniSirGlobal pMac, tpSirMsgQ limMsg, tANI_U8 *pDeferMsg)
                limPktFree(pMac, HAL_TXRX_FRM_802_11_MGMT, pRxPacketInfo, limMsg->bodyptr);
                return;
             }
-        } 
+        }
+        //  For p2p resp frames search for valid session with DA as
+        //  BSSID will be SA and session will be present with DA only
+        if(fc.subType == SIR_MAC_MGMT_ACTION )
+        {
+           psessionEntry = peFindSessionByBssid(pMac,pHdr->da,&sessionId);
+        }
     }
 
 
@@ -1362,36 +1278,43 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
         {
             tpPESession psessionEntry = &pMac->lim.gpSession[0];
             tANI_U8  i;
+            tANI_U8 p2pGOExists = 0;
             
             limLog(pMac, LOG1, "LIM received NOA start %x\n", limMsg->type);
+
+            /* Since insert NOA is done and NOA start msg received, we should deactivate the Insert NOA timer */
+            limDeactivateAndChangeTimer(pMac, eLIM_INSERT_SINGLESHOT_NOA_TIMER);
+
             for(i=0; i < pMac->lim.maxBssId; i++)
             {
                 psessionEntry = &pMac->lim.gpSession[i];
                 if   ( (psessionEntry != NULL) && (psessionEntry->valid) &&
                     (psessionEntry->pePersona == VOS_P2P_GO_MODE))
                 { //Save P2P NOA start attributes for P2P Go persona
+                    p2pGOExists = 1;
                     palCopyMemory(pMac->hHdd, &psessionEntry->p2pGoPsNoaStartInd, limMsg->bodyptr, sizeof(tSirP2PNoaStart));
-                    
-                    if ((pMac->lim.gpLimSmeScanReq != NULL) && (psessionEntry->p2pGoPsNoaStartInd.status == eHAL_STATUS_SUCCESS))
+                    if (psessionEntry->p2pGoPsNoaStartInd.status != eHAL_STATUS_SUCCESS)
                     {
-                        /* We received the NOA start indication. Now we can send down the scan request */
-                        __limProcessSmeScanReq(pMac, (tANI_U32 *)pMac->lim.gpLimSmeScanReq);
-                        /* Since insert NOA is done and NOA start msg received, we should deactivate the Insert NOA timer */
-                        limDeactivateAndChangeTimer(pMac, eLIM_INSERT_SINGLESHOT_NOA_TIMER);
-                        /* __limProcessSmeScanReq consumed the buffer. We can free it. */
-                        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMac->lim.gpLimSmeScanReq);
-                        pMac->lim.gpLimSmeScanReq = NULL;
+                        limLog(pMac, LOGW, FL("GO NOA start failure status %d reported by FW."
+                            " - still go ahead with deferred sme req. This is just info\n"),
+                            psessionEntry->p2pGoPsNoaStartInd.status);
                     }
-                    else
-                        limLog(pMac, LOGE, FL("GO NOA start failure reported by FW - don't do scan\n"));
                     break;
                 }
             }
-        }
+
+            if (p2pGOExists == 0)
+            {
+                limLog(pMac, LOGW, FL("By the time, we received NOA start, GO is already removed."
+                        " - still go ahead with deferred sme req. This is just info\n"));
+            }
+
+            /* We received the NOA start indication. Now we can send down the SME request which requires off-channel operation */
+            limProcessRegdDefdSmeReqAfterNOAStart(pMac);
             palFreeMemory(pMac->hHdd, (tANI_U8 *)limMsg->bodyptr);
             limMsg->bodyptr = NULL;
+         }
             break;
-            
 
         case SIR_HAL_P2P_NOA_ATTR_IND:
             {
@@ -1841,7 +1764,6 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
             }
             break;
 
-#ifdef ANI_CHIPSET_VOLANS
        case SIR_LIM_ADDR2_MISS_IND:
        {
            limLog(pMac, LOGE,
@@ -1856,7 +1778,6 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
            vos_mem_free((v_VOID_t *)(limMsg->bodyptr));
            break;
        }
-#endif
 
 #ifdef WLAN_FEATURE_VOWIFI_11R
     case WDA_AGGR_QOS_RSP:

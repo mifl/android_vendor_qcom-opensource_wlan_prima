@@ -77,6 +77,12 @@
 #define P2P_ACTION_FRAME "\x7f\x50\x6f\x9a\x09"
 #define P2P_ACTION_FRAME_SIZE 5
 
+#define SA_QUERY_FRAME_REQ "\x08\x00"
+#define SA_QUERY_FRAME_REQ_SIZE 2
+
+#define SA_QUERY_FRAME_RSP "\x08\x01"
+#define SA_QUERY_FRAME_RSP_SIZE 2
+
 #define HDD_P2P_WILDCARD_SSID "DIRECT-" //TODO Put it in proper place;
 #define HDD_P2P_WILDCARD_SSID_LEN 7
 
@@ -129,6 +135,12 @@ void wlan_hdd_cfg80211_set_key_wapi(hdd_adapter_t* pAdapter,
               u8 key_index, const u8 *mac_addr, u8 *key , int key_Len);
 #endif
 struct wiphy *wlan_hdd_cfg80211_init(int priv_size);
+
+int wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+                            struct net_device *dev,
+#endif
+                            struct cfg80211_scan_request *request);
 
 int wlan_hdd_cfg80211_register(struct device *dev,
                                struct wiphy *wiphy,

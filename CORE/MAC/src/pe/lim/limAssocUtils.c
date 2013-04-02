@@ -1649,8 +1649,16 @@ limPopulateOwnRateSet(tpAniSirGlobal pMac,
     #endif // TO SUPPORT BT-AMP
     
     /* copy operational rate set from psessionEntry */
-    palCopyMemory(pMac->hHdd,(tANI_U8 *)tempRateSet.rate,(tANI_U8*)(psessionEntry->rateSet.rate), psessionEntry->rateSet.numRates);
-    tempRateSet.numRates = psessionEntry->rateSet.numRates;
+    if ( psessionEntry->rateSet.numRates < SIR_MAC_RATESET_EID_MAX )
+    {
+        palCopyMemory(pMac->hHdd,(tANI_U8 *)tempRateSet.rate,(tANI_U8*)(psessionEntry->rateSet.rate), psessionEntry->rateSet.numRates);
+        tempRateSet.numRates = psessionEntry->rateSet.numRates;
+    }
+    else
+    {
+        limLog(pMac, LOGE, FL("more than SIR_MAC_RATESET_EID_MAX rates\n"));
+        goto error;
+    }
 
     if (phyMode == WNI_CFG_PHY_MODE_11G)
     {
@@ -1667,9 +1675,15 @@ limPopulateOwnRateSet(tpAniSirGlobal pMac,
         }
         tempRateSet2.numRates = (tANI_U8) val;
         #endif
-
-        palCopyMemory(pMac->hHdd,(tANI_U8 *)tempRateSet2.rate, (tANI_U8*)(psessionEntry->extRateSet.rate), psessionEntry->extRateSet.numRates);
-        tempRateSet2.numRates = psessionEntry->extRateSet.numRates;
+        if (psessionEntry->extRateSet.numRates < SIR_MAC_RATESET_EID_MAX)
+        {
+            palCopyMemory(pMac->hHdd,(tANI_U8 *)tempRateSet2.rate, (tANI_U8*)(psessionEntry->extRateSet.rate), psessionEntry->extRateSet.numRates);
+            tempRateSet2.numRates = psessionEntry->extRateSet.numRates;
+        }
+        else {
+           limLog(pMac, LOGE, FL("psessionEntry->extRateSet.numRates more than SIR_MAC_RATESET_EID_MAX rates\n"));
+           goto error;
+        }
 
     }
     else
@@ -1704,7 +1718,7 @@ limPopulateOwnRateSet(tpAniSirGlobal pMac,
             min = 0;
             val = 0xff;
             isArate = 0;
-            for(j = 0;j < tempRateSet.numRates; j++)
+            for(j = 0; (j < tempRateSet.numRates) && (j < SIR_MAC_RATESET_EID_MAX); j++)
             {
                 if ((tANI_U32) (tempRateSet.rate[j] & 0x7f) < val)
                 {
@@ -1927,7 +1941,7 @@ limPopulateMatchingRateSet(tpAniSirGlobal pMac,
      * Copy received rates in tempRateSet, the parser has ensured
      * unicity of the rates so there cannot be more than 12
      */
-    for(i = 0; i < pOperRateSet->numRates; i++)
+    for(i = 0; (i < pOperRateSet->numRates && i < SIR_MAC_RATESET_EID_MAX) ; i++)
     {
         tempRateSet.rate[i] = pOperRateSet->rate[i];
     }
@@ -1947,7 +1961,7 @@ limPopulateMatchingRateSet(tpAniSirGlobal pMac,
          int found = 0;
          int tail = tempRateSet.numRates;
 
-          for( i = 0; i < pExtRateSet->numRates; i++ )
+          for( i = 0; (i < pExtRateSet->numRates && i < SIR_MAC_RATESET_EID_MAX); i++ )
           {
             found = 0;
             for( j = 0; j < (tANI_U32) tail; j++ )
@@ -1976,7 +1990,7 @@ limPopulateMatchingRateSet(tpAniSirGlobal pMac,
       }
       else
       {
-        for(j = 0; j < pExtRateSet->numRates; j++)
+        for(j = 0; ((j < pExtRateSet->numRates) && (j < SIR_MAC_RATESET_EID_MAX) && ((i+j) < SIR_MAC_RATESET_EID_MAX)); j++)
             tempRateSet.rate[i+j] = pExtRateSet->rate[j];
 
         tempRateSet.numRates += pExtRateSet->numRates;
@@ -1988,9 +2002,9 @@ limPopulateMatchingRateSet(tpAniSirGlobal pMac,
         tANI_U8 aRateIndex = 0;
         tANI_U8 bRateIndex = 0;
         palZeroMemory( pMac->hHdd, (tANI_U8 *) rates, sizeof(tSirSupportedRates));
-        for(i = 0;i < tempRateSet2.numRates; i++)
+        for(i = 0;(i < tempRateSet2.numRates && i < SIR_MAC_RATESET_EID_MAX ); i++)
         {
-            for(j = 0;j < tempRateSet.numRates; j++)
+            for(j = 0;(j < tempRateSet.numRates && j < SIR_MAC_RATESET_EID_MAX); j++)
             {
                 if ((tempRateSet2.rate[i] & 0x7F) ==
                     (tempRateSet.rate[j] & 0x7F))
@@ -3382,6 +3396,14 @@ tSirRetStatus limStaSendAddBss( tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
     pAddBssParams->extSetStaKeyParamValid = 0;
 #endif
 
+#ifdef WLAN_FEATURE_11W
+    if (psessionEntry->limRmfEnabled)
+    {
+        pAddBssParams->rmfEnabled = 1;
+        pAddBssParams->staContext.rmfEnabled = 1;
+    }
+#endif
+
     // Set a new state for MLME
     if( eLIM_MLM_WT_ASSOC_RSP_STATE == psessionEntry->limMlmState )
         psessionEntry->limMlmState = eLIM_MLM_WT_ADD_BSS_RSP_ASSOC_STATE;
@@ -3666,6 +3688,14 @@ tSirRetStatus limStaSendAddBssPreAssoc( tpAniSirGlobal pMac, tANI_U8 updateEntry
     pAddBssParams->extSetStaKeyParamValid = 0;
 #endif
 
+#ifdef WLAN_FEATURE_11W
+    if (psessionEntry->limRmfEnabled)
+    {
+        pAddBssParams->rmfEnabled = 1;
+        pAddBssParams->staContext.rmfEnabled = 1;
+    }
+#endif
+
     // Set a new state for MLME
 
     //pMac->lim.gLimMlmState = eLIM_MLM_WT_ADD_BSS_RSP_PREASSOC_STATE;
@@ -3946,3 +3976,49 @@ void limFillRxHighestSupportedRate(tpAniSirGlobal pMac, tANI_U16 *rxHighestRate,
 
     return;
 }
+
+#ifdef WLAN_FEATURE_11W
+/** -------------------------------------------------------------
+\fn     limSendSmeUnprotectedMgmtFrameInd
+\brief  Forwards the unprotected management frame to SME.
+\param  tpAniSirGlobal    pMac
+\param  frameType - 802.11 frame type
+\param  frame - frame buffer
+\param  sessionId - id for the current session
+\param  psessionEntry - PE session context
+\return none
+  -------------------------------------------------------------*/
+void limSendSmeUnprotectedMgmtFrameInd(
+                        tpAniSirGlobal pMac, tANI_U8 frameType,
+                        tANI_U8  *frame, tANI_U32 frameLen, tANI_U16 sessionId,
+                        tpPESession psessionEntry)
+{
+    tSirMsgQ mmhMsg;
+    tSirSmeUnprotMgmtFrameInd * pSirSmeMgmtFrame = NULL;
+    tANI_U16 length;
+
+    length = sizeof(tSirSmeUnprotMgmtFrameInd) + frameLen;
+
+    if (eHAL_STATUS_SUCCESS !=
+         palAllocateMemory(pMac->hHdd, (void **)&pSirSmeMgmtFrame, length))
+    {
+        limLog(pMac, LOGP,
+               FL("palAllocateMemory failed for tSirSmeUnprotectedMgmtFrameInd"));
+        return;
+    }
+    palZeroMemory(pMac->hHdd, (void*)pSirSmeMgmtFrame, length);
+
+    pSirSmeMgmtFrame->sessionId = sessionId;
+    pSirSmeMgmtFrame->frameType = frameType;
+
+    vos_mem_copy(pSirSmeMgmtFrame->frameBuf, frame, frameLen);
+    pSirSmeMgmtFrame->frameLen = frameLen;
+
+    mmhMsg.type = eWNI_SME_UNPROT_MGMT_FRM_IND;
+    mmhMsg.bodyptr = pSirSmeMgmtFrame;
+    mmhMsg.bodyval = 0;
+
+    limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
+    return;
+}
+#endif

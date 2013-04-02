@@ -554,6 +554,9 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
     tANI_U8 subType = WLAN_HDD_GET_SUBTYPE_FRM_FC(buf[0]);
     tActionFrmType actionFrmType;
     bool noack = 0;
+#ifdef WLAN_FEATURE_11W
+    tANI_U8 *pTxFrmBuf = (tANI_U8 *) buf; // For SA Query, we have to set protect bit
+#endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
     hdd_adapter_t *goAdapter;
@@ -785,7 +788,17 @@ int wlan_hdd_action( struct wiphy *wiphy, struct net_device *dev,
                 hddLog(LOG1, "%s: HDD_GO_NEG_REQ_ACK_PENDING \n", __func__);
             }
         }
-
+#ifdef WLAN_FEATURE_11W
+        if ((type == SIR_MAC_MGMT_FRAME) &&
+                (subType == SIR_MAC_MGMT_ACTION) &&
+                (buf[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] == WLAN_HDD_SA_QUERY_ACTION_FRAME))
+        {
+            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Calling sme_sendAction. For Category %s", __func__, "SA Query");
+            // Since this is an SA Query Action Frame, we have to protect it
+            WLAN_HDD_SET_WEP_FRM_FC(pTxFrmBuf[1]);
+        }
+#endif
         if (eHAL_STATUS_SUCCESS !=
                sme_sendAction( WLAN_HDD_GET_HAL_CTX(pAdapter),
                                sessionId, buf, len, extendedWait, noack))
@@ -1487,13 +1500,17 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
 #ifdef FEATURE_WLAN_TDLS
             else if(pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET+1] == WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP)
             {
-                wlan_hdd_tdls_recv_discovery_resp(pAdapter, &pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET+6]);
-                wlan_hdd_tdls_set_rssi(pAdapter, &pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET+6], rxRssi);
-                hddLog(VOS_TRACE_LEVEL_ERROR,"[TDLS] TDLS Discovery Response <--- OTA");
+                u8 *mac = &pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET+6];
+#ifdef WLAN_FEATURE_TDLS_DEBUG
+                hddLog(VOS_TRACE_LEVEL_ERROR,"[TDLS] TDLS Discovery Response," MAC_ADDRESS_STR " RSSI[%d] <--- OTA",
+                 MAC_ADDR_ARRAY(mac),rxRssi);
+#endif
+                wlan_hdd_tdls_set_rssi(pAdapter, mac, rxRssi);
+                wlan_hdd_tdls_recv_discovery_resp(pAdapter, mac);
             }
 #endif
         }
-#ifdef FEATURE_WLAN_TDLS
+#ifdef WLAN_FEATURE_TDLS_DEBUG
         if(pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] == WLAN_HDD_TDLS_ACTION_FRAME)
         {
             actionFrmType = pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET+1];

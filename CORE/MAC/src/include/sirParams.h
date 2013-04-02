@@ -93,8 +93,8 @@ typedef enum {
    SAP32STA = 5,
    TDLS = 6,
    P2P_GO_NOA_DECOUPLE_INIT_SCAN = 7,
-   WLANACTIVE_OFFLOAD = 8,
-   MAX_FEATURE_SUPPORTED = 128,
+   WLANACTIVE_OFFLOAD = 8
+   //MAX_FEATURE_SUPPORTED = 128
 } placeHolderInCapBitmap;
 
 typedef enum eSriLinkState {
@@ -455,7 +455,6 @@ typedef struct sSirMbMsgP2p
 #define SIR_HAL_HANDLE_FW_MBOX_RSP            (SIR_HAL_ITC_MSG_TYPES_BEGIN + 140)
 #define SIR_HAL_UPDATE_PROBE_RSP_TEMPLATE_IND     (SIR_HAL_ITC_MSG_TYPES_BEGIN + 141)
 
-#ifdef ANI_CHIPSET_VOLANS
 /* PE <-> HAL addr2 mismatch message */
 #define SIR_LIM_ADDR2_MISS_IND             (SIR_HAL_ITC_MSG_TYPES_BEGIN + 142)
 #ifdef FEATURE_OEM_DATA_SUPPORT
@@ -463,7 +462,6 @@ typedef struct sSirMbMsgP2p
 #define SIR_HAL_START_OEM_DATA_REQ         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 143)
 #define SIR_HAL_START_OEM_DATA_RSP       (SIR_HAL_ITC_MSG_TYPES_BEGIN + 144)
 #define SIR_HAL_FINISH_OEM_DATA_REQ      (SIR_HAL_ITC_MSG_TYPES_BEGIN + 145)
-#endif
 #endif
 
 #define SIR_HAL_SET_MAX_TX_POWER_REQ       (SIR_HAL_ITC_MSG_TYPES_BEGIN + 146)
@@ -560,6 +558,10 @@ typedef struct sSirMbMsgP2p
 #define SIR_HAL_GET_ROAM_RSSI_RSP          (SIR_HAL_ITC_MSG_TYPES_BEGIN + 194)
 
 #define SIR_HAL_TRAFFIC_STATS_IND          (SIR_HAL_ITC_MSG_TYPES_BEGIN + 195)
+
+#ifdef WLAN_FEATURE_11W
+#define SIR_HAL_EXCLUDE_UNENCRYPTED_IND    (SIR_HAL_ITC_MSG_TYPES_BEGIN + 196)
+#endif
 
 #define SIR_HAL_MSG_TYPES_END              (SIR_HAL_ITC_MSG_TYPES_BEGIN + 0xFF)
 // CFG message types

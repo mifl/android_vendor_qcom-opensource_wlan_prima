@@ -679,7 +679,16 @@ void hdd_tx_timeout(struct net_device *dev)
    //do possible recovery here
 
    //testing underlying data path stall
-   sme_transportDebug(hHal, 0, 1);
+   //FTM mode, data path is not initiated
+   if (VOS_FTM_MODE == hdd_get_conparam())
+   {
+      VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+         "%s: FTM mode, how initiated TX?", __func__);
+   }
+   else
+   {
+      sme_transportDebug(hHal, 0, 1);
+   }
 } 
 
 
@@ -1061,6 +1070,7 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    }
 
 #ifdef FEATURE_WLAN_TDLS
+    if (eTDLS_SUPPORT_ENABLED == pHddCtx->tdls_mode)
     {
         hdd_station_ctx_t *pHddStaCtx = &pAdapter->sessionCtx.station;
         u8 mac[6];
@@ -1073,8 +1083,8 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
         } else if (memcmp(pHddStaCtx->conn_info.bssId,
                             mac, 6) != 0) {
             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_MED,
-                      "extract mac:%x %x %x %x %x %x",
-                      mac[0], mac[1], mac[2], mac[3], mac[4], mac[5] );
+                      "extract mac: " MAC_ADDRESS_STR,
+                      MAC_ADDR_ARRAY(mac) );
 
             wlan_hdd_tdls_increment_pkt_count(pAdapter, mac, 1);
         } else {
@@ -1380,6 +1390,8 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
       }
 
 #ifdef FEATURE_WLAN_TDLS
+    if ((eTDLS_SUPPORT_ENABLED == pHddCtx->tdls_mode) &&
+         0 != pHddCtx->connected_peer_count)
     {
         hdd_station_ctx_t *pHddStaCtx = &pAdapter->sessionCtx.station;
         u8 mac[6];
@@ -1391,11 +1403,17 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
                       "rx broadcast packet, not adding to peer list");
         } else if (memcmp(pHddStaCtx->conn_info.bssId,
                             mac, 6) != 0) {
+            hddTdlsPeer_t *curr_peer;
             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_MED,
-                      "rx extract mac:%x %x %x %x %x %x",
-                      mac[0], mac[1], mac[2], mac[3], mac[4], mac[5] );
-
-            wlan_hdd_tdls_increment_pkt_count(pAdapter, mac, 0);
+                      "rx extract mac:" MAC_ADDRESS_STR,
+                      MAC_ADDR_ARRAY(mac) );
+            curr_peer = wlan_hdd_tdls_find_peer(pAdapter, mac);
+            if ((NULL != curr_peer) && (eTDLS_LINK_CONNECTED == curr_peer->link_status))
+            {
+                wlan_hdd_tdls_increment_pkt_count(pAdapter, mac, 0);
+                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,"rssi is %d", pRxMetaInfo->rssiAvg);
+                wlan_hdd_tdls_set_rssi (pAdapter, mac, pRxMetaInfo->rssiAvg);
+            }
         } else {
             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_MED,
                        "rx packet sa is bssid, not adding to peer list");

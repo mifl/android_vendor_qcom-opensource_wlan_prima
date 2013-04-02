@@ -93,14 +93,14 @@ static v_VOID_t wlan_hdd_tdls_start_peer_discover_timer(tdlsCtx_t *pHddTdlsCtx,
     }
 
     pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pHddTdlsCtx->pAdapter);
-    if (hdd_connIsConnected( pHddStaCtx ))
-    {
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
-        vos_timer_start(&pHddTdlsCtx->peerDiscoverTimer, discoveryExpiry);
+    wlan_hdd_tdls_timer_restart(pHddTdlsCtx->pAdapter,
+                                &pHddTdlsCtx->peerDiscoverTimer,
+                                discoveryExpiry);
 #endif
-        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "beacon rssi: %d",
-                   pHddTdlsCtx->ap_rssi);
-    }
+    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "beacon rssi: %d",
+               pHddTdlsCtx->ap_rssi);
+
     if ( mutexLock )
         mutex_unlock(&tdls_lock);
 
@@ -175,10 +175,6 @@ static v_VOID_t wlan_hdd_tdls_discover_peer_cb( v_PVOID_t userData )
 
                         if (curr_peer->discovery_attempt <
                             pHddTdlsCtx->threshold_config.discovery_tries_n) {
-
-                            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                                      "sme_SendTdlsMgmtFrame(%d)", pHddTdlsCtx->pAdapter->sessionId);
-
                             sme_SendTdlsMgmtFrame(WLAN_HDD_GET_HAL_CTX(pHddTdlsCtx->pAdapter),
                                                   pHddTdlsCtx->pAdapter->sessionId,
                                                   curr_peer->peerMac,
@@ -212,9 +208,9 @@ exit_loop:
     }
     discover_expiry = pHddTdlsCtx->threshold_config.discovery_period_t;
 
-    mutex_unlock(&tdls_lock);
-
     wlan_hdd_tdls_peer_reset_discovery_processed(pHddTdlsCtx);
+
+    mutex_unlock(&tdls_lock);
 
     /* Commenting out the following function as it was introducing
      * a race condition when pHddTdlsCtx is deleted. Also , this
@@ -268,10 +264,9 @@ static v_VOID_t wlan_hdd_tdls_update_peer_cb( v_PVOID_t userData )
             curr_peer = list_entry (pos, hddTdlsPeer_t, node);
 
             VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
-                       "hdd update cb - %d: " MAC_ADDRESS_STR " -> %d link_status -> %d"
-                       "tdls_support -> %d", i,
-                       MAC_ADDR_ARRAY(curr_peer->peerMac),
-                       curr_peer->tx_pkt, curr_peer->link_status, curr_peer->tdls_support);
+                       "hdd update cb " MAC_ADDRESS_STR " link_status %d"
+                       " tdls_support %d", MAC_ADDR_ARRAY(curr_peer->peerMac),
+                       curr_peer->link_status, curr_peer->tdls_support);
 
             if (eTDLS_CAP_SUPPORTED == curr_peer->tdls_support) {
                 VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
@@ -288,7 +283,7 @@ static v_VOID_t wlan_hdd_tdls_update_peer_cb( v_PVOID_t userData )
                         if (HDD_MAX_NUM_TDLS_STA > wlan_hdd_tdlsConnectedPeers(pHddTdlsCtx->pAdapter))
                         {
 
-                            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, "-> Tput trigger TDLS SETUP");
+                            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, "Tput trigger TDLS pre-setup");
 #ifdef CONFIG_TDLS_IMPLICIT
                             wlan_hdd_tdls_pre_setup(pHddTdlsCtx, curr_peer);
 #endif
@@ -300,33 +295,6 @@ static v_VOID_t wlan_hdd_tdls_update_peer_cb( v_PVOID_t userData )
                                       __func__, wlan_hdd_tdlsConnectedPeers(pHddTdlsCtx->pAdapter) );
                         }
                         goto next_peer;
-                    }
-#ifdef WLAN_FEATURE_TDLS_DEBUG
-                    else  {
-                        VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, "-> ignored.");
-                    }
-#endif
-                    if ((((tANI_S32)curr_peer->rssi >
-                            (tANI_S32)(pHddTdlsCtx->threshold_config.rssi_hysteresis +
-                                pHddTdlsCtx->ap_rssi)) ||
-                         ((tANI_S32)(curr_peer->rssi >
-                            pHddTdlsCtx->threshold_config.rssi_trigger_threshold))) &&
-                         (HDD_MAX_NUM_TDLS_STA > wlan_hdd_tdlsConnectedPeers(pHddTdlsCtx->pAdapter))){
-
-                        VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
-                                "%s: RSSI (peer %d > ap %d + hysteresis %d) triggering to %02x:%02x:%02x:%02x:%02x:%02x ",
-                                __func__, (tANI_S32)curr_peer->rssi,
-                                pHddTdlsCtx->ap_rssi,
-                                (tANI_S32)(pHddTdlsCtx->threshold_config.rssi_hysteresis),
-                                curr_peer->peerMac[0], curr_peer->peerMac[1], curr_peer->peerMac[2],
-                                curr_peer->peerMac[3], curr_peer->peerMac[4], curr_peer->peerMac[5]);
-
-#ifdef CONFIG_TDLS_IMPLICIT
-                        cfg80211_tdls_oper_request(pHddTdlsCtx->pAdapter->dev,
-                                                   curr_peer->peerMac,
-                                                   NL80211_TDLS_SETUP, FALSE,
-                                                   GFP_KERNEL);
-#endif
                     }
                 } else {
                     if ((tANI_S32)curr_peer->rssi <
@@ -354,8 +322,9 @@ static v_VOID_t wlan_hdd_tdls_update_peer_cb( v_PVOID_t userData )
                             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
                                     "Tx/Rx Idle timer start: " MAC_ADDRESS_STR "!",
                                        MAC_ADDR_ARRAY(curr_peer->peerMac));
-                            vos_timer_start( &curr_peer->peerIdleTimer,
-                                        pHddTdlsCtx->threshold_config.idle_timeout_t );
+                            wlan_hdd_tdls_timer_restart(pHddTdlsCtx->pAdapter,
+                                                        &curr_peer->peerIdleTimer,
+                                                        pHddTdlsCtx->threshold_config.idle_timeout_t);
                         }
                     } else {
                         if (VOS_TIMER_STATE_RUNNING ==
@@ -386,22 +355,14 @@ static v_VOID_t wlan_hdd_tdls_update_peer_cb( v_PVOID_t userData )
 
                         if (++curr_peer->discovery_attempt <
                                  pHddTdlsCtx->threshold_config.discovery_tries_n) {
-
-                            sme_SendTdlsMgmtFrame(WLAN_HDD_GET_HAL_CTX(pHddTdlsCtx->pAdapter),
-                                                  pHddTdlsCtx->pAdapter->sessionId,
-                                                  curr_peer->peerMac,
-                                                  WLAN_TDLS_DISCOVERY_REQUEST,
-                                                  1, 0, NULL, 0, 0);
+                            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, "TDLS UNKNOWN discover ");
+                            wlan_hdd_tdls_pre_setup(pHddTdlsCtx, curr_peer);
                         }
                         else
                         {
                             curr_peer->tdls_support = eTDLS_CAP_NOT_SUPPORTED;
                             curr_peer->link_status  = eTDLS_LINK_IDLE;
                         }
-
-                        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                                "Tput triggering TDLS discovery: " MAC_ADDRESS_STR "!",
-                                   MAC_ADDR_ARRAY(curr_peer->peerMac));
                     }
                 }
             }
@@ -412,8 +373,9 @@ next_peer:
         }
     }
 
-    vos_timer_start( &pHddTdlsCtx->peerUpdateTimer,
-                        pHddTdlsCtx->threshold_config.tx_period_t );
+    wlan_hdd_tdls_timer_restart(pHddTdlsCtx->pAdapter,
+                                &pHddTdlsCtx->peerUpdateTimer,
+                                pHddTdlsCtx->threshold_config.tx_period_t);
     mutex_unlock(&tdls_lock);
 }
 
@@ -444,13 +406,45 @@ static v_VOID_t wlan_hdd_tdls_idle_cb( v_PVOID_t userData )
 
 static v_VOID_t wlan_hdd_tdls_discovery_timeout_peer_cb(v_PVOID_t userData)
 {
+    int i;
+    struct list_head *head;
+    hddTdlsPeer_t *tmp;
+    struct list_head *pos, *q;
     tdlsCtx_t *pHddTdlsCtx;
 
+    if (mutex_lock_interruptible(&tdls_lock))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: unable to lock list", __func__);
+        return ;
+    }
     pHddTdlsCtx = (tdlsCtx_t *)userData;
-    if (NULL == pHddTdlsCtx)
-        return;
+
+    if ( NULL == pHddTdlsCtx )
+    {
+        mutex_unlock(&tdls_lock);
+        return ;
+    }
+
+    for (i = 0; i < 256; i++) {
+        head = &pHddTdlsCtx->peer_list[i];
+        list_for_each_safe (pos, q, head) {
+            tmp = list_entry(pos, hddTdlsPeer_t, node);
+            if (eTDLS_LINK_DISCOVERING == tmp->link_status)
+            {
+                VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                           "%s: " MAC_ADDRESS_STR " to idle state", __func__,
+                           MAC_ADDR_ARRAY(tmp->peerMac));
+                tmp->link_status = eTDLS_LINK_IDLE;
+            }
+        }
+    }
 
     pHddTdlsCtx->discovery_sent_cnt = 0;
+    wlan_hdd_tdls_check_power_save_prohibited(pHddTdlsCtx->pAdapter);
+
+    mutex_unlock(&tdls_lock);
+
     wlan_hdd_tdls_check_bmps(pHddTdlsCtx->pAdapter);
 
     return;
@@ -508,6 +502,10 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 
     /* initialize TDLS global context */
     pHddCtx->connected_peer_count = 0;
+    sme_SetTdlsPowerSaveProhibited(WLAN_HDD_GET_HAL_CTX(pAdapter), 0);
+
+    pHddCtx->tdls_scan_ctxt.magic = 0;
+    pHddCtx->tdls_scan_ctxt.scan_request = NULL;
 
     for (staIdx = 0; staIdx < HDD_MAX_NUM_TDLS_STA; staIdx++)
     {
@@ -560,13 +558,6 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
     else
     {
         pHddCtx->tdls_mode = eTDLS_SUPPORT_ENABLED;
-#ifdef FEATURE_WLAN_TDLS_INTERNAL
-        vos_timer_start( &pHddTdlsCtx->peerDiscoverTimer,
-                   pHddTdlsCtx->threshold_config.discovery_period_t );
-#endif
-
-        vos_timer_start( &pHddTdlsCtx->peerUpdateTimer,
-                            pHddTdlsCtx->threshold_config.tx_period_t );
     }
 
     return 0;
@@ -575,12 +566,20 @@ int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter)
 void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter)
 {
     tdlsCtx_t *pHddTdlsCtx;
+    hdd_context_t *pHddCtx;
 
     if (mutex_lock_interruptible(&tdls_lock))
     {
        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                  "%s: unable to lock list", __func__);
        return;
+    }
+
+    pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
+    if (NULL == pHddCtx)
+    {
+        mutex_unlock(&tdls_lock);
+        return;
     }
 
     pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
@@ -595,6 +594,8 @@ void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter)
     part of peer list structure. */
     wlan_hdd_tdls_timers_destroy(pHddTdlsCtx);
     wlan_hdd_tdls_free_list(pHddTdlsCtx);
+
+    wlan_hdd_tdls_free_scan_request(&pHddCtx->tdls_scan_ctxt);
 
     vos_mem_free(pHddTdlsCtx);
     pHddTdlsCtx = NULL;
@@ -670,14 +671,7 @@ hddTdlsPeer_t *wlan_hdd_tdls_get_peer(hdd_adapter_t *pAdapter, u8 *mac)
     struct list_head *head;
     hddTdlsPeer_t *peer;
     u8 key;
-    tdlsCtx_t *pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
-
-    if (NULL == pHddTdlsCtx)
-    {
-        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                  "%s: pHddTdlsCtx is NULL", __func__);
-        return NULL;
-    }
+    tdlsCtx_t *pHddTdlsCtx;
 
     /* if already there, just update */
     peer = wlan_hdd_tdls_find_peer(pAdapter, mac);
@@ -693,15 +687,24 @@ hddTdlsPeer_t *wlan_hdd_tdls_get_peer(hdd_adapter_t *pAdapter, u8 *mac)
         return NULL;
     }
 
-    key = wlan_hdd_tdls_hash_key(mac);
-    head = &pHddTdlsCtx->peer_list[key];
-
     if (mutex_lock_interruptible(&tdls_lock))
     {
        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                 "%s: unable to lock list", __func__);
+                 "%s: unabile to lock list", __func__);
+       vos_mem_free(peer);
        return NULL;
     }
+    pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
+
+    if (NULL == pHddTdlsCtx)
+    {
+        vos_mem_free(peer);
+        mutex_unlock(&tdls_lock);
+        return NULL;
+    }
+
+    key = wlan_hdd_tdls_hash_key(mac);
+    head = &pHddTdlsCtx->peer_list[key];
 
     vos_mem_zero(peer, sizeof(hddTdlsPeer_t));
     vos_mem_copy(peer->peerMac, mac, sizeof(peer->peerMac));
@@ -718,19 +721,19 @@ hddTdlsPeer_t *wlan_hdd_tdls_get_peer(hdd_adapter_t *pAdapter, u8 *mac)
     return peer;
 }
 
-void wlan_hdd_tdls_set_cap(hdd_adapter_t *pAdapter,
+int wlan_hdd_tdls_set_cap(hdd_adapter_t *pAdapter,
                                    u8* mac,
                                    tTDLSCapType cap)
 {
     hddTdlsPeer_t *curr_peer;
 
-    curr_peer = wlan_hdd_tdls_find_peer(pAdapter, mac);
+    curr_peer = wlan_hdd_tdls_get_peer(pAdapter, mac);
     if (curr_peer == NULL)
-        return;
+        return -1;
 
     curr_peer->tdls_support = cap;
 
-    return;
+    return 0;
 }
 
 void wlan_hdd_tdls_set_peer_link_status(hddTdlsPeer_t *curr_peer, tTDLSLinkStatus status)
@@ -773,9 +776,11 @@ int wlan_hdd_tdls_recv_discovery_resp(hdd_adapter_t *pAdapter, u8 *mac)
     if (pHddTdlsCtx->discovery_sent_cnt)
         pHddTdlsCtx->discovery_sent_cnt--;
 
+    wlan_hdd_tdls_check_power_save_prohibited(pAdapter);
     if (0 == pHddTdlsCtx->discovery_sent_cnt)
+    {
         vos_timer_stop(&pHddTdlsCtx->peerDiscoveryTimeoutTimer);
-    wlan_hdd_tdls_check_bmps(pAdapter);
+    }
 
     VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
                "Discovery(%lu) Response from " MAC_ADDRESS_STR " link_status %d",
@@ -784,13 +789,29 @@ int wlan_hdd_tdls_recv_discovery_resp(hdd_adapter_t *pAdapter, u8 *mac)
 
     if (eTDLS_LINK_DISCOVERING == curr_peer->link_status)
     {
-        VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
-                   "Indicating Set-Up to supplicant");
-        cfg80211_tdls_oper_request(pAdapter->dev,
-                                   curr_peer->peerMac,
-                                   NL80211_TDLS_SETUP, FALSE,
-                                   GFP_KERNEL);
-        curr_peer->link_status = eTDLS_LINK_DISCOVERED;
+        /* Since we are here, it means Throughput threshold is alredy met. Make sure RSSI
+           threshold is also met before setting up TDLS link*/
+        if ((tANI_S32) curr_peer->rssi > (tANI_S32) pHddTdlsCtx->threshold_config.rssi_trigger_threshold)
+        {
+            curr_peer->link_status = eTDLS_LINK_DISCOVERED;
+            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+            "Rssi Threshold met: "MAC_ADDRESS_STR" rssi = %d threshold= %d" ,
+             MAC_ADDR_ARRAY(curr_peer->peerMac), curr_peer->rssi,
+             pHddTdlsCtx->threshold_config.rssi_trigger_threshold);
+            cfg80211_tdls_oper_request(pAdapter->dev, curr_peer->peerMac, NL80211_TDLS_SETUP, FALSE, GFP_KERNEL);
+        }
+        else
+        {
+            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+            "Rssi Threshold not met: "MAC_ADDRESS_STR" rssi = %d threshold = %d ",
+            MAC_ADDR_ARRAY(curr_peer->peerMac), curr_peer->rssi,
+            pHddTdlsCtx->threshold_config.rssi_trigger_threshold);
+            curr_peer->link_status = eTDLS_LINK_IDLE;
+        }
+    }
+    else
+    {
+        wlan_hdd_tdls_check_bmps(pAdapter);
     }
 
     curr_peer->tdls_support = eTDLS_CAP_SUPPORTED;
@@ -801,7 +822,7 @@ int wlan_hdd_tdls_set_rssi(hdd_adapter_t *pAdapter, u8 *mac, tANI_S8 rxRssi)
 {
     hddTdlsPeer_t *curr_peer;
 
-    curr_peer = wlan_hdd_tdls_get_peer(pAdapter, mac);
+    curr_peer = wlan_hdd_tdls_find_peer(pAdapter, mac);
     if (curr_peer == NULL)
         return -1;
 
@@ -996,7 +1017,7 @@ int wlan_hdd_tdls_set_params(struct net_device *dev, tdls_config_params_t *confi
             config->rssi_trigger_threshold,
             config->rssi_teardown_threshold);
 
-    wlan_hdd_tdls_set_mode(pHddCtx, req_tdls_mode);
+    wlan_hdd_tdls_set_mode(pHddCtx, req_tdls_mode, TRUE);
 
     return 0;
 }
@@ -1036,8 +1057,6 @@ hddTdlsPeer_t *wlan_hdd_tdls_find_peer(hdd_adapter_t *pAdapter, u8 *mac)
     if (NULL == pHddTdlsCtx)
     {
         mutex_unlock(&tdls_lock);
-        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                  "%s: pHddTdlsCtx is NULL", __func__);
         return NULL;
     }
 
@@ -1079,24 +1098,13 @@ int wlan_hdd_tdls_reset_peer(hdd_adapter_t *pAdapter, u8 *mac)
     return 0;
 }
 
+/* Caller has to take the lock before calling this function */
 static void wlan_tdd_tdls_reset_tx_rx(tdlsCtx_t *pHddTdlsCtx)
 {
     int i;
     struct list_head *head;
     hddTdlsPeer_t *tmp;
     struct list_head *pos, *q;
-
-    if (mutex_lock_interruptible(&tdls_lock))
-    {
-        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-        "%s: unable to lock list", __func__);
-        return ;
-    }
-    if ( NULL == pHddTdlsCtx )
-    {
-        mutex_unlock(&tdls_lock);
-        return ;
-    }
 
     for (i = 0; i < 256; i++) {
         head = &pHddTdlsCtx->peer_list[i];
@@ -1106,29 +1114,17 @@ static void wlan_tdd_tdls_reset_tx_rx(tdlsCtx_t *pHddTdlsCtx)
             tmp->rx_pkt = 0;
         }
     }
-    mutex_unlock(&tdls_lock);
 
     return ;
 }
 
+/* Caller has to take the lock before calling this function */
 static tANI_S32 wlan_hdd_tdls_peer_reset_discovery_processed(tdlsCtx_t *pHddTdlsCtx)
 {
     int i;
     struct list_head *head;
     hddTdlsPeer_t *tmp;
     struct list_head *pos, *q;
-
-    if (mutex_lock_interruptible(&tdls_lock))
-    {
-        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-        "%s: unable to lock list", __func__);
-        return -1;
-    }
-    if ( NULL == pHddTdlsCtx )
-    {
-        mutex_unlock(&tdls_lock);
-        return -1;
-    }
 
     pHddTdlsCtx->discovery_peer_cnt = 0;
 
@@ -1139,7 +1135,6 @@ static tANI_S32 wlan_hdd_tdls_peer_reset_discovery_processed(tdlsCtx_t *pHddTdls
             tmp->discovery_processed = 0;
         }
     }
-    mutex_unlock(&tdls_lock);
 
     return 0;
 }
@@ -1238,7 +1233,18 @@ void wlan_hdd_tdls_connection_callback(hdd_adapter_t *pAdapter)
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
     tdlsCtx_t *pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
 
-    if (NULL == pHddTdlsCtx) return;
+    if (mutex_lock_interruptible(&tdls_lock))
+    {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                 "%s: unable to lock list", __func__);
+       return;
+    }
+
+    if (NULL == pHddCtx || NULL == pHddTdlsCtx)
+    {
+        mutex_unlock(&tdls_lock);
+        return;
+    }
 
     VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
     "%s, update %d discover %d", __func__,
@@ -1249,14 +1255,18 @@ void wlan_hdd_tdls_connection_callback(hdd_adapter_t *pAdapter)
     {
        wlan_hdd_tdls_peer_reset_discovery_processed(pHddTdlsCtx);
        pHddTdlsCtx->discovery_sent_cnt = 0;
+       wlan_hdd_tdls_check_power_save_prohibited(pHddTdlsCtx->pAdapter);
 
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
-       vos_timer_start(&pHddTdlsCtx->peerDiscoverTimer,
-                       pHddTdlsCtx->threshold_config.discovery_period_t);
+       wlan_hdd_tdls_timer_restart(pHddTdlsCtx->pAdapter,
+                                   &pHddTdlsCtx->peerDiscoverTimer,
+                                   pHddTdlsCtx->threshold_config.discovery_period_t);
 #endif
-       vos_timer_start(&pHddTdlsCtx->peerUpdateTimer,
-                       pHddTdlsCtx->threshold_config.tx_period_t);
+       wlan_hdd_tdls_timer_restart(pHddTdlsCtx->pAdapter,
+                                   &pHddTdlsCtx->peerUpdateTimer,
+                                   pHddTdlsCtx->threshold_config.tx_period_t);
     }
+    mutex_unlock(&tdls_lock);
 
 }
 
@@ -1277,6 +1287,8 @@ void wlan_hdd_tdls_disconnection_callback(hdd_adapter_t *pAdapter)
         mutex_unlock(&tdls_lock);
         return;
     }
+    pHddTdlsCtx->discovery_sent_cnt = 0;
+    wlan_hdd_tdls_check_power_save_prohibited(pHddTdlsCtx->pAdapter);
 
     wlan_hdd_tdls_timers_stop(pHddTdlsCtx);
     wlan_hdd_tdls_free_list(pHddTdlsCtx);
@@ -1299,6 +1311,10 @@ void wlan_hdd_tdls_increment_peer_count(hdd_adapter_t *pAdapter)
     if (NULL == pHddCtx) return;
 
     pHddCtx->connected_peer_count++;
+    wlan_hdd_tdls_check_power_save_prohibited(pAdapter);
+
+    VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, "%s: %d",
+               __func__, pHddCtx->connected_peer_count);
 }
 
 void wlan_hdd_tdls_decrement_peer_count(hdd_adapter_t *pAdapter)
@@ -1309,6 +1325,11 @@ void wlan_hdd_tdls_decrement_peer_count(hdd_adapter_t *pAdapter)
 
     if (pHddCtx->connected_peer_count)
         pHddCtx->connected_peer_count--;
+    wlan_hdd_tdls_check_power_save_prohibited(pAdapter);
+
+    VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, "%s: %d",
+               __func__, pHddCtx->connected_peer_count);
+
 }
 
 void wlan_hdd_tdls_check_bmps(hdd_adapter_t *pAdapter)
@@ -1318,13 +1339,15 @@ void wlan_hdd_tdls_check_bmps(hdd_adapter_t *pAdapter)
 
     if ((NULL == pHddCtx) || (NULL == pHddTdlsCtx)) return;
 
-    if ((0 == pHddCtx->connected_peer_count) &&
+    if ((TDLS_CTX_MAGIC != pHddCtx->tdls_scan_ctxt.magic) &&
+        (0 == pHddCtx->connected_peer_count) &&
         (0 == pHddTdlsCtx->discovery_sent_cnt))
     {
         if (FALSE == sme_IsPmcBmps(WLAN_HDD_GET_HAL_CTX(pAdapter)))
         {
             VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
-                       "No TDLS peer connected/discovery sent. Enable BMPS");
+                       "%s: No TDLS peer connected/discovery sent. Enable BMPS",
+                       __func__);
             hdd_enable_bmps_imps(pHddCtx);
         }
     }
@@ -1332,11 +1355,23 @@ void wlan_hdd_tdls_check_bmps(hdd_adapter_t *pAdapter)
     {
         if (TRUE == sme_IsPmcBmps(WLAN_HDD_GET_HAL_CTX(pAdapter)))
         {
-            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,"TDLS peer connected. Disable BMPS");
+            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                       "%s: TDLS peer connected. Disable BMPS", __func__);
             hdd_disable_bmps_imps(pHddCtx, WLAN_HDD_INFRA_STATION);
         }
     }
     return;
+}
+
+u8 wlan_hdd_tdls_is_peer_progress(hdd_adapter_t *pAdapter, u8 *mac)
+{
+    hddTdlsPeer_t *curr_peer;
+
+    curr_peer = wlan_hdd_tdls_find_peer(pAdapter, mac);
+    if (curr_peer == NULL)
+        return 0;
+
+    return (eTDLS_LINK_CONNECTING == curr_peer->link_status);
 }
 
 /* return TRUE if TDLS is ongoing
@@ -1377,7 +1412,7 @@ u8 wlan_hdd_tdls_is_progress(hdd_adapter_t *pAdapter, u8 *mac, u8 skip_self)
                 if (eTDLS_LINK_CONNECTING == curr_peer->link_status)
                 {
                   VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
-                            "%s:" MAC_ADDRESS_STR "is in eTDLS_LINK_CONNECTING",
+                            "%s:" MAC_ADDRESS_STR " eTDLS_LINK_CONNECTING",
                             __func__, MAC_ADDR_ARRAY(curr_peer->peerMac));
                   mutex_unlock(&tdls_lock);
                   return TRUE;
@@ -1392,16 +1427,7 @@ u8 wlan_hdd_tdls_is_progress(hdd_adapter_t *pAdapter, u8 *mac, u8 skip_self)
 
 static void wlan_hdd_tdls_implicit_disable(tdlsCtx_t *pHddTdlsCtx)
 {
-    if (mutex_lock_interruptible(&tdls_lock))
-    {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                 "%s: unable to lock list", __func__);
-       return;
-    }
-
     wlan_hdd_tdls_timers_stop(pHddTdlsCtx);
-
-    mutex_unlock(&tdls_lock);
 }
 
 static void wlan_hdd_tdls_implicit_enable(tdlsCtx_t *pHddTdlsCtx)
@@ -1409,17 +1435,22 @@ static void wlan_hdd_tdls_implicit_enable(tdlsCtx_t *pHddTdlsCtx)
     wlan_hdd_tdls_peer_reset_discovery_processed(pHddTdlsCtx);
     pHddTdlsCtx->discovery_sent_cnt = 0;
     wlan_tdd_tdls_reset_tx_rx(pHddTdlsCtx);
+    wlan_hdd_tdls_check_power_save_prohibited(pHddTdlsCtx->pAdapter);
+
 
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
-    vos_timer_start(&pHddTdlsCtx->peerDiscoverTimer,
-                    pHddTdlsCtx->threshold_config.discovery_period_t);
+    wlan_hdd_tdls_timer_restart(pHddTdlsCtx->pAdapter,
+                                &pHddTdlsCtx->peerDiscoverTimer,
+                                pHddTdlsCtx->threshold_config.discovery_period_t);
 #endif
-
-    vos_timer_start(&pHddTdlsCtx->peerUpdateTimer,
-                    pHddTdlsCtx->threshold_config.tx_period_t);
+    wlan_hdd_tdls_timer_restart(pHddTdlsCtx->pAdapter,
+                                &pHddTdlsCtx->peerUpdateTimer,
+                                pHddTdlsCtx->threshold_config.tx_period_t);
 }
 
-void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx, eTDLSSupportMode tdls_mode)
+void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx,
+                            eTDLSSupportMode tdls_mode,
+                            v_BOOL_t bUpdateLast)
 {
     hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
     VOS_STATUS status;
@@ -1428,25 +1459,58 @@ void wlan_hdd_tdls_set_mode(hdd_context_t *pHddCtx, eTDLSSupportMode tdls_mode)
 
     VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,"%s mode %d", __func__, (int)tdls_mode);
 
+    if (mutex_lock_interruptible(&tdls_lock))
+    {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                 "%s: unable to lock list", __func__);
+       return;
+    }
+
+    if (NULL == pHddCtx)
+    {
+        mutex_unlock(&tdls_lock);
+        return;
+    }
+
+    if (pHddCtx->tdls_mode == tdls_mode)
+    {
+        hddLog(TDLS_LOG_LEVEL, "%s already in mode %d", __func__, (int)tdls_mode);
+        mutex_unlock(&tdls_lock);
+        return;
+    }
+
     status = hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
 
     while ( NULL != pAdapterNode && VOS_STATUS_SUCCESS == status )
     {
        pAdapter = pAdapterNode->pAdapter;
-       pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
-       if (NULL != pHddTdlsCtx)
+       if ((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
+           (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode))
        {
-           if(eTDLS_SUPPORT_ENABLED == tdls_mode)
-                wlan_hdd_tdls_implicit_enable(pHddTdlsCtx);
-           else if((eTDLS_SUPPORT_DISABLED == tdls_mode) ||
-                   (eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY == tdls_mode))
-                wlan_hdd_tdls_implicit_disable(pHddTdlsCtx);
+           pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
+           if (NULL != pHddTdlsCtx)
+           {
+               if(eTDLS_SUPPORT_ENABLED == tdls_mode)
+                   wlan_hdd_tdls_implicit_enable(pHddTdlsCtx);
+               else if((eTDLS_SUPPORT_DISABLED == tdls_mode) ||
+                       (eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY == tdls_mode))
+                   wlan_hdd_tdls_implicit_disable(pHddTdlsCtx);
+           }
        }
        status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
        pAdapterNode = pNext;
     }
-    pHddCtx->tdls_mode_last = pHddCtx->tdls_mode;
+    if(bUpdateLast)
+    {
+        pHddCtx->tdls_mode_last = tdls_mode;
+    }
+    else
+    {
+        pHddCtx->tdls_mode_last = pHddCtx->tdls_mode;
+    }
     pHddCtx->tdls_mode = tdls_mode;
+
+    mutex_unlock(&tdls_lock);
 }
 
 void wlan_hdd_tdls_pre_setup(tdlsCtx_t *pHddTdlsCtx,
@@ -1456,19 +1520,308 @@ void wlan_hdd_tdls_pre_setup(tdlsCtx_t *pHddTdlsCtx,
 
     if (TRUE == sme_IsPmcBmps(WLAN_HDD_GET_HAL_CTX(pHddTdlsCtx->pAdapter)))
     {
+        VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,"%s: Disable BMPS", __func__);
         hdd_disable_bmps_imps(pHddCtx, WLAN_HDD_INFRA_STATION);
     }
-    curr_peer->link_status = eTDLS_LINK_DISCOVERING;
+
+    if (eTDLS_CAP_UNKNOWN != curr_peer->tdls_support)
+        curr_peer->link_status = eTDLS_LINK_DISCOVERING;
+
     sme_SendTdlsMgmtFrame(WLAN_HDD_GET_HAL_CTX(pHddTdlsCtx->pAdapter),
                           pHddTdlsCtx->pAdapter->sessionId,
                           curr_peer->peerMac,
                           WLAN_TDLS_DISCOVERY_REQUEST,
                           1, 0, NULL, 0, 0);
     pHddTdlsCtx->discovery_sent_cnt++;
-    VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, "%s: discovery count %lu",
-               __func__, pHddTdlsCtx->discovery_sent_cnt);
-    vos_timer_stop(&pHddTdlsCtx->peerDiscoveryTimeoutTimer);
-    vos_timer_start(&pHddTdlsCtx->peerDiscoveryTimeoutTimer, TDLS_DISCOVERY_TIMEOUT);
+    wlan_hdd_tdls_check_power_save_prohibited(pHddTdlsCtx->pAdapter);
+    VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, "%s: discovery count %lu timeout %lu msec",
+               __func__, pHddTdlsCtx->discovery_sent_cnt,
+               pHddTdlsCtx->threshold_config.tx_period_t - TDLS_DISCOVERY_TIMEOUT_BEFORE_UPDATE);
+
+    wlan_hdd_tdls_timer_restart(pHddTdlsCtx->pAdapter,
+                                &pHddTdlsCtx->peerDiscoveryTimeoutTimer,
+                                pHddTdlsCtx->threshold_config.tx_period_t - TDLS_DISCOVERY_TIMEOUT_BEFORE_UPDATE);
 
     return;
+}
+
+tANI_U32 wlan_hdd_tdls_discovery_sent_cnt(hdd_context_t *pHddCtx)
+{
+    hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
+    hdd_adapter_t *pAdapter = NULL;
+    tdlsCtx_t *pHddTdlsCtx = NULL;
+    VOS_STATUS status = 0;
+    tANI_U32 count = 0;
+
+    status = hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
+    while ( NULL != pAdapterNode && VOS_STATUS_SUCCESS == status )
+    {
+        pAdapter = pAdapterNode->pAdapter;
+
+        if ((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
+            (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode))
+        {
+            pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
+            if (NULL != pHddTdlsCtx)
+            {
+                count = count + pHddTdlsCtx->discovery_sent_cnt;
+            }
+        }
+        status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
+        pAdapterNode = pNext;
+    }
+    return count;
+}
+
+void wlan_hdd_tdls_check_power_save_prohibited(hdd_adapter_t *pAdapter)
+{
+    tdlsCtx_t *pHddTdlsCtx = WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter);
+    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+
+    if ((NULL == pHddTdlsCtx) || (NULL == pHddCtx))
+        return;
+
+    if ((0 == pHddCtx->connected_peer_count) &&
+        (0 == wlan_hdd_tdls_discovery_sent_cnt(pHddCtx)))
+    {
+        sme_SetTdlsPowerSaveProhibited(WLAN_HDD_GET_HAL_CTX(pHddTdlsCtx->pAdapter), 0);
+        return;
+    }
+    sme_SetTdlsPowerSaveProhibited(WLAN_HDD_GET_HAL_CTX(pHddTdlsCtx->pAdapter), 1);
+    return;
+}
+
+void wlan_hdd_tdls_free_scan_request (tdls_scan_context_t *tdls_scan_ctx)
+{
+    if (NULL == tdls_scan_ctx)
+        return;
+
+    tdls_scan_ctx->attempt = 0;
+    tdls_scan_ctx->magic = 0;
+    tdls_scan_ctx->scan_request = NULL;
+        return;
+}
+
+int wlan_hdd_tdls_copy_scan_context(hdd_context_t *pHddCtx,
+                            struct wiphy *wiphy,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+                            struct net_device *dev,
+#endif
+                            struct cfg80211_scan_request *request)
+{
+    tdls_scan_context_t *scan_ctx;
+
+    if (NULL == pHddCtx )
+        return -1;
+
+    scan_ctx = &pHddCtx->tdls_scan_ctxt;
+
+    scan_ctx->wiphy = wiphy;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+    scan_ctx->dev = dev;
+#endif
+
+    scan_ctx->scan_request = request;
+    return 0;
+}
+
+static void wlan_hdd_tdls_schedule_scan(struct work_struct *work)
+{
+    tdls_scan_context_t *scan_ctx =
+          container_of(work, tdls_scan_context_t, tdls_scan_work.work);
+
+    if (NULL == scan_ctx)
+        return;
+
+    if (unlikely(TDLS_CTX_MAGIC != scan_ctx->magic))
+        return;
+
+    scan_ctx->attempt++;
+
+    wlan_hdd_cfg80211_scan(scan_ctx->wiphy,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+                           scan_ctx->dev,
+#endif
+                           scan_ctx->scan_request);
+}
+
+static void wlan_hdd_tdls_scan_init_work(hdd_context_t *pHddCtx,
+                                struct wiphy *wiphy,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+                                struct net_device *dev,
+#endif
+                                struct cfg80211_scan_request *request,
+                                unsigned long delay)
+{
+    if (TDLS_CTX_MAGIC != pHddCtx->tdls_scan_ctxt.magic)
+    {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+        wlan_hdd_tdls_copy_scan_context(pHddCtx, wiphy, dev, request);
+#else
+        wlan_hdd_tdls_copy_scan_context(pHddCtx, wiphy, request);
+#endif
+        pHddCtx->tdls_scan_ctxt.attempt = 0;
+        pHddCtx->tdls_scan_ctxt.magic = TDLS_CTX_MAGIC;
+    }
+    INIT_DELAYED_WORK(&pHddCtx->tdls_scan_ctxt.tdls_scan_work, wlan_hdd_tdls_schedule_scan);
+
+    schedule_delayed_work(&pHddCtx->tdls_scan_ctxt.tdls_scan_work, delay);
+}
+
+/* return negative = caller should stop and return error code immediately
+   return 0 = caller should stop and return success immediately
+   return 1 = caller can continue to scan
+ */
+int wlan_hdd_tdls_scan_callback (hdd_adapter_t *pAdapter,
+                                struct wiphy *wiphy,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+                                struct net_device *dev,
+#endif
+                                struct cfg80211_scan_request *request)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
+    struct net_device *dev = request->wdev->netdev;
+#endif
+    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+    u16 connectedTdlsPeers;
+    unsigned long delay;
+
+    if (NULL == pHddCtx)
+        return 0;
+
+    /* if tdls is not enabled, then continue scan */
+    if (eTDLS_SUPPORT_NOT_ENABLED == pHddCtx->tdls_mode)
+        return 1;
+
+    if (wlan_hdd_tdls_is_progress(pAdapter, NULL, 0))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                "%s: tdls in progress. scan rejected",
+                __func__);
+        return -EBUSY;
+    }
+
+    /* tdls teardown is ongoing */
+    if (eTDLS_SUPPORT_DISABLED == pHddCtx->tdls_mode)
+    {
+        connectedTdlsPeers = wlan_hdd_tdlsConnectedPeers(pAdapter);
+        if (connectedTdlsPeers && (pHddCtx->tdls_scan_ctxt.attempt < TDLS_MAX_SCAN_SCHEDULE))
+        {
+            delay = (unsigned long)(TDLS_DELAY_SCAN_PER_CONNECTION*connectedTdlsPeers);
+            VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                    "%s: tdls disabled, but still connected_peers %d attempt %d. schedule scan %lu msec",
+                    __func__, connectedTdlsPeers, pHddCtx->tdls_scan_ctxt.attempt, delay);
+
+            wlan_hdd_tdls_scan_init_work (pHddCtx, wiphy,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+                                          dev,
+#endif
+                                          request,
+                                          msecs_to_jiffies(delay));
+            /* scan should not continue */
+            return 0;
+        }
+        /* no connected peer or max retry reached, scan continue */
+        VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                "%s: tdls disabled. connected_peers %d attempt %d. scan allowed",
+                __func__, connectedTdlsPeers, pHddCtx->tdls_scan_ctxt.attempt);
+        return 1;
+    }
+    /* while tdls is up, first time scan */
+    else if (eTDLS_SUPPORT_ENABLED == pHddCtx->tdls_mode ||
+        eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY == pHddCtx->tdls_mode)
+    {
+        /* disable implicit trigger logic & tdls operatoin */
+        wlan_hdd_tdls_set_mode(pHddCtx, eTDLS_SUPPORT_DISABLED, FALSE);
+        /* indicate the teardown all connected to peer */
+        connectedTdlsPeers = wlan_hdd_tdlsConnectedPeers(pAdapter);
+        if (connectedTdlsPeers)
+        {
+            tANI_U8 staIdx;
+
+            for (staIdx = 0; staIdx < HDD_MAX_NUM_TDLS_STA; staIdx++)
+            {
+                if (pHddCtx->tdlsConnInfo[staIdx].staId)
+                {
+                    VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                                   ("%s: indicate TDLS teadown (staId %d)"), __func__, pHddCtx->tdlsConnInfo[staIdx].staId) ;
+
+#ifdef CONFIG_TDLS_IMPLICIT
+                    cfg80211_tdls_oper_request(pAdapter->dev,
+                                               pHddCtx->tdlsConnInfo[staIdx].peerMac.bytes,
+                                               NL80211_TDLS_TEARDOWN,
+                                               eSIR_MAC_TDLS_TEARDOWN_UNSPEC_REASON,
+                                               GFP_KERNEL);
+#endif
+                }
+            }
+            /* schedule scan */
+            delay = (unsigned long)(TDLS_DELAY_SCAN_PER_CONNECTION*connectedTdlsPeers);
+
+            VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                    "%s: tdls enabled (mode %d), connected_peers %d. schedule scan %lu msec",
+                    __func__, pHddCtx->tdls_mode, wlan_hdd_tdlsConnectedPeers(pAdapter),
+                    delay);
+
+            wlan_hdd_tdls_scan_init_work (pHddCtx, wiphy,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+                                          dev,
+#endif
+                                          request,
+                                          msecs_to_jiffies(delay));
+            /* scan should not continue */
+            return 0;
+        }
+        /* no connected peer, scan continue */
+        VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                "%s: tdls_mode %d, and no tdls connection. scan allowed",
+                 __func__, pHddCtx->tdls_mode);
+    }
+    return 1;
+}
+
+void wlan_hdd_tdls_scan_done_callback(hdd_adapter_t *pAdapter)
+{
+    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+
+    if (NULL == pHddCtx)
+        return;
+
+    /* free allocated memory at scan time */
+    wlan_hdd_tdls_free_scan_request (&pHddCtx->tdls_scan_ctxt);
+
+    /* if tdls was enabled before scan, re-enable tdls mode */
+    if(eTDLS_SUPPORT_ENABLED == pHddCtx->tdls_mode_last ||
+       eTDLS_SUPPORT_EXPLICIT_TRIGGER_ONLY == pHddCtx->tdls_mode_last)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                       ("%s: revert tdls mode %d"), __func__, pHddCtx->tdls_mode_last);
+
+        wlan_hdd_tdls_set_mode(pHddCtx, pHddCtx->tdls_mode_last, FALSE);
+    }
+    wlan_hdd_tdls_check_bmps(pAdapter);
+}
+
+void wlan_hdd_tdls_timer_restart(hdd_adapter_t *pAdapter,
+                                 vos_timer_t *timer,
+                                 v_U32_t expirationTime)
+{
+    hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+
+    if (NULL == pHddStaCtx)
+        return;
+
+    /* Check whether driver load unload is in progress */
+    if(vos_is_load_unload_in_progress( VOS_MODULE_ID_VOSS, NULL))
+    {
+       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                "%s: Driver load/unload is in progress.", __func__);
+       return;
+    }
+
+    if (hdd_connIsConnected(pHddStaCtx))
+    {
+        vos_timer_stop(timer);
+        vos_timer_start(timer, expirationTime);
+    }
 }
