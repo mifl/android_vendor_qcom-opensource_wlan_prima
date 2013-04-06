@@ -1263,6 +1263,9 @@ typedef struct
   /*Used for configuration of different HW modules.*/
   WDI_STAEntryType          wdiSTAType;
 
+  /*STA Index */
+  wpt_uint8                 staIdx;
+
   /*Short Preamble Supported.*/
   wpt_uint8                 ucShortPreambleSupported;
 
@@ -4212,7 +4215,7 @@ typedef struct
    wpt_uint32   ulTotalRekeyCount;    /* total rekey attempts */
    wpt_uint32   ulGTKRekeyCount;      /* successful GTK rekeys */
    wpt_uint32   ulIGTKRekeyCount;     /* successful iGTK rekeys */
-   wpt_uint8    bssIdx;
+   wpt_macAddr    bssId;
 } WDI_GtkOffloadGetInfoRspParams;
 
 typedef struct

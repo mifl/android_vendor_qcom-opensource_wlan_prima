@@ -347,7 +347,7 @@ eHalStatus csrOpen(tpAniSirGlobal pMac)
             pMac->scan.countryCodeDefault[2] = 'I';
             //status = eHAL_STATUS_SUCCESS;
         }
-        smsLog( pMac, LOG1, FL(" country Code from nvRam %s"), pMac->scan.countryCodeDefault );
+        smsLog( pMac, LOG1, FL(" country Code from nvRam %.2s"), pMac->scan.countryCodeDefault );
         csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeDefault, &regId);
         WDA_SetRegDomain(pMac, regId);
         pMac->scan.domainIdDefault = regId;
@@ -371,10 +371,12 @@ eHalStatus csrSetRegInfo(tHalHandle hHal,  tANI_U8 *apCntryCode)
        smsLog( pMac, LOGW, FL(" Invalid country Code Pointer") );
        return eHAL_STATUS_FAILURE;
     }
-    smsLog( pMac, LOGW, FL(" country Code %s"), apCntryCode );
+    smsLog( pMac, LOGW, FL(" country Code %.2s"), apCntryCode );
     /* To get correct Regulatory domain from NV table 
      * 2 character Country code should be used
      * 3rd charater is optional for indoor/outdoor setting */
+    cntryCodeLength = WNI_CFG_COUNTRY_CODE_LEN;
+/*
     cntryCodeLength = strlen(apCntryCode);
 
     if (cntryCodeLength > WNI_CFG_COUNTRY_CODE_LEN)
@@ -382,17 +384,17 @@ eHalStatus csrSetRegInfo(tHalHandle hHal,  tANI_U8 *apCntryCode)
        smsLog( pMac, LOGW, FL(" Invalid Country Code Length") );
        return eHAL_STATUS_FAILURE;
     }
-
+*/
     status = csrGetRegulatoryDomainForCountry(pMac, apCntryCode, &regId);
     if (status != eHAL_STATUS_SUCCESS)
     {
-        smsLog( pMac, LOGE, FL("  fail to get regId for country Code %s"), apCntryCode );
+        smsLog( pMac, LOGE, FL("  fail to get regId for country Code %.2s"), apCntryCode );
         return status;
     }
     status = WDA_SetRegDomain(hHal, regId);
     if (status != eHAL_STATUS_SUCCESS)
     {
-        smsLog( pMac, LOGE, FL("  fail to get regId for country Code %s"), apCntryCode );
+        smsLog( pMac, LOGE, FL("  fail to get regId for country Code %.2s"), apCntryCode );
         return status;
     }
     pMac->scan.domainIdDefault = regId;
@@ -1524,6 +1526,7 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         smsLog( pMac, LOG1, "nImmediateRoamRssiDiff = %d",
                 pMac->roam.configParam.nImmediateRoamRssiDiff );
         pMac->roam.configParam.nRoamPrefer5GHz = pParam->nRoamPrefer5GHz;
+        pMac->roam.configParam.nRoamIntraBand = pParam->nRoamIntraBand;
 #endif
 #ifdef FEATURE_WLAN_LFR 
         pMac->roam.configParam.isFastRoamIniFeatureEnabled = pParam->isFastRoamIniFeatureEnabled;
@@ -1874,6 +1877,117 @@ eHalStatus csrIsValidChannel(tpAniSirGlobal pMac, tANI_U8 chnNum)
     }
     return status;
 }
+
+eHalStatus csrGet5GChannels(tpAniSirGlobal pMac)
+{
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tANI_U8 num20MHzChannelsFound = 0;
+    VOS_STATUS vosStatus;
+    tANI_U8 num40MHzChannelsFound = 0;
+    tANI_U8 Index = 0;
+    tANI_U8 channelList = 0;
+
+    // Updating the defaultpower Table for changed Domain Id
+    vosStatus = vos_nv_getChannelListWithPower( pMac->scan.defaultPowerTable, &num20MHzChannelsFound,
+                                                pMac->scan.defaultPowerTable40MHz, &num40MHzChannelsFound);
+
+    if ( (VOS_STATUS_SUCCESS != vosStatus) || (num20MHzChannelsFound == 0) )
+    {
+        smsLog( pMac, LOGE, FL("failed to get channels"));
+        status = eHAL_STATUS_FAILURE;
+    }
+    else
+    {
+        if ( num20MHzChannelsFound > WNI_CFG_VALID_CHANNEL_LIST_LEN )
+        {
+            num20MHzChannelsFound = WNI_CFG_VALID_CHANNEL_LIST_LEN;
+        }
+
+        // Move the only 5GHZ channel list to the global data,
+        // As 2.4GHZ list coming from the AP for the changed domain
+        // structure -- this will be used as the scan list
+        for(channelList = 0; channelList < WNI_CFG_VALID_CHANNEL_LIST_LEN; channelList++)
+        {
+            // If Channel is 5GHz just break the for loop
+            if(!(pMac->scan.base20MHzChannels.channelList[ channelList ] > 0 && pMac->scan.base20MHzChannels.channelList[ channelList ] <= 14))
+                break;
+        }
+        // Update the 5G channels from nv.bin
+        for ( Index = 0; Index < num20MHzChannelsFound; Index++)
+        {
+            if(pMac->scan.defaultPowerTable[Index].chanId >= 36 && pMac->scan.defaultPowerTable[Index].chanId <= 165)
+            {
+                pMac->scan.base20MHzChannels.channelList[ channelList ] = pMac->scan.defaultPowerTable[Index].chanId;
+                channelList++;
+            }
+        }
+
+        pMac->scan.numChannelsDefault = (num20MHzChannelsFound > channelList) ? num20MHzChannelsFound : channelList;
+        pMac->scan.base20MHzChannels.numChannels = (num20MHzChannelsFound > channelList) ? num20MHzChannelsFound : channelList;
+        // Filling the remaining index as Zero Just for causion
+        for(Index = pMac->scan.base20MHzChannels.numChannels; Index < WNI_CFG_VALID_CHANNEL_LIST_LEN; Index++)
+            pMac->scan.base20MHzChannels.channelList[ Index ] = 0;
+    }
+    return status;
+}
+
+eHalStatus csrGet24GChannels(tpAniSirGlobal pMac)
+{
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tANI_U8 num20MHzChannelsFound = 0;
+    VOS_STATUS vosStatus;
+    tANI_U8 Index = 0;
+    tANI_U8 num40MHzChannelsFound = 0;
+    tANI_U8 channelList5GBackup[WNI_CFG_VALID_CHANNEL_LIST_LEN] = {0}, nuum5GchannelListBackup;
+    tANI_U8 channelList = 0;
+
+    // Read the scan channel list (including the power limit) from EEPROM
+    vosStatus = vos_nv_getChannelListWithPower( pMac->scan.defaultPowerTable, &num20MHzChannelsFound,
+                                                pMac->scan.defaultPowerTable40MHz, &num40MHzChannelsFound);
+
+    if ( (VOS_STATUS_SUCCESS != vosStatus) || (num20MHzChannelsFound == 0) )
+    {
+        smsLog( pMac, LOGE, FL("failed to get channels \n"));
+        status = eHAL_STATUS_FAILURE;
+    }
+    else
+    {
+        if ( num20MHzChannelsFound > WNI_CFG_VALID_CHANNEL_LIST_LEN )
+        {
+            num20MHzChannelsFound = WNI_CFG_VALID_CHANNEL_LIST_LEN;
+        }
+
+        // Move the 2.4GHZ channel list only to the global data,
+        // As 5GHz list been provided by AP as part of 11d IE
+        // structure -- this will be used as the scan list
+        for(channelList = 0, nuum5GchannelListBackup = 0; channelList < WNI_CFG_VALID_CHANNEL_LIST_LEN; channelList++)
+        {
+            if(pMac->scan.base20MHzChannels.channelList[ channelList ] >= 36 && pMac->scan.base20MHzChannels.channelList[ channelList ] <= 165)
+            {
+                // First taking the 5GHz channel list backup
+                channelList5GBackup[nuum5GchannelListBackup] = pMac->scan.base20MHzChannels.channelList[ channelList ];
+                nuum5GchannelListBackup++;
+            }
+        }
+        // Updating the 2.4GHz list
+        for ( Index = 0; Index < num20MHzChannelsFound; Index++)
+        {
+            if(pMac->scan.defaultPowerTable[Index].chanId > 0 && pMac->scan.defaultPowerTable[Index].chanId <= 14)
+                pMac->scan.base20MHzChannels.channelList[ Index ] = pMac->scan.defaultPowerTable[Index].chanId;
+        }
+        // Restoring the Backed up 5 GHZ channels
+        for(channelList = 0;channelList < nuum5GchannelListBackup; channelList++ )
+        {
+            pMac->scan.base20MHzChannels.channelList[ Index ] = channelList5GBackup[channelList];
+            Index++;
+        }
+
+        pMac->scan.numChannelsDefault = (num20MHzChannelsFound > Index) ? num20MHzChannelsFound : Index;
+        pMac->scan.base20MHzChannels.numChannels = (num20MHzChannelsFound > Index) ? num20MHzChannelsFound : Index;
+    }
+    return (status);
+}
+
 eHalStatus csrInitGetChannels(tpAniSirGlobal pMac)
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
@@ -2561,6 +2675,8 @@ eHalStatus csrRoamPrepareBssConfig(tpAniSirGlobal pMac, tCsrRoamProfile *pProfil
     eHalStatus status = eHAL_STATUS_SUCCESS;
     eCsrCfgDot11Mode cfgDot11Mode;
     VOS_ASSERT( pIes != NULL );
+    if (pIes == NULL)
+        return eHAL_STATUS_FAILURE;
 
     do
     {
@@ -4478,12 +4594,17 @@ static eHalStatus csrRoamSaveSecurityRspIE(tpAniSirGlobal pMac, tANI_U32 session
                     //nIeLen doesn't count EID and length fields
                     if(HAL_STATUS_SUCCESS((status = palAllocateMemory(pMac->hHdd, (void **)&pSession->pWpaRsnRspIE, nIeLen + 2))))
                     {
+                        palZeroMemory(pMac->hHdd, pSession->pWpaRsnRspIE, nIeLen + 2);
                         pSession->pWpaRsnRspIE[0] = DOT11F_EID_RSN;
                         pSession->pWpaRsnRspIE[1] = (tANI_U8)nIeLen;
                         //copy upto akm_suites
                         pIeBuf = pSession->pWpaRsnRspIE + 2;
-                        palCopyMemory(pMac->hHdd, pIeBuf, &pIesLocal->RSN.version, 8);
-                        pIeBuf += 8;
+                        palCopyMemory(pMac->hHdd, pIeBuf, &pIesLocal->RSN.version, sizeof(pIesLocal->RSN.version));
+                        pIeBuf += sizeof(pIesLocal->RSN.version);
+                        palCopyMemory(pMac->hHdd, pIeBuf, &pIesLocal->RSN.gp_cipher_suite, sizeof(pIesLocal->RSN.gp_cipher_suite));
+                        pIeBuf += sizeof(pIesLocal->RSN.gp_cipher_suite);
+                        palCopyMemory(pMac->hHdd, pIeBuf, &pIesLocal->RSN.pwise_cipher_suite_count, sizeof(pIesLocal->RSN.pwise_cipher_suite_count));
+                        pIeBuf += sizeof(pIesLocal->RSN.pwise_cipher_suite_count );
                         if( pIesLocal->RSN.pwise_cipher_suite_count )
                         {
                             //copy pwise_cipher_suites
@@ -11912,7 +12033,8 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
         pProfile->MDID.mdiePresent = pBssDescription->mdiePresent;
         if (csrIsProfile11r( pProfile )
 #ifdef FEATURE_WLAN_CCX
-           && !((pIes->CCXVersion.present) && (pMac->roam.configParam.isCcxIniFeatureEnabled))
+           && !((pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_OPEN_SYSTEM) &&
+                (pIes->CCXVersion.present) && (pMac->roam.configParam.isCcxIniFeatureEnabled))
 #endif
         )
         {
@@ -12553,8 +12675,8 @@ eHalStatus csrSendMBSetContextReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId ,
     eHalStatus status = eHAL_STATUS_FAILURE;
     tAniEdType tmpEdType;
     tAniKeyDirection tmpDirection;
-    tANI_U8 *pBuf;
-    tANI_U8 *p;
+    tANI_U8 *pBuf = NULL;
+    tANI_U8 *p = NULL;
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
     do {
         if( ( 1 != numKeys ) && ( 0 != numKeys ) ) break;
@@ -12707,6 +12829,7 @@ eHalStatus csrSendMBStartBssReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, eCs
         {
             smsLog( pMac,LOGE, FL("****Start BSS failed persona already exists***"));
             status = eHAL_STATUS_FAILURE;
+            palFreeMemory( pMac->hHdd, pMsg );
             return status;
         }
 

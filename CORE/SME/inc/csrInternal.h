@@ -99,6 +99,10 @@
 ( \
    (((pMac)->roam.configParam.nRoamPrefer5GHz)?eANI_BOOLEAN_TRUE:eANI_BOOLEAN_FALSE) \
 )
+#define CSR_IS_ROAM_INTRA_BAND_ENABLED( pMac ) \
+( \
+   (((pMac)->roam.configParam.nRoamIntraBand)?eANI_BOOLEAN_TRUE:eANI_BOOLEAN_FALSE) \
+)
 #endif
 
 //Support for "Fast roaming" (i.e., CCX, LFR, or 802.11r.)
@@ -596,6 +600,7 @@ typedef struct tagCsrConfig
     tANI_U8   RoamRssiDiff;
     tANI_U8   nImmediateRoamRssiDiff;
     tANI_BOOLEAN nRoamPrefer5GHz;
+    tANI_BOOLEAN nRoamIntraBand;
 #endif
 
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
@@ -682,9 +687,9 @@ typedef struct tagCsrScanStruct
     tDblLinkList channelPowerInfoList5G;
     tANI_U32 nLastAgeTimeOut;
     tANI_U32 nAgingCountDown;
-    tANI_U8 countryCodeDefault[WNI_CFG_COUNTRY_CODE_LEN+1];     //The country code from NV
-    tANI_U8 countryCodeCurrent[WNI_CFG_COUNTRY_CODE_LEN+1];
-    tANI_U8 countryCode11d[WNI_CFG_COUNTRY_CODE_LEN+1];
+    tANI_U8 countryCodeDefault[WNI_CFG_COUNTRY_CODE_LEN];     //The country code from NV
+    tANI_U8 countryCodeCurrent[WNI_CFG_COUNTRY_CODE_LEN];
+    tANI_U8 countryCode11d[WNI_CFG_COUNTRY_CODE_LEN];
     v_REGDOMAIN_t domainIdDefault;  //default regulatory domain
     v_REGDOMAIN_t domainIdCurrent;  //current regulatory domain
     tANI_BOOLEAN f11dInfoApplied;
@@ -1076,6 +1081,10 @@ void csrScanSuspendIMPS( tpAniSirGlobal pMac );
 void csrScanResumeIMPS( tpAniSirGlobal pMac );
 
 eHalStatus csrInitGetChannels(tpAniSirGlobal pMac);
+// Getting the 5GHz Channel list
+eHalStatus csrGet5GChannels(tpAniSirGlobal pMac);
+// Getting the 2.4GHz Channel list
+eHalStatus csrGet24GChannels(tpAniSirGlobal pMac);
 
 eHalStatus csrSetModifyProfileFields(tpAniSirGlobal pMac, tANI_U32 sessionId,
                                      tCsrRoamModifyProfileFields *pModifyProfileFields);

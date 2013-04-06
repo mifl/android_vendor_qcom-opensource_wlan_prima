@@ -123,6 +123,9 @@
 /** Maximum time(ms) to wait for tdls add sta to complete **/
 #define WAIT_TIME_TDLS_ADD_STA      1500
 
+/** Maximum time(ms) to wait for tdls del sta to complete **/
+#define WAIT_TIME_TDLS_DEL_STA      1500
+
 /** Maximum time(ms) to wait for tdls mgmt to complete **/
 #define WAIT_TIME_TDLS_MGMT         11000
 
@@ -173,6 +176,11 @@
 
 /* Maximum number of interfaces allowed(STA, P2P Device, P2P Interface) */
 #define WLAN_MAX_INTERFACES 3
+
+#ifdef WLAN_FEATURE_GTK_OFFLOAD
+#define GTK_OFFLOAD_ENABLE  0
+#define GTK_OFFLOAD_DISABLE 1
+#endif
 
 typedef struct hdd_tx_rx_stats_s
 {
@@ -277,8 +285,6 @@ typedef struct roaming_info_s
 #define MAX_NUM_AKM_SUITES    16
 #define MAX_NUM_UNI_SUITES    16
 #define MAX_NUM_BKIDS         16
-#define HDD_PAIRWISE_WAPI_KEY 0
-#define HDD_GROUP_WAPI_KEY    1
 
 /** WAPI AUTH mode definition */
 enum _WAPIAuthMode
@@ -493,6 +499,13 @@ typedef enum{
     HDD_SSR_DISABLED,
 }e_hdd_ssr_required;
 
+#ifdef WLAN_FEATURE_GTK_OFFLOAD
+typedef struct
+{
+   v_BOOL_t requested;
+   tSirGtkOffloadParams gtkOffloadReqParams;
+}hddGtkOffloadParams;
+#endif
 
 struct hdd_station_ctx
 {
@@ -513,6 +526,10 @@ struct hdd_station_ctx
 
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
    int     ft_carrier_on;
+#endif
+
+#ifdef WLAN_FEATURE_GTK_OFFLOAD
+   hddGtkOffloadParams gtkOffloadRequestParams;
 #endif
 };
 
@@ -719,6 +736,7 @@ struct hdd_adapter_s
 
 #ifdef FEATURE_WLAN_TDLS
    struct completion tdls_add_station_comp;
+   struct completion tdls_del_station_comp;
    struct completion tdls_mgmt_comp;
    eHalStatus tdlsAddStaStatus;
 #endif

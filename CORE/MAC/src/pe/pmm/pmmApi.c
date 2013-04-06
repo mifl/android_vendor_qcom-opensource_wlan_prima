@@ -563,6 +563,7 @@ tSirRetStatus pmmSendChangePowerSaveMsg(tpAniSirGlobal pMac)
     if((psessionEntry = peGetValidPowerSaveSession(pMac)) == NULL )
     {
         retStatus = eSIR_FAILURE;
+        palFreeMemory(pMac->hHdd, (tANI_U8*)pExitBmpsParams);
         return retStatus;
     }
 
@@ -635,7 +636,7 @@ tSirRetStatus  pmmSendInitPowerSaveMsg(tpAniSirGlobal pMac,tpPESession psessionE
     tANI_U32    numBeaconPerRssiAverage = 5;
     tANI_U32    bRssiFilterEnable = FALSE;
 
-    if((psessionEntry->currentBssBeaconCnt == 0 && (!IS_ACTIVEMODE_OFFLOAD_FEATURE_ENABLE)))
+    if(psessionEntry->currentBssBeaconCnt == 0 )
     {
         PELOGE(pmmLog( pMac, LOGE,  FL("Beacon count is zero, can not retrieve the TSF, failing the Enter Bmps Request"));)
         return eSIR_FAILURE;
@@ -2359,7 +2360,7 @@ void pmmExitWowlanRequestHandler(tpAniSirGlobal pMac)
     tSirRetStatus retStatus = eSIR_SUCCESS;
     tSirResultCodes smeRspCode = eSIR_SME_SUCCESS;
     tpPESession pSessionEntry;
-    tpSirHalWowlExitParams  pHalWowlMsg;
+    tpSirHalWowlExitParams  pHalWowlMsg = NULL;
     tANI_U8            PowersavesessionId = 0;
 
     PowersavesessionId = pMac->pmm.sessionId;
