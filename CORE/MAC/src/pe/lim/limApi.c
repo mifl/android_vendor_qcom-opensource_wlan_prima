@@ -82,13 +82,10 @@
 #endif
 
 #include <limFT.h>
-
-#ifdef VOSS_ENABLED
 #include "vos_types.h"
 #include "vos_packet.h"
 #include "wlan_qct_tl.h"
 #include "sysStartup.h"
-#endif
 
 
 static void __limInitScanVars(tpAniSirGlobal pMac)
@@ -110,11 +107,12 @@ static void __limInitScanVars(tpAniSirGlobal pMac)
     pMac->lim.gLimBackgroundScanDisable = false;      //based on BG timer
     pMac->lim.gLimForceBackgroundScanDisable = false; //debug control flag
     pMac->lim.gLimBackgroundScanTerminate = TRUE;    //controlled by SME
-    pMac->lim.gLimReportBackgroundScanResults = FALSE;    //controlled by SME    
+    pMac->lim.gLimReportBackgroundScanResults = FALSE;    //controlled by SME
 
     pMac->lim.gLimCurrentScanChannelId = 0;
     pMac->lim.gpLimMlmScanReq = NULL;
-    pMac->lim.gpLimSmeScanReq = NULL;
+    pMac->lim.gDeferMsgTypeForNOA = 0;
+    pMac->lim.gpDefdSmeMsgForNOA = NULL;
     pMac->lim.gLimMlmScanResultLength = 0;
     pMac->lim.gLimSmeScanResultLength = 0;
 
@@ -793,10 +791,8 @@ limInitialize(tpAniSirGlobal pMac)
 void
 limCleanup(tpAniSirGlobal pMac)
 {
-#ifdef VOSS_ENABLED
     v_PVOID_t pvosGCTx;
     VOS_STATUS retStatus;
-#endif
 
 //Before destroying the list making sure all the nodes have been deleted.
 //Which should be the normal case, but a memory leak has been reported.
@@ -886,10 +882,10 @@ limCleanup(tpAniSirGlobal pMac)
         pMac->lim.gpLimMlmRemoveKeyReq = NULL;
     }
 
-    if (pMac->lim.gpLimSmeScanReq != NULL)
+    if (pMac->lim.gpDefdSmeMsgForNOA != NULL)
     {
-        palFreeMemory(pMac->hHdd, pMac->lim.gpLimSmeScanReq);
-        pMac->lim.gpLimSmeScanReq = NULL;
+        palFreeMemory(pMac->hHdd, pMac->lim.gpDefdSmeMsgForNOA);
+        pMac->lim.gpDefdSmeMsgForNOA = NULL;
     }
 
     if (pMac->lim.gpLimMlmScanReq != NULL)
@@ -923,14 +919,12 @@ limCleanup(tpAniSirGlobal pMac)
     // Now, finally reset the deferred message queue pointers
     limResetDeferredMsgQ(pMac);
 
-#ifdef VOSS_ENABLED
 
     pvosGCTx = vos_get_global_context(VOS_MODULE_ID_PE, (v_VOID_t *) pMac);
     retStatus = WLANTL_DeRegisterMgmtFrmClient(pvosGCTx);
 
     if ( retStatus != VOS_STATUS_SUCCESS )
         PELOGE(limLog(pMac, LOGE, FL("DeRegistering the PE Handle with TL has failed bailing out...\n"));)
-#endif
 
 #if defined WLAN_FEATURE_VOWIFI
     rrmCleanup(pMac);
@@ -1231,33 +1225,9 @@ tANI_U8 limIsTimerAllowedInPowerSaveState(tpAniSirGlobal pMac, tSirMsgQ *pMsg)
 tANI_U32
 limPostMsgApi(tpAniSirGlobal pMac, tSirMsgQ *pMsg)
 {
-#ifdef VOSS_ENABLED
     return  vos_mq_post_message(VOS_MQ_ID_PE, (vos_msg_t *) pMsg);
 
 
-#elif defined(ANI_OS_TYPE_LINUX) || defined(ANI_OS_TYPE_OSX)
-    return tx_queue_send(&pMac->sys.gSirLimMsgQ, pMsg, TX_WAIT_FOREVER);
-
-#else
-    /* Check if this is a timeout message from a timer
-     * and if the timeout message is allowed if the device is in power-save state
-     */
-    if(!limIsTimerAllowedInPowerSaveState(pMac, pMsg))
-    {
-        limLog(pMac, LOGW,
-                FL("Timeout message %d is not allowed while device is in Power-Save mode\n"),
-                pMsg->type);
-
-        return TX_SUCCESS;
-    }
-    if(pMac->gDriverType != eDRIVER_TYPE_MFG)
-    {
-        limMessageProcessor(pMac, pMsg);
-    }
-
-    return TX_SUCCESS;
-
-#endif
 } /*** end limPostMsgApi() ***/
 
 
@@ -1312,7 +1282,6 @@ tSirRetStatus peProcessMessages(tpAniSirGlobal pMac, tSirMsgQ* pMsg)
 }
 
 
-#ifdef VOSS_ENABLED
 
 // ---------------------------------------------------------------------------
 /**
@@ -1429,7 +1398,6 @@ void peRegisterTLHandle(tpAniSirGlobal pMac)
         limLog( pMac, LOGP, FL("Registering the PE Handle with TL has failed bailing out...\n"));
 
 }
-#endif
 
 
 /**

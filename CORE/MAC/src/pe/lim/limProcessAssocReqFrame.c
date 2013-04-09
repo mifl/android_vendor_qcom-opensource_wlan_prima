@@ -214,8 +214,8 @@ limProcessAssocReqFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,
 
    if (psessionEntry->limSystemRole == eLIM_STA_ROLE || psessionEntry->limSystemRole == eLIM_BT_AMP_STA_ROLE )
    {
-        limLog(pMac, LOGE, FL("received unexpected ASSOC REQ subType=%d for role=%d, radioId=%d from \n"),
-                                            subType, psessionEntry->limSystemRole, pMac->sys.gSirRadioId);
+        limLog(pMac, LOGE, FL("received unexpected ASSOC REQ subType=%d for role=%d"),
+               subType, psessionEntry->limSystemRole);
         limPrintMacAddr(pMac, pHdr->sa, LOGE);
         sirDumpBuf(pMac, SIR_LIM_MODULE_ID, LOG3,
         WDA_GET_RX_MPDU_DATA(pRxPacketInfo), framelen);
@@ -1220,7 +1220,7 @@ if (limPopulateMatchingRateSet(pMac,
         pStaDs->mlmStaContext.updateContext = 0;
 
         // BTAMP: Add STA context at HW - issue WDA_ADD_STA_REQ to HAL
-        if (limAddSta(pMac, pStaDs,psessionEntry) != eSIR_SUCCESS)
+        if (limAddSta(pMac, pStaDs, false, psessionEntry) != eSIR_SUCCESS)
         {
             limLog(pMac, LOGE, FL("could not Add STA with assocId=%d\n"), pStaDs->assocId);
             limRejectAssociation( pMac, pStaDs->staAddr, pStaDs->mlmStaContext.subType,
@@ -1258,7 +1258,7 @@ if (limPopulateMatchingRateSet(pMac,
         {
             /* mlmState is changed in limAddSta context */
             /* use the same AID, already allocated */
-            if (limAddSta(pMac, pStaDs,psessionEntry) != eSIR_SUCCESS)
+            if (limAddSta(pMac, pStaDs, false, psessionEntry) != eSIR_SUCCESS)
             {
                     limLog( pMac, LOGE, FL( "AP do not support UPASD REASSOC Failed\n" ));
                     limRejectAssociation( pMac, pStaDs->staAddr, pStaDs->mlmStaContext.subType, true, pStaDs->mlmStaContext.authType,

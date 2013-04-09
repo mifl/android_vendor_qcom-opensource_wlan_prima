@@ -828,6 +828,13 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
                pHddCtx = vos_get_context(VOS_MODULE_ID_HDD, pVosContext);
            else
                return VOS_STATUS_E_EXISTS;
+           if (NULL == pHddCtx)
+           {
+              VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                    ("Invalid pHddCtx pointer\r\n") );
+              return VOS_STATUS_E_FAULT;
+           }
+
            wiphy = pHddCtx->wiphy;
            init_completion(&pHddCtx->driver_crda_req);
            regulatory_hint(wiphy, countryCode);
@@ -1295,7 +1302,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
                status = VOS_STATUS_E_INVAL;
            }
            else {
-               memcpy(outputVoidBuffer,&gnvEFSTable->halnv.tables.pktTypePwrLimits[0][0],bufferSize);
+               memcpy(outputVoidBuffer,gnvEFSTable->halnv.tables.pktTypePwrLimits,bufferSize);
            }
            break;
        case VNV_OFDM_CMD_PWR_OFFSET:
@@ -1523,7 +1530,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
                 status = VOS_STATUS_E_INVAL;
             }
             else {
-                memcpy(&gnvEFSTable->halnv.tables.pktTypePwrLimits[0][0],inputVoidBuffer,bufferSize);
+                memcpy(gnvEFSTable->halnv.tables.pktTypePwrLimits,inputVoidBuffer,bufferSize);
             }
             break;
 
@@ -1586,47 +1593,6 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
       }
    }
    return status;
-}
-
-VOS_STATUS vos_nv_get5GChannelListWithPower(tChannelListWithPower *channels20MHz /*[NUM_LEGIT_RF_CHANNELS] */,
-                                          tANI_U8 *num20MHzChannelsFound,
-                                          tChannelListWithPower *channels40MHz /*[NUM_CHAN_BOND_CHANNELS] */,
-                                          tANI_U8 *num40MHzChannelsFound
-                                          )
-{
-    VOS_STATUS status = VOS_STATUS_SUCCESS;
-    int i, count;
-
-
-    if ( channels20MHz && num20MHzChannelsFound )
-    {
-        count = 0;
-        for ( i = RF_CHAN_36; i <= RF_CHAN_165; i++ )
-        {
-            if ( regChannels[i].enabled )
-            {
-                channels20MHz[count].chanId = rfChannels[i].channelNum;
-                channels20MHz[count++].pwr  = regChannels[i].pwrLimit;
-            }
-        }
-        *num20MHzChannelsFound = (tANI_U8)count;
-    }
-
-    if ( channels40MHz && num40MHzChannelsFound )
-    {
-        count = 0;
-        //center channels for 5 Ghz 40 MHz channels
-        for ( i = RF_CHAN_BOND_38; i <= RF_CHAN_BOND_163; i++ )
-        {
-            if ( regChannels[i].enabled )
-            {
-                channels40MHz[count].chanId = rfChannels[i].channelNum;
-                channels40MHz[count++].pwr  = regChannels[i].pwrLimit;
-            }
-        }
-        *num40MHzChannelsFound = (tANI_U8)count;
-    }
-    return status;
 }
 
 /**------------------------------------------------------------------------

@@ -190,30 +190,37 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
 {
    struct net_device *dev = ndev;
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
-   hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
+   hdd_context_t *pHddCtx;
 #ifdef WLAN_BTAMP_FEATURE
    VOS_STATUS status;
    hdd_context_t *pHddCtx;
 #endif
 
    //Make sure that this callback corresponds to our device.
-   if((strncmp( dev->name, "wlan", 4 )) && 
-      (strncmp( dev->name, "p2p", 3))
-     )
+   if ((strncmp(dev->name, "wlan", 4)) &&
+       (strncmp(dev->name, "p2p", 3)))
       return NOTIFY_DONE;
 
    if (!dev->ieee80211_ptr)
-       return NOTIFY_DONE;
+      return NOTIFY_DONE;
 
-
-   if(NULL == pAdapter)
+   if (NULL == pAdapter)
    {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: HDD Adapter Null Pointer", __func__);
       VOS_ASSERT(0);
       return NOTIFY_DONE;
    }
 
-   hddLog(VOS_TRACE_LEVEL_INFO,"%s: New Net Device State = %lu", __func__, state);
+   pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   if (NULL == pHddCtx)
+   {
+      hddLog(VOS_TRACE_LEVEL_FATAL,"%s: HDD Context Null Pointer", __func__);
+      VOS_ASSERT(0);
+      return NOTIFY_DONE;
+   }
+
+   hddLog(VOS_TRACE_LEVEL_INFO, "%s: %s New Net Device State = %lu",
+          __func__, dev->name, state);
 
    switch (state) {
    case NETDEV_REGISTER:
@@ -619,12 +626,12 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        else if (strncmp(command, "SETROAMSCANPERIOD", 17) == 0)
        {
            tANI_U8 *value = command;
-           tANI_U16 neighborScanRefreshPeriod = CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_DEFAULT;
+           tANI_U16 emptyScanRefreshPeriod = CFG_EMPTY_SCAN_REFRESH_PERIOD_DEFAULT;
            /* input refresh period is in terms of seconds */
            /* Move pointer to ahead of SETROAMSCANPERIOD<delimiter> */
            value = value + 18;
            /* Convert the value from ascii to integer */
-           ret = kstrtou16(value, 10, &neighborScanRefreshPeriod);
+           ret = kstrtou16(value, 10, &emptyScanRefreshPeriod);
            if (ret < 0)
            {
                /* If the input value is greater than max value of datatype, then also
@@ -633,31 +640,31 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                       "%s: kstrtou16 failed ",
                       "Input value may be out of range[%d - %d]",
                       __func__,
-                      (CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MIN/1000),
-                      (CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MAX/1000));
+                      (CFG_EMPTY_SCAN_REFRESH_PERIOD_MIN/1000),
+                      (CFG_EMPTY_SCAN_REFRESH_PERIOD_MAX/1000));
                ret = -EINVAL;
                goto exit;
            }
 
-           neighborScanRefreshPeriod = neighborScanRefreshPeriod * 1000;
-           if ((neighborScanRefreshPeriod < CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MIN) ||
-               (neighborScanRefreshPeriod > CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MAX))
+           emptyScanRefreshPeriod = emptyScanRefreshPeriod * 1000;
+           if ((emptyScanRefreshPeriod < CFG_EMPTY_SCAN_REFRESH_PERIOD_MIN) ||
+               (emptyScanRefreshPeriod > CFG_EMPTY_SCAN_REFRESH_PERIOD_MAX))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                      "Neighbor scan results refresh period value %d is out of range"
-                      " (Min: %d Max: %d)", neighborScanRefreshPeriod,
-                      (CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MIN/1000),
-                      (CFG_NEIGHBOR_SCAN_RESULTS_REFRESH_PERIOD_MAX/1000));
+                      "Empty scan refresh period value %d is out of range"
+                      " (Min: %d Max: %d)", emptyScanRefreshPeriod/1000,
+                      (CFG_EMPTY_SCAN_REFRESH_PERIOD_MIN/1000),
+                      (CFG_EMPTY_SCAN_REFRESH_PERIOD_MAX/1000));
                ret = -EINVAL;
                goto exit;
            }
 
            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                       "%s: Received Command to Set roam scan period"
-                      " (Neighbor Scan refresh period) = %d", __func__, neighborScanRefreshPeriod);
+                      " (Empty Scan refresh period) = %d", __func__, emptyScanRefreshPeriod/1000);
 
-           pHddCtx->cfg_ini->nEmptyScanRefreshPeriod = neighborScanRefreshPeriod;
-           sme_UpdateEmptyScanRefreshPeriod((tHalHandle)(pHddCtx->hHal), neighborScanRefreshPeriod);
+           pHddCtx->cfg_ini->nEmptyScanRefreshPeriod = emptyScanRefreshPeriod;
+           sme_UpdateEmptyScanRefreshPeriod((tHalHandle)(pHddCtx->hHal), emptyScanRefreshPeriod);
        }
        else if (strncmp(command, "GETROAMSCANPERIOD", 17) == 0)
        {
@@ -975,6 +982,11 @@ VOS_STATUS hdd_parse_countryrev(tANI_U8 *pValue, tANI_U8 *pCountryCode, tANI_U8 
 
   This function parses the channel list passed in the format
   SETROAMSCANCHANNELS<space><Number of channels><space>Channel 1<space>Channel 2<space>Channel N
+  if the Number of channels (N) does not match with the actual number of channels passed
+  then take the minimum of N and count of (Ch1, Ch2, ...Ch M)
+  For example, if SETROAMSCANCHANNELS 3 36 40 44 48, only 36, 40 and 44 shall be taken.
+  If SETROAMSCANCHANNELS 5 36 40 44 48, ignore 5 and take 36, 40, 44 and 48.
+  This function does not take care of removing duplicate channels from the list
 
   \param  - pValue Pointer to input channel list
   \param  - ChannelList Pointer to local output array to record channel list
@@ -1016,7 +1028,7 @@ VOS_STATUS hdd_parse_channellist(tANI_U8 *pValue, tANI_U8 *pChannelList, tANI_U8
     /*getting the first argument ie the number of channels*/
     sscanf(inPtr, "%s ", buf);
     v = kstrtos32(buf, 10, &tempInt);
-    if ( v < 0) return -EINVAL;
+    if ((v < 0) || (tempInt <= 0)) return -EINVAL;
 
     *pNumChannels = tempInt;
 
@@ -1030,7 +1042,15 @@ VOS_STATUS hdd_parse_channellist(tANI_U8 *pValue, tANI_U8 *pChannelList, tANI_U8
         /*no channel list after the number of channels argument*/
         if (NULL == inPtr)
         {
-            return -EINVAL;
+            if (0 != j)
+            {
+                *pNumChannels = j;
+                return VOS_STATUS_SUCCESS;
+            }
+            else
+            {
+                return -EINVAL;
+            }
         }
 
         /*removing empty space*/
@@ -1039,12 +1059,20 @@ VOS_STATUS hdd_parse_channellist(tANI_U8 *pValue, tANI_U8 *pChannelList, tANI_U8
         /*no channel list after the number of channels argument and spaces*/
         if ( '\0' == *inPtr )
         {
-            return -EINVAL;
+            if (0 != j)
+            {
+                *pNumChannels = j;
+                return VOS_STATUS_SUCCESS;
+            }
+            else
+            {
+                return -EINVAL;
+            }
         }
 
         sscanf(inPtr, "%s ", buf);
         v = kstrtos32(buf, 10, &tempInt);
-        if ( v < 0) return -EINVAL;
+        if ((v < 0) || (tempInt <= 0)) return -EINVAL;
         pChannelList[j] = tempInt;
 
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
@@ -1052,8 +1080,6 @@ VOS_STATUS hdd_parse_channellist(tANI_U8 *pValue, tANI_U8 *pChannelList, tANI_U8
                    pChannelList[j] );
     }
 
-    /* if the actual number of channels passed are more than
-       pNumChannels then ignore the rest; take only pNumChannels */
     return VOS_STATUS_SUCCESS;
 }
 
@@ -1690,10 +1716,12 @@ static hdd_adapter_t* hdd_alloc_station_adapter( hdd_context_t *pHddCtx, tSirMac
       init_completion(&pAdapter->tx_action_cnf_event);
 #ifdef FEATURE_WLAN_TDLS
       init_completion(&pAdapter->tdls_add_station_comp);
+      init_completion(&pAdapter->tdls_del_station_comp);
       init_completion(&pAdapter->tdls_mgmt_comp);
 #endif
       init_completion(&pHddCtx->mc_sus_event_var);
       init_completion(&pHddCtx->tx_sus_event_var);
+      init_completion(&pAdapter->ula_complete);
 
       pAdapter->isLinkUpSvcNeeded = FALSE; 
       pAdapter->higherDtimTransition = eANI_BOOLEAN_TRUE;
@@ -1848,8 +1876,23 @@ VOS_STATUS hdd_init_station_mode( hdd_adapter_t *pAdapter )
 
    set_bit(WMM_INIT_DONE, &pAdapter->event_flags);
 
+#ifdef FEATURE_WLAN_TDLS
+   if(0 != wlan_hdd_tdls_init(pAdapter))
+   {
+       status = VOS_STATUS_E_FAILURE;
+       hddLog(VOS_TRACE_LEVEL_ERROR,"%s: wlan_hdd_tdls_init failed",__func__);
+       goto error_tdls_init;
+   }
+   set_bit(TDLS_INIT_DONE, &pAdapter->event_flags);
+#endif
+
    return VOS_STATUS_SUCCESS;
 
+#ifdef FEATURE_WLAN_TDLS
+error_tdls_init:
+   clear_bit(WMM_INIT_DONE, &pAdapter->event_flags);
+   hdd_wmm_adapter_close(pAdapter);
+#endif
 error_wmm_init:
    clear_bit(INIT_TX_RX_SUCCESS, &pAdapter->event_flags);
    hdd_deinit_tx_rx(pAdapter);
@@ -1917,6 +1960,13 @@ void hdd_deinit_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter )
          }
 
          hdd_cleanup_actionframe(pHddCtx, pAdapter);
+#ifdef FEATURE_WLAN_TDLS
+         if(test_bit(TDLS_INIT_DONE, &pAdapter->event_flags))
+         {
+            wlan_hdd_tdls_exit(pAdapter);
+            clear_bit(TDLS_INIT_DONE, &pAdapter->event_flags);
+         }
+#endif
 
          break;
       }
@@ -2743,6 +2793,82 @@ VOS_STATUS hdd_reconnect_all_adapters( hdd_context_t *pHddCtx )
    return VOS_STATUS_SUCCESS;
 }
 
+void hdd_dump_concurrency_info(hdd_context_t *pHddCtx)
+{
+   hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
+   VOS_STATUS status;
+   hdd_adapter_t *pAdapter;
+   hdd_station_ctx_t *pHddStaCtx;
+   hdd_ap_ctx_t *pHddApCtx;
+   hdd_hostapd_state_t * pHostapdState;
+   tCsrBssid staBssid = { 0 }, p2pBssid = { 0 }, apBssid = { 0 };
+   v_U8_t staChannel = 0, p2pChannel = 0, apChannel = 0;
+   const char *p2pMode = "DEV";
+   const char *ccMode = "Standalone";
+   int n;
+
+   status =  hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
+   while ( NULL != pAdapterNode && VOS_STATUS_SUCCESS == status )
+   {
+      pAdapter = pAdapterNode->pAdapter;
+      switch (pAdapter->device_mode) {
+      case WLAN_HDD_INFRA_STATION:
+          pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+          if (eConnectionState_Associated == pHddStaCtx->conn_info.connState) {
+              staChannel = pHddStaCtx->conn_info.operationChannel;
+              memcpy(staBssid, pHddStaCtx->conn_info.bssId, sizeof(staBssid));
+          }
+          break;
+      case WLAN_HDD_P2P_CLIENT:
+          pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+          if (eConnectionState_Associated == pHddStaCtx->conn_info.connState) {
+              p2pChannel = pHddStaCtx->conn_info.operationChannel;
+              memcpy(p2pBssid, pHddStaCtx->conn_info.bssId, sizeof(p2pBssid));
+              p2pMode = "CLI";
+          }
+          break;
+      case WLAN_HDD_P2P_GO:
+          pHddApCtx = WLAN_HDD_GET_AP_CTX_PTR(pAdapter);
+          pHostapdState = WLAN_HDD_GET_HOSTAP_STATE_PTR(pAdapter);
+          if (pHostapdState->bssState == BSS_START && pHostapdState->vosStatus==VOS_STATUS_SUCCESS) {
+              p2pChannel = pHddApCtx->operatingChannel;
+              memcpy(p2pBssid, pAdapter->macAddressCurrent.bytes, sizeof(p2pBssid));
+          }
+          p2pMode = "GO";
+          break;
+      case WLAN_HDD_SOFTAP:
+          pHddApCtx = WLAN_HDD_GET_AP_CTX_PTR(pAdapter);
+          pHostapdState = WLAN_HDD_GET_HOSTAP_STATE_PTR(pAdapter);
+          if (pHostapdState->bssState == BSS_START && pHostapdState->vosStatus==VOS_STATUS_SUCCESS) {
+              apChannel = pHddApCtx->operatingChannel;
+              memcpy(apBssid, pAdapter->macAddressCurrent.bytes, sizeof(apBssid));
+          }
+          break;
+      default:
+          break;
+      }
+      status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
+      pAdapterNode = pNext;
+   }
+   if (staChannel > 0 && (apChannel > 0 || p2pChannel > 0)) {
+       ccMode = (p2pChannel==staChannel||apChannel==staChannel) ? "SCC" : "MCC";
+   }
+   n = pr_info("wlan(%d) " MAC_ADDRESS_STR " %s",
+                staChannel, MAC_ADDR_ARRAY(staBssid), ccMode);
+   if (p2pChannel > 0) {
+       n +=  pr_info("p2p-%s(%d) " MAC_ADDRESS_STR,
+                     p2pMode, p2pChannel, MAC_ADDR_ARRAY(p2pBssid));
+   }
+   if (apChannel > 0) {
+       n += pr_info("AP(%d) " MAC_ADDRESS_STR,
+                     apChannel, MAC_ADDR_ARRAY(apBssid));
+   }
+
+   if (p2pChannel > 0 && apChannel > 0) {
+        hddLog(VOS_TRACE_LEVEL_ERROR, "Error concurrent SAP %d and P2P %d which is not support", apChannel, p2pChannel);
+   }
+}
+
 bool hdd_is_ssr_required( void)
 {
     return (isSsrRequired == HDD_SSR_REQUIRED);
@@ -3282,10 +3408,6 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: hddDevTmUnregisterNotifyCallback failed",__func__);
    }
-
-#ifdef FEATURE_WLAN_TDLS
-    wlan_hdd_tdls_exit();
-#endif
 
    // Cancel any outstanding scan requests.  We are about to close all
    // of our adapters, but an adapter structure is what SME passes back
@@ -4227,14 +4349,6 @@ int hdd_wlan_startup(struct device *dev )
    // Initialize the restart logic
    wlan_hdd_restart_init(pHddCtx);
 
-#ifdef FEATURE_WLAN_TDLS
-   if(0 != wlan_hdd_tdls_init(pAdapter->dev))
-   {
-       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: wlan_hdd_tdls_init failed",__func__);
-       goto err_nl_srv;
-   }
-#endif
-  
    goto success;
 
 err_nl_srv:

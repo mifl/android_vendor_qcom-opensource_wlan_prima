@@ -340,7 +340,15 @@ WDI_ReqProcFuncType  pfnReqProcTbl[WDI_MAX_UMAC_IND] =
   WDI_ProcessFeatureCapsExchangeReq,    /* WDI_FEATURE_CAPS_EXCHANGE_REQ */
 #ifdef WLAN_FEATURE_11AC
   WDI_ProcessUpdateVHTOpModeReq,        /* WDI_UPDATE_VHT_OP_MODE_REQ */
+#else
+  NULL,
 #endif
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+  WDI_ProcessGetRoamRssiReq,            /* WDI_GET_ROAM_RSSI_REQ  */
+#else
+  NULL,
+#endif
+  WDI_ProcessSetTxPowerReq,             /* WDI_SET_TX_POWER_REQ*/
   /*-------------------------------------------------------------------------
     Indications
   -------------------------------------------------------------------------*/
@@ -505,7 +513,15 @@ WDI_RspProcFuncType  pfnRspProcTbl[WDI_MAX_RESP] =
   WDI_ProcessFeatureCapsExchangeRsp,    /* WDI_FEATURE_CAPS_EXCHANGE_RESP */
 #ifdef WLAN_FEATURE_11AC
   WDI_ProcessUpdateVHTOpModeRsp,        /* WDI_UPDATE_VHT_OP_MODE_RESP */
+#else
+   NULL,
 #endif
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+  WDI_ProcessGetRoamRssiRsp,            /* WDI_GET_ROAM_RSSI_RESP  */
+#else
+  NULL,
+#endif
+  WDI_ProcessSetTxPowerRsp,             /* WDI_SET_TX_POWER_RESP */
 
   /*---------------------------------------------------------------------
     Indications
@@ -837,6 +853,7 @@ static char *WDI_getReqMsgString(wpt_uint16 wdiReqMsgId)
     CASE_RETURN_STRING( WDI_SHUTDOWN_REQ );
     CASE_RETURN_STRING( WDI_SET_POWER_PARAMS_REQ );
     CASE_RETURN_STRING( WDI_TRAFFIC_STATS_IND );
+    CASE_RETURN_STRING( WDI_GET_ROAM_RSSI_REQ );
     default:
         return "Unknown WDI MessageId";
   }
@@ -932,6 +949,7 @@ static char *WDI_getRespMsgString(wpt_uint16 wdiRespMsgId)
     CASE_RETURN_STRING( WDI_HAL_DUMP_CMD_RESP );
     CASE_RETURN_STRING( WDI_SHUTDOWN_RESP );
     CASE_RETURN_STRING( WDI_SET_POWER_PARAMS_RESP );
+    CASE_RETURN_STRING( WDI_GET_ROAM_RSSI_RESP );
     default:
         return "Unknown WDI MessageId";
   }
@@ -2676,6 +2694,57 @@ WDI_SetMaxTxPowerReq
   wdiEventData.wdiRequest      = WDI_SET_MAX_TX_POWER_REQ;
   wdiEventData.pEventData      = pwdiSetMaxTxPowerParams;
   wdiEventData.uEventDataSize  = sizeof(*pwdiSetMaxTxPowerParams);
+  wdiEventData.pCBfnc          = wdiReqStatusCb;
+  wdiEventData.pUserData       = pUserData;
+
+  return WDI_PostMainEvent(&gWDICb, WDI_REQUEST_EVENT, &wdiEventData);
+}
+
+/**
+ @brief WDI_SetTxPowerReq will be called when the upper
+        MAC wants to set Tx Power to HW.
+        In state BUSY this request will be queued. Request won't
+        be allowed in any other state.
+
+
+ @param pwdiSetTxPowerParams: set TS Power parameters
+           BSSID and target TX Power with dbm included
+
+        wdiReqStatusCb: callback for passing back the response
+
+        pUserData: user data will be passed back with the
+        callback
+
+ @return Result of the function call
+*/
+WDI_Status
+WDI_SetTxPowerReq
+(
+  WDI_SetTxPowerParamsType*   pwdiSetTxPowerParams,
+  WDA_SetTxPowerRspCb         wdiReqStatusCb,
+  void*                       pUserData
+)
+{
+  WDI_EventInfoType      wdiEventData;
+  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+  /*------------------------------------------------------------------------
+    Sanity Check
+  ------------------------------------------------------------------------*/
+  if ( eWLAN_PAL_FALSE == gWDIInitialized )
+  {
+    WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+              "WDI API call before module is initialized - Fail request");
+
+    return WDI_STATUS_E_NOT_ALLOWED;
+  }
+
+  /*------------------------------------------------------------------------
+    Fill in Event data and post to the Main FSM
+  ------------------------------------------------------------------------*/
+  wdiEventData.wdiRequest      = WDI_SET_TX_POWER_REQ;
+  wdiEventData.pEventData      = pwdiSetTxPowerParams;
+  wdiEventData.uEventDataSize  = sizeof(*pwdiSetTxPowerParams);
   wdiEventData.pCBfnc          = wdiReqStatusCb;
   wdiEventData.pUserData       = pUserData;
 
@@ -4640,6 +4709,66 @@ WDI_GetStatsReq
   return WDI_PostMainEvent(&gWDICb, WDI_REQUEST_EVENT, &wdiEventData);
 
 }/*WDI_GetStatsReq*/
+
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+/**
+ @brief WDI_GetRoamRssiReq will be called when the upper MAC wants
+        to get roam rssi from the device. Upon
+        the call of this API the WLAN DAL will pack and send a
+        HAL Start request message to the lower RIVA sub-system
+        if DAL is in state STARTED.
+
+        In state BUSY this request will be queued. Request won't
+        be allowed in any other state.
+
+ WDI_Start must have been called.
+
+ @param wdiGetRoamRssiReqParams: the stats parameters to get as
+                      specified by the Device Interface
+
+        wdiGetRoamRssiRspCb: callback for passing back the response
+        of the get stats operation received from the device
+
+        pUserData: user data will be passed back with the
+        callback
+
+ @see WDI_Start
+ @return Result of the function call
+*/
+WDI_Status
+WDI_GetRoamRssiReq
+(
+  WDI_GetRoamRssiReqParamsType* pwdiGetRoamRssiReqParams,
+  WDI_GetRoamRssiRspCb          wdiGetRoamRssiRspCb,
+  void*                      pUserData
+)
+{
+  WDI_EventInfoType      wdiEventData;
+  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+  /*------------------------------------------------------------------------
+    Sanity Check
+  ------------------------------------------------------------------------*/
+  if ( eWLAN_PAL_FALSE == gWDIInitialized )
+  {
+    WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+              "WDI API call before module is initialized - Fail request");
+
+    return WDI_STATUS_E_NOT_ALLOWED;
+  }
+  /*------------------------------------------------------------------------
+    Fill in Event data and post to the Main FSM
+  ------------------------------------------------------------------------*/
+  wdiEventData.wdiRequest      = WDI_GET_ROAM_RSSI_REQ;
+  wdiEventData.pEventData      = pwdiGetRoamRssiReqParams;
+  wdiEventData.uEventDataSize  = sizeof(*pwdiGetRoamRssiReqParams);
+  wdiEventData.pCBfnc          = wdiGetRoamRssiRspCb;
+  wdiEventData.pUserData       = pUserData;
+
+  return WDI_PostMainEvent(&gWDICb, WDI_REQUEST_EVENT, &wdiEventData);
+
+}/*WDI_GetRoamRssiReq*/
+#endif
 
 
 /**
@@ -7568,9 +7697,18 @@ WDI_ProcessConfigBSSReq
                   uMsgSize);
   }else
 #endif
-  wpalMemoryCopy( pSendBuffer+usDataOffset,
-                  &halConfigBssReqMsg.uBssParams.configBssParams,
-                  uMsgSize);
+  {
+    if ( uMsgSize <= sizeof(tConfigBssParams) )
+    {
+      wpalMemoryCopy( pSendBuffer+usDataOffset,
+                      &halConfigBssReqMsg.uBssParams.configBssParams,
+                      uMsgSize);
+    }
+    else
+    {
+      return WDI_STATUS_E_FAILURE;
+    }
+  }
 
   pWDICtx->wdiReqStatusCB     = pwdiConfigBSSParams->wdiReqStatusCB;
   pWDICtx->pReqStatusUserData = pwdiConfigBSSParams->pUserData;
@@ -10594,7 +10732,7 @@ WDI_ProcessConfigStaReq
   {
   /* Need to fill in the STA Index to invalid, since at this point we have not
      yet received it from HAL */
-    halConfigStaReqMsg.uStaParams.configStaParams.staIdx = WDI_STA_INVALID_IDX;
+    halConfigStaReqMsg.uStaParams.configStaParams.staIdx = pwdiConfigSTAParams->wdiReqInfo.staIdx;
   }
 
   /* Need to fill in the BSS index */
@@ -10869,6 +11007,129 @@ WDI_ProcessGetStatsReq
   return  WDI_SendMsg( pWDICtx, pSendBuffer, usSendSize,
                        wdiGetStatsRspCb, pEventData->pUserData, WDI_GET_STATS_RESP);
 }/*WDI_ProcessGetStatsReq*/
+
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+/**
+ @brief Process Get Roam Rssi Request function (called when Main FSM
+        allows it)
+
+ @param  pWDICtx:         pointer to the WLAN DAL context
+         pEventData:      pointer to the event information structure
+
+ @see
+ @return Result of the function call
+*/
+WDI_Status
+WDI_ProcessGetRoamRssiReq
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+)
+{
+  WDI_GetRoamRssiReqParamsType*   pwdiGetRoamRssiParams;
+  WDI_GetStatsRspCb            wdiGetStatsRspCb;
+  wpt_uint8*                   pSendBuffer         = NULL;
+  wpt_uint16                   usDataOffset        = 0;
+  wpt_uint16                   usSendSize          = 0;
+  wpt_uint8                    ucCurrentBSSSesIdx  = 0;
+  WDI_BSSSessionType*          pBSSSes             = NULL;
+  wpt_macAddr                  macBSSID;
+  WDI_Status                   wdiStatus           = WDI_STATUS_SUCCESS;
+  tHalGetRoamRssiReqMsg        halRssiRoamReqMsg;
+  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+  /*-------------------------------------------------------------------------
+    Sanity check
+  -------------------------------------------------------------------------*/
+  if (( NULL == pEventData ) || ( NULL == pEventData->pEventData) ||
+      ( NULL == pEventData->pCBfnc ) )
+  {
+     WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
+                 "%s: Invalid parameters", __func__);
+     WDI_ASSERT(0);
+     return WDI_STATUS_E_FAILURE;
+  }
+
+  pwdiGetRoamRssiParams = (WDI_GetRoamRssiReqParamsType*)pEventData->pEventData;
+  wdiGetStatsRspCb   = (WDI_GetStatsRspCb)pEventData->pCBfnc;
+
+  /*-------------------------------------------------------------------------
+    Check to see if we are in the middle of an association, if so queue, if
+    not it means it is free to process request
+  -------------------------------------------------------------------------*/
+  wpalMutexAcquire(&pWDICtx->wptMutex);
+
+  /*------------------------------------------------------------------------
+    Find the BSS for which the request is made
+  ------------------------------------------------------------------------*/
+  if ( WDI_STATUS_SUCCESS != WDI_STATableGetStaBSSIDAddr(pWDICtx,
+                        pwdiGetRoamRssiParams->wdiGetRoamRssiParamsInfo.ucSTAIdx,
+                        &macBSSID))
+  {
+    WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_WARN,
+             "This station does not exist in the WDI Station Table %d");
+    wpalMutexRelease(&pWDICtx->wptMutex);
+    return WDI_STATUS_E_FAILURE;
+  }
+
+  ucCurrentBSSSesIdx = WDI_FindAssocSession( pWDICtx, macBSSID, &pBSSSes);
+  if ( NULL == pBSSSes )
+  {
+    WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+        "%s: Association sequence for this BSS does not yet exist. macBSSID " MAC_ADDRESS_STR,
+        __func__, MAC_ADDR_ARRAY(macBSSID));
+
+    wpalMutexRelease(&pWDICtx->wptMutex);
+    return WDI_STATUS_E_NOT_ALLOWED;
+  }
+
+  /*------------------------------------------------------------------------
+    Check if this BSS is being currently processed or queued,
+    if queued - queue the new request as well
+  ------------------------------------------------------------------------*/
+  if ( eWLAN_PAL_TRUE == pBSSSes->bAssocReqQueued )
+  {
+    WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
+              "%s: Association sequence for this BSS exists but currently queued. macBSSID " MAC_ADDRESS_STR,
+              __func__, MAC_ADDR_ARRAY(macBSSID));
+
+    wdiStatus = WDI_QueueAssocRequest( pWDICtx, pBSSSes, pEventData);
+    wpalMutexRelease(&pWDICtx->wptMutex);
+    return wdiStatus;
+  }
+
+  wpalMutexRelease(&pWDICtx->wptMutex);
+
+  /*-----------------------------------------------------------------------
+    Get message buffer
+  -----------------------------------------------------------------------*/
+  if (( WDI_STATUS_SUCCESS != WDI_GetMessageBuffer( pWDICtx, WDI_GET_ROAM_RSSI_REQ,
+                        sizeof(halRssiRoamReqMsg.roamRssiReqParams),
+                        &pSendBuffer, &usDataOffset, &usSendSize))||
+      ( usSendSize < (usDataOffset + sizeof(halRssiRoamReqMsg.roamRssiReqParams) )))
+  {
+     WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_WARN,
+              "Unable to get send buffer in set bss key req %x %x %x",
+                pEventData, pwdiGetRoamRssiParams, wdiGetStatsRspCb);
+     WDI_ASSERT(0);
+     return WDI_STATUS_E_FAILURE;
+  }
+
+  halRssiRoamReqMsg.roamRssiReqParams.staId =
+                  pwdiGetRoamRssiParams->wdiGetRoamRssiParamsInfo.ucSTAIdx;
+  wpalMemoryCopy( pSendBuffer+usDataOffset,
+                  &halRssiRoamReqMsg.roamRssiReqParams,
+                  sizeof(halRssiRoamReqMsg.roamRssiReqParams));
+
+  pWDICtx->wdiReqStatusCB     = pwdiGetRoamRssiParams->wdiReqStatusCB;
+  pWDICtx->pReqStatusUserData = pwdiGetRoamRssiParams->pUserData;
+
+  /*-------------------------------------------------------------------------
+    Send Get STA Request to HAL
+  -------------------------------------------------------------------------*/
+  return  WDI_SendMsg( pWDICtx, pSendBuffer, usSendSize,
+                       wdiGetStatsRspCb, pEventData->pUserData, WDI_GET_ROAM_RSSI_RESP);
+}/*WDI_ProcessGetRoamRssiReq*/
+#endif
 
 /**
  @brief Process Update Cfg Request function (called when Main
@@ -11400,6 +11661,18 @@ WDI_ProcessSendBeaconParamsReq
                   pwdiSendBeaconParams->wdiSendBeaconParamsInfo.beaconLength);
   halSendBeaconReq.sendBeaconParam.timIeOffset =
                   pwdiSendBeaconParams->wdiSendBeaconParamsInfo.timIeOffset;
+  /* usP2PIeOffset should be atleast greater than timIeOffset */
+  if ((pwdiSendBeaconParams->wdiSendBeaconParamsInfo.usP2PIeOffset != 0 ) &&
+          (pwdiSendBeaconParams->wdiSendBeaconParamsInfo.usP2PIeOffset <
+           pwdiSendBeaconParams->wdiSendBeaconParamsInfo.timIeOffset))
+  {
+      WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_WARN,
+              "Invalid usP2PIeOffset %hu",
+              pwdiSendBeaconParams->wdiSendBeaconParamsInfo.usP2PIeOffset);
+      WDI_ASSERT(0);
+      return WDI_STATUS_E_FAILURE;
+  }
+
   halSendBeaconReq.sendBeaconParam.p2pIeOffset =
                   pwdiSendBeaconParams->wdiSendBeaconParamsInfo.usP2PIeOffset;
 
@@ -11643,6 +11916,80 @@ if (( WDI_STATUS_SUCCESS != WDI_GetMessageBuffer( pWDICtx, WDI_SET_MAX_TX_POWER_
 
 }
 
+/**
+ @brief Process Set Tx Power Request function (called when Main
+        FSM allows it)
+
+ @param  pWDICtx:         pointer to the WLAN DAL context
+         pEventData:      pointer to the event information structure
+
+ @see
+ @return Result of the function call
+*/
+WDI_Status WDI_ProcessSetTxPowerReq
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+)
+{
+  WDI_SetTxPowerParamsType*      pwdiSetTxPowerParams = NULL;
+  WDA_SetTxPowerRspCb            wdiSetTxPowerRspCb;
+  wpt_uint8*                     pSendBuffer          = NULL;
+  wpt_uint16                     usDataOffset         = 0;
+  wpt_uint16                     usSendSize           = 0;
+  tSetTxPwrReqMsg                *halSetTxPower       = NULL;;
+  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+  /*-------------------------------------------------------------------------
+    Sanity check
+  -------------------------------------------------------------------------*/
+  if (( NULL == pEventData ) ||
+      ( NULL == pEventData->pEventData ) ||
+      ( NULL == pEventData->pCBfnc ))
+  {
+     WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+                 "%s: Invalid parameters", __func__);
+     WDI_ASSERT(0);
+     return WDI_STATUS_E_FAILURE;
+  }
+
+  pwdiSetTxPowerParams =
+    (WDI_SetTxPowerParamsType*)pEventData->pEventData;
+  wdiSetTxPowerRspCb =
+    (WDA_SetTxPowerRspCb)pEventData->pCBfnc;
+
+  /*-----------------------------------------------------------------------
+    Get message buffer
+  -----------------------------------------------------------------------*/
+  if (( WDI_STATUS_SUCCESS != WDI_GetMessageBuffer( pWDICtx, WDI_SET_TX_POWER_REQ,
+                        sizeof(tSetTxPwrReqParams),
+                        &pSendBuffer, &usDataOffset, &usSendSize))||
+      ( usSendSize < (usDataOffset + sizeof(tSetTxPwrReqParams)
+  )))
+  {
+     WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_ERROR,
+                 "Unable to get Set Max Tx Power req %x %x %x",
+                 pEventData, pwdiSetTxPowerParams, wdiSetTxPowerRspCb);
+     WDI_ASSERT(0);
+     return WDI_STATUS_E_FAILURE;
+  }
+
+  halSetTxPower = (tSetTxPwrReqMsg *)(pSendBuffer+usDataOffset);
+  halSetTxPower->setTxPwrReqParams.txPower =
+                  pwdiSetTxPowerParams->wdiTxPowerInfo.ucPower;
+  halSetTxPower->setTxPwrReqParams.bssIdx =
+                  pwdiSetTxPowerParams->wdiTxPowerInfo.bssIdx;
+
+  pWDICtx->wdiReqStatusCB     = pwdiSetTxPowerParams->wdiReqStatusCB;
+  pWDICtx->pReqStatusUserData = pwdiSetTxPowerParams->pUserData;
+
+  /*-------------------------------------------------------------------------
+    Send Set Tx Power Request to HAL
+  -------------------------------------------------------------------------*/
+  return  WDI_SendMsg( pWDICtx, pSendBuffer, usSendSize,
+                       wdiSetTxPowerRspCb, pEventData->pUserData,
+                       WDI_SET_TX_POWER_RESP);
+}
 
 /**
  @brief Process P2P Notice Of Absence Request function (called when Main FSM
@@ -16449,6 +16796,68 @@ WDI_ProcessGetStatsRsp
   return WDI_STATUS_SUCCESS;
 }/*WDI_ProcessGetStatsRsp*/
 
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+/**
+ @brief Process Get Roam Rssi Rsp function (called when a response is
+        being received over the bus from HAL)
+
+ @param  pWDICtx:         pointer to the WLAN DAL context
+         pEventData:      pointer to the event information structure
+
+ @see
+ @return Result of the function call
+*/
+WDI_Status
+WDI_ProcessGetRoamRssiRsp
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+)
+{
+  WDI_GetRoamRssiRspParamsType   wdiGetRoamRssiRsp;
+  WDI_GetRoamRssiRspCb           wdiGetRoamRssiRspCb;
+  tHalGetRoamRssiRspMsg          halRoamRssiRspParams;
+  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+  /*-------------------------------------------------------------------------
+    Sanity check
+  -------------------------------------------------------------------------*/
+  if (( NULL == pWDICtx ) || ( NULL == pEventData ) ||
+      ( NULL == pEventData->pEventData))
+  {
+     WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
+                 "%s: Invalid parameters", __func__);
+     WDI_ASSERT(0);
+     return WDI_STATUS_E_FAILURE;
+  }
+
+  wdiGetRoamRssiRspCb = (WDI_GetRoamRssiRspCb)pWDICtx->pfncRspCB;
+  if(NULL == wdiGetRoamRssiRspCb)
+  {
+     WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                 "%s: call back function is NULL", __func__);
+     WDI_ASSERT(0);
+     return WDI_STATUS_E_FAILURE;
+  }
+
+  /*-------------------------------------------------------------------------
+    Extract response and send it to UMAC
+  -------------------------------------------------------------------------*/
+  wpalMemoryCopy( &halRoamRssiRspParams.roamRssiRspParams,
+                  pEventData->pEventData,
+                  sizeof(halRoamRssiRspParams.roamRssiRspParams));
+
+  wdiGetRoamRssiRsp.wdiStatus  = WDI_HAL_2_WDI_STATUS(halRoamRssiRspParams.roamRssiRspParams.status);
+  wdiGetRoamRssiRsp.ucSTAIdx   = halRoamRssiRspParams.roamRssiRspParams.staId;
+  wdiGetRoamRssiRsp.rssi = halRoamRssiRspParams.roamRssiRspParams.rssi;
+
+  /*Notify UMAC*/
+  wdiGetRoamRssiRspCb( &wdiGetRoamRssiRsp, pWDICtx->pRspCBUserData);
+
+  return WDI_STATUS_SUCCESS;
+}/*WDI_ProcessGetRoamRssiRsp*/
+#endif
+
 
 /**
  @brief Process Update Cfg Rsp function (called when a response is
@@ -16583,7 +16992,7 @@ WDI_ProcessTriggerBARsp
   WDI_TriggerBARspCandidateType* wdiTriggerBARspCandidate;
   wpt_uint16                     index;
   wpt_uint16                     TidIndex;
-
+  WDI_Status                     halTriggerBARspStatus;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*-------------------------------------------------------------------------
@@ -16605,23 +17014,25 @@ WDI_ProcessTriggerBARsp
   -------------------------------------------------------------------------*/
   halTriggerBARsp = (tTriggerBARspParams *)pEventData->pEventData;
 
-  wdiTriggerBARsp = wpalMemoryAllocate(sizeof(WDI_TriggerBARspParamsType) +
+  halTriggerBARspStatus = WDI_HAL_2_WDI_STATUS(halTriggerBARsp->status);
+
+  if ( WDI_STATUS_SUCCESS == halTriggerBARspStatus)
+  {
+    wdiTriggerBARsp = wpalMemoryAllocate(sizeof(WDI_TriggerBARspParamsType) +
                       halTriggerBARsp->baCandidateCnt *
                       sizeof(WDI_TriggerBARspCandidateType));
-  if(NULL == wdiTriggerBARsp)
-  {
-    WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_WARN,
-                "Failed to allocate memory in Trigger BA Response %x %x %x ",
-                 pWDICtx, pEventData, pEventData->pEventData);
-    wpalMemoryFree(halTriggerBARsp);
-    WDI_ASSERT(0);
-    return WDI_STATUS_E_FAILURE;
-  }
 
-  wdiTriggerBARsp->wdiStatus = WDI_HAL_2_WDI_STATUS(halTriggerBARsp->status);
+    if(NULL == wdiTriggerBARsp)
+    {
+      WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_WARN,
+                  "Failed to allocate memory in Trigger BA Response %x %x %x ",
+                   pWDICtx, pEventData, pEventData->pEventData);
+      WDI_ASSERT(0);
+      return WDI_STATUS_E_FAILURE;
+    }
 
-  if ( WDI_STATUS_SUCCESS == wdiTriggerBARsp->wdiStatus)
-  {
+    wdiTriggerBARsp->wdiStatus = halTriggerBARspStatus;
+
     wdiTriggerBARsp->usBaCandidateCnt = halTriggerBARsp->baCandidateCnt;
     wpalMemoryCopy(wdiTriggerBARsp->macBSSID,
                                  halTriggerBARsp->bssId , WDI_MAC_ADDR_LEN);
@@ -16643,6 +17054,22 @@ WDI_ProcessTriggerBARsp
       wdiTriggerBARspCandidate++;
       halBaCandidate++;
     }
+  }
+  else
+  {
+    wdiTriggerBARsp = wpalMemoryAllocate(sizeof(WDI_TriggerBARspParamsType));
+
+    if(NULL == wdiTriggerBARsp)
+    {
+       WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_WARN,
+                  "Failed to allocate memory in Trigger BA Response %x %x %x ",
+                   pWDICtx, pEventData, pEventData->pEventData);
+       WDI_ASSERT(0);
+       return WDI_STATUS_E_FAILURE;
+    }
+
+    wdiTriggerBARsp->wdiStatus = halTriggerBARspStatus;
+
   }
 
   /*Notify UMAC*/
@@ -16865,6 +17292,66 @@ WDI_ProcessSetMaxTxPowerRsp
 
   /*Notify UMAC*/
   wdiReqStatusCb( &wdiSetMaxTxPowerRspMsg, pWDICtx->pRspCBUserData);
+
+  return WDI_STATUS_SUCCESS;
+}
+
+  /**
+ @brief Process Set Tx Power Rsp function (called when a response
+        is being received over the bus from HAL)
+
+ @param  pWDICtx:         pointer to the WLAN DAL context
+         pEventData:      pointer to the event information structure
+
+ @see
+ @return Result of the function call
+*/
+WDI_Status
+WDI_ProcessSetTxPowerRsp
+(
+  WDI_ControlBlockType*          pWDICtx,
+  WDI_EventInfoType*             pEventData
+)
+{
+  tSetTxPwrRspMsg             halTxpowerrsp;
+  WDI_SetTxPowerRspMsg        wdiSetTxPowerRspMsg;
+  WDA_SetTxPowerRspCb         wdiReqStatusCb;
+  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+  /*-------------------------------------------------------------------------
+    Sanity check
+  -------------------------------------------------------------------------*/
+  if (( NULL == pWDICtx ) || ( NULL == pEventData ) ||
+      ( NULL == pEventData->pEventData))
+  {
+     WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
+                 "%s: Invalid parameters", __func__);
+     WDI_ASSERT(0);
+     return WDI_STATUS_E_FAILURE;
+  }
+
+  wdiReqStatusCb = (WDA_SetTxPowerRspCb)pWDICtx->pfncRspCB;
+
+  /*-------------------------------------------------------------------------
+    Extract response and send it to UMAC
+  -------------------------------------------------------------------------*/
+  wpalMemoryCopy(&halTxpowerrsp.setTxPwrRspParams,
+                 pEventData->pEventData,
+                 sizeof(halTxpowerrsp.setTxPwrRspParams));
+
+  if (eHAL_STATUS_SUCCESS != halTxpowerrsp.setTxPwrRspParams.status)
+  {
+     WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_ERROR,
+                 "Error status returned in Set Tx Power Response ");
+     WDI_DetectedDeviceError(pWDICtx, WDI_ERR_BASIC_OP_FAILURE);
+     return WDI_STATUS_E_FAILURE;
+  }
+
+  wdiSetTxPowerRspMsg.wdiStatus =
+         WDI_HAL_2_WDI_STATUS(halTxpowerrsp.setTxPwrRspParams.status);
+
+  /*Notify UMAC*/
+  wdiReqStatusCb(&wdiSetTxPowerRspMsg, pWDICtx->pRspCBUserData);
 
   return WDI_STATUS_SUCCESS;
 }
@@ -21067,6 +21554,8 @@ WDI_2_HAL_REQ_TYPE
     return WLAN_HAL_UPDATE_PROBE_RSP_TEMPLATE_REQ;
    case WDI_SET_MAX_TX_POWER_REQ:
     return WLAN_HAL_SET_MAX_TX_POWER_REQ;
+   case WDI_SET_TX_POWER_REQ:
+    return WLAN_HAL_SET_TX_POWER_REQ;
   case WDI_P2P_GO_NOTICE_OF_ABSENCE_REQ:
     return WLAN_HAL_SET_P2P_GONOA_REQ;
   case WDI_ENTER_IMPS_REQ:
@@ -21175,6 +21664,8 @@ WDI_2_HAL_REQ_TYPE
   case WDI_UPDATE_VHT_OP_MODE_REQ:
     return WLAN_HAL_UPDATE_VHT_OP_MODE_REQ;
 #endif
+  case WDI_GET_ROAM_RSSI_REQ:
+    return WLAN_HAL_GET_ROAM_RSSI_REQ;
   default:
     return WLAN_HAL_MSG_MAX;
   }
@@ -21285,6 +21776,8 @@ HAL_2_WDI_RSP_TYPE
     return WDI_HAL_TX_PER_HIT_IND;
   case WLAN_HAL_SET_MAX_TX_POWER_RSP:
     return WDI_SET_MAX_TX_POWER_RESP;
+  case WLAN_HAL_SET_TX_POWER_RSP:
+    return WDI_SET_TX_POWER_RESP;
   case WLAN_HAL_SET_P2P_GONOA_RSP:
     return WDI_P2P_GO_NOTICE_OF_ABSENCE_RESP;
   case WLAN_HAL_ENTER_IMPS_RSP:
@@ -21393,6 +21886,10 @@ case WLAN_HAL_DEL_STA_SELF_RSP:
 #ifdef WLAN_FEATURE_11AC
   case WLAN_HAL_UPDATE_VHT_OP_MODE_RSP:
       return WDI_UPDATE_VHT_OP_MODE_RESP;
+#endif
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+  case WLAN_HAL_GET_ROAM_RSSI_RSP:
+    return WDI_GET_ROAM_RSSI_RESP;
 #endif
   default:
     return eDRIVER_TYPE_MAX;
@@ -22244,6 +22741,12 @@ WDI_ExtractRequestCBFromEvent
     *ppfnReqCB   =  ((WDI_GetStatsReqParamsType*)pEvent->pEventData)->wdiReqStatusCB;
     *ppUserData  =  ((WDI_GetStatsReqParamsType*)pEvent->pEventData)->pUserData;
     break;
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+  case WDI_GET_ROAM_RSSI_REQ:
+    *ppfnReqCB   =  ((WDI_GetRoamRssiReqParamsType*)pEvent->pEventData)->wdiReqStatusCB;
+    *ppUserData  =  ((WDI_GetRoamRssiReqParamsType*)pEvent->pEventData)->pUserData;
+    break;
+#endif
   case WDI_UPDATE_CFG_REQ:
     *ppfnReqCB   =  ((WDI_UpdateCfgReqParamsType*)pEvent->pEventData)->wdiReqStatusCB;
     *ppUserData  =  ((WDI_UpdateCfgReqParamsType*)pEvent->pEventData)->pUserData;
@@ -22331,6 +22834,20 @@ WDI_ExtractRequestCBFromEvent
   case WDI_SET_TX_PER_TRACKING_REQ:
     *ppfnReqCB   =  ((WDI_SetTxPerTrackingReqParamsType*)pEvent->pEventData)->wdiReqStatusCB;
     *ppUserData  =  ((WDI_SetTxPerTrackingReqParamsType*)pEvent->pEventData)->pUserData;
+    break;
+  case WDI_RECEIVE_FILTER_SET_FILTER_REQ:
+    *ppfnReqCB   =  ((WDI_SetRcvPktFilterReqParamsType*)pEvent->pEventData)->wdiReqStatusCB;
+    *ppUserData  =  ((WDI_SetRcvPktFilterReqParamsType*)pEvent->pEventData)->pUserData;
+    break;
+  case WDI_PACKET_COALESCING_FILTER_MATCH_COUNT_REQ:
+    *ppfnReqCB   =  ((WDI_RcvFltPktMatchCntReqParamsType*)pEvent->pEventData)->wdiReqStatusCB;
+    *ppUserData  =  ((WDI_RcvFltPktMatchCntReqParamsType*)pEvent->pEventData)->pUserData;
+    break;
+  case WDI_RECEIVE_FILTER_CLEAR_FILTER_REQ:
+    *ppfnReqCB   =  ((WDI_RcvFltPktClearReqParamsType*)pEvent->pEventData)->wdiReqStatusCB;
+    *ppUserData  =  ((WDI_RcvFltPktClearReqParamsType*)pEvent->pEventData)->pUserData;
+    break;
+
   default:
     *ppfnReqCB   =  NULL;
     *ppUserData  =  NULL;
@@ -23511,8 +24028,8 @@ WDI_ReceiveFilterSetFilterReq
    wdiEventData.wdiRequest      = WDI_RECEIVE_FILTER_SET_FILTER_REQ;
    wdiEventData.pEventData      = pwdiSetRcvPktFilterReqInfo;
    wdiEventData.uEventDataSize  = sizeof(*pwdiSetRcvPktFilterReqInfo) +
-                                  (pwdiSetRcvPktFilterReqInfo->wdiPktFilterCfg.numFieldParams
-                                  * sizeof(WDI_RcvPktFilterFieldParams) - 1);
+                                  (pwdiSetRcvPktFilterReqInfo->wdiPktFilterCfg.numFieldParams - 1)
+                                  * sizeof(WDI_RcvPktFilterFieldParams);
    wdiEventData.pCBfnc          = wdiReceiveFilterSetFilterCallback;
    wdiEventData.pUserData       = pUserData;
 

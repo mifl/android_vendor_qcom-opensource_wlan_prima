@@ -135,10 +135,8 @@ WDI_DP_UtilsInit
 {
   WDI_RxBdType*  pAmsduRxBdFixMask; 
 
-#ifdef FEATURE_WLAN_UAPSD_FW_TRG_FRAMES
     // WQ to be used for filling the TxBD
   pWDICtx->ucDpuRF = BMUWQ_BTQM_TX_MGMT; 
-#endif //FEATURE_WLAN_UAPSD_FW_TRG_FRAMES
 
 #ifdef WLAN_PERF
   pWDICtx->uBdSigSerialNum = 0;
@@ -456,13 +454,11 @@ WDI_FillTxBd
      -----------------------------------------------------------------------*/
     pBd->bdt   = HWBD_TYPE_GENERIC; 
 
-#ifdef FEATURE_WLAN_UAPSD_FW_TRG_FRAMES
     // Route all trigger enabled frames to FW WQ, for FW to suspend trigger frame generation 
     // when no traffic is exists on trigger enabled ACs
     if(ucTxFlag & WDI_TRIGGER_ENABLED_AC_MASK) {
         pBd->dpuRF = pWDICtx->ucDpuRF; 
     } else 
-#endif //FEATURE_WLAN_UAPSD_FW_TRG_FRAMES
     {
         pBd->dpuRF = BMUWQ_BTQM_TX_MGMT; 
     }
@@ -679,7 +675,7 @@ WDI_FillTxBd
            if (WDI_STATUS_SUCCESS != wdiStatus) 
            {
                 WPAL_TRACE(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR, "WDI_STATableFindStaidByAddr failed");
-                return WDI_STATUS_E_FAILURE;
+                return WDI_STATUS_E_NOT_ALLOWED;
            }
 #else
             ucStaId = pWDICtx->ucSelfStaId;
@@ -793,7 +789,7 @@ WDI_FillTxBd
                                               *(wpt_macAddr*)pAddr2, &ucStaId ); 
               if (WDI_STATUS_SUCCESS != wdiStatus)
               {
-                return WDI_STATUS_E_FAILURE;
+                return WDI_STATUS_E_NOT_ALLOWED;
               }
 
               // Get the Bss Index related to the staId

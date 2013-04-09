@@ -91,6 +91,11 @@ void limFTCleanup(tpAniSirGlobal pMac)
         PELOGE(limLog( pMac, LOGE, "%s: Freeing pFTPreAuthReq= %p\n", 
             __func__, pMac->ft.ftPEContext.pFTPreAuthReq);) 
 #endif
+        if (pMac->ft.ftPEContext.pFTPreAuthReq->pbssDescription)
+        {
+            vos_mem_free(pMac->ft.ftPEContext.pFTPreAuthReq->pbssDescription);
+            pMac->ft.ftPEContext.pFTPreAuthReq->pbssDescription = NULL;
+        }
         vos_mem_free(pMac->ft.ftPEContext.pFTPreAuthReq);
         pMac->ft.ftPEContext.pFTPreAuthReq = NULL;
     }
@@ -150,6 +155,12 @@ void limFTInit(tpAniSirGlobal pMac)
         PELOGE(limLog( pMac, LOGE, "%s: Freeing pFTPreAuthReq= %p\n", 
             __func__, pMac->ft.ftPEContext.pFTPreAuthReq);) 
 #endif
+        if (pMac->ft.ftPEContext.pFTPreAuthReq->pbssDescription)
+        {
+            vos_mem_free(pMac->ft.ftPEContext.pFTPreAuthReq->pbssDescription);
+            pMac->ft.ftPEContext.pFTPreAuthReq->pbssDescription = NULL;
+        }
+
         vos_mem_free(pMac->ft.ftPEContext.pFTPreAuthReq);
         pMac->ft.ftPEContext.pFTPreAuthReq = NULL;
     }
@@ -1264,6 +1275,7 @@ limProcessFTAggrQosReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf )
 
     if (psessionEntry == NULL) {
         PELOGE(limLog(pMac, LOGE, FL("psession Entry Null for sessionId = %d\n"), aggrQosReq->sessionId);)
+        palFreeMemory(pMac->hHdd, (tANI_U8*)pAggrAddTsParam);
         return eSIR_FAILURE;
     }
 
@@ -1271,6 +1283,7 @@ limProcessFTAggrQosReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf )
     if (pSta == NULL)
     {
         PELOGE(limLog(pMac, LOGE, FL("Station context not found - ignoring AddTsRsp\n"));)
+        palFreeMemory(pMac->hHdd, (tANI_U8*)pAggrAddTsParam);
         return eSIR_FAILURE;
     }
 
@@ -1337,6 +1350,7 @@ limProcessFTAggrQosReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf )
             {
                 PELOGE(limLog(pMac, LOGE, FL("Adding entry in lim Tspec Table failed \n"));)
                 pMac->lim.gLimAddtsSent = false;
+                palFreeMemory(pMac->hHdd, (tANI_U8*)pAggrAddTsParam);
                 return eSIR_FAILURE; //Error handling. send the response with error status. need to send DelTS to tear down the TSPEC status.
             }
 

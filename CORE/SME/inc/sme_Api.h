@@ -771,7 +771,14 @@ eHalStatus sme_GetStatistics(tHalHandle hHal, eCsrStatsRequesterType requesterId
 eHalStatus sme_GetRssi(tHalHandle hHal, 
                              tCsrRssiCallback callback, 
                              tANI_U8 staId, tCsrBssid bssId, void *pContext, void* pVosContext);
-
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+eHalStatus sme_GetRoamRssi(tHalHandle hHal,
+                           tCsrRssiCallback callback,
+                           tANI_U8 staId,
+                           tCsrBssid bssId,
+                           void *pContext,
+                           void* pVosContext);
+#endif
 /* ---------------------------------------------------------------------------
     \fn sme_CfgSetInt
     \brief a wrapper function that HDD calls to set parameters in CFG. 
@@ -2119,6 +2126,21 @@ eHalStatus sme_SetMaxTxPower(tHalHandle hHal, tSirMacAddr pBssid,
 
 /* ---------------------------------------------------------------------------
 
+    \fn sme_SetTxPower
+
+    \brief Set Transmit Power dynamically. Note: this setting will
+    not persist over reboots.
+
+    \param  hHal
+    \param sessionId  Target Session ID
+    \param mW  power to set in mW
+    \- return eHalStatus
+
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_SetTxPower(tHalHandle hHal, v_U8_t sessionId, v_U8_t mW);
+
+/* ---------------------------------------------------------------------------
+
     \fn sme_HideSSID
 
     \brief Enable/Disables hidden SSID dynamically. Note: this setting will
@@ -2198,17 +2220,14 @@ eHalStatus sme_GetCurrentCountryCode(tHalHandle hHal, tANI_U8 *pCountry);
     \fn sme_transportDebug
     \brief  Dynamically monitoring Transport channels
             Private IOCTL will querry transport channel status if driver loaded
+    \param  hHal Upper MAC context
     \param  displaySnapshot Display transport channel snapshot option
     \param  toggleStallDetect Enable stall detect feature
                               This feature will take effect to data performance
                               Not integrate till fully verification
     \- return NONE
     -------------------------------------------------------------------------*/
-void sme_transportDebug
-(
-   v_BOOL_t  displaySnapshot,
-   v_BOOL_t  toggleStallDetect
-);
+void sme_transportDebug(tHalHandle hHal, v_BOOL_t displaySnapshot, v_BOOL_t toggleStallDetect);
 
 /* ---------------------------------------------------------------------------
     \fn     sme_ResetPowerValuesFor5G
@@ -2494,6 +2513,16 @@ tANI_U8 sme_IsFeatureSupportedByFW(tANI_U8 featEnumValue);
 VOS_STATUS sme_SendTdlsMgmtFrame(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr peerMac,
       tANI_U8 frame_type, tANI_U8 dialog, tANI_U16 status, tANI_U8 *buf, tANI_U8 len, tANI_U8 responder);
 /* ---------------------------------------------------------------------------
+    \fn sme_ChangeTdlsPeerSta
+    \brief  API to Update TDLS peer sta parameters.
+
+    \param  peerMac - peer's Mac Adress.
+    \param  staParams - Peer Station Parameters.
+    \- return VOS_STATUS_SUCCES
+    -------------------------------------------------------------------------*/
+VOS_STATUS sme_ChangeTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr peerMac,
+                                 tCsrStaParams *pstaParams);
+/* ---------------------------------------------------------------------------
     \fn sme_AddTdlsPeerSta
     \brief  API to Add TDLS peer sta entry.
             
@@ -2509,6 +2538,20 @@ VOS_STATUS sme_AddTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr pe
     \- return VOS_STATUS_SUCCES
     -------------------------------------------------------------------------*/
 VOS_STATUS sme_DeleteTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr peerMac);
+/* ---------------------------------------------------------------------------
+    \fn sme_IsPmcBmps
+    \brief  API to Check if PMC state is BMPS.
+
+    \- return v_BOOL_t
+    -------------------------------------------------------------------------*/
+v_BOOL_t sme_IsPmcBmps(tHalHandle hHal);
+/* ---------------------------------------------------------------------------
+    \fn sme_SetTdlsPowerSaveProhibited
+    \API to set/reset the isTdlsPowerSaveProhibited.
+
+    \- return void
+    -------------------------------------------------------------------------*/
+void sme_SetTdlsPowerSaveProhibited(tHalHandle hHal, v_BOOL_t val);
 #endif
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
 typedef struct smeTdlsDisResult
