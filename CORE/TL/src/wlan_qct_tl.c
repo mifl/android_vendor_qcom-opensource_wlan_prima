@@ -491,7 +491,7 @@ WLANTL_Open
   if (( NULL == pTLCb ) || ( NULL == pTLConfig ) )
   {
     TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_FATAL,
-               "WLAN TL: Invalid input pointer on WLANTL_Open TL %x Config %x", pTLCb, pTLConfig ));
+               "WLAN TL: Invalid input pointer on WLANTL_Open TL %p Config %p", pTLCb, pTLConfig ));
     return VOS_STATUS_E_FAULT;
   }
 
@@ -4378,7 +4378,7 @@ WLANTL_TxComp
     }
 
     TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
-               "WLAN TL:Calling Tx complete for pkt %x in function %x",
+               "WLAN TL:Calling Tx complete for pkt %p in function %p",
                vosDataBuff, pfnTxComp));
 
     vosTempTx = vosDataBuff;
@@ -4456,8 +4456,8 @@ WLANTL_CacheSTAFrame
   if (( NULL == pTLCb ) || ( NULL == vosTempBuff ) )
   {
     TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-               "WLAN TL: Invalid input pointer on WLANTL_CacheSTAFrame TL %x"
-               " Packet %x", pTLCb, vosTempBuff ));
+               "WLAN TL: Invalid input pointer on WLANTL_CacheSTAFrame TL %p"
+               " Packet %p", pTLCb, vosTempBuff ));
     return VOS_STATUS_E_FAULT;
   }
 
@@ -4651,7 +4651,7 @@ WLANTL_ForwardSTAFrames
   if ( NULL == pTLCb )
   {
     TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-        "WLAN TL: Invalid input pointer on WLANTL_ForwardSTAFrames TL %x",
+        "WLAN TL: Invalid input pointer on WLANTL_ForwardSTAFrames TL %p",
          pTLCb ));
     return VOS_STATUS_E_FAULT;
   }
@@ -6544,7 +6544,7 @@ WLANTL_STATxAuth
   if (( NULL == pTLCb ) || ( NULL == pvosDataBuff ))
   {
      TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-            "WLAN TL:Invalid input params on WLANTL_STATxAuth TL %x DB %x",
+            "WLAN TL:Invalid input params on WLANTL_STATxAuth TL %x DB %p",
              pTLCb, pvosDataBuff));
     if (NULL != pvosDataBuff)
     {
@@ -10267,7 +10267,7 @@ WLANTL_CleanSTA
        ( NULL != ptlSTAClient->vosAMSDUChainRoot ))
   {
     TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_FATAL,
-               "WLAN TL:Non NULL vosAMSDUChainRoot (=%x) on WLANTL_CleanSTA," 
+               "WLAN TL:Non NULL vosAMSDUChainRoot (=%p) on WLANTL_CleanSTA,"
                "suspecting a memory corruption"));
 
   }
@@ -10404,7 +10404,7 @@ WLANTL_EnableUAPSDForAC
   {
     TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
                "WLAN TL:Invalid input params on WLANTL_EnableUAPSDForAC"
-               " TL: %x  STA: %d  AC: %d SI: %d", 
+               " TL: %p  STA: %d  AC: %d SI: %d",
                pTLCb, ucSTAId, ucAC, uServiceInt ));
     return VOS_STATUS_E_FAULT;
   }
@@ -10491,7 +10491,7 @@ WLANTL_DisableUAPSDForAC
   {
     TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
                "WLAN TL:Invalid input params on WLANTL_DisableUAPSDForAC"
-               " TL: %x  STA: %d  AC: %d", pTLCb, ucSTAId, ucAC ));
+               " TL: %p  STA: %d  AC: %d", pTLCb, ucSTAId, ucAC ));
     return VOS_STATUS_E_FAULT;
   }
 
@@ -11259,7 +11259,7 @@ void WLANTL_PowerStateChangedCB
    if (NULL == tlCtxt)
    {
      VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-                "Invalid TL Control Block", __func__ );
+                "%s: Invalid TL Control Block", __func__ );
      return;
    }
 
