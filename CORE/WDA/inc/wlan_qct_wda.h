@@ -940,13 +940,11 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_UPDATE_PROBE_RSP_TEMPLATE_IND     SIR_HAL_UPDATE_PROBE_RSP_TEMPLATE_IND
 #define WDA_SIGNAL_BTAMP_EVENT         SIR_HAL_SIGNAL_BTAMP_EVENT
 
-#ifdef ANI_CHIPSET_VOLANS
 #ifdef FEATURE_OEM_DATA_SUPPORT
 /* PE <-> HAL OEM_DATA RELATED MESSAGES */
 #define WDA_START_OEM_DATA_REQ         SIR_HAL_START_OEM_DATA_REQ 
 #define WDA_START_OEM_DATA_RSP         SIR_HAL_START_OEM_DATA_RSP
 #define WDA_FINISH_OEM_DATA_REQ        SIR_HAL_FINISH_OEM_DATA_REQ
-#endif
 #endif
 
 #define WDA_SET_MAX_TX_POWER_REQ       SIR_HAL_SET_MAX_TX_POWER_REQ
@@ -1021,6 +1019,9 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #ifdef WLAN_FEATURE_11AC
 #define WDA_UPDATE_OP_MODE         SIR_HAL_UPDATE_OP_MODE
 #endif
+
+#define WDA_GET_ROAM_RSSI_REQ      SIR_HAL_GET_ROAM_RSSI_REQ
+#define WDA_GET_ROAM_RSSI_RSP      SIR_HAL_GET_ROAM_RSSI_RSP
 
 tSirRetStatus wdaPostCtrlMsg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 
@@ -1762,6 +1763,7 @@ tANI_U8 WDA_getFwWlanFeatCaps(tANI_U8 featEnumValue);
     Or if host driver detects any abnormal stcuk may display
 
   PARAMETERS
+    pMac : upper MAC context pointer
     displaySnapshot : Display DXE snapshot option
     enableStallDetect : Enable stall detect feature
                         This feature will take effect to data performance
@@ -1773,8 +1775,9 @@ tANI_U8 WDA_getFwWlanFeatCaps(tANI_U8 featEnumValue);
 ===========================================================================*/
 void WDA_TransportChannelDebug
 (
-   v_BOOL_t   displaySnapshot,
-   v_BOOL_t   toggleStallDetect
+  tpAniSirGlobal pMac,
+  v_BOOL_t       displaySnapshot,
+  v_BOOL_t       toggleStallDetect
 );
 
 /*==========================================================================

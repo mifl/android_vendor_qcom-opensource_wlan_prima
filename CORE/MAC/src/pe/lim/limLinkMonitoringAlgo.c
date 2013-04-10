@@ -131,7 +131,7 @@ limDeleteStaContext(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
         case HAL_DEL_STA_REASON_CODE_KEEP_ALIVE:
         case HAL_DEL_STA_REASON_CODE_TIM_BASED:
              PELOGE(limLog(pMac, LOGE, FL(" Deleting station: staId = %d, reasonCode = %d\n"), pMsg->staId, pMsg->reasonCode);)
-             pStaDs = dphGetHashEntry(pMac, pMsg->assocId, &psessionEntry->dph.dphHashTable);
+             pStaDs = dphLookupAssocId(pMac, pMsg->staId, &pMsg->assocId, &psessionEntry->dph.dphHashTable);
 
              if (!pStaDs)
              {
@@ -304,7 +304,7 @@ limTriggerSTAdeletion(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpPESession pse
 
   
     //Fill in length
-    limCopyU16((tANI_U8*)pLen, msgLength);
+    limCopyU16((tANI_U8*)pLen , msgLength);
 
     limPostSmeMessage(pMac, eWNI_SME_DISASSOC_REQ, (tANI_U32 *) pSmeDeauthReq);
     palFreeMemory( pMac->hHdd, pSmeDeauthReq );

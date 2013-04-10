@@ -204,6 +204,7 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #ifdef WLAN_FEATURE_11AC
 #define WE_GET_RSSI          6
 #endif
+#define WE_GET_ROAM_RSSI     7
 #ifdef FEATURE_WLAN_TDLS
 #define WE_GET_TDLS_PEERS    8
 #endif
@@ -665,6 +666,134 @@ VOS_STATUS wlan_hdd_get_rssi(hdd_adapter_t *pAdapter, v_S7_t *rssi_value)
    return VOS_STATUS_SUCCESS;
 }
 
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+
+static void hdd_GetRoamRssiCB( v_S7_t rssi, tANI_U32 staId, void *pContext )
+{
+   struct statsContext *pStatsContext;
+   hdd_adapter_t *pAdapter;
+   if (ioctl_debug)
+   {
+      pr_info("%s: rssi [%d] STA [%d] pContext [%p]\n",
+              __func__, (int)rssi, (int)staId, pContext);
+   }
+
+   if (NULL == pContext)
+   {
+      hddLog(VOS_TRACE_LEVEL_ERROR,
+             "%s: Bad param, pContext [%p]",
+             __func__, pContext);
+      return;
+   }
+
+   /* there is a race condition that exists between this callback function
+      and the caller since the caller could time out either before or
+      while this code is executing.  we'll assume the timeout hasn't
+      occurred, but we'll verify that right before we save our work */
+
+   pStatsContext = pContext;
+   pAdapter      = pStatsContext->pAdapter;
+   if ((NULL == pAdapter) || (RSSI_CONTEXT_MAGIC != pStatsContext->magic))
+   {
+      /* the caller presumably timed out so there is nothing we can do */
+      hddLog(VOS_TRACE_LEVEL_WARN,
+             "%s: Invalid context, pAdapter [%p] magic [%08x]",
+              __func__, pAdapter, pStatsContext->magic);
+      if (ioctl_debug)
+      {
+         pr_info("%s: Invalid context, pAdapter [%p] magic [%08x]\n",
+                 __func__, pAdapter, pStatsContext->magic);
+      }
+      return;
+   }
+
+   /* the race is on.  caller could have timed out immediately after
+      we verified the magic, but if so, caller will wait a short time
+      for us to copy over the rssi */
+   pAdapter->rssi = rssi;
+
+   /* and notify the caller */
+   complete(&pStatsContext->completion);
+}
+
+
+
+VOS_STATUS wlan_hdd_get_roam_rssi(hdd_adapter_t *pAdapter, v_S7_t *rssi_value)
+{
+   struct statsContext context;
+   hdd_context_t *pHddCtx = NULL;
+   hdd_station_ctx_t *pHddStaCtx = NULL;
+   eHalStatus hstatus;
+   long lrc;
+
+   if (NULL == pAdapter)
+   {
+       hddLog(VOS_TRACE_LEVEL_WARN,
+              "%s: Invalid context, pAdapter", __func__);
+       return VOS_STATUS_E_FAULT;
+   }
+   if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
+   {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, "%s:LOGP in Progress. Ignore!!!",__func__);
+       /* return a cached value */
+       *rssi_value = pAdapter->rssi;
+       return VOS_STATUS_SUCCESS;
+   }
+
+   pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+
+   if(eConnectionState_Associated != pHddStaCtx->conn_info.connState)
+   {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s:Not associated!",__func__);
+       /* return a cached value */
+       *rssi_value = 0;
+       return VOS_STATUS_SUCCESS;
+   }
+   init_completion(&context.completion);
+   context.pAdapter = pAdapter;
+   context.magic = RSSI_CONTEXT_MAGIC;
+
+   hstatus = sme_GetRoamRssi(pHddCtx->hHal, hdd_GetRoamRssiCB,
+                         pHddStaCtx->conn_info.staId[ 0 ],
+                         pHddStaCtx->conn_info.bssId,
+                         &context, pHddCtx->pvosContext);
+   if (eHAL_STATUS_SUCCESS != hstatus)
+   {
+       hddLog(VOS_TRACE_LEVEL_ERROR,"%s: Unable to retrieve RSSI",
+              __func__);
+       /* we'll returned a cached value below */
+   }
+   else
+   {
+       /* request was sent -- wait for the response */
+       lrc = wait_for_completion_interruptible_timeout(&context.completion,
+                                    msecs_to_jiffies(WLAN_WAIT_TIME_STATS));
+       /* either we have a response or we timed out
+          either way, first invalidate our magic */
+       context.magic = 0;
+       if (lrc <= 0)
+       {
+          hddLog(VOS_TRACE_LEVEL_ERROR,"%s: SME %s while retrieving RSSI ",
+                 __func__, (0 == lrc) ? "timeout" : "interrupt");
+          /* there is a race condition such that the callback
+             function could be executing at the same time we are. of
+             primary concern is if the callback function had already
+             verified the "magic" but hasn't yet set the completion
+             variable.  Since the completion variable is on our
+             stack, we'll delay just a bit to make sure the data is
+             still valid if that is the case */
+          msleep(50);
+          /* we'll now returned a cached value below */
+       }
+   }
+   *rssi_value = pAdapter->rssi;
+
+   return VOS_STATUS_SUCCESS;
+}
+#endif
+
+
 void hdd_StatisticsCB( void *pStats, void *pContext )
 {
    hdd_adapter_t             *pAdapter      = (hdd_adapter_t *)pContext;
@@ -813,20 +942,27 @@ void hdd_clearRoamProfileIe( hdd_adapter_t *pAdapter)
 void wlan_hdd_ula_done_cb(v_VOID_t *callbackContext)
 {
     hdd_adapter_t *pAdapter = (hdd_adapter_t*)callbackContext;
-    hdd_wext_state_t *pWextState= WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 
-    complete(&pWextState->completion_var);
+    if (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: Invalid pAdapter magic", __func__);
+    }
+    else
+    {
+        complete(&pAdapter->ula_complete);
+    }
 }
 
 VOS_STATUS wlan_hdd_check_ula_done(hdd_adapter_t *pAdapter)
 {
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-    hdd_wext_state_t  *pWextState =  WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
     VOS_STATUS vos_status;
+    unsigned long rc;
 
     if (VOS_FALSE == pHddStaCtx->conn_info.uIsAuthenticated)
     {
-        INIT_COMPLETION(pWextState->completion_var);
+        INIT_COMPLETION(pAdapter->ula_complete);
 
         /*To avoid race condition between the set key and the last EAPOL
           packet, notify TL to finish upper layer authentication incase if the
@@ -842,8 +978,16 @@ VOS_STATUS wlan_hdd_check_ula_done(hdd_adapter_t *pAdapter)
 
         }
 
-        wait_for_completion_timeout(&pWextState->completion_var,
+        rc = wait_for_completion_timeout(&pAdapter->ula_complete,
                                     msecs_to_jiffies(HDD_FINISH_ULA_TIME_OUT));
+        if (0 == rc)
+        {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "%s: Timeout waiting for ULA to complete", __func__);
+            /* we'll still fall through and return success since the
+             * connection may still get established but is just taking
+             * too long for us to wait */
+        }
     }
     return VOS_STATUS_SUCCESS;
 }
@@ -4028,6 +4172,16 @@ static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *i
         }
 #endif
            
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+        case WE_GET_ROAM_RSSI:
+        {
+            v_S7_t s7Rssi = 0;
+            wlan_hdd_get_roam_rssi(pAdapter, &s7Rssi);
+            snprintf(extra, WE_MAX_STR_LEN, "rssi=%d", s7Rssi);
+            wrqu->data.length = strlen(extra)+1;
+            break;
+        }
+#endif
         case WE_GET_WMM_STATUS:
         {
             snprintf(extra, WE_MAX_STR_LEN,
@@ -4097,7 +4251,7 @@ static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *i
 #ifdef FEATURE_WLAN_TDLS
         case WE_GET_TDLS_PEERS:
         {
-            wrqu->data.length = wlan_hdd_tdls_get_all_peers(extra, WE_MAX_STR_LEN)+1;
+            wrqu->data.length = wlan_hdd_tdls_get_all_peers(pAdapter, extra, WE_MAX_STR_LEN)+1;
             break;
         }
 #endif
@@ -4208,12 +4362,14 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
 
         case WE_ENABLE_DXE_STALL_DETECT:
         {
-            sme_transportDebug(VOS_FALSE, VOS_TRUE);
+            tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
+            sme_transportDebug(hHal, VOS_FALSE, VOS_TRUE);
             break;
         }
         case WE_DISPLAY_DXE_SNAP_SHOT:
         {
-            sme_transportDebug(VOS_TRUE, VOS_FALSE);
+            tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
+            sme_transportDebug(hHal, VOS_TRUE, VOS_FALSE);
             break;
         }
         case  WE_SET_REASSOC_TRIGGER:
@@ -5593,7 +5749,7 @@ VOS_STATUS iw_set_pno(struct net_device *dev, struct iw_request_info *info,
     <scan_timers> <scan_time> <scan_repeat> <scan_time> <scan_repeat>
 
     e.g:
-    1 2 4 test 0 0 3 1 6 11 2 40 5 test2 4 4 6 1 2 3 4 5 6 1 0 2 5 2 300 0 
+    1 2 4 test 0 0 3 1 6 11 2 40 5 test2 4 4 6 1 2 3 4 5 6 1 0 2 5 2 300 0
 
     this translates into:
     -----------------------------
@@ -5609,7 +5765,7 @@ VOS_STATUS iw_set_pno(struct net_device *dev, struct iw_request_info *info,
     bcast type is non-bcast (directed probe will be sent)
     and must not meet any RSSI threshold
 
-    scan every 5 seconds 2 times, scan every 300 seconds until stopped 
+    scan every 5 seconds 2 times, scan every 300 seconds until stopped
   -----------------------------------------------------------------------*/
   ptr = (char*)(wrqu->data.pointer + nOffset);
 
@@ -5665,7 +5821,7 @@ VOS_STATUS iw_set_pno(struct net_device *dev, struct iw_request_info *info,
     /*Advance to SSID*/
     ptr += nOffset;
 
- memcpy(pnoRequest.aNetworks[i].ssId.ssId, ptr,
+    memcpy(pnoRequest.aNetworks[i].ssId.ssId, ptr,
            pnoRequest.aNetworks[i].ssId.length);
     ptr += pnoRequest.aNetworks[i].ssId.length;
 
@@ -5746,18 +5902,18 @@ VOS_STATUS iw_set_pno(struct net_device *dev, struct iw_request_info *info,
               &(pnoRequest.scanTimers.ucScanTimersCount), &nOffset);
 
   /*Read the scan timers*/
-  if (( 1 == ucParams )&&(  pnoRequest.scanTimers.ucScanTimersCount >= 0 ))
+  if (( 1 == ucParams ) && ( pnoRequest.scanTimers.ucScanTimersCount > 0 ))
   {
      ptr += nOffset;
 
-     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, 
-        "Scan timer count %d offset %d", 
+     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+        "Scan timer count %d offset %d",
         pnoRequest.scanTimers.ucScanTimersCount,
         nOffset );
 
      if ( SIR_PNO_MAX_SCAN_TIMERS < pnoRequest.scanTimers.ucScanTimersCount )
      {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, 
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                     "Incorrect cmd - too many scan timers");
        return VOS_STATUS_E_FAILURE;
      }
@@ -5769,15 +5925,15 @@ VOS_STATUS iw_set_pno(struct net_device *dev, struct iw_request_info *info,
            &( pnoRequest.scanTimers.aTimerValues[i].uTimerRepeat),
            &nOffset);
 
-        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, 
-            "PNO Timer value %d Timer repeat %d offset %d", 
-            pnoRequest.scanTimers.aTimerValues[i].uTimerValue, 
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+            "PNO Timer value %d Timer repeat %d offset %d",
+            pnoRequest.scanTimers.aTimerValues[i].uTimerValue,
             pnoRequest.scanTimers.aTimerValues[i].uTimerRepeat,
             nOffset );
 
         if ( 2 != ucParams )
         {
-          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, 
+          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                     "Incorrect cmd - diff params then expected %d", ucParams);
           return VOS_STATUS_E_FAILURE;
         }
@@ -5788,8 +5944,8 @@ VOS_STATUS iw_set_pno(struct net_device *dev, struct iw_request_info *info,
   }
   else
   {
-    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, 
-       "No scan timers provided param count %d scan timers %d", 
+    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+       "No scan timers provided param count %d scan timers %d",
         ucParams,  pnoRequest.scanTimers.ucScanTimersCount );
 
     /*Scan timers defaults to 5 minutes*/
@@ -6444,6 +6600,12 @@ static const struct iw_priv_args we_private_args[] = {
         0,
         IW_PRIV_TYPE_CHAR| WE_MAX_STR_LEN,
         "getRSSI" },
+#endif
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+    {   WE_GET_ROAM_RSSI,
+        0,
+        IW_PRIV_TYPE_CHAR| WE_MAX_STR_LEN,
+        "getRoamRSSI" },
 #endif
     {   WE_GET_WMM_STATUS,
         0,

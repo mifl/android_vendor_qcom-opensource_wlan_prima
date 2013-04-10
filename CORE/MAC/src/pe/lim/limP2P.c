@@ -78,9 +78,6 @@
 #define   BSSID_OFFSET           16
 #define   ADDR2_OFFSET           10
 #define   ACTION_OFFSET          24
-#define   LIM_MIN_REM_TIME_FOR_TX_ACTION_FRAME                     50
-#define   LIM_MIN_REM_TIME_EXT_FOR_TX_ACTION_FRAME                 60
-
 
 
 void limRemainOnChnlSuspendLinkHdlr(tpAniSirGlobal pMac, eHalStatus status,
@@ -399,19 +396,13 @@ error1:
  *------------------------------------------------------------------*/
 void limProcessInsertSingleShotNOATimeout(tpAniSirGlobal pMac)
 {
-    /* timeout means start NOA did not arrive; we need to restart the timer and
-     * send the scan response from here
+    /* timeout means start NOA did not arrive; we need to deactivate and change the timer for
+     * future activations
      */
     limDeactivateAndChangeTimer(pMac, eLIM_INSERT_SINGLESHOT_NOA_TIMER);
-    
-    // send the scan response back and do not even call insert NOA
-    limSendSmeScanRsp(pMac, sizeof(tSirSmeScanRsp), eSIR_SME_SCAN_FAILED, pMac->lim.gSmeSessionId, pMac->lim.gTransactionId);
 
-    if(pMac->lim.gpLimSmeScanReq != NULL)
-    {
-        palFreeMemory( pMac->hHdd, (tANI_U8 *) pMac->lim.gpLimSmeScanReq);
-        pMac->lim.gpLimSmeScanReq = NULL;
-    }
+    /* Even if insert NOA timedout, go ahead and process/send stored SME request */
+    limProcessRegdDefdSmeReqAfterNOAStart(pMac);
 
     return;
 }
@@ -640,17 +631,14 @@ void limSendSmeMgmtFrameInd(
             ( (psessionEntry != NULL) && (psessionEntry->pePersona != VOS_P2P_GO_MODE)) &&
             (frameType == SIR_MAC_MGMT_ACTION))
     {
-        tANI_U32 curTime = vos_timer_get_system_time();
-        if((curTime - pMac->lim.p2pRemOnChanTimeStamp) > (pMac->lim.gTotalScanDuration - LIM_MIN_REM_TIME_FOR_TX_ACTION_FRAME))
-        {
             unsigned int chanWaitTime, vStatus ;
 
-            limLog( pMac, LOG1, FL("Rx: Extend the gLimRemainOnChannelTimer"));
+            limLog( pMac, LOG1, FL("Rx: Extend the gLimRemainOnChannelTimer = %d "),
+                                                              pMac->lim.gTotalScanDuration);
 
             pMac->lim.p2pRemOnChanTimeStamp = vos_timer_get_system_time();
-            pMac->lim.gTotalScanDuration = LIM_MIN_REM_TIME_EXT_FOR_TX_ACTION_FRAME;
 
-            chanWaitTime = SYS_MS_TO_TICKS(LIM_MIN_REM_TIME_EXT_FOR_TX_ACTION_FRAME);
+            chanWaitTime = SYS_MS_TO_TICKS(pMac->lim.gTotalScanDuration);
             vStatus = tx_timer_deactivate(&pMac->lim.limTimers.gLimRemainOnChannelTimer);
 
             if (VOS_STATUS_SUCCESS != vStatus)
@@ -667,7 +655,6 @@ void limSendSmeMgmtFrameInd(
             {
                 limLog( pMac, LOGE, FL("Unable to active the gLimRemainOnChannelTimer"));
             } 
-        } 
     }
 
     limSysProcessMmhMsgApi(pMac, &mmhMsg, ePROT);
@@ -961,6 +948,8 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
             }
             else
             {
+                limLog(pMac, LOGE,
+                            FL("Failed to Send Action frame \n"));
                 limSendSmeRsp(pMac, eWNI_SME_ACTION_FRAME_SEND_CNF, 
                         eHAL_STATUS_FAILURE, pMbMsg->sessionId, 0);
                 return;
@@ -982,7 +971,7 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
     // Paranoia:
     palZeroMemory( pMac->hHdd, pFrame, nBytes );
 
-    if (noaLen > 0)
+    if ((noaLen > 0) && (noaLen<(SIR_MAX_NOA_ATTR_LEN + SIR_P2P_IE_HEADER_LEN)))
     {
         // Add 2 bytes for length and Arribute field
         v_U32_t nBytesToCopy = ((pP2PIe + origLen + 2 ) -
@@ -1021,6 +1010,7 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
     }
     else
     {
+        pMac->lim.mgmtFrameSessionId = 0xff;
         halstatus = halTxFrameWithTxComplete( pMac, pPacket, (tANI_U16)nBytes,
                         HAL_TXRX_FRM_802_11_MGMT, ANI_TXDIR_TODS,
                         7,/*SMAC_SWBD_TX_TID_MGMT_HIGH */ limTxComplete, pFrame,

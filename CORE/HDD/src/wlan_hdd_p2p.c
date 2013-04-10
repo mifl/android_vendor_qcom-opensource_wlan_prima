@@ -1256,7 +1256,8 @@ int wlan_hdd_del_virtual_intf( struct wiphy *wiphy, struct net_device *dev )
 }
 
 void hdd_sendMgmtFrameOverMonitorIface( hdd_adapter_t *pMonAdapter,
-                                        tANI_U32 nFrameLength, tANI_U8* pbFrames,
+                                        tANI_U32 nFrameLength,
+                                        tANI_U8* pbFrames,
                                         tANI_U8 frameType )  
 {
     //Indicate a Frame over Monitor Intf.
@@ -1272,7 +1273,11 @@ void hdd_sendMgmtFrameOverMonitorIface( hdd_adapter_t *pMonAdapter,
 #endif
     hddLog( LOG1, FL("Indicate Frame over Monitor Intf"));
 
-    VOS_ASSERT( (pbFrames != NULL) );
+    if (NULL == pbFrames)
+    {
+        hddLog(LOGE, FL("NULL frame pointer"));
+        return;
+    }
 
     /* room for the radiotap header based on driver features
      * 1 Byte for RADIO TAP Flag, 1 Byte padding and 2 Byte for
@@ -1346,7 +1351,19 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
 
     if (NULL == pAdapter)
     {
-        hddLog( LOGE, FL("pAdapter is NULL"));
+        hddLog(LOGE, FL("pAdapter is NULL"));
+        return;
+    }
+
+    if (0 == nFrameLength)
+    {
+        hddLog(LOGE, FL("Frame Length is Invalid ZERO"));
+        return;
+    }
+
+    if (NULL == pbFrames)
+    {
+        hddLog(LOGE, FL("pbFrames is NULL"));
         return;
     }
 
@@ -1373,6 +1390,7 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
          }
     }
 
+
     if (NULL == pAdapter->dev)
     {
         hddLog( LOGE, FL("pAdapter->dev is NULL"));
@@ -1385,26 +1403,13 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
         return;
     }
 
-    if( !nFrameLength )
-    {
-        hddLog( LOGE, FL("Frame Length is Invalid ZERO"));
-        return;
-    }
-
-    if (NULL == pbFrames) {
-        hddLog( LOGE, FL("pbFrames is NULL"));
-        return;
-    }
-
-
-    if( ( WLAN_HDD_SOFTAP == pAdapter->device_mode ) 
-            || ( WLAN_HDD_P2P_GO == pAdapter->device_mode )
-      )
+    if ((WLAN_HDD_SOFTAP == pAdapter->device_mode) ||
+        (WLAN_HDD_P2P_GO == pAdapter->device_mode ))
     {
         hdd_adapter_t *pMonAdapter =
             hdd_get_mon_adapter( WLAN_HDD_GET_CTX(pAdapter) );
 
-        if( NULL != pMonAdapter )
+        if (NULL != pMonAdapter)
         {
             hddLog( LOG1, FL("Indicate Frame over Monitor Interface"));
             hdd_sendMgmtFrameOverMonitorIface( pMonAdapter, nFrameLength,
@@ -1487,13 +1492,17 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
 #ifdef FEATURE_WLAN_TDLS
             else if(pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET+1] == WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP)
             {
-                wlan_hdd_tdls_recv_discovery_resp(&pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET+6]);
-                wlan_hdd_tdls_set_rssi(&pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET+6], rxRssi);
-                hddLog(VOS_TRACE_LEVEL_ERROR,"[TDLS] TDLS Discovery Response <--- OTA");
+                u8 *mac = &pbFrames[WLAN_HDD_80211_FRM_DA_OFFSET+6];
+#ifdef WLAN_FEATURE_TDLS_DEBUG
+                hddLog(VOS_TRACE_LEVEL_ERROR,"[TDLS] TDLS Discovery Response," MAC_ADDRESS_STR " RSSI[%d] <--- OTA",
+                 MAC_ADDR_ARRAY(mac),rxRssi);
+#endif
+                wlan_hdd_tdls_set_rssi(pAdapter, mac, rxRssi);
+                wlan_hdd_tdls_recv_discovery_resp(pAdapter, mac);
             }
 #endif
         }
-#ifdef FEATURE_WLAN_TDLS
+#ifdef WLAN_FEATURE_TDLS_DEBUG
         if(pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET] == WLAN_HDD_TDLS_ACTION_FRAME)
         {
             actionFrmType = pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET+1];

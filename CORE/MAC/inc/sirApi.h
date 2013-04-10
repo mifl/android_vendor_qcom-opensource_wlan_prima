@@ -2078,6 +2078,21 @@ typedef struct sAniGetRssiReq
     
 } tAniGetRssiReq, *tpAniGetRssiReq;
 
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+typedef struct sAniGetRoamRssiRsp
+{
+    // Common for all types are responses
+    tANI_U16                msgType;    // message type is same as the request type
+    tANI_U16                msgLen;  // length of the entire request, includes the pStatsBuf length too
+    tANI_U8                 sessionId;
+    tANI_U32                rc;         //success/failure
+    tANI_U32                staId;  // Per STA stats request must contain valid
+    tANI_S8                 rssi;
+    void                    *rssiReq;  //rssi request backup
+
+} tAniGetRoamRssiRsp, *tpAniGetRoamRssiRsp;
+
+#endif
 /* Change country code request MSG structure */
 typedef struct sAniChangeCountryCodeReq
 {
@@ -2133,7 +2148,10 @@ typedef enum eTxRateInfo
    eHAL_TX_RATE_HT20   = 0x2,    /* HT20 rates */
    eHAL_TX_RATE_HT40   = 0x4,    /* HT40 rates */
    eHAL_TX_RATE_SGI    = 0x8,    /* Rate with Short guard interval */
-   eHAL_TX_RATE_LGI    = 0x10    /* Rate with Long guard interval */
+   eHAL_TX_RATE_LGI    = 0x10,   /* Rate with Long guard interval */
+   eHAL_TX_RATE_VHT20  = 0x20,   /* VHT 20 rates */
+   eHAL_TX_RATE_VHT40  = 0x40,   /* VHT 40 rates */
+   eHAL_TX_RATE_VHT80  = 0x80    /* VHT 80 rates */
 } tTxrateinfoflags;
 
 typedef struct sAniGlobalClassAStatsInfo
@@ -2469,9 +2487,11 @@ typedef struct sSirAggrQosRsp
 
 typedef struct sSirSetTxPowerReq
 {
-    tANI_U16    messageType;
-    tANI_U16    length;
-    tANI_U32    txPower;
+    tANI_U16       messageType;
+    tANI_U16       length;
+    tSirMacAddr    bssId;
+    tANI_U8        mwPower;
+    tANI_U8        bssIdx;
 } tSirSetTxPowerReq, *tpSirSetTxPowerReq;
 
 typedef struct sSirSetTxPowerRsp
@@ -2783,24 +2803,6 @@ typedef struct sSmeMaxAssocInd
 #define SIR_BOOT_DNLD_RSP_SIZE             2
 #define SIR_BOOT_DNLD_RSP_LEN              ((SIR_BOOT_DNLD_RSP_SIZE+1)<<2)
 
-#if defined(ANI_OS_TYPE_RTAI_LINUX)
-// RTAI WRAPPER definition - Buffer block control entry
-// the new block Control entry is initialized by HDD
-// memory buffers (blkPool) are allocated by HDD
-// The table resides in plmac_rtai.c
-#define BLOCK_ALLOCATED_BY_HDD 1
-#define RED_ZONE               16 // 16 bytes between buffers
-#define NUM_POOL               16 // NUM_POOL defined here for now, not
-                                  // so good
-typedef struct
-{
-    tANI_U16              blkSize;
-    tANI_U16              blkNum;
-    void             *blkPool; // pointer to memory buffer
-
-} t_mac_block_table;
-
-#endif
 
 // board capabilities fields are defined here.
 typedef __ani_attr_pre_packed struct sSirBoardCapabilities
@@ -3722,6 +3724,14 @@ typedef struct sSirTdlsSendMgmtReq
     tSirMacAddr         peerMac;
     tANI_U8             addIe[1];      //Variable lenght. Dont add any field after this.
 } tSirTdlsSendMgmtReq, *tpSirSmeTdlsSendMgmtReq ;
+
+typedef enum TdlsAddOper
+{
+    TDLS_OPER_NONE,
+    TDLS_OPER_ADD,
+    TDLS_OPER_UPDATE
+} eTdlsAddOper;
+
 /* TDLS Request struct SME-->PE */
 typedef struct sSirTdlsAddStaReq
 {
@@ -3730,8 +3740,18 @@ typedef struct sSirTdlsAddStaReq
     tANI_U8             sessionId;     // Session ID
     tANI_U16            transactionId; // Transaction ID for cmd
     tSirMacAddr         bssid;         // For multi-session, for PE to locate peSession ID
+    eTdlsAddOper        tdlsAddOper;
     tSirMacAddr         peerMac;
+    tANI_U16            capability;
+    tANI_U8             extn_capability[SIR_MAC_MAX_EXTN_CAP];
+    tANI_U8             supported_rates_length;
+    tANI_U8             supported_rates[SIR_MAC_MAX_SUPP_RATES];
+    tSirHTCap           htCap;
+    tSirVHTCap          vhtCap;
+    tANI_U8             uapsd_queues;
+    tANI_U8             max_sp;
 } tSirTdlsAddStaReq, *tpSirSmeTdlsAddStaReq ;
+
 /* TDLS Response struct PE-->SME */
 typedef struct sSirTdlsAddStaRsp
 {
@@ -3744,6 +3764,7 @@ typedef struct sSirTdlsAddStaRsp
     tANI_U16               staType ;
     tANI_U8                ucastSig;
     tANI_U8                bcastSig;
+    eTdlsAddOper           tdlsAddOper;
 } tSirTdlsAddStaRsp ;
 /* TDLS Request struct SME-->PE */
 typedef struct sSirTdlsDelStaReq
@@ -3958,6 +3979,12 @@ typedef struct sSirActiveModeSetBcnFilterReq
    tANI_U8                seesionId;
 } tSirSetActiveModeSetBncFilterReq, *tpSirSetActiveModeSetBncFilterReq;
 
-
+//Reset AP Caps Changed
+typedef struct sSirResetAPCapsChange
+{
+    tANI_U16       messageType;
+    tANI_U16       length;
+    tSirMacAddr    bssId;
+} tSirResetAPCapsChange, *tpSirResetAPCapsChange;
 
 #endif /* __SIR_API_H */

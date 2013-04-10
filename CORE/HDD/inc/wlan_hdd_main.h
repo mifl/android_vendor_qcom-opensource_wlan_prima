@@ -108,6 +108,7 @@
 #define WMM_INIT_DONE          (1<<3)
 #define SOFTAP_BSS_STARTED     (1<<4)
 #define DEVICE_IFACE_OPENED    (1<<5)
+#define TDLS_INIT_DONE         (1<<6)
 
 /** Maximum time(ms)to wait for disconnect to complete **/
 #define WLAN_WAIT_TIME_DISCONNECT  500
@@ -122,8 +123,11 @@
 /** Maximum time(ms) to wait for tdls add sta to complete **/
 #define WAIT_TIME_TDLS_ADD_STA      1500
 
+/** Maximum time(ms) to wait for tdls del sta to complete **/
+#define WAIT_TIME_TDLS_DEL_STA      1500
+
 /** Maximum time(ms) to wait for tdls mgmt to complete **/
-#define WAIT_TIME_TDLS_MGMT         2000
+#define WAIT_TIME_TDLS_MGMT         11000
 
 /* Maximum time to get crda entry settings */
 #define CRDA_WAIT_TIME 300
@@ -140,15 +144,7 @@
 #define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAX_GENIE_LEN 255
 
-#if defined(QC_WLAN_CHIPSET_PRIMA)
 #define WLAN_CHIP_VERSION   "WCNSS"
-#elif defined(ANI_CHIPSET_LIBRA)
-#define WLAN_CHIP_VERSION   "WCN1312"
-#elif defined(ANI_CHIPSET_VOLANS)
-#define WLAN_CHIP_VERSION   "WCN1314"
-#else
-#define WLAN_CHIP_VERSION   "UNKNOWN"
-#endif
 
 #define hddLog(level, args...) VOS_TRACE( VOS_MODULE_ID_HDD, level, ## args)
 #define ENTER() VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "Enter:%s", __func__)
@@ -491,6 +487,11 @@ struct hdd_station_ctx
   /** Handle to the Wireless Extension State */
    hdd_wext_state_t WextState;
 
+#ifdef FEATURE_WLAN_TDLS
+   tdlsCtx_t *pHddTdlsCtx;
+#endif
+
+
    /**Connection information*/
    connection_info_t conn_info;
 
@@ -701,8 +702,12 @@ struct hdd_adapter_s
    /* Completion variable for remain on channel ready */
    struct completion rem_on_chan_ready_event;
 
+   /* Completion variable for Upper Layer Authentication */
+   struct completion ula_complete;
+
 #ifdef FEATURE_WLAN_TDLS
    struct completion tdls_add_station_comp;
+   struct completion tdls_del_station_comp;
    struct completion tdls_mgmt_comp;
    eHalStatus tdlsAddStaStatus;
 #endif
@@ -780,6 +785,9 @@ typedef struct hdd_dynamic_mcbcfilter_s
 #define WLAN_HDD_GET_HAL_CTX(pAdapter)  (((hdd_context_t*)(pAdapter->pHddCtx))->hHal)
 #define WLAN_HDD_GET_HOSTAP_STATE_PTR(pAdapter) (&(pAdapter)->sessionCtx.ap.HostapdState)
 #define WLAN_HDD_GET_CFG_STATE_PTR(pAdapter)  (&(pAdapter)->cfg80211State)
+#ifdef FEATURE_WLAN_TDLS
+#define WLAN_HDD_GET_TDLS_CTX_PTR(pAdapter) ((tdlsCtx_t*)(pAdapter)->sessionCtx.station.pHddTdlsCtx)
+#endif
 
 typedef struct hdd_adapter_list_node
 {
@@ -934,6 +942,11 @@ struct hdd_context_s
 
 #ifdef FEATURE_WLAN_TDLS
     eTDLSSupportMode tdls_mode;
+    eTDLSSupportMode tdls_mode_last;
+    tdlsConnInfo_t tdlsConnInfo[HDD_MAX_NUM_TDLS_STA];
+    /* TDLS peer connected count */
+    tANI_U16 connected_peer_count;
+    tdls_scan_context_t tdls_scan_ctxt;
 #endif
 };
 
@@ -970,6 +983,7 @@ VOS_STATUS hdd_stop_all_adapters( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_start_all_adapters( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_reconnect_all_adapters( hdd_context_t *pHddCtx );
+void hdd_dump_concurrency_info(hdd_context_t *pHddCtx);
 hdd_adapter_t * hdd_get_adapter_by_name( hdd_context_t *pHddCtx, tANI_U8 *name );
 hdd_adapter_t * hdd_get_adapter_by_macaddr( hdd_context_t *pHddCtx, tSirMacAddr macAddr );
 hdd_adapter_t * hdd_get_mon_adapter( hdd_context_t *pHddCtx );
