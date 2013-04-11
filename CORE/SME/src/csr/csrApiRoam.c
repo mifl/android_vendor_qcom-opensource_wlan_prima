@@ -1149,7 +1149,7 @@ eHalStatus csrInitCountryValidChannelList(tpAniSirGlobal pMac,
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
     tpCsrNeighborRoamControlInfo    pNeighborRoamInfo = &pMac->roam.neighborRoamInfo;
-    tANI_U8 *pOutChannelList = pNeighborRoamInfo->cfgParams.countryChannelInfo.countryValidChannelList.ChannelList;
+    tANI_U8 **pOutChannelList = &pNeighborRoamInfo->cfgParams.countryChannelInfo.countryValidChannelList.ChannelList;
     tANI_U8 *pNumChannels = &pNeighborRoamInfo->cfgParams.countryChannelInfo.countryValidChannelList.numOfChannels;
     const tANI_U8 *pChannelList = NULL;
 
@@ -1171,16 +1171,12 @@ eHalStatus csrInitCountryValidChannelList(tpAniSirGlobal pMac,
     else
         return eHAL_STATUS_INVALID_PARAMETER;
 
-    /* Free up the memory first */
-    if (NULL != pOutChannelList)
-    {
-        vos_mem_free(pOutChannelList);
-        pOutChannelList = NULL;
-    }
+    /* Free any existing channel list */
+    vos_mem_free(*pOutChannelList);
 
-    pOutChannelList = vos_mem_malloc(*pNumChannels);
+    *pOutChannelList = vos_mem_malloc(*pNumChannels);
 
-    if (NULL == pOutChannelList)
+    if (NULL == *pOutChannelList)
     {
         smsLog(pMac, LOGE, FL("Memory Allocation for CFG Channel List failed"));
         *pNumChannels = 0;
@@ -1188,7 +1184,7 @@ eHalStatus csrInitCountryValidChannelList(tpAniSirGlobal pMac,
     }
 
     /* Update the roam global structure */
-    palCopyMemory(pMac->hHdd, pOutChannelList, pChannelList, *pNumChannels);
+    palCopyMemory(pMac->hHdd, *pOutChannelList, pChannelList, *pNumChannels);
     return status;
 }
 
@@ -3903,6 +3899,27 @@ static void csrRoamAssignDefaultParam( tpAniSirGlobal pMac, tSmeCmd *pCommand )
     pCommand->u.roamCmd.roamProfile.EncryptionType.encryptionType[0];
 }
 
+
+static void csrSetAbortRoamingCommand(tpAniSirGlobal pMac, tSmeCmd *pCommand)
+{
+   switch(pCommand->u.roamCmd.roamReason)
+   {
+   case eCsrLostLink1:
+      pCommand->u.roamCmd.roamReason = eCsrLostLink1Abort;
+      break;
+   case eCsrLostLink2:
+      pCommand->u.roamCmd.roamReason = eCsrLostLink2Abort;
+      break;
+   case eCsrLostLink3:
+      pCommand->u.roamCmd.roamReason = eCsrLostLink3Abort;
+      break;
+   default:
+      smsLog(pMac, LOGE, FL(" aborting roaming reason %d not recognized"),
+         pCommand->u.roamCmd.roamReason);
+      break;
+   }
+}
+
 static eCsrJoinState csrRoamJoinNextBss( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOLEAN fUseSameBss )
 {
     eHalStatus status;
@@ -4023,11 +4040,24 @@ static eCsrJoinState csrRoamJoinNextBss( tpAniSirGlobal pMac, tSmeCmd *pCommand,
         {
             if(pRoamInfo)
             {
-                pSession->bRefAssocStartCnt--;
-                //Complete the last association attemp because a new one is about to be tried
-                csrRoamCallCallback(pMac, sessionId, pRoamInfo, pCommand->u.roamCmd.roamId, 
-                                        eCSR_ROAM_ASSOCIATION_COMPLETION, 
+                if(pSession->bRefAssocStartCnt)
+                {
+                    pSession->bRefAssocStartCnt--;
+                    //Complete the last association attemp because a new one is about to be tried
+                    csrRoamCallCallback(pMac, sessionId, pRoamInfo, pCommand->u.roamCmd.roamId,
+                                        eCSR_ROAM_ASSOCIATION_COMPLETION,
                                         eCSR_ROAM_RESULT_NOT_ASSOCIATED);
+                }
+            }
+            /* If the roaming has stopped, not to continue the roaming command*/
+            if ( !CSR_IS_ROAMING(pSession) && CSR_IS_ROAMING_COMMAND(pCommand) )
+            {
+                //No need to complete roaming here as it already completes
+                smsLog(pMac, LOGW, FL("  Roam command (reason %d) aborted due to roaming completed"),
+                        pCommand->u.roamCmd.roamReason);
+                eRoamState = eCsrStopRoaming;
+                csrSetAbortRoamingCommand(pMac, pCommand);
+                break;
             }
             palZeroMemory(pMac->hHdd, &roamInfo, sizeof(roamInfo));
             if(pScanResult)
@@ -7105,6 +7135,15 @@ static void csrRoamingStateConfigCnfProcessor( tpAniSirGlobal pMac, tANI_U32 res
         smsLog(pMac, LOGW, FL("  Roam command cancelled"));
         csrRoamComplete(pMac, eCsrNothingToJoin, NULL); 
     }
+    /* If the roaming has stopped, not to continue the roaming command*/
+    else if ( !CSR_IS_ROAMING(pSession) && CSR_IS_ROAMING_COMMAND(pCommand) )
+    {
+        //No need to complete roaming here as it already completes
+        smsLog(pMac, LOGW, FL("  Roam command (reason %d) aborted due to roaming completed\n"),
+           pCommand->u.roamCmd.roamReason);
+        csrSetAbortRoamingCommand( pMac, pCommand );
+        csrRoamComplete(pMac, eCsrNothingToJoin, NULL);
+    }
     else
     {
         if ( CCM_IS_RESULT_SUCCESS(result) )
@@ -7997,11 +8036,12 @@ static eHalStatus csrRoamIssueSetKeyCommand( tpAniSirGlobal pMac, tANI_U32 sessi
     } while (0);
     // Free the command if there has been a failure, or it is a 
     // "local" operation like the set CCX CCKM KRK key.
-    if( (!HAL_STATUS_SUCCESS( status ) && ( NULL != pCommand )) 
+    if ( ( NULL != pCommand ) &&
+         ( (!HAL_STATUS_SUCCESS( status ) )
 #ifdef FEATURE_WLAN_CCX
             || ( eCSR_ENCRYPT_TYPE_KRK == pSetKey->encType ) 
 #endif /* FEATURE_WLAN_CCX */
-            )
+           ) )
     {
         csrReleaseCommandSetKey( pMac, pCommand );
     }
@@ -14195,8 +14235,8 @@ eHalStatus csrGetRoamRssi(tpAniSirGlobal pMac,
    status = palSendMBMessage(pMac->hHdd, pMsg );
    if(!HAL_STATUS_SUCCESS(status))
    {
-      smsLog(pMac, LOG1, " csrGetRoamRssi: failed to send down the stats req");
-      palFreeMemory(pMac->hHdd, (void *)pMsg);
+      smsLog(pMac, LOG1, " csrGetRoamRssi: failed to send down the rssi req");
+      //pMsg is freed by palSendMBMessage
       status = eHAL_STATUS_FAILURE;
    }
    return status;
@@ -15464,7 +15504,7 @@ eHalStatus csrSetTxPower(tpAniSirGlobal pMac, v_U8_t sessionId, v_U8_t mW)
        if (!HAL_STATUS_SUCCESS(status))
        {
            smsLog(pMac, LOGE, FL(" csr set TX Power Post MSG Fail %d "), status);
-           palFreeMemory(pMac->hHdd, pMsg);
+           //pMsg is freed by palSendMBMessage
        }
    }
    return status;
