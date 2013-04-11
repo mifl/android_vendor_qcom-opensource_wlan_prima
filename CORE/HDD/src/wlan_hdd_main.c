@@ -177,6 +177,7 @@ static void hdd_set_multicast_list(struct net_device *dev);
 #endif
 
 void hdd_wlan_initial_scan(hdd_adapter_t *pAdapter);
+int isWDresetInProgress(void);
 
 extern int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr);
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
@@ -198,7 +199,10 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
 
    //Make sure that this callback corresponds to our device.
    if ((strncmp(dev->name, "wlan", 4)) &&
-       (strncmp(dev->name, "p2p", 3)))
+      (strncmp(dev->name, "p2p", 3)))
+      return NOTIFY_DONE;
+
+   if (isWDresetInProgress())
       return NOTIFY_DONE;
 
    if (!dev->ieee80211_ptr)
@@ -297,7 +301,6 @@ struct notifier_block hdd_netdev_notifier = {
 /*---------------------------------------------------------------------------
  *   Function definitions
  *-------------------------------------------------------------------------*/
-int isWDresetInProgress(void);
 void hdd_unregister_mcast_bcast_filter(hdd_context_t *pHddCtx);
 void hdd_register_mcast_bcast_filter(hdd_context_t *pHddCtx);
 //variable to hold the insmod parameters
@@ -938,7 +941,7 @@ VOS_STATUS hdd_parse_countryrev(tANI_U8 *pValue, tANI_U8 *pCountryCode, tANI_U8 
     }
 
     /*getting the first argument ie the country code */
-    sscanf(inPtr, "%s ", pCountryCode);
+    sscanf(inPtr, "%3s ", pCountryCode);
 
     VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
                "Country code is : %s", pCountryCode);
@@ -1026,7 +1029,7 @@ VOS_STATUS hdd_parse_channellist(tANI_U8 *pValue, tANI_U8 *pChannelList, tANI_U8
     }
 
     /*getting the first argument ie the number of channels*/
-    sscanf(inPtr, "%s ", buf);
+    sscanf(inPtr, "%32s ", buf);
     v = kstrtos32(buf, 10, &tempInt);
     if ((v < 0) || (tempInt <= 0)) return -EINVAL;
 
@@ -4937,10 +4940,10 @@ void wlan_hdd_set_concurrency_mode(hdd_context_t *pHddCtx, tVOS_CON_MODE mode)
 {
    switch(mode)
    {
-       case WLAN_HDD_INFRA_STATION:
-       case WLAN_HDD_P2P_CLIENT:
-       case WLAN_HDD_P2P_GO:
-       case WLAN_HDD_SOFTAP:
+       case VOS_STA_MODE:
+       case VOS_P2P_CLIENT_MODE:
+       case VOS_P2P_GO_MODE:
+       case VOS_STA_SAP_MODE:
             pHddCtx->concurrency_mode |= (1 << mode);
             pHddCtx->no_of_sessions[mode]++;
             break;
@@ -4957,10 +4960,10 @@ void wlan_hdd_clear_concurrency_mode(hdd_context_t *pHddCtx, tVOS_CON_MODE mode)
 {
    switch(mode)
    {
-       case WLAN_HDD_INFRA_STATION:
-       case WLAN_HDD_P2P_CLIENT:
-       case WLAN_HDD_P2P_GO:
-       case WLAN_HDD_SOFTAP:
+       case VOS_STA_MODE:
+       case VOS_P2P_CLIENT_MODE:
+       case VOS_P2P_GO_MODE:
+       case VOS_STA_SAP_MODE:
     pHddCtx->no_of_sessions[mode]--;
     if (!(pHddCtx->no_of_sessions[mode]))
             pHddCtx->concurrency_mode &= (~(1 << mode));
@@ -5147,15 +5150,9 @@ VOS_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx)
 
       return VOS_STATUS_E_ALREADY;
    }
-   /* when WLAN driver is statically linked, then invoke SSR by sending 
-    * the reset interrupt. If it is DLKM, then use restart API
-    */
-#ifdef MODULE
-   status = wlan_hdd_framework_restart(pHddCtx);
-#else
+   /* Send reset FIQ to WCNSS to invoke SSR. */
 #ifdef HAVE_WCNSS_RESET_INTR
    wcnss_reset_intr();
-#endif
 #endif
  
    return status;
