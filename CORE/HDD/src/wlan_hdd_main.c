@@ -889,8 +889,9 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        {
            tANI_U8 ChannelList[WNI_CFG_VALID_CHANNEL_LIST_LEN] = {0};
            tANI_U8 numChannels = 0;
-           tANI_U8 len = 0, j = 0;
+           tANI_U8 j = 0;
            char extra[128] = {0};
+           int len;
 
            if (eHAL_STATUS_SUCCESS != sme_getRoamScanChannelList( (tHalHandle)(pHddCtx->hHal),
                                               ChannelList, &numChannels ))
@@ -1637,18 +1638,18 @@ int hdd_open (struct net_device *dev)
    status = hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
    while ( (NULL != pAdapterNode) && (VOS_STATUS_SUCCESS == status) )
    {
-        if( pAdapterNode->pAdapter->event_flags & DEVICE_IFACE_OPENED)
-        {
-            hddLog(VOS_TRACE_LEVEL_INFO, "%s: chip already out of " 
-                  "standby", __func__, pAdapter->device_mode);
-            in_standby = FALSE;
-            break;
-        }
-        else
-        {
-            status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
-            pAdapterNode = pNext;
-        }
+      if (test_bit(DEVICE_IFACE_OPENED, &pAdapterNode->pAdapter->event_flags))
+      {
+         hddLog(VOS_TRACE_LEVEL_INFO, "%s: chip already out of standby",
+                __func__, pAdapter->device_mode);
+         in_standby = FALSE;
+         break;
+      }
+      else
+      {
+         status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
+         pAdapterNode = pNext;
+      }
    }
  
    if (TRUE == in_standby)
@@ -1661,7 +1662,7 @@ int hdd_open (struct net_device *dev)
        }
    }
    
-   pAdapter->event_flags |= DEVICE_IFACE_OPENED;
+   set_bit(DEVICE_IFACE_OPENED, &pAdapter->event_flags);
    if (hdd_connIsConnected(WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))) 
    {
        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
@@ -1724,7 +1725,7 @@ int hdd_stop (struct net_device *dev)
       return -ENODEV;
    }
 
-   pAdapter->event_flags &= ~(DEVICE_IFACE_OPENED);
+   clear_bit(DEVICE_IFACE_OPENED, &pAdapter->event_flags);
    hddLog(VOS_TRACE_LEVEL_INFO, "%s: Disabling OS Tx queues", __func__);
    netif_tx_disable(pAdapter->dev);
    netif_carrier_off(pAdapter->dev);
@@ -1747,18 +1748,18 @@ int hdd_stop (struct net_device *dev)
    status = hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
    while ( (NULL != pAdapterNode) && (VOS_STATUS_SUCCESS == status) )
    {
-        if ( pAdapterNode->pAdapter->event_flags & DEVICE_IFACE_OPENED)
-        {
-            hddLog(VOS_TRACE_LEVEL_INFO, "%s: Still other ifaces are up cannot "
-                   "put device to sleep", __func__, pAdapter->device_mode);
-            enter_standby = FALSE;
-            break;
-        }
-        else
-        { 
-            status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
-            pAdapterNode = pNext;
-        }
+      if (test_bit(DEVICE_IFACE_OPENED, &pAdapterNode->pAdapter->event_flags))
+      {
+         hddLog(VOS_TRACE_LEVEL_INFO, "%s: Still other ifaces are up cannot "
+                "put device to sleep", __func__, pAdapter->device_mode);
+         enter_standby = FALSE;
+         break;
+      }
+      else
+      {
+         status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
+         pAdapterNode = pNext;
+      }
    }
 
    if (TRUE == enter_standby)

@@ -101,14 +101,15 @@
 #endif
 /** Hdd Default MTU */
 #define HDD_DEFAULT_MTU         (1500)
+
 /**event flags registered net device*/
-#define NET_DEVICE_REGISTERED  (1<<0)
-#define SME_SESSION_OPENED     (1<<1)
-#define INIT_TX_RX_SUCCESS     (1<<2)
-#define WMM_INIT_DONE          (1<<3)
-#define SOFTAP_BSS_STARTED     (1<<4)
-#define DEVICE_IFACE_OPENED    (1<<5)
-#define TDLS_INIT_DONE         (1<<6)
+#define NET_DEVICE_REGISTERED  (0)
+#define SME_SESSION_OPENED     (1)
+#define INIT_TX_RX_SUCCESS     (2)
+#define WMM_INIT_DONE          (3)
+#define SOFTAP_BSS_STARTED     (4)
+#define DEVICE_IFACE_OPENED    (5)
+#define TDLS_INIT_DONE         (6)
 
 /** Maximum time(ms)to wait for disconnect to complete **/
 #define WLAN_WAIT_TIME_DISCONNECT  500
@@ -1038,6 +1039,7 @@ void hdd_abort_mac_scan(hdd_context_t *pHddCtx);
 void wlan_hdd_set_monitor_tx_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
 void hdd_cleanup_actionframe( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
 v_BOOL_t is_crda_regulatory_entry_valid(void);
+void crda_regulatory_entry_default(v_U8_t *countryCode, int domain_id);
 void wlan_hdd_set_concurrency_mode(hdd_context_t *pHddCtx, tVOS_CON_MODE mode);
 void wlan_hdd_clear_concurrency_mode(hdd_context_t *pHddCtx, tVOS_CON_MODE mode);
 void wlan_hdd_reset_prob_rspies(hdd_adapter_t* pHostapdAdapter);
