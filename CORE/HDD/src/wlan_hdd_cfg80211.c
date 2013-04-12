@@ -708,6 +708,10 @@ int wlan_hdd_get_crda_regd_entry(struct wiphy *wiphy, hdd_config_t *pCfg)
       regulatory_hint(wiphy, pCfg->crdaDefaultCountryCode);
       wait_for_completion_interruptible_timeout(&pHddCtx->driver_crda_req,
         CRDA_WAIT_TIME);
+      /* if the country is not found from current regulatory.bin,
+         fall back to world domain */
+      if (is_crda_regulatory_entry_valid() == VOS_FALSE)
+         crda_regulatory_entry_default(pCfg->crdaDefaultCountryCode, NUM_REG_DOMAINS-1);
    }
    return 0;
 }
@@ -2774,7 +2778,7 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 
     ENTER();
 
-    if (NULL == pHddCtx || NULL == pHddCtx->cfg_ini)
+    if (NULL == pHddCtx || NULL == pHddCtx->cfg_ini || NULL == StaParams)
     {
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "Invalid arguments");
@@ -2854,7 +2858,7 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
     if (0 == update)
         wlan_hdd_tdls_set_link_status(pAdapter, mac, eTDLS_LINK_CONNECTING);
 
-    if (NULL != StaParams)
+    /* debug code */
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
                   "%s: TDLS Peer Parameters.", __func__);
@@ -2878,7 +2882,7 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
                VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
                           "[%d]: %x ", i, StaParams->supported_rates[i]);
         }
-    }
+    }  /* end debug code */
 
     INIT_COMPLETION(pAdapter->tdls_add_station_comp);
 
