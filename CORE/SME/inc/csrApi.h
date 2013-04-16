@@ -1077,6 +1077,10 @@ typedef struct tagCsrConfigParam
     tANI_BOOLEAN nRoamPrefer5GHz;
 #endif
 
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+    tANI_BOOLEAN isRoamOffloadScanEnabled;
+#endif
+
     tANI_U8 scanCfgAgingTime;
 
     tANI_U8   enableTxLdpc;
