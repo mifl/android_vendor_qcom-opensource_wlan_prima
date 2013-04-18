@@ -7785,10 +7785,10 @@ VOS_STATUS WDA_SetRSSIThresholdsReq(tpAniSirGlobal pMac, tSirRSSIThresholds *pBm
 
 }/*WDA_SetRSSIThresholdsReq*/
 /*
- * FUNCTION: WDA_HostOffloadRespCallback
+ * FUNCTION: WDA_HostOffloadReqCallback
  * 
  */ 
-void WDA_HostOffloadRespCallback(WDI_Status status, void* pUserData)
+void WDA_HostOffloadReqCallback(WDI_Status status, void* pUserData)
 {
    tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData ; 
 
@@ -7808,36 +7808,8 @@ void WDA_HostOffloadRespCallback(WDI_Status status, void* pUserData)
 
    //print a msg, nothing else to do
    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-              "WDA_HostOffloadRespCallback invoked " );
+              "WDA_HostOffloadReqCallback invoked " );
    return ;
-}
-/*
- * FUNCTION: WDA_HostOffloadReqCallback
- *
- */
-void WDA_HostOffloadReqCallback(WDI_Status wdiStatus, void* pUserData)
-{
-   tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData;
-
-   VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-              "<------ %s, wdiStatus: %d", __func__, wdiStatus);
-
-   if(NULL == pWdaParams)
-   {
-      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-                 "%s: Invalid pWdaParams pointer", __func__);
-      VOS_ASSERT(0);
-      return;
-   }
-
-   if(IS_WDI_STATUS_FAILURE(wdiStatus))
-   {
-      vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
-      vos_mem_free(pWdaParams->wdaMsgParam);
-      vos_mem_free(pWdaParams);
-   }
-
-   return;
 }
 /*
  * FUNCTION: WDA_ProcessHostOffloadReq
@@ -7954,8 +7926,7 @@ VOS_STATUS WDA_ProcessHostOffloadReq(tWDA_CbContext *pWDA,
          //WDA_VOS_ASSERT(0) ;
       }
    }
-   wdiHostOffloadInfo->wdiReqStatusCB = WDA_HostOffloadReqCallback;
-   wdiHostOffloadInfo->pUserData = pWdaParams;
+   wdiHostOffloadInfo->wdiReqStatusCB = NULL;
 
    /* Store param pointer as passed in by caller */
    pWdaParams->wdaMsgParam = pHostOffloadParams;
@@ -7965,7 +7936,7 @@ VOS_STATUS WDA_ProcessHostOffloadReq(tWDA_CbContext *pWDA,
 
 
    wstatus = WDI_HostOffloadReq(wdiHostOffloadInfo, 
-                               (WDI_HostOffloadCb)WDA_HostOffloadRespCallback, pWdaParams);
+                               (WDI_HostOffloadCb)WDA_HostOffloadReqCallback, pWdaParams);
 
    if(IS_WDI_STATUS_FAILURE(wstatus))
    {
