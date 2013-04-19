@@ -2139,9 +2139,7 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
     // For CCX Associations fill the CCX IEs
     if (psessionEntry->isCCXconnection)
     {
-#ifndef FEATURE_DISABLE_RM
         PopulateDot11fCCXRadMgmtCap(&pFrm->CCXRadMgmtCap);
-#endif
         PopulateDot11fCCXVersion(&pFrm->CCXVersion);
     }
 #endif
@@ -2469,9 +2467,7 @@ limSendReassocReqWithFTIEsMgmtFrame(tpAniSirGlobal     pMac,
     // For CCX Associations fill the CCX IEs
     if (psessionEntry->isCCXconnection)
     {
-#ifndef FEATURE_DISABLE_RM
         PopulateDot11fCCXRadMgmtCap(&frm.CCXRadMgmtCap);
-#endif
         PopulateDot11fCCXVersion(&frm.CCXVersion);
     }
 #endif //FEATURE_WLAN_CCX 
