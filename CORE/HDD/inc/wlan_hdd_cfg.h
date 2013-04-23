@@ -576,6 +576,21 @@ typedef enum
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_BTC_MAX        ( 10000 )
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_BTC_DEFAULT    ( 60 )
 
+#define CFG_RETRY_LIMIT_ZERO_NAME       "gRetryLimitZero"
+#define CFG_RETRY_LIMIT_ZERO_MIN        ( 0 )
+#define CFG_RETRY_LIMIT_ZERO_MAX        ( 15 )
+#define CFG_RETRY_LIMIT_ZERO_DEFAULT    ( 5 )
+
+#define CFG_RETRY_LIMIT_ONE_NAME       "gRetryLimitOne"
+#define CFG_RETRY_LIMIT_ONE_MIN        ( 0 )
+#define CFG_RETRY_LIMIT_ONE_MAX        ( 15 )
+#define CFG_RETRY_LIMIT_ONE_DEFAULT    ( 10 )
+
+#define CFG_RETRY_LIMIT_TWO_NAME       "gRetryLimitTwo"
+#define CFG_RETRY_LIMIT_TWO_MIN        ( 0 )
+#define CFG_RETRY_LIMIT_TWO_MAX        ( 15 )
+#define CFG_RETRY_LIMIT_TWO_DEFAULT    ( 15 )
+
 #ifdef WLAN_AP_STA_CONCURRENCY
 
 #define CFG_PASSIVE_MAX_CHANNEL_TIME_CONC_NAME      "gPassiveMaxChannelTimeConc"
@@ -796,6 +811,11 @@ typedef enum
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_MAX                    (125)
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_DEFAULT                (3)
 
+/*This parameter is used to set Wireless Extended Security Mode.*/
+#define CFG_ENABLE_WES_MODE_NAME                            "gWESModeEnabled"
+#define CFG_ENABLE_WES_MODE_NAME_MIN                        (0)
+#define CFG_ENABLE_WES_MODE_NAME_MAX                        (1)
+#define CFG_ENABLE_WES_MODE_NAME_DEFAULT                    (0)
 #endif /* (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR) */
 
 #ifdef FEATURE_WLAN_OKC
@@ -1664,7 +1684,7 @@ typedef enum
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP             "gDisableLDPCWithTxbfAP"
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP_MIN         ( 0 )
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP_MAX         ( 1 )
-#define CFG_DISABLE_LDPC_WITH_TXBF_AP_DEFAULT     ( 1 )
+#define CFG_DISABLE_LDPC_WITH_TXBF_AP_DEFAULT     ( 0 )
 #endif
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -1863,6 +1883,7 @@ typedef struct
    v_BOOL_t                     isFastTransitionEnabled;
    v_U8_t                       RoamRssiDiff;
    v_U8_t                       nImmediateRoamRssiDiff;
+   v_BOOL_t                     isWESModeEnabled;
 #endif
 #ifdef FEATURE_WLAN_OKC
    v_BOOL_t                     isOkcIniFeatureEnabled;
@@ -2022,6 +2043,9 @@ typedef struct
    v_U8_t                      enableMCCAdaptiveScheduler;
    v_BOOL_t                    isAndroidPsEn;
    v_BOOL_t                    sapAllowAllChannel;
+   v_U8_t                      retryLimitZero;
+   v_U8_t                      retryLimitOne;
+   v_U8_t                      retryLimitTwo;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

@@ -2778,7 +2778,7 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 
     ENTER();
 
-    if (NULL == pHddCtx || NULL == pHddCtx->cfg_ini || NULL == StaParams)
+    if (NULL == pHddCtx || NULL == pHddCtx->cfg_ini)
     {
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "Invalid arguments");
@@ -2823,7 +2823,7 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
     }
 
     /* when others are on-going, we want to change link_status to idle */
-    if (wlan_hdd_tdls_is_progress(pAdapter, mac, TRUE))
+    if (NULL != wlan_hdd_tdls_is_progress(pHddCtx, mac, TRUE, TRUE))
     {
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                    "%s: " MAC_ADDRESS_STR
@@ -2859,22 +2859,29 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
         wlan_hdd_tdls_set_link_status(pAdapter, mac, eTDLS_LINK_CONNECTING);
 
     /* debug code */
+    if (NULL != StaParams)
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
                   "%s: TDLS Peer Parameters.", __func__);
-        VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
-                  "ht_capa->cap_info: %0x", StaParams->HTCap.capInfo);
-        VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
-                  "ht_capa->extended_capabilities: %0x",
-                  StaParams->HTCap.extendedHtCapInfo);
+        if(StaParams->htcap_present)
+        {
+            VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                      "ht_capa->cap_info: %0x", StaParams->HTCap.capInfo);
+            VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                      "ht_capa->extended_capabilities: %0x",
+                      StaParams->HTCap.extendedHtCapInfo);
+        }
         VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
                   "params->capability: %0x",StaParams->capability);
         VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
                   "params->ext_capab_len: %0x",StaParams->extn_capability);
-        VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
-                  "rxMcsMap %x rxHighest %x txMcsMap %x txHighest %x",
-                  StaParams->VHTCap.suppMcs.rxMcsMap, StaParams->VHTCap.suppMcs.rxHighest,
-                  StaParams->VHTCap.suppMcs.txMcsMap, StaParams->VHTCap.suppMcs.txHighest);
+        if(StaParams->vhtcap_present)
+        {
+            VOS_TRACE(VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                      "rxMcsMap %x rxHighest %x txMcsMap %x txHighest %x",
+                      StaParams->VHTCap.suppMcs.rxMcsMap, StaParams->VHTCap.suppMcs.rxHighest,
+                      StaParams->VHTCap.suppMcs.txMcsMap, StaParams->VHTCap.suppMcs.txHighest);
+        }
         {
             int i = 0;
             VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL, "Supported rates:");
@@ -2883,6 +2890,12 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
                           "[%d]: %x ", i, StaParams->supported_rates[i]);
         }
     }  /* end debug code */
+    else if ((1 == update) && (NULL == StaParams))
+    {
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                   "%s : update is true, but staParams is NULL. Error!", __func__);
+        return -EPERM;
+    }
 
     INIT_COMPLETION(pAdapter->tdls_add_station_comp);
 
@@ -2972,7 +2985,10 @@ static int wlan_hdd_change_station(struct wiphy *wiphy,
                              sizeof(StaParams.extn_capability));
 
             if (NULL != params->ht_capa)
+            {
+                StaParams.htcap_present = 1;
                 vos_mem_copy(&StaParams.HTCap, params->ht_capa, sizeof(tSirHTCap));
+            }
 
             StaParams.supported_rates_len = params->supported_rates_len;
 
@@ -2999,7 +3015,10 @@ static int wlan_hdd_change_station(struct wiphy *wiphy,
             }
 
             if (NULL != params->vht_capa)
+            {
+                StaParams.vhtcap_present = 1;
                 vos_mem_copy(&StaParams.VHTCap, params->vht_capa, sizeof(tSirVHTCap));
+            }
 
             if (0 != params->ext_capab_len ) {
                 /*Define A Macro : TODO Sunil*/
@@ -6942,12 +6961,6 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
         return -ENOTSUPP;
     }
 
-    if ((SIR_MAC_TDLS_SETUP_RSP == action_code) ||
-        (SIR_MAC_TDLS_DIS_RSP == action_code))
-    {
-        wlan_hdd_tdls_set_cap (pAdapter, peer, eTDLS_CAP_SUPPORTED);
-    }
-
     /* other than teardown frame, other mgmt frames are not sent if disabled */
     if (SIR_MAC_TDLS_TEARDOWN != action_code)
     {
@@ -6965,7 +6978,7 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
 
     if (WLAN_IS_TDLS_SETUP_ACTION(action_code))
     {
-        if (wlan_hdd_tdls_is_progress(pAdapter, peer, TRUE))
+        if (NULL != wlan_hdd_tdls_is_progress(pHddCtx, peer, TRUE, TRUE))
         {
             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                        "%s: " MAC_ADDRESS_STR
@@ -7032,15 +7045,32 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
     responder = 0;
     if (SIR_MAC_TDLS_TEARDOWN == action_code)
     {
-       responder = wlan_hdd_tdls_get_responder(pAdapter, peerMac);
-       if(-1 == responder)
+
+       hddTdlsPeer_t *pTdlsPeer;
+       pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, peerMac);
+
+       if(pTdlsPeer && TDLS_IS_CONNECTED(pTdlsPeer))
+            responder = pTdlsPeer->is_responder;
+       else
        {
-            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                     "%s: " MAC_ADDRESS_STR " peer doesn't exist dialog_token %d status %d, len = %d",
-                     "tdls_mgmt", MAC_ADDR_ARRAY(peer),
-                      dialog_token, status_code, len);
-            return -EPERM;
+           VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                    "%s: " MAC_ADDRESS_STR " peer doesn't exist or not connected %d dialog_token %d status %d, len = %d",
+                    __func__, MAC_ADDR_ARRAY(peer), (NULL == pTdlsPeer) ? -1 : pTdlsPeer->link_status,
+                     dialog_token, status_code, len);
+           return -EPERM;
        }
+    }
+
+    if ((SIR_MAC_TDLS_SETUP_RSP == action_code) ||
+        (SIR_MAC_TDLS_DIS_RSP == action_code))
+    {
+        if (TRUE == sme_IsPmcBmps(WLAN_HDD_GET_HAL_CTX(pAdapter)))
+        {
+            VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
+                       "%s: Sending Disc/Setup Rsp Frame.Disable BMPS", __func__);
+            hdd_disable_bmps_imps(pHddCtx, WLAN_HDD_INFRA_STATION);
+        }
+        wlan_hdd_tdls_set_cap(pAdapter, peerMac, eTDLS_CAP_SUPPORTED);
     }
 
     INIT_COMPLETION(pAdapter->tdls_mgmt_comp);
@@ -7052,7 +7082,8 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "%s: sme_SendTdlsMgmtFrame failed!", __func__);
-        return -EPERM;
+        wlan_hdd_tdls_check_bmps(pAdapter);
+        goto error;
     }
 
     /* not block discovery request, as it is called from timer callback */
@@ -7068,12 +7099,16 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                       "%s: Mgmt Tx Completion failed status %ld TxCompletion %lu",
                       __func__, rc, pAdapter->mgmtTxCompletionStatus);
-            return -EPERM;
+            wlan_hdd_tdls_check_bmps(pAdapter);
+            goto error;
         }
     }
 
     if (max_sta_failed)
+    {
+      wlan_hdd_tdls_check_bmps(pAdapter);
       return max_sta_failed;
+    }
 
     if (SIR_MAC_TDLS_SETUP_RSP == action_code)
     {
@@ -7171,6 +7206,18 @@ static int wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *d
                     status = hdd_roamRegisterTDLSSTA( pAdapter, peer, pTdlsPeer->staId, pTdlsPeer->signature);
                     if (VOS_STATUS_SUCCESS == status)
                     {
+                        if (pTdlsPeer->is_responder == 0)
+                        {
+                            v_U8_t staId = (v_U8_t)pTdlsPeer->staId;
+
+                            wlan_hdd_tdls_timer_restart(pAdapter,
+                                                        &pTdlsPeer->initiatorWaitTimeoutTimer,
+                                                       WAIT_TIME_TDLS_INITIATOR);
+                            /* suspend initiator TX until it receives direct packet from the
+                            reponder or WAIT_TIME_TDLS_INITIATOR timer expires */
+                            WLANTL_SuspendDataTx( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
+                                                   &staId, NULL);
+                        }
                         wlan_hdd_tdls_increment_peer_count(pAdapter);
                     }
                     wlan_hdd_tdls_check_bmps(pAdapter);

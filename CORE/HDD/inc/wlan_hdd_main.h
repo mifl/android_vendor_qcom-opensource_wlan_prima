@@ -130,6 +130,8 @@
 /** Maximum time(ms) to wait for tdls mgmt to complete **/
 #define WAIT_TIME_TDLS_MGMT         11000
 
+/** Maximum time(ms) to wait for tdls initiator to start direct communication **/
+#define WAIT_TIME_TDLS_INITIATOR    300
 /* Maximum time to get crda entry settings */
 #define CRDA_WAIT_TIME 300
 
@@ -1052,7 +1054,6 @@ void hdd_set_ssr_required(e_hdd_ssr_required value);
 VOS_STATUS hdd_enable_bmps_imps(hdd_context_t *pHddCtx);
 VOS_STATUS hdd_disable_bmps_imps(hdd_context_t *pHddCtx, tANI_U8 session_type);
 
-eHalStatus hdd_smeCloseSessionCallback(void *pContext);
 VOS_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx);
 void hdd_exchange_version_and_caps(hdd_context_t *pHddCtx);
 void hdd_set_pwrparams(hdd_context_t *pHddCtx);
