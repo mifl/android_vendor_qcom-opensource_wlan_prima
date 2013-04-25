@@ -983,6 +983,25 @@ static tSirRetStatus limSendTdlsDisRspFrame(tpAniSirGlobal pMac,
     /* Include HT Capability IE */
     //This does not depend on peer capabilities. If it is supported then it should be included
     PopulateDot11fHTCaps( pMac, psessionEntry, &tdlsDisRsp.HTCaps );
+    if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END)
+    {
+        tdlsDisRsp.HTCaps.present = 1;
+        tdlsDisRsp.HTCaps.supportedChannelWidthSet = 0;
+    }
+    else
+    {
+        if (tdlsDisRsp.HTCaps.present)
+        {
+            tdlsDisRsp.HTCaps.supportedChannelWidthSet = 1; // pVhtCaps->supportedChannelWidthSet;
+        }
+    }
+
+    /* Include VHT Capability IE */
+    PopulateDot11fVHTCaps( pMac, &tdlsDisRsp.VHTCaps );
+    if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END)
+    {
+        tdlsDisRsp.VHTCaps.present = 0;
+    }
 
     /* 
      * now we pack it.  First, how much space are we going to need?
@@ -1223,17 +1242,20 @@ tSirRetStatus limSendTdlsLinkSetupReqFrame(tpAniSirGlobal pMac,
     if (psessionEntry->currentOperChannel <= SIR_11B_CHANNEL_END)
     {
         tdlsSetupReq.VHTCaps.present = 0;
-        tdlsSetupReq.VHTCaps.supportedChannelWidthSet = 0;
-        tdlsSetupReq.VHTCaps.ldpcCodingCap = 0;
-        tdlsSetupReq.VHTCaps.suBeamFormerCap = 0;
     }
     else
     {
         if (tdlsSetupReq.VHTCaps.present)
         {
-            tdlsSetupReq.VHTCaps.supportedChannelWidthSet = 1; // pVhtCaps->supportedChannelWidthSet;
-            tdlsSetupReq.VHTCaps.ldpcCodingCap = 1; // pVhtCaps->ldpcCodingCap
-            tdlsSetupReq.VHTCaps.suBeamFormerCap = 1; // pVhtCaps->suBeamFormerCap
+            tANI_U16 aid;
+            tpDphHashNode       pStaDs;
+
+            pStaDs = dphLookupHashEntry(pMac, peerMac, &aid , &psessionEntry->dph.dphHashTable);
+            if (NULL != pStaDs)
+            {
+                tdlsSetupReq.AID.present = 1;
+                tdlsSetupReq.AID.assocId = aid | LIM_AID_MASK; // set bit 14 and 15 1's
+            }
         }
     }
     /* 
@@ -1657,9 +1679,15 @@ static tSirRetStatus limSendTdlsSetupRspFrame(tpAniSirGlobal pMac,
     {
         if (tdlsSetupRsp.VHTCaps.present)
         {
-            tdlsSetupRsp.VHTCaps.supportedChannelWidthSet = 1; // pVhtCaps->supportedChannelWidthSet;
-            tdlsSetupRsp.VHTCaps.ldpcCodingCap = 1; // pVhtCaps->ldpcCodingCap
-            tdlsSetupRsp.VHTCaps.suBeamFormerCap = 1; // pVhtCaps->suBeamFormerCap
+            tANI_U16 aid;
+            tpDphHashNode       pStaDs;
+
+            pStaDs = dphLookupHashEntry(pMac, peerMac, &aid , &psessionEntry->dph.dphHashTable);
+            if (NULL != pStaDs)
+            {
+                tdlsSetupRsp.AID.present = 1;
+                tdlsSetupRsp.AID.assocId = aid | LIM_AID_MASK; // set bit 14 and 15 1's
+            }
         }
     }
     tdlsSetupRsp.Status.status = setupStatus ;
@@ -2302,7 +2330,7 @@ static tSirRetStatus limTdlsPopulateDot11fHTCaps(tpAniSirGlobal pMac, tpPESessio
     pDot11f->rxAS                     = pASCapabilityInfo->rxAS;
     pDot11f->txSoundingPPDUs          = pASCapabilityInfo->txSoundingPPDUs;
 
-    pDot11f->present = 1;
+    pDot11f->present = pTdlsAddStaReq->htcap_present;
 
     return eSIR_SUCCESS;
 
@@ -2324,7 +2352,7 @@ limTdlsPopulateDot11fVHTCaps(tpAniSirGlobal pMac,
         tSirMacVHTRxSupDataRateInfo    vhtRxsupDataRateInfo;
     } uVHTSupDataRateInfo;
 
-    pDot11f->present = 1;
+    pDot11f->present = pTdlsAddStaReq->vhtcap_present;
 
     nCfgValue = pTdlsAddStaReq->vhtCap.vhtCapInfo;
     uVHTCapabilityInfo.nCfgValue32 = nCfgValue;
@@ -2657,7 +2685,8 @@ static void limTdlsUpdateHashNodeInfo(tpAniSirGlobal pMac, tDphHashNode *pStaDs,
     if (pVhtCaps->present)
     {
         pStaDs->mlmStaContext.vhtCapability = 1 ;
-        pStaDs->vhtSupportedChannelWidthSet= pVhtCaps->supportedChannelWidthSet;
+        pStaDs->vhtSupportedChannelWidthSet =  WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ;
+        pStaDs->htSupportedChannelWidthSet = eHT_CHANNEL_WIDTH_40MHZ ;
         pStaDs->vhtLdpcCapable = pVhtCaps->ldpcCodingCap;
         pStaDs->vhtBeamFormerCapable= pVhtCaps->suBeamFormerCap;
         // TODO , is it necessary , Sunil???
@@ -2666,6 +2695,7 @@ static void limTdlsUpdateHashNodeInfo(tpAniSirGlobal pMac, tDphHashNode *pStaDs,
     else
     {
         pStaDs->mlmStaContext.vhtCapability = 0 ;
+        pStaDs->vhtSupportedChannelWidthSet = WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ;
     }
 #endif
     /*Calculate the Secondary Coannel Offset */
