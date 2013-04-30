@@ -456,6 +456,7 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
     char *startBssEvent; 
     hdd_context_t *pHddCtx;
     hdd_scaninfo_t *pScanInfo  = NULL;
+    struct iw_michaelmicfailure msg;
 
     dev = (struct net_device *)usrDataForCallback;
     pHostapdAdapter = netdev_priv(dev);
@@ -565,7 +566,6 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
            return VOS_STATUS_SUCCESS;
         case eSAP_STA_MIC_FAILURE_EVENT:
         {
-            struct iw_michaelmicfailure msg;
             memset(&msg, '\0', sizeof(msg));
             msg.src_addr.sa_family = ARPHRD_ETHER;
             memcpy(msg.src_addr.sa_data, &pSapEvent->sapevt.sapStationMICFailureEvent.staMac, sizeof(v_MACADDR_t));
@@ -2490,7 +2490,7 @@ static int iw_softap_get_sta_info(struct net_device *dev,
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
     VOS_STATUS status;
     ENTER();
-    status = hdd_softap_get_sta_info(pHostapdAdapter, extra, wrqu->data.length);
+    status = hdd_softap_get_sta_info(pHostapdAdapter, extra, WE_SAP_MAX_STA_INFO);
     if ( !VOS_IS_STATUS_SUCCESS( status ) ) {
        hddLog(VOS_TRACE_LEVEL_ERROR, "%s Failed!!!\n",__func__);
        return -EINVAL;

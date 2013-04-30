@@ -571,6 +571,21 @@ typedef enum
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_BTC_MAX        ( 10000 )
 #define CFG_ACTIVE_MIN_CHANNEL_TIME_BTC_DEFAULT    ( 60 )
 
+#define CFG_RETRY_LIMIT_ZERO_NAME       "gRetryLimitZero"
+#define CFG_RETRY_LIMIT_ZERO_MIN        ( 0 )
+#define CFG_RETRY_LIMIT_ZERO_MAX        ( 15 )
+#define CFG_RETRY_LIMIT_ZERO_DEFAULT    ( 5 )
+
+#define CFG_RETRY_LIMIT_ONE_NAME       "gRetryLimitOne"
+#define CFG_RETRY_LIMIT_ONE_MIN        ( 0 )
+#define CFG_RETRY_LIMIT_ONE_MAX        ( 15 )
+#define CFG_RETRY_LIMIT_ONE_DEFAULT    ( 10 )
+
+#define CFG_RETRY_LIMIT_TWO_NAME       "gRetryLimitTwo"
+#define CFG_RETRY_LIMIT_TWO_MIN        ( 0 )
+#define CFG_RETRY_LIMIT_TWO_MAX        ( 15 )
+#define CFG_RETRY_LIMIT_TWO_DEFAULT    ( 15 )
+
 #ifdef WLAN_AP_STA_CONCURRENCY
 
 #define CFG_PASSIVE_MAX_CHANNEL_TIME_CONC_NAME      "gPassiveMaxChannelTimeConc"
@@ -1442,26 +1457,31 @@ typedef enum
  * Enable / Disable MCC feature
  * Default: Enable
  */
-#define CFG_ENABLE_MCC_ENABLED_NAME             "gEnableMCCMode"      
+#define CFG_ENABLE_MCC_ENABLED_NAME             "gEnableMCCMode"
 #define CFG_ENABLE_MCC_ENABLED_MIN              ( 0 )
 #define CFG_ENABLE_MCC_ENABLED_MAX              ( 1 )
-#define CFG_ENABLE_MCC_ENABLED_DEFAULT          ( 1 ) 
+#define CFG_ENABLE_MCC_ENABLED_DEFAULT          ( 1 )
 
 /*
  * Allow GO in MCC mode to accept different beacon interval than STA's.
  * Added for Wi-Fi Cert. 5.1.12
- * Default: Disable
- * If gAllowMCCGODiffBI = 1  // Set to 1 for WFA certification. GO Beacon interval is not changed. MCC GO 
-*                                             doesn't work well in optimized way. In worst scenario, it may invite STA 
-*                                            disconnection.
- * gAllowMCCGODiffBI = 2     //If set to 2 workaround 1 disassoc all the clients 
+ * Default: gAllowMCCGODiffBI = 2
+ * If gAllowMCCGODiffBI = 1  // Set to 1 for WFA certification. GO Beacon
+ *                              interval is not changed. MCC GO
+ *                              doesn't work well in optimized way.
+ *                              In worst scenario, it may invite STA
+ *                              disconnection.
+ * gAllowMCCGODiffBI = 2     //If set to 2 workaround 1 disassoc all the clients
  *                             and update beacon Interval
  * gAllowMCCGODiffBI = 3     //If set to 3 tear down the P2P link in auto/ 
  *                             Non-autonomous -GO case
+ * gAllowMCCGODiffBI = 4     //If set to 4 don't disconnect the P2P client
+ *                             in autonomous/Non-autonomous -GO case update
+ *                             the BI dynamically
  */
 #define CFG_ALLOW_MCC_GO_DIFF_BI_NAME           "gAllowMCCGODiffBI"
 #define CFG_ALLOW_MCC_GO_DIFF_BI_MIN            ( 0 )
-#define CFG_ALLOW_MCC_GO_DIFF_BI_MAX            ( 3 )
+#define CFG_ALLOW_MCC_GO_DIFF_BI_MAX            ( 4 )
 #define CFG_ALLOW_MCC_GO_DIFF_BI_DEFAULT        ( 2 ) 
 
 /*
@@ -1646,7 +1666,7 @@ typedef enum
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP             "gDisableLDPCWithTxbfAP"
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP_MIN         ( 0 )
 #define CFG_DISABLE_LDPC_WITH_TXBF_AP_MAX         ( 1 )
-#define CFG_DISABLE_LDPC_WITH_TXBF_AP_DEFAULT     ( 1 )
+#define CFG_DISABLE_LDPC_WITH_TXBF_AP_DEFAULT     ( 0 )
 #endif
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -2001,6 +2021,9 @@ typedef struct
    v_U8_t                      enableMCCAdaptiveScheduler;
    v_BOOL_t                    isAndroidPsEn;
    v_BOOL_t                    sapAllowAllChannel;
+   v_U8_t                      retryLimitZero;
+   v_U8_t                      retryLimitOne;
+   v_U8_t                      retryLimitTwo;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
