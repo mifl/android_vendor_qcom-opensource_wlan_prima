@@ -1128,8 +1128,17 @@ eHalStatus csrNeighborRoamPrepareScanProfileFilter(tpAniSirGlobal pMac, tCsrScan
     pScanFilter->SSIDs.SSIDList->SSID.length =  pCurProfile->SSID.length;
     vos_mem_copy((void *)pScanFilter->SSIDs.SSIDList->SSID.ssId, (void *)pCurProfile->SSID.ssId, pCurProfile->SSID.length); 
 
-    NEIGHBOR_ROAM_DEBUG(pMac, LOGE, FL("Filtering for SSID %s from scan results.. SSID Length = %d"),
-                        pScanFilter->SSIDs.SSIDList->SSID.ssId, pScanFilter->SSIDs.SSIDList->SSID.length);
+    NEIGHBOR_ROAM_DEBUG(pMac, LOGE, FL("Filtering from scan results for"
+                        "SSID = 0x%08lx%08lx%08lx%08lx%08lx%08lx%08lx%08lx\nSSID Length = %d"),
+                        pScanFilter->SSIDs.SSIDList->SSID.ssId[0],
+                        pScanFilter->SSIDs.SSIDList->SSID.ssId[4],
+                        pScanFilter->SSIDs.SSIDList->SSID.ssId[8],
+                        pScanFilter->SSIDs.SSIDList->SSID.ssId[12],
+                        pScanFilter->SSIDs.SSIDList->SSID.ssId[16],
+                        pScanFilter->SSIDs.SSIDList->SSID.ssId[20],
+                        pScanFilter->SSIDs.SSIDList->SSID.ssId[24],
+                        pScanFilter->SSIDs.SSIDList->SSID.ssId[28],
+                        pScanFilter->SSIDs.SSIDList->SSID.length);
     pScanFilter->authType.numEntries = 1;
     pScanFilter->authType.authType[0] = pCurProfile->AuthType;
 
@@ -2098,6 +2107,17 @@ eHalStatus csrNeighborRoamPerformBgScan(tpAniSirGlobal pMac)
         csrNeighborRoamHandleEmptyScanResult(pMac);
         return status;
     }
+
+    /* Validate the currentChanIndex value before using it to index the ChannelList array */
+    if ( pNeighborRoamInfo->roamChannelInfo.currentChanIndex
+            > pNeighborRoamInfo->roamChannelInfo.currentChannelListInfo.numOfChannels)
+    {
+        NEIGHBOR_ROAM_DEBUG(pMac, LOGE, FL("Invalid channel index: %d"), pNeighborRoamInfo->roamChannelInfo.currentChanIndex);
+        // Go back and restart.
+        csrNeighborRoamHandleEmptyScanResult(pMac);
+        return status;
+    }
+
     /* Need to perform scan here before getting the list */
 
     palZeroMemory(pMac->hHdd, &bgScanParams, sizeof(tCsrBGScanRequest));
@@ -2445,11 +2465,18 @@ VOS_STATUS csrNeighborRoamChannelsFilterByCurrentBand(
     int numChannels = 0;
     tANI_U8   currAPoperationChannel = pMac->roam.neighborRoamInfo.currAPoperationChannel;
     // Check for NULL pointer
-    if (!pInputChannelList) return eHAL_STATUS_E_NULL_VALUE;
+    if (!pInputChannelList) return VOS_STATUS_E_INVAL;
 
     // Check for NULL pointer
-    if (!pOutputChannelList) return eHAL_STATUS_E_NULL_VALUE;
+    if (!pOutputChannelList) return VOS_STATUS_E_INVAL;
 
+    if (inputNumOfChannels > WNI_CFG_VALID_CHANNEL_LIST_LEN)
+    {
+         VOS_TRACE (VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+             "%s: Wrong Number of Input Channels %d",
+             __func__, inputNumOfChannels);
+         return VOS_STATUS_E_INVAL;
+    }
     for (i = 0; i < inputNumOfChannels; i++)
     {
         if (GetRFBand(currAPoperationChannel) == GetRFBand(pInputChannelList[i]))
@@ -2462,7 +2489,7 @@ VOS_STATUS csrNeighborRoamChannelsFilterByCurrentBand(
     // Return final number of channels
     *pMergedOutputNumOfChannels = numChannels;
 
-    return eHAL_STATUS_SUCCESS;
+    return VOS_STATUS_SUCCESS;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2497,11 +2524,18 @@ VOS_STATUS csrNeighborRoamMergeChannelLists(
     int numChannels = outputNumOfChannels;
 
     // Check for NULL pointer
-    if (!pInputChannelList) return eHAL_STATUS_E_NULL_VALUE;
+    if (!pInputChannelList) return VOS_STATUS_E_INVAL;
 
     // Check for NULL pointer
-    if (!pOutputChannelList) return eHAL_STATUS_E_NULL_VALUE;
+    if (!pOutputChannelList) return VOS_STATUS_E_INVAL;
 
+    if (inputNumOfChannels > WNI_CFG_VALID_CHANNEL_LIST_LEN)
+    {
+         VOS_TRACE (VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+             "%s: Wrong Number of Input Channels %d",
+             __func__, inputNumOfChannels);
+         return VOS_STATUS_E_INVAL;
+    }
     // Add the "new" channels in the input list to the end of the output list.
     for (i = 0; i < inputNumOfChannels; i++)
     {
@@ -2526,7 +2560,7 @@ VOS_STATUS csrNeighborRoamMergeChannelLists(
     // Return final number of channels
     *pMergedOutputNumOfChannels = numChannels; 
 
-    return eHAL_STATUS_SUCCESS;
+    return VOS_STATUS_SUCCESS;
 }
 
 /* ---------------------------------------------------------------------------
@@ -3007,7 +3041,11 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
                              channelList,
                              &numOfChannels);
             }
-
+            if(numOfChannels > WNI_CFG_VALID_CHANNEL_LIST_LEN)
+            {
+                smsLog(pMac, LOGE, FL("Received wrong number of Channel list"));
+                return VOS_STATUS_E_INVAL;
+            }
             currChannelListInfo->ChannelList =
                 vos_mem_malloc(numOfChannels*sizeof(tANI_U8));
             if (NULL == currChannelListInfo->ChannelList)
@@ -3015,7 +3053,6 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
                 smsLog(pMac, LOGE, FL("Memory allocation for Channel list failed"));
                 return VOS_STATUS_E_RESOURCES;
             }
-
             vos_mem_copy(currChannelListInfo->ChannelList,
                   channelList, numOfChannels * sizeof(tANI_U8));
         } 
