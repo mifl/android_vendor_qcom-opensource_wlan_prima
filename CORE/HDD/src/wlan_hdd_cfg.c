@@ -1983,13 +1983,6 @@ REG_VARIABLE( CFG_NUM_BUFF_ADVERT_NAME, WLAN_PARAM_Integer,
               CFG_NUM_BUFF_ADVERT_MIN,
               CFG_NUM_BUFF_ADVERT_MAX ),
 
- REG_VARIABLE( CFG_ENABLE_IGNORE_CHAN165, WLAN_PARAM_Integer,
-              hdd_config_t, ignore_chan165,
-              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-              CFG_ENABLE_IGNORE_CHAN165_DEFAULT,
-              CFG_ENABLE_IGNORE_CHAN165_MIN,
-              CFG_ENABLE_IGNORE_CHAN165_MAX ),
-
 REG_VARIABLE( CFG_MCC_CONFIG_PARAM_NAME, WLAN_PARAM_Integer,
              hdd_config_t, configMccParam,
              VAR_FLAGS_OPTIONAL,
@@ -2139,6 +2132,21 @@ REG_VARIABLE( CFG_ANDRIOD_POWER_SAVE_NAME, WLAN_PARAM_Integer,
               CFG_ANDRIOD_POWER_SAVE_DEFAULT,
               CFG_ANDRIOD_POWER_SAVE_MIN,
               CFG_ANDRIOD_POWER_SAVE_MAX),
+
+REG_VARIABLE( CFG_IBSS_ADHOC_CHANNEL_5GHZ_NAME, WLAN_PARAM_Integer,
+              hdd_config_t, AdHocChannel5G,
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+              CFG_IBSS_ADHOC_CHANNEL_5GHZ_DEFAULT,
+              CFG_IBSS_ADHOC_CHANNEL_5GHZ_MIN,
+              CFG_IBSS_ADHOC_CHANNEL_5GHZ_MAX),
+
+REG_VARIABLE( CFG_IBSS_ADHOC_CHANNEL_24GHZ_NAME, WLAN_PARAM_Integer,
+              hdd_config_t, AdHocChannel24G,
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+              CFG_IBSS_ADHOC_CHANNEL_24GHZ_DEFAULT,
+              CFG_IBSS_ADHOC_CHANNEL_24GHZ_MIN,
+              CFG_IBSS_ADHOC_CHANNEL_24GHZ_MAX),
+
 
 #ifdef WLAN_FEATURE_11AC
 REG_VARIABLE( CFG_VHT_SU_BEAMFORMEE_CAP_FEATURE, WLAN_PARAM_Integer,
@@ -2560,7 +2568,6 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [enableFirstScan2GOnly] Value = [%u] ",pHddCtx->cfg_ini->enableFirstScan2GOnly);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [skipDfsChnlInP2pSearch] Value = [%u] ",pHddCtx->cfg_ini->skipDfsChnlInP2pSearch);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [ignoreDynamicDtimInP2pMode] Value = [%u] ",pHddCtx->cfg_ini->ignoreDynamicDtimInP2pMode);
-  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gIgnore_Chan165] Value = [%u] ",pHddCtx->cfg_ini->ignore_chan165);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [enableRxSTBC] Value = [%u] ",pHddCtx->cfg_ini->enableRxSTBC);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableLpwrImgTransition] Value = [%u] ",pHddCtx->cfg_ini->enableLpwrImgTransition);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableSSR] Value = [%u] ",pHddCtx->cfg_ini->enableSSR);
@@ -3760,7 +3767,8 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
     smeConfig.csrConfig.enableTxBF = pConfig->enableTxBF;
     smeConfig.csrConfig.txBFCsnValue = pConfig->txBFCsnValue;
 #endif
-   smeConfig.csrConfig.AdHocChannel5G            = 44;
+   smeConfig.csrConfig.AdHocChannel5G            = pConfig->AdHocChannel5G;
+   smeConfig.csrConfig.AdHocChannel24            = pConfig->AdHocChannel24G;
    smeConfig.csrConfig.ProprietaryRatesEnabled   = 0;
    smeConfig.csrConfig.HeartbeatThresh50         = 40;
    smeConfig.csrConfig.bandCapability            = pConfig->nBandCapability;
@@ -3776,7 +3784,6 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig.csrConfig.nTxPowerCap = pConfig->nTxPowerCap;
    smeConfig.csrConfig.fEnableBypass11d          = pConfig->enableBypass11d;
    smeConfig.csrConfig.fEnableDFSChnlScan        = pConfig->enableDFSChnlScan;
-   smeConfig.csrConfig.fIgnore_chan165           = pConfig->ignore_chan165;
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
    smeConfig.csrConfig.nRoamPrefer5GHz           = pConfig->nRoamPrefer5GHz;
    smeConfig.csrConfig.nRoamIntraBand            = pConfig->nRoamIntraBand;
