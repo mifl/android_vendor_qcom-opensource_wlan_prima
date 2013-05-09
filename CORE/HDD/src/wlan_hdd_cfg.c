@@ -181,6 +181,13 @@ static void cbNotifySetEnableSSR(hdd_context_t *pHddCtx, unsigned long NotifyId)
     sme_UpdateEnableSSR((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->enableSSR);
 }
 
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+static void cbNotifyUpdateRoamScanOffloadEnabled(hdd_context_t *pHddCtx, unsigned long NotifyId)
+{
+    sme_UpdateRoamScanOffloadEnabled((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->isRoamOffloadScanEnabled);
+}
+#endif
+
 REG_TABLE_ENTRY g_registry_table[] =
 {
    REG_VARIABLE( CFG_RTS_THRESHOLD_NAME, WLAN_PARAM_Integer,
@@ -1083,7 +1090,15 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_OKC_FEATURE_ENABLED_MAX,
                  cbNotifySetOkcFeatureEnabled, 0 ),
 #endif
-
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+   REG_DYNAMIC_VARIABLE( CFG_ROAM_SCAN_OFFLOAD_ENABLED, WLAN_PARAM_Integer,
+                         hdd_config_t, isRoamOffloadScanEnabled,
+                         VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                         CFG_ROAM_SCAN_OFFLOAD_ENABLED_DEFAULT,
+                         CFG_ROAM_SCAN_OFFLOAD_ENABLED_MIN,
+                         CFG_ROAM_SCAN_OFFLOAD_ENABLED_MAX,
+                         cbNotifyUpdateRoamScanOffloadEnabled, 0),
+#endif
    REG_VARIABLE( CFG_QOS_WMM_PKT_CLASSIFY_BASIS_NAME , WLAN_PARAM_Integer,
                  hdd_config_t, PktClassificationBasis,
                  VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -2192,6 +2207,12 @@ REG_VARIABLE_STRING( CFG_LIST_OF_NON_DFS_COUNTRY_CODE, WLAN_PARAM_String,
                 CFG_ENABLE_SSR_MIN,
                 CFG_ENABLE_SSR_MAX,
                 cbNotifySetEnableSSR, 0 ),
+
+REG_VARIABLE_STRING( CFG_LIST_OF_NON_11AC_COUNTRY_CODE, WLAN_PARAM_String,
+             hdd_config_t, listOfNon11acCountryCode,
+             VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+             (void *)CFG_LIST_OF_NON_11AC_COUNTRY_CODE_DEFAULT),
+
 };
 
 /*
@@ -3835,7 +3856,9 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig.csrConfig.nImmediateRoamRssiDiff = pConfig->nImmediateRoamRssiDiff;
    smeConfig.csrConfig.isWESModeEnabled = pConfig->isWESModeEnabled;
 #endif
-
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+   smeConfig.csrConfig.isRoamOffloadScanEnabled = pConfig->isRoamOffloadScanEnabled;
+#endif
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
    smeConfig.csrConfig.neighborRoamConfig.nNeighborReassocRssiThreshold = pConfig->nNeighborReassocRssiThreshold;
    smeConfig.csrConfig.neighborRoamConfig.nNeighborLookupRssiThreshold = pConfig->nNeighborLookupRssiThreshold;
