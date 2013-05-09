@@ -2648,6 +2648,22 @@ tANI_BOOLEAN sme_getIsFtFeatureEnabled(tHalHandle hHal);
 
 #endif
 
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+/*--------------------------------------------------------------------------
+  \brief sme_UpdateRoamScanOffloadEnabled() - enable/disable roam scan offload feaure
+  It is used at in the REG_DYNAMIC_VARIABLE macro definition of
+  gRoamScanOffloadEnabled.
+  This is a synchronous call
+  \param hHal - The handle returned by macOpen.
+  \return eHAL_STATUS_SUCCESS - SME update config successfully.
+          Other status means SME is failed to update.
+  \sa
+  --------------------------------------------------------------------------*/
+
+eHalStatus sme_UpdateRoamScanOffloadEnabled(tHalHandle hHal, v_BOOL_t nRoamScanOffloadEnabled);
+#endif
+
+
 /* ---------------------------------------------------------------------------
     \fn sme_IsFeatureSupportedByFW
     \brief  Check if an feature is enabled by FW
@@ -2734,5 +2750,33 @@ eHalStatus sme_UpdateDfsSetting(tHalHandle hHal, tANI_U8 fUpdateEnableDFSChnlSca
  * SME API to enable/disable WLAN driver initiated SSR
  */
 void sme_UpdateEnableSSR(tHalHandle hHal, tANI_BOOLEAN enableSSR);
+
+/* ---------------------------------------------------------------------------
+
+    \fn sme_SetPhyMode
+
+    \brief Changes the PhyMode.
+
+    \param hHal - The handle returned by macOpen.
+
+    \param phyMode new phyMode which is to set
+
+    \return eHalStatus  SUCCESS.
+
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_SetPhyMode(tHalHandle hHal, eCsrPhyMode phyMode);
+
+/* ---------------------------------------------------------------------------
+
+    \fn sme_GetPhyMode
+
+    \brief gets current PhyMode.
+
+    \param hHal - The handle returned by macOpen.
+
+    \return eHalStatus PhyMode
+
+  -------------------------------------------------------------------------------*/
+eCsrPhyMode sme_GetPhyMode(tHalHandle hHal);
 
 #endif //#if !defined( __SME_API_H )
