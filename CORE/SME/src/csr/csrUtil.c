@@ -3092,7 +3092,7 @@ eHalStatus csrValidateMCCBeaconInterval(tpAniSirGlobal pMac, tANI_U8 channelId,
                              */
                             //Calculate beacon Interval for P2P-GO incase of MCC
                             new_beaconInterval = csrCalculateMCCBeaconInterval(pMac, 
-                                                pMac->roam.roamSession[sessionId].connectedProfile.beaconInterval,
+                                                pMac->roam.roamSession[sessionId].bssParams.beaconInterval,
                                                 *beaconInterval );
                             if(*beaconInterval != new_beaconInterval)
                                 *beaconInterval = new_beaconInterval;
