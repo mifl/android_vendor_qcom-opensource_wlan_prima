@@ -3260,10 +3260,9 @@ eHalStatus csrNeighborRoamIndicateDisconnect(tpAniSirGlobal pMac, tANI_U8 sessio
 {
     tpCsrNeighborRoamControlInfo    pNeighborRoamInfo = &pMac->roam.neighborRoamInfo;
 
-    smsLog(pMac, LOGE, FL("Disconnect indication on session %d in state %d (sub-state %d)"),
-           sessionId, pNeighborRoamInfo->neighborRoamState,
-           pMac->roam.curSubState[sessionId]);
- 
+    smsLog(pMac, LOGE, FL("Disconnect indication on session %d in state %d"),
+	       sessionId, pNeighborRoamInfo->neighborRoamState);
+
 #ifdef FEATURE_WLAN_CCX
     {
       tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId);
