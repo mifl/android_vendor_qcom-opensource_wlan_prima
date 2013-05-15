@@ -2027,10 +2027,12 @@ static wpt_status dxeRXFrameRefillRing
       }
 
       /* Kick off the DXE ring, if not in any power save mode */
-      if(WLANDXE_POWER_STATE_FULL == dxeCtxt->hostPowerState)
+      if((WLANDXE_POWER_STATE_FULL == dxeCtxt->hostPowerState) ||
+         (eWLAN_PAL_TRUE == channelEntry->hitLowResource))
       {
          wpalWriteRegister(WALNDEX_DMA_ENCH_ADDRESS,
                            1 << channelEntry->assignedDMAChannel);
+         channelEntry->hitLowResource = eWLAN_PAL_FALSE;
       }
       currentCtrlBlk = currentCtrlBlk->nextCtrlBlk;
       --channelEntry->numFreeDesc;
@@ -2220,7 +2222,9 @@ static wpt_status dxeRXFrameReady
                   "dxeRXFrameReady %s RING Wrapped, RX Free Low 0x%x",
                   channelType[channelEntry->channelType], chStat);
          channelEntry->numFragmentCurrentChain = 0;
-         return eWLAN_PAL_STATUS_SUCCESS;
+         channelEntry->hitLowResource = eWLAN_PAL_TRUE;
+         WLANDXE_ChannelDebug(1, 0);
+         return eWLAN_PAL_STATUS_E_RESOURCES;
       }
 
       currentCtrlBlk = channelEntry->headCtrlBlk;
@@ -2629,7 +2633,7 @@ void dxeRXEventHandler
 #endif /* WLANDXE_TEST_CHANNEL_ENABLE */
 
    /* Test Low Priority Channel interrupt is enabled or not */
-       channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI];
+   channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI];
    if(intSrc & (1 << channelCb->assignedDMAChannel))
    {
       status = dxeChannelCleanInt(channelCb, &chLowStat);
@@ -2670,7 +2674,9 @@ void dxeRXEventHandler
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO,
                "RX LOW CH EVNT STAT 0x%x, %d frames handled", chLowStat, channelCb->numFragmentCurrentChain);
    }
-   if(eWLAN_PAL_STATUS_SUCCESS != status)
+
+   if((eWLAN_PAL_STATUS_SUCCESS != status) &&
+      (eWLAN_PAL_STATUS_E_RESOURCES != status))
    {
       HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "dxeRXEventHandler Handle Frame Ready Fail");
@@ -2692,17 +2698,28 @@ void dxeRXEventHandler
    {
       HDXE_ASSERT(0);
    }
-   wpalWriteRegister(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].channelRegister.chDXECtrlRegAddr,
-                     dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].extraConfig.chan_mask);
+   /* If host RX low rewource happen
+    * Do not re-enable RX channel, it will make interrupt storm
+    * Channel will be re-enabled when resource will be available */
+   if(eWLAN_PAL_TRUE != dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].hitLowResource)
+   {
+      wpalWriteRegister(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].channelRegister.chDXECtrlRegAddr,
+                        dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].extraConfig.chan_mask);
+   }
 
    /* Prepare Control Register EN Channel */
    if(!(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].extraConfig.chan_mask & WLANDXE_CH_CTRL_EN_MASK))
    {
       HDXE_ASSERT(0);
    }
-
-   wpalWriteRegister(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].channelRegister.chDXECtrlRegAddr,
-                     dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].extraConfig.chan_mask);
+   /* If host RX low rewource happen
+    * Do not re-enable RX channel, it will make interrupt storm
+    * Channel will be re-enabled when resource will be available */
+   if(eWLAN_PAL_TRUE != dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].hitLowResource)
+   {
+      wpalWriteRegister(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].channelRegister.chDXECtrlRegAddr,
+                        dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].extraConfig.chan_mask);
+   }
 
    /* Clear Interrupt handle processing bit
     * RIVA may power down */
