@@ -2751,4 +2751,37 @@ eHalStatus sme_UpdateDfsSetting(tHalHandle hHal, tANI_U8 fUpdateEnableDFSChnlSca
  */
 void sme_UpdateEnableSSR(tHalHandle hHal, tANI_BOOLEAN enableSSR);
 
+/* ---------------------------------------------------------------------------
+
+    \fn sme_SetPhyMode
+
+    \brief Changes the PhyMode.
+
+    \param hHal - The handle returned by macOpen.
+
+    \param phyMode new phyMode which is to set
+
+    \return eHalStatus  SUCCESS.
+
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_SetPhyMode(tHalHandle hHal, eCsrPhyMode phyMode);
+
+/* ---------------------------------------------------------------------------
+
+    \fn sme_GetPhyMode
+
+    \brief gets current PhyMode.
+
+    \param hHal - The handle returned by macOpen.
+
+    \return eHalStatus PhyMode
+
+  -------------------------------------------------------------------------------*/
+eCsrPhyMode sme_GetPhyMode(tHalHandle hHal);
+
+/*
+ * SME API to determine the channel bonding mode
+ */
+VOS_STATUS sme_SelectCBMode(tHalHandle hHal, eCsrPhyMode eCsrPhyMode, tANI_U8 channel);
+
 #endif //#if !defined( __SME_API_H )
