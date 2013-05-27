@@ -1681,6 +1681,11 @@ typedef enum
 #define CFG_TRAFFIC_IDLE_TIMEOUT_MAX              ( 10000 )
 #define CFG_TRAFFIC_IDLE_TIMEOUT_DEFAULT          ( 5000 )
 
+#define CFG_MAX_MEDIUM_TIME                      "gMaxMediumTime"
+#define CFG_MAX_MEDIUM_TIME_STAMIN               WNI_CFG_MAX_MEDIUM_TIME_STAMIN
+#define CFG_MAX_MEDIUM_TIME_STAMAX               WNI_CFG_MAX_MEDIUM_TIME_STAMAX
+#define CFG_MAX_MEDIUM_TIME_STADEFAULT           WNI_CFG_MAX_MEDIUM_TIME_STADEF
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2035,6 +2040,7 @@ typedef struct
    v_BOOL_t                    sapAllowAllChannel;
    v_U8_t                      enableTrafficMonitor;
    v_U32_t                     trafficIdleTimeout;
+   v_U32_t                     cfgMaxMediumTime;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
