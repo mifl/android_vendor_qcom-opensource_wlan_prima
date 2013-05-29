@@ -1716,6 +1716,9 @@ eHalStatus sme_ProcessMsg(tHalHandle hHal, vos_msg_t* pMsg)
           case eWNI_SME_TDLS_DEL_STA_IND:
           case eWNI_SME_TDLS_DEL_ALL_PEER_IND:
           case eWNI_SME_MGMT_FRM_TX_COMPLETION_IND:
+#ifdef FEATURE_WLAN_TDLS_OXYGEN_DISAPPEAR_AP
+          case eWNI_SME_TDLS_AP_DISAPPEAR_IND:
+#endif
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
           case eWNI_SME_TDLS_DISCOVERY_START_RSP:
           case eWNI_SME_TDLS_DISCOVERY_START_IND:
@@ -5985,6 +5988,8 @@ eHalStatus sme_PreferredNetworkFoundInd (tHalHandle hHal, void* pMsg)
    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
    eHalStatus status = eHAL_STATUS_SUCCESS;
    tSirPrefNetworkFoundInd *pPrefNetworkFoundInd = (tSirPrefNetworkFoundInd *)pMsg;
+   v_U8_t dumpSsId[SIR_MAC_MAX_SSID_LENGTH + 1];
+   tANI_U8 ssIdLength = 0;
 
    if (NULL == pMsg)
    {
@@ -5995,16 +6000,37 @@ eHalStatus sme_PreferredNetworkFoundInd (tHalHandle hHal, void* pMsg)
    {
       if (pPrefNetworkFoundInd->ssId.length > 0)
       {
-          smsLog(pMac, LOG1, "Preferred Network Found Indication in %s(), SSID=%s",
-                 __func__, pPrefNetworkFoundInd->ssId.ssId);
+         ssIdLength = CSR_MIN(SIR_MAC_MAX_SSID_LENGTH,
+                              pPrefNetworkFoundInd->ssId.length);
+         vos_mem_copy(dumpSsId, pPrefNetworkFoundInd->ssId.ssId, ssIdLength);
+         dumpSsId[ssIdLength] = 0;
+         smsLog(pMac, LOG2, "%s:SSID=%s frame length %d",
+             __func__, dumpSsId, pPrefNetworkFoundInd->frameLength);
 
-
-         /* Call Preferred Netowrk Found Indication callback routine. */
-         if (pMac->pmc.prefNetwFoundCB != NULL)
-         {    
-               pMac->pmc.prefNetwFoundCB(pMac->pmc.preferredNetworkFoundIndCallbackContext, pPrefNetworkFoundInd);
+         //Save the frame to scan result
+         if (pPrefNetworkFoundInd->mesgLen > sizeof(tSirPrefNetworkFoundInd))
+         {
+            //we may have a frame
+            status = csrScanSavePreferredNetworkFound(pMac,
+                        pPrefNetworkFoundInd);
+            if (!HAL_STATUS_SUCCESS(status))
+            {
+               smsLog(pMac, LOGE, FL(" fail to save preferred network"));
+            }
+         }
+         else
+         {
+            smsLog(pMac, LOGE, FL(" not enough data length %d needed %d"),
+               pPrefNetworkFoundInd->mesgLen, sizeof(tSirPrefNetworkFoundInd));
          }
 
+         /* Call Preferred Netowrk Found Indication callback routine. */
+         if (HAL_STATUS_SUCCESS(status) && (pMac->pmc.prefNetwFoundCB != NULL))
+         {
+            pMac->pmc.prefNetwFoundCB(
+                pMac->pmc.preferredNetworkFoundIndCallbackContext,
+                pPrefNetworkFoundInd);
+         }
       }
       else
       {

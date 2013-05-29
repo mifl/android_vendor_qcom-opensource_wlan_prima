@@ -720,8 +720,9 @@ eHalStatus csrRoamCopyConnectProfile(tpAniSirGlobal pMac, tANI_U32 sessionId, tC
 eHalStatus csrRoamGetConnectProfile(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrRoamConnectedProfile *pProfile)
 {
     eHalStatus status = eHAL_STATUS_FAILURE;
-    
-    if(csrIsConnStateConnected(pMac, sessionId))
+
+    if((csrIsConnStateConnected(pMac, sessionId)) ||
+       (csrIsConnStateIbss(pMac, sessionId)))
     {
         if(pProfile)
         {
@@ -730,6 +731,7 @@ eHalStatus csrRoamGetConnectProfile(tpAniSirGlobal pMac, tANI_U32 sessionId, tCs
     }
     return (status);
 }
+
 eHalStatus csrRoamFreeConnectProfile(tpAniSirGlobal pMac, tCsrRoamConnectedProfile *pProfile)
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
@@ -1931,8 +1933,11 @@ eHalStatus csrGet5GChannels(tpAniSirGlobal pMac)
         {
             if(pMac->scan.defaultPowerTable[Index].chanId >= 36 && pMac->scan.defaultPowerTable[Index].chanId <= 165)
             {
-                pMac->scan.base20MHzChannels.channelList[ channelList ] = pMac->scan.defaultPowerTable[Index].chanId;
-                channelList++;
+                if (channelList < WNI_CFG_VALID_CHANNEL_LIST_LEN)
+                {
+                    pMac->scan.base20MHzChannels.channelList[ channelList ] = pMac->scan.defaultPowerTable[Index].chanId;
+                    channelList++;
+                }
             }
         }
 
@@ -1992,8 +1997,11 @@ eHalStatus csrGet24GChannels(tpAniSirGlobal pMac)
         // Restoring the Backed up 5 GHZ channels
         for(channelList = 0;channelList < nuum5GchannelListBackup; channelList++ )
         {
-            pMac->scan.base20MHzChannels.channelList[ Index ] = channelList5GBackup[channelList];
-            Index++;
+            if (Index < WNI_CFG_VALID_CHANNEL_LIST_LEN)
+            {
+                pMac->scan.base20MHzChannels.channelList[ Index ] = channelList5GBackup[channelList];
+                Index++;
+            }
         }
 
         pMac->scan.numChannelsDefault = (num20MHzChannelsFound > Index) ? num20MHzChannelsFound : Index;

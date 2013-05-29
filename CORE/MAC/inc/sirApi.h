@@ -3540,12 +3540,18 @@ typedef struct {
 // Preferred Network Found Indication
 typedef struct
 {  
-  tANI_U16        mesgType;
-  tANI_U16        mesgLen;
+  tANI_U16      mesgType;
+  tANI_U16      mesgLen;
   /* Network that was found with the highest RSSI*/
-  tSirMacSSid ssId;
+  tSirMacSSid   ssId;
   /* Indicates the RSSI */
-  tANI_U8        rssi;
+  tANI_U8       rssi;
+  /* Length of the beacon or probe response
+   * corresponding to the candidate found by PNO */
+  tANI_U32      frameLength;
+  /* Index to memory location where the contents of
+   * beacon or probe response frame will be copied */
+  tANI_U8       data[1];
 } tSirPrefNetworkFoundInd, *tpSirPrefNetworkFoundInd;
 #endif // FEATURE_WLAN_SCAN_PNO
 
@@ -3581,6 +3587,9 @@ typedef struct
 
   /* Beacon Early Termination Interval */
   tANI_U32 uBETInterval; 
+
+  /* MAX LI for modulated DTIM */
+  tANI_U32 uMaxLIModulatedDTIM;
 
 }tSirSetPowerParamsReq, *tpSirSetPowerParamsReq;
 
@@ -3880,6 +3889,16 @@ typedef struct sSirTdlsDelAllPeerInd
    tANI_U16               length;
    tANI_U8                sessionId;     // Session ID
 } tSirTdlsDelAllPeerInd, *tpSirTdlsDelAllPeerInd;
+#ifdef FEATURE_WLAN_TDLS_OXYGEN_DISAPPEAR_AP
+typedef struct sSirTdlsDisappearAPInd
+{
+   tANI_U16               messageType;
+   tANI_U16               length;
+   tANI_U8                sessionId;     // Session ID
+   tANI_U16               staId;
+   tSirMacAddr            staAddr;
+} tSirTdlsDisappearAPInd, *tpSirTdlsDisappearAPInd;
+#endif
 typedef struct sSirMgmtTxCompletionInd
 {
    tANI_U16               messageType;

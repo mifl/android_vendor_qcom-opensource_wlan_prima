@@ -5182,6 +5182,8 @@ typedef PACKED_PRE struct PACKED_POST {
   /*Indicates the RSSI */
   tANI_U8     rssi;
 
+  tANI_U16    frameLength;
+
 } tPrefNetwFoundParams, * tpPrefNetwFoundParams;
 
 /*
@@ -5601,6 +5603,9 @@ typedef PACKED_PRE struct PACKED_POST
 
   /* Beacon Early Termination Interval */
   tANI_U32 uBETInterval; 
+
+  /* MAX LI for modulated DTIM */
+  tANI_U32 uMaxLIModulatedDTIM;
 }tSetPowerParamsType, *tpSetPowerParamsType;
 
 typedef PACKED_PRE struct PACKED_POST
