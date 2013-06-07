@@ -2073,6 +2073,20 @@ REG_VARIABLE( CFG_DISABLE_LDPC_WITH_TXBF_AP, WLAN_PARAM_Integer,
              CFG_DISABLE_LDPC_WITH_TXBF_AP_MIN,
              CFG_DISABLE_LDPC_WITH_TXBF_AP_MAX ),
 #endif
+
+   REG_VARIABLE( CFG_ENABLE_TRAFFIC_MONITOR, WLAN_PARAM_Integer,
+                hdd_config_t, enableTrafficMonitor,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_ENABLE_TRAFFIC_MONITOR_DEFAULT,
+                CFG_ENABLE_TRAFFIC_MONITOR_MIN,
+                CFG_ENABLE_TRAFFIC_MONITOR_MAX),
+
+   REG_VARIABLE( CFG_TRAFFIC_IDLE_TIMEOUT, WLAN_PARAM_Integer,
+                hdd_config_t, trafficIdleTimeout,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TRAFFIC_IDLE_TIMEOUT_DEFAULT,
+                CFG_TRAFFIC_IDLE_TIMEOUT_MIN,
+                CFG_TRAFFIC_IDLE_TIMEOUT_MAX),
 };
 
 /*
@@ -2447,6 +2461,9 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [ignoreDynamicDtimInP2pMode] Value = [%u] ",pHddCtx->cfg_ini->ignoreDynamicDtimInP2pMode);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [enableRxSTBC] Value = [%u] ",pHddCtx->cfg_ini->enableRxSTBC);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableLpwrImgTransition] Value = [%u] ",pHddCtx->cfg_ini->enableLpwrImgTransition);
+
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableTrafficMonitor] Value = [%u] ", pHddCtx->cfg_ini->enableTrafficMonitor);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gTrafficIdleTimeout] Value = [%u] ", pHddCtx->cfg_ini->trafficIdleTimeout);
 }
 
 
