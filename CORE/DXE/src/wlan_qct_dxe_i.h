@@ -642,6 +642,7 @@ typedef struct
    wpt_packet                     *freeRXPacket;
    wpt_boolean                     rxPalPacketUnavailable;
    wpt_boolean                     driverReloadInProcessing;
+   wpt_timer                       rxResourceAvailableTimer;
 } WLANDXE_CtrlBlkType;
 
 /*==========================================================================
