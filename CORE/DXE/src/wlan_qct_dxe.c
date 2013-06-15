@@ -2223,7 +2223,6 @@ static wpt_status dxeRXFrameReady
                   channelType[channelEntry->channelType], chStat);
          channelEntry->numFragmentCurrentChain = 0;
          channelEntry->hitLowResource = eWLAN_PAL_TRUE;
-         WLANDXE_ChannelDebug(1, 0);
          return eWLAN_PAL_STATUS_E_RESOURCES;
       }
 
