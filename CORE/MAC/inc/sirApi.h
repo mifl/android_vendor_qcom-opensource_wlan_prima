@@ -2118,6 +2118,7 @@ typedef struct sAniChangeCountryCodeReq
     tANI_U16                msgType;    // message type is same as the request type
     tANI_U16                msgLen;     // length of the entire request
     tANI_U8                 countryCode[WNI_CFG_COUNTRY_CODE_LEN];   //3 char country code
+    tAniBool                countryFromUserSpace;
     void                    *changeCCCallback;
     void                    *pDevContext; //device context
     void                    *pVosContext; //voss context
@@ -4119,5 +4120,15 @@ typedef struct sSirWlanExcludeUnencryptParam
     tSirMacAddr     bssId;
 }tSirWlanExcludeUnencryptParam,*tpSirWlanExcludeUnencryptParam;
 #endif
+
+typedef struct sAniHandoffReq
+{
+    // Common for all types are requests
+    tANI_U16  msgType; // message type is same as the request type
+    tANI_U16  msgLen;  // length of the entire request
+    tANI_U8   sessionId;
+    tANI_U8   bssid[WNI_CFG_BSSID_LEN];
+    tANI_U8   channel;
+} tAniHandoffReq, *tpAniHandoffReq;
 
 #endif /* __SIR_API_H */

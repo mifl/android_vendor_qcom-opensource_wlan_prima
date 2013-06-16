@@ -118,8 +118,6 @@ v_U8_t ccpRSNOui07[ HDD_RSN_OUI_SIZE ] = { 0x00, 0x0F, 0xAC, 0x06 }; // RSN-PSK-
 
 #define BEACON_FRAME_IES_OFFSET 12
 
-void hdd_ResetCountryCodeAfterDisAssoc(hdd_adapter_t *pAdapter);
-
 #ifdef WLAN_FEATURE_11W
 void hdd_indicateUnprotMgmtFrame(hdd_adapter_t *pAdapter,
                             tANI_U32 nFrameLength,
@@ -154,7 +152,8 @@ static inline v_BOOL_t hdd_connGetConnectionState( hdd_station_ctx_t *pHddStaCtx
    connState = pHddStaCtx->conn_info.connState;
    // Set the fConnected return variable based on the Connected State.
    if ( eConnectionState_Associated == connState ||
-        eConnectionState_IbssConnected == connState )
+        eConnectionState_IbssConnected == connState ||
+        eConnectionState_IbssDisconnected == connState)
    {
       fConnected = VOS_TRUE;
    }
@@ -1494,12 +1493,6 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
         netif_tx_disable(dev);
         netif_carrier_off(dev);
 
-        if (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode)
-        {
-            /* Association failed; Reset the country code information
-             * so that it re-initialize the valid channel list*/
-            hdd_ResetCountryCodeAfterDisAssoc(pAdapter);
-        }
     }
 
     return eHAL_STATUS_SUCCESS;
@@ -1683,6 +1676,7 @@ static int roamRemoveIbssStation( hdd_station_ctx_t *pHddStaCtx, v_U8_t staId )
   ===========================================================================*/
 static eHalStatus roamIbssConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *pRoamInfo )
 {
+   struct cfg80211_bss *bss;
    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "IBSS Connect Indication from SME!!!" );
    // Set the internal connection state to show 'IBSS Connected' (IBSS with a partner stations)...
    hdd_connSetConnectionState( WLAN_HDD_GET_STATION_CTX_PTR(pAdapter), eConnectionState_IbssConnected );
@@ -1693,9 +1687,17 @@ static eHalStatus roamIbssConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo 
    // Send the bssid address to the wext.
    hdd_SendAssociationEvent(pAdapter->dev, pRoamInfo);
    /* add bss_id to cfg80211 data base */
-   wlan_hdd_cfg80211_update_bss_db(pAdapter, pRoamInfo);
+   bss = wlan_hdd_cfg80211_update_bss_db(pAdapter, pRoamInfo);
+   if (NULL == bss)
+   {
+      hddLog(VOS_TRACE_LEVEL_ERROR,
+             "%s: %s: unable to create IBSS entry",
+             __func__, pAdapter->dev->name);
+      return eHAL_STATUS_FAILURE;
+   }
    /* send ibss join indication to nl80211 */
    cfg80211_ibss_joined(pAdapter->dev, &pRoamInfo->bssid[0], GFP_KERNEL);
+   cfg80211_put_bss(bss);
 
    return( eHAL_STATUS_SUCCESS );
 }
@@ -1718,15 +1720,49 @@ static eHalStatus hdd_RoamSetKeyCompleteHandler( hdd_adapter_t *pAdapter, tCsrRo
    // then go to 'authenticated'.  For all other authentication types (those that do
    // not require upper layer authentication) we can put TL directly into 'authenticated'
    // state.
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+       "Set Key completion roamStatus =%d roamResult=%d " MAC_ADDRESS_STR,
+       roamStatus, roamResult, MAC_ADDR_ARRAY(pRoamInfo->peerMac));
 
    fConnected = hdd_connGetConnectedCipherAlgo( pHddStaCtx, &connectedCipherAlgo );
    if( fConnected )
    {
-      // TODO: Considering getting a state machine in HDD later.
-      // This routuine is invoked twice. 1)set PTK 2)set GTK.
-      vosStatus = WLANTL_STAPtkInstalled( pHddCtx->pvosContext,
+      if ( WLAN_HDD_IBSS == pAdapter->device_mode )
+      {
+         v_U8_t staId;
+
+         v_MACADDR_t broadcastMacAddr = VOS_MAC_ADDR_BROADCAST_INITIALIZER;
+
+         if ( 0 == memcmp( pRoamInfo->peerMac,
+                      &broadcastMacAddr, VOS_MAC_ADDR_SIZE ) )
+         {
+            vosStatus = WLANTL_STAPtkInstalled( pHddCtx->pvosContext,
+                                                IBSS_BROADCAST_STAID);
+            pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
+         }
+         else
+         {
+            vosStatus = hdd_Ibss_GetStaId(pHddStaCtx,
+                              (v_MACADDR_t*)pRoamInfo->peerMac,
+                              &staId);
+            if ( VOS_STATUS_SUCCESS == vosStatus )
+            {
+               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+                "WLAN TL STA Ptk Installed for STAID=%d", staId);
+               vosStatus = WLANTL_STAPtkInstalled( pHddCtx->pvosContext,
+                                                  staId);
+               pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
+            }
+         }
+      }
+      else
+      {
+          // TODO: Considering getting a state machine in HDD later.
+          // This routuine is invoked twice. 1)set PTK 2)set GTK.
+          vosStatus = WLANTL_STAPtkInstalled( pHddCtx->pvosContext,
                                             pHddStaCtx->conn_info.staId[ 0 ]);
-      pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
+          pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
+      }
    }
 
    EXIT();
@@ -1839,6 +1875,30 @@ static eHalStatus roamRoamConnectStatusUpdateHandler( hdd_adapter_t *pAdapter, t
                       (const u8 *)pRoamInfo->peerMac,
                       &staInfo, GFP_KERNEL);
 
+         if ( eCSR_ENCRYPT_TYPE_WEP40_STATICKEY == pHddStaCtx->ibss_enc_key.encType
+            ||eCSR_ENCRYPT_TYPE_WEP104_STATICKEY == pHddStaCtx->ibss_enc_key.encType
+            ||eCSR_ENCRYPT_TYPE_TKIP == pHddStaCtx->ibss_enc_key.encType
+            ||eCSR_ENCRYPT_TYPE_AES == pHddStaCtx->ibss_enc_key.encType )
+         {
+            pHddStaCtx->ibss_enc_key.keyDirection = eSIR_TX_RX;
+            memcpy(&pHddStaCtx->ibss_enc_key.peerMac,
+                              pRoamInfo->peerMac, WNI_CFG_BSSID_LEN);
+
+            VOS_TRACE( VOS_MODULE_ID_HDD,
+               VOS_TRACE_LEVEL_INFO_HIGH, "New peer joined set PTK encType=%d\n",
+               pHddStaCtx->ibss_enc_key.encType);
+
+            vosStatus = sme_RoamSetKey( WLAN_HDD_GET_HAL_CTX(pAdapter),
+               pAdapter->sessionId, &pHddStaCtx->ibss_enc_key, &roamId );
+
+            if ( VOS_STATUS_SUCCESS != vosStatus )
+            {
+               hddLog(VOS_TRACE_LEVEL_ERROR,
+                       "%s: sme_RoamSetKey failed, returned %d",
+                       __func__, vosStatus);
+               return VOS_STATUS_E_FAILURE;
+            }
+         }
          netif_carrier_on(pAdapter->dev);
          netif_tx_start_all_queues(pAdapter->dev);
          break;
@@ -2370,12 +2430,6 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
                 }
 #endif
 
-                if (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode)
-                {
-                    /* Disconnected from current AP. Reset the country code information
-                     * so that it re-initialize the valid channel list*/
-                    hdd_ResetCountryCodeAfterDisAssoc(pAdapter);
-                }
             }
             break;
         case eCSR_ROAM_IBSS_LEAVE:
@@ -2798,6 +2852,20 @@ int hdd_SetGENIEToCsr( hdd_adapter_t *pAdapter, eCsrAuthType *RSNAuthType)
 
         pWextState->roamProfile.EncryptionType.encryptionType[0] = RSNEncryptType; // Use the cipher type in the RSN IE
         pWextState->roamProfile.mcEncryptionType.encryptionType[0] = mcRSNEncryptType;
+
+        if ( (WLAN_HDD_IBSS == pAdapter->device_mode) &&
+             ((eCSR_ENCRYPT_TYPE_AES == mcRSNEncryptType) ||
+             (eCSR_ENCRYPT_TYPE_TKIP == mcRSNEncryptType)))
+        {
+           /*For wpa none supplicant sends the WPA IE with unicast cipher as
+             eCSR_ENCRYPT_TYPE_NONE ,where as the multicast cipher as
+             either AES/TKIP based on group cipher configuration
+             mentioned in the wpa_supplicant.conf.*/
+
+           /*Set the unicast cipher same as multicast cipher*/
+           pWextState->roamProfile.EncryptionType.encryptionType[0]
+                                                     = mcRSNEncryptType;
+        }
 
 #ifdef WLAN_FEATURE_11W
         pWextState->roamProfile.MFPRequired = RSNMfpRequired;
@@ -3547,70 +3615,6 @@ int iw_get_ap_address(struct net_device *dev,
     }
     EXIT();
     return 0;
-}
-
-
-/**---------------------------------------------------------------------------
-
-  \brief hdd_ResetCountryCodeAfterDisAssoc -
-  This function reset the country code to default
-  \param  - pAdapter - Pointer to HDD adapter
-  \return - nothing
-
-  --------------------------------------------------------------------------*/
-void hdd_ResetCountryCodeAfterDisAssoc(hdd_adapter_t *pAdapter)
-{
-    hdd_context_t* pHddCtx = (hdd_context_t*)pAdapter->pHddCtx;
-    tSmeConfigParams smeConfig;
-    eHalStatus status = eHAL_STATUS_SUCCESS;
-    tANI_U8 defaultCountryCode[3] = SME_INVALID_COUNTRY_CODE;
-    tANI_U8 currentCountryCode[3] = SME_INVALID_COUNTRY_CODE;
-
-    sme_GetConfigParam(pHddCtx->hHal, &smeConfig);
-
-    VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
-            "%s: 11d is %s\n",__func__,
-            smeConfig.csrConfig.Is11dSupportEnabled ? "Enabled" : "Disabled");
-    /* Reset country code only when 11d is enabled
-    */
-    if (smeConfig.csrConfig.Is11dSupportEnabled)
-    {
-        sme_GetDefaultCountryCodeFrmNv(pHddCtx->hHal, &defaultCountryCode[0]);
-        sme_GetCurrentCountryCode(pHddCtx->hHal, &currentCountryCode[0]);
-
-        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                "%s: Default country code: %c%c%c, Current Country code: %c%c%c \n",
-                __func__,
-                defaultCountryCode[0], defaultCountryCode[1], defaultCountryCode[2],
-                currentCountryCode[0], currentCountryCode[1], currentCountryCode[2]);
-        /* Reset country code only when there is a mismatch
-         * between current country code and default country code
-         */
-        if ((defaultCountryCode[0] != currentCountryCode[0]) ||
-                (defaultCountryCode[1] != currentCountryCode[1]))
-        {
-            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                    "%s: Disconnected from the AP/Assoc failed and "
-                    "resetting the country code to default\n",__func__);
-            /*reset the country code of previous connection*/
-            status = (int)sme_ChangeCountryCode(pHddCtx->hHal, NULL,
-                    &defaultCountryCode[0], pAdapter,
-                    pHddCtx->pvosContext
-                    );
-            if( 0 != status )
-            {
-                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                        "%s: failed to Reset the Country Code\n",__func__);
-            }
-        }
-    }
-    else if (smeConfig.csrConfig.Is11hSupportEnabled)
-    {
-        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                            "%s: Disconnected from the AP/Assoc failed and "
-                            "resetting the 5G power values to default", __func__);
-        sme_ResetPowerValuesFor5G (pHddCtx->hHal);
-    }
 }
 
 #ifdef WLAN_FEATURE_11W
