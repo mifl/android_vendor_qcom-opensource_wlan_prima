@@ -15642,6 +15642,16 @@ eHalStatus csrQueueSmeCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOL
         return eHAL_STATUS_CSR_WRONG_STATE;
     }
 
+    if ((pMac->fScanOffload) && (pCommand->command == eSmeCommandScan))
+    {
+        csrLLInsertTail(&pMac->sme.smeScanCmdPendingList,
+                        &pCommand->Link, LL_ACCESS_LOCK);
+        // process the command queue...
+        smeProcessPendingQueue(pMac);
+        status = eHAL_STATUS_SUCCESS;
+        goto end;
+    }
+
     //We can call request full power first before putting the command into pending Q
     //because we are holding SME lock at this point.
     status = csrRequestFullPower( pMac, pCommand );
@@ -15656,7 +15666,7 @@ eHalStatus csrQueueSmeCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOL
         }
         else
         {
-             //Other commands are waiting for PMC callback, queue the new command to the pending Q
+            //Other commands are waiting for PMC callback, queue the new command to the pending Q
             //no list lock is needed since SME lock is held
             if( !fHighPriority )
             {
@@ -15665,7 +15675,7 @@ eHalStatus csrQueueSmeCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOL
             else {
                 csrLLInsertHead( &pMac->roam.roamCmdPendingList, &pCommand->Link, eANI_BOOLEAN_FALSE );
             }
-       }
+        }
     }
     else if( eHAL_STATUS_PMC_PENDING == status )
     {
@@ -15682,10 +15692,11 @@ eHalStatus csrQueueSmeCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOL
     }
     else
     {
-        //Not to decrease pMac->roam.sPendingCommands here. Caller will decrease it when it 
+        //Not to decrease pMac->roam.sPendingCommands here. Caller will decrease it when it
         //release the command.
         smsLog( pMac, LOGE, FL( "  cannot queue command %d" ), pCommand->command );
     }
+end:
     return ( status );
 }
 eHalStatus csrRoamUpdateAPWPSIE( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirAPWPSIEs* pAPWPSIES )
