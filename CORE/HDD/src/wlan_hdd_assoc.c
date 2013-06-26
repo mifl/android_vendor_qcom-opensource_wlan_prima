@@ -815,8 +815,7 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
             // In case of JB, as Change-Iface may or maynot be called for p2p0
             // Enable BMPS/IMPS in case P2P_CLIENT disconnected
             if(((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
-                (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode)) &&
-                (vos_concurrent_sessions_running()))
+                (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode)))
             {
                //Enable BMPS only of other Session is P2P Client
                hdd_context_t *pHddCtx = NULL;
@@ -832,20 +831,12 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
                        if((0 == pHddCtx->no_of_sessions[VOS_STA_SAP_MODE]) &&
                           (0 == pHddCtx->no_of_sessions[VOS_P2P_GO_MODE]))
                        {
-                          if (pHddCtx->hdd_wlan_suspended)
-                          {
-                             if(WLAN_HDD_INFRA_STATION == pAdapter->device_mode)
-                             {
-                                hdd_reset_pwrparams(pHddCtx);
-                             }
-                             else
-                             {
-                                hdd_set_pwrparams(pHddCtx);
-                             }
-                          }
-
+                           if (pHddCtx->hdd_wlan_suspended)
+                           {
+                               hdd_set_pwrparams(pHddCtx);
+                           }
                            hdd_enable_bmps_imps(pHddCtx);
-                       }
+                      }
                    }
                }
             }
@@ -1445,24 +1436,16 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
 
                if(NULL != pHddCtx)
                {
-                   //Only P2P Client is there Enable Bmps back
-                   if((0 == pHddCtx->no_of_sessions[VOS_STA_SAP_MODE]) &&
-                      (0 == pHddCtx->no_of_sessions[VOS_P2P_GO_MODE]))
-                   {
-                      if (pHddCtx->hdd_wlan_suspended)
-                      {
-                         if(WLAN_HDD_INFRA_STATION == pAdapter->device_mode)
+                    //Only P2P Client is there Enable Bmps back
+                    if((0 == pHddCtx->no_of_sessions[VOS_STA_SAP_MODE]) &&
+                       (0 == pHddCtx->no_of_sessions[VOS_P2P_GO_MODE]))
+                    {
+                         if (pHddCtx->hdd_wlan_suspended)
                          {
-                            hdd_reset_pwrparams(pHddCtx);
+                             hdd_set_pwrparams(pHddCtx);
                          }
-                         else
-                         {
-                            hdd_set_pwrparams(pHddCtx);
-                         }
-                      }
-
-                       hdd_enable_bmps_imps(pHddCtx);
-                   }
+                         hdd_enable_bmps_imps(pHddCtx);
+                    }
                }
            }
         }
@@ -2132,6 +2115,7 @@ eHalStatus hdd_RoamTdlsStatusUpdateHandler(hdd_adapter_t *pAdapter,
       roamResult == eCSR_ROAM_RESULT_TEARDOWN_TDLS_PEER_IND ? "DEL_TDLS_PEER_IND" :
       roamResult == eCSR_ROAM_RESULT_DELETE_ALL_TDLS_PEER_IND? "DEL_ALL_TDLS_PEER_IND" :
       roamResult == eCSR_ROAM_RESULT_UPDATE_TDLS_PEER? "UPDATE_TDLS_PEER" :
+      roamResult == eCSR_ROAM_RESULT_LINK_ESTABLISH_REQ_RSP? "LINK_ESTABLISH_REQ_RSP" :
 #ifdef FEATURE_WLAN_TDLS_OXYGEN_DISAPPEAR_AP
       roamResult == eCSR_ROAM_RESULT_TDLS_DISAPPEAR_AP_IND? "DISAPPEAR_AP_DEREG_STA" :
 #endif
@@ -2222,6 +2206,16 @@ eHalStatus hdd_RoamTdlsStatusUpdateHandler(hdd_adapter_t *pAdapter,
              */
             pAdapter->tdlsAddStaStatus = pRoamInfo->statusCode;
             complete(&pAdapter->tdls_add_station_comp);
+            break;
+        }
+        case eCSR_ROAM_RESULT_LINK_ESTABLISH_REQ_RSP:
+        {
+            if (eSIR_SME_SUCCESS != pRoamInfo->statusCode)
+            {
+                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Link Establish Request failed. %d", __func__, pRoamInfo->statusCode);
+            }
+            complete(&pAdapter->tdls_link_establish_req_comp);
             break;
         }
         case eCSR_ROAM_RESULT_DELETE_TDLS_PEER:
