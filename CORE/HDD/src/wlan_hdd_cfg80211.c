@@ -86,6 +86,7 @@
 #include "wlan_hdd_wmm.h"
 #endif
 #include "wlan_nv.h"
+#include "wlan_hdd_dev_pwr.h"
 
 #define g_mode_rates_size (12)
 #define a_mode_rates_size (8)
@@ -1932,6 +1933,13 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
          ((WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->dot11Mode == eHDD_DOT11_MODE_11ac_ONLY)) )
     {
         pConfig->SapHw_mode = eSAP_DOT11_MODE_11ac;
+
+        /* Disable VHT support in 2.4 GHz band */
+        if (pConfig->channel <= 14 &&
+            (WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->enableVhtFor24GHzBand == FALSE)
+        {
+            pConfig->SapHw_mode = eSAP_DOT11_MODE_11n;
+        }
     }
 #endif
 
@@ -2737,6 +2745,15 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
 done:
     /*set bitmask based on updated value*/
     wlan_hdd_set_concurrency_mode(pHddCtx, pAdapter->device_mode);
+
+   /* Only STA mode support TM now
+    * all other mode, TM feature should be disabled */
+    if ( (pHddCtx->cfg_ini->thermalMitigationEnable) &&
+         (~VOS_STA & pHddCtx->concurrency_mode) )
+    {
+        hddDevTmLevelChangedHandler(pHddCtx->parent_dev, 0);
+    }
+
 #ifdef WLAN_BTAMP_FEATURE
     if((NL80211_IFTYPE_STATION == type) && (pHddCtx->concurrency_mode <= 1) &&
        (pHddCtx->no_of_sessions[WLAN_HDD_INFRA_STATION] <=1))
@@ -3060,22 +3077,7 @@ static int wlan_hdd_change_station(struct wiphy *wiphy,
             }
         }
 #endif
-        if(params->sta_flags_set & BIT(NL80211_STA_FLAG_AUTHORIZED))
-        {
-            status = WLANTL_ChangeSTAState(pHddCtx->pvosContext, pHddStaCtx->conn_info.staId[ 0 ],
-                                           WLANTL_STA_AUTHENTICATED);
-            if (status != VOS_STATUS_SUCCESS)
-            {
-                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-                          "%s: Not able to change TL state to AUTHENTICATED", __func__);
-                return -EINVAL;
-            }
-            pHddStaCtx->conn_info.uIsAuthenticated = VOS_TRUE;
-            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                    "%s: TL Moving to Authenticated state", __func__);
-         }
-     }
-
+    }
     EXIT();
     return status;
 }
@@ -4861,6 +4863,10 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
             vos_mem_copy((void *)(pWextState->req_bssId), bssid,
                     WNI_CFG_BSSID_LEN);
         }
+        else
+        {
+            vos_mem_zero((void *)(pRoamProfile->BSSIDs.bssid),WNI_CFG_BSSID_LEN);
+        }
 
         if ((IW_AUTH_WPA_VERSION_WPA == pWextState->wpaVersion) ||
                 (IW_AUTH_WPA_VERSION_WPA2 == pWextState->wpaVersion))
@@ -4904,13 +4910,13 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
         }
 #endif /* FEATURE_WLAN_WAPI */
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
-        /* Initializing gtkOffloadRequestParams */
+        /* Initializing gtkOffloadReqParams */
         if ((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
             (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode))
         {
-            pHddStaCtx->gtkOffloadRequestParams.requested = FALSE;
-            memset(&pHddStaCtx->gtkOffloadRequestParams.gtkOffloadReqParams,
-                 0, sizeof (tSirGtkOffloadParams));
+            memset(&pHddStaCtx->gtkOffloadReqParams, 0,
+                  sizeof (tSirGtkOffloadParams));
+            pHddStaCtx->gtkOffloadReqParams.ulFlags = GTK_OFFLOAD_DISABLE;
         }
 #endif
         pRoamProfile->csrPersona = pAdapter->device_mode;
@@ -7787,6 +7793,8 @@ void wlan_hdd_cfg80211_update_replayCounterCallback(void *callbackContext,
 {
 
     hdd_adapter_t *pAdapter = (hdd_adapter_t *)callbackContext;
+    tANI_U8 tempReplayCounter[8];
+    hdd_station_ctx_t *pHddStaCtx;
 
     ENTER();
 
@@ -7812,9 +7820,27 @@ void wlan_hdd_cfg80211_update_replayCounterCallback(void *callbackContext,
         return ;
     }
 
+    pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+    /* Update replay counter */
+    pHddStaCtx->gtkOffloadReqParams.ullKeyReplayCounter =
+                                   pGtkOffloadGetInfoRsp->ullKeyReplayCounter;
+
+    {
+        /* changing from little to big endian since supplicant
+         * works on big endian format
+         */
+        int i;
+        tANI_U8 *p = (tANI_U8 *)&pGtkOffloadGetInfoRsp->ullKeyReplayCounter;
+
+        for (i = 0; i < 8; i++)
+        {
+            tempReplayCounter[7-i] = (tANI_U8)p[i];
+        }
+    }
+
     /* Update replay counter to NL */
     cfg80211_gtk_rekey_notify(pAdapter->dev, pGtkOffloadGetInfoRsp->bssId,
-          (tANI_U8 *)&pGtkOffloadGetInfoRsp->ullKeyReplayCounter, GFP_KERNEL);
+          tempReplayCounter, GFP_KERNEL);
 }
 
 /*
@@ -7829,7 +7855,7 @@ int wlan_hdd_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *dev
     hdd_station_ctx_t *pHddStaCtx;
     tHalHandle hHal;
     int result;
-    tpSirGtkOffloadParams pGtkOffloadReqParams;
+    tSirGtkOffloadParams hddGtkOffloadReqParams;
     eHalStatus status = eHAL_STATUS_FAILURE;
 
     ENTER();
@@ -7859,21 +7885,31 @@ int wlan_hdd_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *dev
         return -EAGAIN;
     }
 
-    pGtkOffloadReqParams =
-          &pHddStaCtx->gtkOffloadRequestParams.gtkOffloadReqParams;
-
-    pGtkOffloadReqParams->ulFlags = GTK_OFFLOAD_ENABLE;
-    memcpy(pGtkOffloadReqParams->aKCK, data->kck, NL80211_KCK_LEN);
-    memcpy(pGtkOffloadReqParams->aKEK, data->kek, NL80211_KEK_LEN);
-    memcpy(pGtkOffloadReqParams->bssId, &pHddStaCtx->conn_info.bssId,
+    pHddStaCtx->gtkOffloadReqParams.ulFlags = GTK_OFFLOAD_ENABLE;
+    memcpy(pHddStaCtx->gtkOffloadReqParams.aKCK, data->kck, NL80211_KCK_LEN);
+    memcpy(pHddStaCtx->gtkOffloadReqParams.aKEK, data->kek, NL80211_KEK_LEN);
+    memcpy(pHddStaCtx->gtkOffloadReqParams.bssId, &pHddStaCtx->conn_info.bssId,
           WNI_CFG_BSSID_LEN);
-    memcpy(&pGtkOffloadReqParams->ullKeyReplayCounter, &data->replay_ctr,
-          sizeof (tANI_U64));
+    {
+        /* changing from big to little endian since driver
+         * works on little endian format
+         */
+        tANI_U8 *p =
+              (tANI_U8 *)&pHddStaCtx->gtkOffloadReqParams.ullKeyReplayCounter;
+        int i;
+
+        for (i = 0; i < 8; i++)
+        {
+            p[7-i] = data->replay_ctr[i];
+        }
+    }
 
     if (TRUE == pHddCtx->hdd_wlan_suspended)
     {
         /* if wlan is suspended, enable GTK offload directly from here */
-        status = sme_SetGTKOffload(hHal, pGtkOffloadReqParams,
+        memcpy(&hddGtkOffloadReqParams, &pHddStaCtx->gtkOffloadReqParams,
+              sizeof (tSirGtkOffloadParams));
+        status = sme_SetGTKOffload(hHal, &hddGtkOffloadReqParams,
                        pAdapter->sessionId);
 
         if (eHAL_STATUS_SUCCESS != status)
@@ -7883,19 +7919,17 @@ int wlan_hdd_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *dev
                     __func__, status);
             return status;
         }
-        pHddStaCtx->gtkOffloadRequestParams.requested = FALSE;
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                 "%s: sme_SetGTKOffload successfull", __func__);
     }
     else
     {
-        pHddStaCtx->gtkOffloadRequestParams.requested = TRUE;
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                 "%s: wlan not suspended GTKOffload request is stored",
                 __func__);
-        return eHAL_STATUS_SUCCESS;
     }
-    return status;
+
+    return eHAL_STATUS_SUCCESS;
 }
 #endif /*WLAN_FEATURE_GTK_OFFLOAD*/
 

@@ -452,6 +452,7 @@ typedef struct sSirRemainOnChnReq
     tANI_U8  chnNum;
     tANI_U8  phyMode;
     tANI_U32 duration;
+    tANI_U8  isProbeRequestAllowed;
     tANI_U8  probeRspIe[1];
 }tSirRemainOnChnReq, *tpSirRemainOnChnReq;
 
@@ -1029,6 +1030,7 @@ typedef struct sSirSmeJoinReq
     tAniBool            is11Rconnection;
 #endif
 #ifdef FEATURE_WLAN_CCX
+    tAniBool            isCCXFeatureIniEnabled;
     tAniBool            isCCXconnection;
     tCCXTspecInfo       ccxTspecInfo;
 #endif
