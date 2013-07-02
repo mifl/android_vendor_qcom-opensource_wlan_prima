@@ -178,7 +178,7 @@
 #define WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP 14
 #define WLAN_HDD_TDLS_ACTION_FRAME 12
 #ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
-#define HDD_WAKE_LOCK_DURATION 500 //in msecs
+#define HDD_WAKE_LOCK_DURATION 50 //in msecs
 #endif
 
 #define HDD_SAP_WAKE_LOCK_DURATION 10000 //in msecs
@@ -519,14 +519,6 @@ typedef enum{
     HDD_SSR_DISABLED,
 }e_hdd_ssr_required;
 
-#ifdef WLAN_FEATURE_GTK_OFFLOAD
-typedef struct
-{
-   v_BOOL_t requested;
-   tSirGtkOffloadParams gtkOffloadReqParams;
-}hddGtkOffloadParams;
-#endif
-
 struct hdd_station_ctx
 {
   /** Handle to the Wireless Extension State */
@@ -549,7 +541,7 @@ struct hdd_station_ctx
 #endif
 
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
-   hddGtkOffloadParams gtkOffloadRequestParams;
+   tSirGtkOffloadParams gtkOffloadReqParams;
 #endif
    /*Increment whenever ibss New peer joins and departs the network */
    int ibss_sta_generation;
