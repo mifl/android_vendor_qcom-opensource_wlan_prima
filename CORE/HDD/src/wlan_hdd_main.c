@@ -1368,18 +1368,18 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        else if (strncmp(command, "SETSCANCHANNELTIME", 18) == 0)
        {
            tANI_U8 *value = command;
-           tANI_U8 maxTime = CFG_NEIGHBOR_SCAN_MAX_CHAN_TIME_DEFAULT;
+           tANI_U16 maxTime = CFG_NEIGHBOR_SCAN_MAX_CHAN_TIME_DEFAULT;
 
            /* Move pointer to ahead of SETSCANCHANNELTIME<delimiter> */
            value = value + 19;
            /* Convert the value from ascii to integer */
-           ret = kstrtou8(value, 10, &maxTime);
+           ret = kstrtou16(value, 10, &maxTime);
            if (ret < 0)
            {
                /* If the input value is greater than max value of datatype, then also
-                  kstrtou8 fails */
+                  kstrtou16 fails */
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                      "%s: kstrtou8 failed range [%d - %d]", __func__,
+                      "%s: kstrtou16 failed range [%d - %d]", __func__,
                       CFG_NEIGHBOR_SCAN_MAX_CHAN_TIME_MIN,
                       CFG_NEIGHBOR_SCAN_MAX_CHAN_TIME_MAX);
                ret = -EINVAL;
@@ -3075,6 +3075,7 @@ static hdd_adapter_t* hdd_alloc_station_adapter( hdd_context_t *pHddCtx, tSirMac
 #endif
       init_completion(&pHddCtx->mc_sus_event_var);
       init_completion(&pHddCtx->tx_sus_event_var);
+      init_completion(&pHddCtx->rx_sus_event_var);
       init_completion(&pAdapter->ula_complete);
 
       pAdapter->isLinkUpSvcNeeded = FALSE; 
@@ -5364,6 +5365,12 @@ int hdd_wlan_startup(struct device *dev )
       goto err_config;
    }
 
+   /* INI has been read, initialise the configuredMcastBcastFilter with
+    * INI value as this will serve as the default value
+    */
+   pHddCtx->configuredMcastBcastFilter = pHddCtx->cfg_ini->mcastBcastFilterSetting;
+   hddLog(VOS_TRACE_LEVEL_INFO, "Setting configuredMcastBcastFilter: %d",
+                   pHddCtx->cfg_ini->mcastBcastFilterSetting);
    /*
     * cfg80211: Initialization and registration ...
     */
@@ -6631,6 +6638,13 @@ VOS_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx)
    return status;
 }
 
+/*
+ * API to find if there is any STA or P2P-Client is connected
+ */
+VOS_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx)
+{
+    return sme_isSta_p2p_clientConnected(pHddCtx->hHal);
+}
 
 //Register the module init/exit functions
 module_init(hdd_module_init);

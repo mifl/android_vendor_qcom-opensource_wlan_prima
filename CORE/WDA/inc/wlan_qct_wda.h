@@ -594,6 +594,9 @@ tBssSystemRole wdaGetGlobalSystemRole(tpAniSirGlobal pMac);
 /* WDA_GET_RX_CH *************************************************************/
 #  define WDA_GET_RX_CH(pRxMeta) (((WDI_DS_RxMetaInfoType*)(pRxMeta))->rxChannel)
 
+/* WDA_GET_RX_RFBAND *********************************************************/
+#  define WDA_GET_RX_RFBAND(pRxMeta) (((WDI_DS_RxMetaInfoType*)(pRxMeta))->rfBand)
+
 /* WDA_GET_RX_DPUSIG *********************************************************/
 #  define WDA_GET_RX_DPUSIG(pRxMeta)  (((WDI_DS_RxMetaInfoType*)(pRxMeta))->dpuSig)
 
@@ -1070,6 +1073,14 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 
 #define WDA_GET_ROAM_RSSI_REQ      SIR_HAL_GET_ROAM_RSSI_REQ
 #define WDA_GET_ROAM_RSSI_RSP      SIR_HAL_GET_ROAM_RSSI_RSP
+
+#define WDA_START_SCAN_OFFLOAD_REQ  SIR_HAL_START_SCAN_OFFLOAD_REQ
+#define WDA_START_SCAN_OFFLOAD_RSP  SIR_HAL_START_SCAN_OFFLOAD_RSP
+#define WDA_START_STOP_OFFLOAD_REQ  SIR_HAL_STOP_SCAN_OFFLOAD_REQ
+#define WDA_START_STOP_OFFLOAD_RSP  SIR_HAL_STOP_SCAN_OFFLOAD_RSP
+#define WDA_UPDATE_CHAN_LIST_REQ    SIR_HAL_UPDATE_CHAN_LIST_REQ
+#define WDA_UPDATE_CHAN_LIST_RSP    SIR_HAL_UPDATE_CHAN_LIST_RSP
+#define WDA_RX_SCAN_EVENT           SIR_HAL_RX_SCAN_EVENT
 
 tSirRetStatus wdaPostCtrlMsg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 

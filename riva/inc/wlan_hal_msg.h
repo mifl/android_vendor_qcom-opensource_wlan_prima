@@ -376,6 +376,11 @@ typedef enum
    WLAN_ROAM_SCAN_OFFLOAD_RSP               = 192,
    WLAN_HAL_WIFI_PROXIMITY_REQ              = 193,
    WLAN_HAL_WIFI_PROXIMITY_RSP              = 194,
+
+   WLAN_HAL_START_SPECULATIVE_PS_POLLS_REQ  = 195,
+   WLAN_HAL_START_SPECULATIVE_PS_POLLS_RSP  = 196,
+   WLAN_HAL_STOP_SPECULATIVE_PS_POLLS_IND   = 197,
+
    WLAN_HAL_TDLS_LINK_ESTABLISHED_REQ       = 198,
    WLAN_HAL_TDLS_LINK_ESTABLISHED_RSP       = 199,
    WLAN_HAL_TDLS_LINK_TEARDOWN_REQ          = 200,
@@ -429,6 +434,7 @@ typedef enum
    eHAL_SYS_MODE_SUSPEND_LINK,
    eHAL_SYS_MODE_ROAM_SCAN,
    eHAL_SYS_MODE_ROAM_SUSPEND_LINK,
+   eHAL_SYS_MODE_OEM_DATA,
    eHAL_SYS_MODE_MAX = WLAN_HAL_MAX_ENUM_SIZE
 } eHalSysMode;
 
@@ -4761,6 +4767,8 @@ typedef PACKED_PRE struct PACKED_POST
 #define WLAN_COEX_IND_TYPE_ENABLE_HB_MONITOR (1)
 #define WLAN_COEX_IND_TYPE_SCANS_ARE_COMPROMISED_BY_COEX (2)
 #define WLAN_COEX_IND_TYPE_SCANS_ARE_NOT_COMPROMISED_BY_COEX (3)
+#define WLAN_COEX_IND_TYPE_DISABLE_AGGREGATION_IN_2p4 (4)
+#define WLAN_COEX_IND_TYPE_ENABLE_AGGREGATION_IN_2p4 (5)
 
 typedef PACKED_PRE struct PACKED_POST
 {
@@ -4928,7 +4936,10 @@ typedef PACKED_PRE struct PACKED_POST
 /*---------------------------------------------------------------------------
  *PNO Messages
  *-------------------------------------------------------------------------*/
-/*Max number of channels that a network can be found on*/
+/* Max number of channels that a network can be found on*/
+/* WLAN_HAL_PNO_MAX_NETW_CHANNELS and WLAN_HAL_PNO_MAX_NETW_CHANNELS_EX should
+ * be changed at same time
+ */
 #define WLAN_HAL_PNO_MAX_NETW_CHANNELS  60
 
 /*Max number of channels that a network can be found on*/
@@ -4947,7 +4958,9 @@ typedef PACKED_PRE struct PACKED_POST
   Immediate - scanning will start immediately and PNO procedure will
   be repeated based on timer
   Suspend - scanning will start at suspend
-  Resume - scanning will start on system resume*/
+  Resume - scanning will start on system resume
+  Delay - start the scan timer to trigger PNO scan
+  */
 typedef enum
 {
    ePNO_MODE_IMMEDIATE,
@@ -5183,6 +5196,7 @@ typedef PACKED_PRE struct PACKED_POST {
   /*Indicates the RSSI */
   tANI_U8     rssi;
 
+  //The MPDU frame length of a beacon or probe rsp. data is the start of the frame
   tANI_U16    frameLength;
 
 } tPrefNetwFoundParams, * tpPrefNetwFoundParams;
@@ -5587,6 +5601,38 @@ typedef PACKED_PRE struct PACKED_POST
  *******************Packet Filtering Definitions End*******************
  *--------------------------------------------------------------------------*/
 
+/*
+ * There are two versions of this message
+ * Version 1         : Base version
+ * Current version   : Base version + Max LI modulated DTIM
+ */
+typedef PACKED_PRE struct PACKED_POST
+{
+   /*  Ignore DTIM */
+  tANI_U32 uIgnoreDTIM;
+
+  /*DTIM Period*/
+  tANI_U32 uDTIMPeriod;
+
+  /* Listen Interval */
+  tANI_U32 uListenInterval;
+
+  /* Broadcast Multicast Filter  */
+  tANI_U32 uBcastMcastFilter;
+
+  /* Beacon Early Termination */
+  tANI_U32 uEnableBET;
+
+  /* Beacon Early Termination Interval */
+  tANI_U32 uBETInterval;
+}tSetPowerParamsVer1Type, *tpSetPowerParamsVer1Type;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tHalMsgHeader               header;
+    tSetPowerParamsVer1Type     powerParams;
+} tSetPowerParamsVer1ReqMsg, *tpSetPowerParamsVer1ReqMsg;
+
 typedef PACKED_PRE struct PACKED_POST
 {
    /*  Ignore DTIM */
@@ -5655,7 +5701,9 @@ typedef enum {
     RATECTRL           = 21,
     WOW                = 22,
     WLAN_ROAM_SCAN_OFFLOAD = 23,
-    //MAX_FEATURE_SUPPORTED = 128
+    SPECULATIVE_PS_POLL = 24,
+    SCAN_SCH            = 25,
+    MAX_FEATURE_SUPPORTED = 128,
 } placeHolderInCapBitmap;
 
 typedef PACKED_PRE struct PACKED_POST{
@@ -5684,6 +5732,7 @@ tANI_U8 halMsg_GetHostWlanFeatCaps(tANI_U8 feat_enum_value);
                               if ((b)<=127) { \
                                 arr_index = (b)/32; \
                                 bit_index = (b)%32; \
+                                if(arr_index < 4) \
                                 (a)->featCaps[arr_index] |= (1<<bit_index); \
                               } \
                            }
@@ -6000,6 +6049,51 @@ typedef PACKED_PRE struct PACKED_POST{
 }  tSetWifiProximityRspMsg, *tpSetWifiProxmityRspMsg;
 
 #endif
+
+#ifdef FEATURE_SPECULATIVE_PS_POLL
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_START_SPECULATIVE_PS_POLLS_REQ
+ *--------------------------------------------------------------------------*/
+typedef PACKED_PRE struct PACKED_POST
+{
+   tANI_U8         bssIdx;
+   tANI_U16 serviceInterval;
+   tANI_U16 suspendInterval;
+   tANI_U8 acMask;
+} tHalStartSpecPsPollReqParams, *tpHalStartSpecPsPollReqParams;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+   tHalStartSpecPsPollReqParams specPsPollReq;
+}  tHalStartSpecPsPollReqMsg, *tpHalStartSpecPsPollReqMsg;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_START_SPECULATIVE_PS_POLLS_RSP
+ *--------------------------------------------------------------------------*/
+typedef PACKED_PRE struct PACKED_POST
+{
+    /* success or failure */
+    tANI_U32   status;
+    tANI_U8    bssIdx;
+} tHalStartSpecPsPollRspParams, *tpHalStartSpecPsPollRspParams;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+   tHalStartSpecPsPollRspParams startSpecPsPollRspParams;
+}  tHalStartSpecPsPollRspMsg, *tpHalStartSpecPsPollRspMsg;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_STOP_SPECULATIVE_PS_POLLS_IND
+ *--------------------------------------------------------------------------*/
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+   tANI_U8     bssIdx;
+}  tHalStopSpecPsPollsIndMsg, *tpHalStopSpecPsPollsIndMsg;
+#endif
+
 #ifdef FEATURE_WLAN_TDLS
 /*---------------------------------------------------------------------------
  * WLAN_HAL_TDLS_LINK_ESTABLISHED_REQ
