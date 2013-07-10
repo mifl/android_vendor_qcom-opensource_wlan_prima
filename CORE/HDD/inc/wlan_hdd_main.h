@@ -183,6 +183,8 @@
 
 #define HDD_SAP_WAKE_LOCK_DURATION 10000 //in msecs
 
+#define HDD_MOD_EXIT_SSR_MAX_RETRIES 30
+
 /* Maximum number of interfaces allowed(STA, P2P Device, P2P Interface) */
 #define WLAN_MAX_INTERFACES 3
 
@@ -192,6 +194,7 @@
 #endif
 
 #define HDD_MAC_ADDR_LEN    6
+#define HDD_ROAM_SCAN_CHANNEL_SWITCH_TIME 3
 typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
 
 typedef struct hdd_tx_rx_stats_s
@@ -533,8 +536,6 @@ struct hdd_station_ctx
    connection_info_t conn_info;
 
    roaming_info_t roam_info;
-
-   v_BOOL_t bSendDisconnect;
 
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
    int     ft_carrier_on;
@@ -1082,5 +1083,7 @@ void hdd_set_pwrparams(hdd_context_t *pHddCtx);
 void hdd_reset_pwrparams(hdd_context_t *pHddCtx);
 int wlan_hdd_validate_context(hdd_context_t *pHddCtx);
 VOS_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx);
-
+#ifdef WLAN_FEATURE_PACKET_FILTERING
+int wlan_hdd_setIPv6Filter(hdd_context_t *pHddCtx, tANI_U8 filterType, tANI_U8 sessionId);
+#endif
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )

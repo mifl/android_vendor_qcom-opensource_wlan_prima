@@ -223,9 +223,18 @@ eHalStatus sme_Stop(tHalHandle hHal, tANI_BOOLEAN pmcFlag);
   \sa
   
   --------------------------------------------------------------------------*/
-eHalStatus sme_OpenSession(tHalHandle hHal, csrRoamCompleteCallback callback, void *pContext, 
-                           tANI_U8 *pSelfMacAddr, tANI_U8 *pbSessionId);
+eHalStatus sme_OpenSession(tHalHandle hHal, csrRoamCompleteCallback callback,
+                           void *pContext, tANI_U8 *pSelfMacAddr,
+                           tANI_U8 *pbSessionId);
 
+/*--------------------------------------------------------------------------
+
+  \brief sme_SetCurrDeviceMode() - Sets the current operating device mode.
+  \param hHal - The handle returned by macOpen.
+  \param currDeviceMode - Current operating device mode.
+  --------------------------------------------------------------------------*/
+
+void sme_SetCurrDeviceMode (tHalHandle hHal, tVOS_CON_MODE currDeviceMode);
 
 /*--------------------------------------------------------------------------
   
@@ -2283,7 +2292,9 @@ eHalStatus sme_UpdateRoamScanNProbes(tHalHandle hHal, const v_U8_t nProbes);
     \param  nRoamScanAwayTime Scan home away time
     \- return Success or failure
     -------------------------------------------------------------------------*/
-eHalStatus sme_UpdateRoamScanHomeAwayTime(tHalHandle hHal, const v_U16_t nRoamScanHomeAwayTime);
+eHalStatus sme_UpdateRoamScanHomeAwayTime(tHalHandle hHal,
+                                          const v_U16_t nRoamScanHomeAwayTime,
+                                          const eAniBoolean bSendOffloadCmd);
 
 /* ---------------------------------------------------------------------------
     \fn sme_getRoamIntraBand

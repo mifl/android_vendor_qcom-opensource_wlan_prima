@@ -10152,7 +10152,7 @@ WDI_ProcessAddSTASelfReq
   wpt_uint8*                            pSendBuffer         = NULL;
   wpt_uint16                            usDataOffset        = 0;
   wpt_uint16                            usSendSize          = 0;
-  tAddStaSelfParams                     halAddSTASelfParams;
+  tAddStaSelfParams_V1                  halAddSTASelfParams;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*-------------------------------------------------------------------------
@@ -10177,9 +10177,9 @@ WDI_ProcessAddSTASelfReq
   -----------------------------------------------------------------------*/
   if (( WDI_STATUS_SUCCESS != WDI_GetMessageBuffer( pWDICtx,
                         WDI_ADD_STA_SELF_REQ,
-                        sizeof(tAddStaSelfParams),
+                        sizeof(tAddStaSelfParams_V1),
                         &pSendBuffer, &usDataOffset, &usSendSize))||
-      ( usSendSize < (usDataOffset + sizeof(tAddStaSelfParams) )))
+      ( usSendSize < (usDataOffset + sizeof(tAddStaSelfParams_V1) )))
   {
      WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_WARN,
               "Unable to get send buffer in ADD STA SELF REQ %x %x %x",
@@ -10193,10 +10193,21 @@ WDI_ProcessAddSTASelfReq
                  sizeof(pWDICtx->wdiCacheAddSTASelfReq));
 
   wpalMemoryCopy(halAddSTASelfParams.selfMacAddr,
-                   pwdiAddSTASelfReqParams->wdiAddSTASelfInfo.selfMacAddr, 6) ;
-
+                   pwdiAddSTASelfReqParams->wdiAddSTASelfInfo.selfMacAddr, 6);
+  halAddSTASelfParams.iface_persona = HAL_IFACE_UNKNOWN;
+  if (pwdiAddSTASelfReqParams->wdiAddSTASelfInfo.currDeviceMode == VOS_STA_MODE)
+  {
+      halAddSTASelfParams.iface_persona = HAL_IFACE_STA_MODE;
+  }
+  else if ((pwdiAddSTASelfReqParams->wdiAddSTASelfInfo.currDeviceMode ==
+                          VOS_P2P_CLIENT_MODE) ||
+          (pwdiAddSTASelfReqParams->wdiAddSTASelfInfo.currDeviceMode ==
+                          VOS_P2P_DEVICE))
+  {
+      halAddSTASelfParams.iface_persona = HAL_IFACE_P2P_MODE;
+  }
   wpalMemoryCopy( pSendBuffer+usDataOffset, &halAddSTASelfParams,
-                                         sizeof(tAddStaSelfParams));
+                                         sizeof(tAddStaSelfParams_V1));
 
   pWDICtx->wdiReqStatusCB     = pwdiAddSTASelfReqParams->wdiReqStatusCB;
   pWDICtx->pReqStatusUserData = pwdiAddSTASelfReqParams->pUserData;
@@ -17707,9 +17718,11 @@ WDI_ProcessLinkEstablishReqRsp
   WDI_EventInfoType*     pEventData
 )
 {
-  WDI_Status       wdiStatus;
   eHalStatus       halStatus;
   WDI_SetTDLSLinkEstablishReqParamsRspCb   wdiTDLSLinkEstablishReqParamsRspCb;
+  tTDLSLinkEstablishedRespMsg  halTdlsLinkEstablishedRespMsg;
+  WDI_SetTdlsLinkEstablishReqResp    wdiSetTdlsLinkEstablishReqResp;
+
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
   /*-------------------------------------------------------------------------
@@ -17724,6 +17737,13 @@ WDI_ProcessLinkEstablishReqRsp
      return WDI_STATUS_E_FAILURE;
   }
 
+  /*-------------------------------------------------------------------------
+  Extract indication and send it to UMAC
+ -------------------------------------------------------------------------*/
+  wpalMemoryCopy( &halTdlsLinkEstablishedRespMsg.TDLSLinkEstablishedRespParams,
+                  pEventData->pEventData,
+                  sizeof(halTdlsLinkEstablishedRespMsg.TDLSLinkEstablishedRespParams) );
+
   wdiTDLSLinkEstablishReqParamsRspCb = (WDI_SetTDLSLinkEstablishReqParamsRspCb)pWDICtx->pfncRspCB;
 
   /*-------------------------------------------------------------------------
@@ -17733,10 +17753,11 @@ WDI_ProcessLinkEstablishReqRsp
                   pEventData->pEventData,
                   sizeof(halStatus));
 
-  wdiStatus   =   WDI_HAL_2_WDI_STATUS(halStatus);
+  wdiSetTdlsLinkEstablishReqResp.wdiStatus   =   WDI_HAL_2_WDI_STATUS(halStatus);
+  wdiSetTdlsLinkEstablishReqResp.uStaIdx   =   halTdlsLinkEstablishedRespMsg.TDLSLinkEstablishedRespParams.staIdx;
 
   /*Notify UMAC*/
-  wdiTDLSLinkEstablishReqParamsRspCb( wdiStatus, pWDICtx->pRspCBUserData);
+  wdiTDLSLinkEstablishReqParamsRspCb( &wdiSetTdlsLinkEstablishReqResp, pWDICtx->pRspCBUserData);
 
   return WDI_STATUS_SUCCESS;
 }/*WDI_ProcessLinkEstablishReqRsp*/
