@@ -3319,6 +3319,7 @@ typedef struct sSirSmeAddStaSelfReq
     tANI_U16        mesgType;
     tANI_U16        mesgLen;
     tSirMacAddr     selfMacAddr;
+    tVOS_CON_MODE   currDeviceMode;
 }tSirSmeAddStaSelfReq, *tpSirSmeAddStaSelfReq;
 
 typedef struct sSirSmeDelStaSelfReq
@@ -3447,7 +3448,6 @@ typedef struct sSirWlanSetRxpFilters
 #define CHANNEL_LIST_DYNAMIC_UPDATE           4 /* Occupied channel list can be learnt after update */
 #define SIR_ROAM_SCAN_24G_DEFAULT_CH     1
 #define SIR_ROAM_SCAN_5G_DEFAULT_CH      36
-#define SIR_ROAM_SCAN_CHANNEL_SWITCH_TIME 3
 #define SIR_ROAM_SCAN_RESERVED_BYTES     61
 #endif
 

@@ -33,9 +33,7 @@ ifeq ($(KERNEL_BUILD),0)
 	CONFIG_QCOM_TDLS := y
 
 	#Flag to enable Fast Transition (11r) feature
-	ifeq ($(CONFIG_PRONTO_WLAN), m)
 	CONFIG_QCOM_VOWIFI_11R := y
-	endif
 
 	#Flag to enable Protected Managment Frames (11w) feature
 	ifneq ($(CONFIG_PRONTO_WLAN),)
@@ -53,7 +51,7 @@ BUILD_DEBUG_VERSION := 1
 BUILD_DIAG_VERSION := 0
 
 #Do we panic on bug?  default is to warn
-PANIC_ON_BUG := 0
+PANIC_ON_BUG := 1
 
 #Re-enable wifi on WDI timeout
 RE_ENABLE_WIFI_ON_WDI_TIMEOUT := 0
