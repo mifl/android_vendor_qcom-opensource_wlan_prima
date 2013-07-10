@@ -1169,6 +1169,9 @@ eHalStatus sme_UpdateConfig(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams)
        csrSetGlobalCfgs(pMac);
    }
 
+   /* update the directed scan offload setting */
+   pMac->fScanOffload = pSmeConfigParams->fScanOffload;
+
    return status;
 }
 
@@ -7369,6 +7372,38 @@ eHalStatus sme_UpdateIsFastRoamIniFeatureEnabled(tHalHandle hHal,
 
   return eHAL_STATUS_SUCCESS;
 }
+
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+/*--------------------------------------------------------------------------
+  \brief sme_UpdateEnableFastRoamInConcurrency() - enable/disable LFR if Concurrent session exists
+  This is a synchronuous call
+  \param hHal - The handle returned by macOpen.
+  \return eHAL_STATUS_SUCCESS
+          Other status means SME is failed
+  \sa
+  --------------------------------------------------------------------------*/
+
+eHalStatus sme_UpdateEnableFastRoamInConcurrency(tHalHandle hHal,
+                          v_BOOL_t bFastRoamInConIniFeatureEnabled)
+{
+
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    eHalStatus  status  = eHAL_STATUS_SUCCESS;
+
+    status = sme_AcquireGlobalLock( &pMac->sme );
+    if ( HAL_STATUS_SUCCESS( status ) )
+    {
+        pMac->roam.configParam.bFastRoamInConIniFeatureEnabled = bFastRoamInConIniFeatureEnabled;
+        if (0 == pMac->roam.configParam.isRoamOffloadScanEnabled)
+        {
+            pMac->roam.configParam.bFastRoamInConIniFeatureEnabled = 0;
+        }
+        sme_ReleaseGlobalLock( &pMac->sme );
+    }
+
+    return status;
+}
+#endif
 #endif /* FEATURE_WLAN_LFR */
 
 #ifdef FEATURE_WLAN_CCX
@@ -8249,16 +8284,6 @@ VOS_STATUS sme_DeleteTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr
 
 }
 /* ---------------------------------------------------------------------------
-    \fn sme_IsPmcBmps
-    \API to Check if PMC state is BMPS.
-
-    \- return v_BOOL_t
-    -------------------------------------------------------------------------*/
-v_BOOL_t sme_IsPmcBmps(tHalHandle hHal)
-{
-    return (BMPS == pmcGetPmcState(hHal));
-}
-/* ---------------------------------------------------------------------------
     \fn sme_SetTdlsPowerSaveProhibited
     \API to set/reset the isTdlsPowerSaveProhibited.
 
@@ -8272,6 +8297,17 @@ void sme_SetTdlsPowerSaveProhibited(tHalHandle hHal, v_BOOL_t val)
     return;
 }
 #endif
+/* ---------------------------------------------------------------------------
+    \fn sme_IsPmcBmps
+    \API to Check if PMC state is BMPS.
+
+    \- return v_BOOL_t
+    -------------------------------------------------------------------------*/
+v_BOOL_t sme_IsPmcBmps(tHalHandle hHal)
+{
+    return (BMPS == pmcGetPmcState(hHal));
+}
+
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
 /*
  * SME API to start TDLS discovery Procedure
@@ -8536,4 +8572,18 @@ eHalStatus sme_HandoffRequest(tHalHandle hHal,
     return status ;
 }
 #endif
+
+/*
+ * SME API to check if there is any infra station or
+ * P2P client is connected
+ */
+VOS_STATUS sme_isSta_p2p_clientConnected(tHalHandle hHal)
+{
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    if(csrIsInfraConnected(pMac))
+    {
+        return VOS_STATUS_SUCCESS;
+    }
+    return VOS_STATUS_E_FAILURE;
+}
 

@@ -1,43 +1,8 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
-/*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
+* Copyright (c) 2012 Qualcomm Atheros, Inc.
+* All Rights Reserved.
+* Qualcomm Atheros Confidential and Proprietary.
+*/
 
 /**=========================================================================
   
@@ -46,9 +11,9 @@
   @brief 
                
    This file contains the external API exposed by the wlan data transfer abstraction layer module.
-   Copyright (c) 2010-2011 QUALCOMM Incorporated.
+   Copyright (c) 2010-2011 Qualcomm Technologies, Inc.
    All Rights Reserved.
-   Qualcomm Confidential and Proprietary
+   Qualcomm Technologies Confidential and Proprietary
 ========================================================================*/
 
 /*===========================================================================
@@ -2001,6 +1966,14 @@ static wpt_status dxeRXFrameRefillRing
 
    while(channelEntry->numFreeDesc > 0)
    {
+      /* If RX thread drain small size of frame from HW too fast
+       * Sometimes HW cannot handle interrupt fast enough
+       * And system crash might happen
+       * To avoid system crash, input 1usec delay each frame draining
+       * within host side, This is SW work around, to fix HW problem
+       * Throughput and SnS test done successfully */
+      wpalUsecSleep(1);
+
       /* Current Control block is free
        * and associated frame buffer is not linked with control block anymore
        * allocate new frame buffer for current control block */

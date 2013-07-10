@@ -3351,7 +3351,15 @@ WLANTL_SuspendDataTx
       return VOS_STATUS_E_FAULT;
     }
 
-    if ( pTLCb->atlSTAClients[*pucSTAId] && (0 == pTLCb->atlSTAClients[*pucSTAId]->ucExists ))
+    if ( NULL == pTLCb->atlSTAClients[*pucSTAId] )
+    {
+      TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+            "WLAN TL:Invalid pTLCb->atlSTAClients pointer for STA Id :%d on "
+            "WLANTL_SuspendDataTx", *pucSTAId));
+      return VOS_STATUS_E_FAULT;
+    }
+
+    if ( 0 == pTLCb->atlSTAClients[*pucSTAId]->ucExists )
     {
       TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
              "WLAN TL:Station %d was not previously registered on WLANTL_SuspendDataTx", *pucSTAId));
@@ -3451,7 +3459,15 @@ WLANTL_ResumeDataTx
       return VOS_STATUS_E_FAULT;
     }
 
-    if ( pTLCb->atlSTAClients[*pucSTAId] && (0 == pTLCb->atlSTAClients[*pucSTAId]->ucExists ))
+    if ( NULL == pTLCb->atlSTAClients[*pucSTAId] )
+    {
+      TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+            "WLAN TL:Invalid pTLCb->atlSTAClients pointer for STA Id :%d on "
+            "WLANTL_ResumeDataTx", *pucSTAId));
+      return VOS_STATUS_E_FAULT;
+    }
+
+    if ( 0 == pTLCb->atlSTAClients[*pucSTAId]->ucExists )
     {
       TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
              "WLAN TL:Station %d was not previously registered on WLANTL_ResumeDataTx", *pucSTAId));
@@ -5882,12 +5898,12 @@ WLANTL_RxCachedFrames
     -------------------------------------------------------------------------*/
     if ( !bSigMatch )
     {
-            TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+            TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_MED,
         "WLAN TL: Cached packet does not match DPU Sig of the new STA - drop "
         " DPU Sig %d  UC %d BC %d B %d",
         uDPUSig,
         pClientSTA->wSTADesc.ucUcastSig,
-        pClientSTA->wSTADesc.ucUcastSig,
+        pClientSTA->wSTADesc.ucBcastSig,
         broadcast));
 
       /* Drop packet */ 

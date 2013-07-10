@@ -1056,7 +1056,7 @@ v_U8_t* wlan_hdd_cfg80211_get_ie_ptr(v_U8_t *pIes, int length, v_U8_t eid)
 /* Check if rate is 11g rate or not */
 static int wlan_hdd_rate_is_11g(u8 rate)
 {
-    u8 gRateArray[8] = {12, 18, 24, 36, 48, 72, 96, 104}; /* actual rate * 2 */
+    static const u8 gRateArray[8] = {12, 18, 24, 36, 48, 72, 96, 108}; /* actual rate * 2 */
     u8 i;
     for (i = 0; i < 8; i++)
     {
@@ -5847,28 +5847,36 @@ static int wlan_hdd_cfg80211_set_privacy_ibss(
 
     if (params->ie_len && ( NULL != params->ie) )
     {
-        if (WLAN_EID_RSN == params->ie[0])
+        if (wlan_hdd_cfg80211_get_ie_ptr (params->ie,
+                            params->ie_len, WLAN_EID_RSN ))
         {
             pWextState->wpaVersion = IW_AUTH_WPA_VERSION_WPA2;
             encryptionType = eCSR_ENCRYPT_TYPE_AES;
         }
-        else
+        else if ( hdd_isWPAIEPresent (params->ie, params->ie_len ))
         {
             tDot11fIEWPA dot11WPAIE;
             tHalHandle halHandle = WLAN_HDD_GET_HAL_CTX(pAdapter);
+            u8 *ie;
 
-            pWextState->wpaVersion = IW_AUTH_WPA_VERSION_WPA;
-            // Unpack the WPA IE
-            //Skip past the EID byte and length byte - and four byte WiFi OUI
-            dot11fUnpackIeWPA((tpAniSirGlobal) halHandle,
-                            &params->ie[2+4],
-                            params->ie[1] - 4,
-                            &dot11WPAIE);
-            /*Extract the multicast cipher, the encType for unicast
-              cipher for wpa-none is none*/
-            encryptionType =
-              hdd_TranslateWPAToCsrEncryptionType(dot11WPAIE.multicast_cipher);
+            ie = wlan_hdd_cfg80211_get_ie_ptr (params->ie,
+                                     params->ie_len, DOT11F_EID_WPA);
+            if ( NULL != ie )
+            {
+                pWextState->wpaVersion = IW_AUTH_WPA_VERSION_WPA;
+                // Unpack the WPA IE
+                //Skip past the EID byte and length byte - and four byte WiFi OUI
+                dot11fUnpackIeWPA((tpAniSirGlobal) halHandle,
+                                &ie[2+4],
+                                ie[1] - 4,
+                                &dot11WPAIE);
+                /*Extract the multicast cipher, the encType for unicast
+                               cipher for wpa-none is none*/
+                encryptionType =
+                  hdd_TranslateWPAToCsrEncryptionType(dot11WPAIE.multicast_cipher);
+            }
         }
+
         status = wlan_hdd_cfg80211_set_ie(pAdapter, params->ie, params->ie_len);
 
         if (0 > status)
@@ -6739,7 +6747,7 @@ static int wlan_hdd_cfg80211_set_power_mgmt(struct wiphy *wiphy,
         (eConnectionState_Associated ==
              (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState))
     {
-        vos_status = hdd_conf_hostarpoffload(pAdapter, TRUE);
+        vos_status = hdd_conf_arp_offload(pAdapter, TRUE);
         if (!VOS_IS_STATUS_SUCCESS(vos_status))
         {
             hddLog(VOS_TRACE_LEVEL_INFO,
@@ -7542,7 +7550,7 @@ static int wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *d
         "NL80211_TDLS_TEARDOWN",
         "NL80211_TDLS_ENABLE_LINK",
         "NL80211_TDLS_DISABLE_LINK",
-        "NL80211_TDLS_UNKONW_OPER"};
+        "NL80211_TDLS_UNKNOWN_OPER"};
 #endif
     hddTdlsPeer_t *pTdlsPeer;
 

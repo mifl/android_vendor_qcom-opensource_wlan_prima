@@ -115,6 +115,7 @@ typedef struct _smeConfigParams
     tANI_U8       RoamRssiDiff;
     tANI_BOOLEAN  isWESModeEnabled;
 #endif
+    tANI_BOOLEAN  fScanOffload;
 } tSmeConfigParams, *tpSmeConfigParams;
 
 
@@ -2388,6 +2389,21 @@ eHalStatus sme_SetRoamScanControl(tHalHandle hHal, v_BOOL_t roamScanControl);
 
 eHalStatus sme_UpdateIsFastRoamIniFeatureEnabled(tHalHandle hHal,
         const v_BOOL_t isFastRoamIniFeatureEnabled);
+
+
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+/*--------------------------------------------------------------------------
+  \brief sme_UpdateEnableFastRoamInConcurrency() - enable/disable LFR if Concurrent session exists
+  This is a synchronuous call
+  \param hHal - The handle returned by macOpen.
+  \return eHAL_STATUS_SUCCESS
+          Other status means SME is failed
+  \sa
+  --------------------------------------------------------------------------*/
+
+eHalStatus sme_UpdateEnableFastRoamInConcurrency(tHalHandle hHal,
+         v_BOOL_t bFastRoamInConIniFeatureEnabled);
+#endif
 #endif /* FEATURE_WLAN_LFR */
 
 #ifdef FEATURE_WLAN_CCX
@@ -2771,13 +2787,6 @@ VOS_STATUS sme_AddTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr pe
     -------------------------------------------------------------------------*/
 VOS_STATUS sme_DeleteTdlsPeerSta(tHalHandle hHal, tANI_U8 sessionId, tSirMacAddr peerMac);
 /* ---------------------------------------------------------------------------
-    \fn sme_IsPmcBmps
-    \brief  API to Check if PMC state is BMPS.
-
-    \- return v_BOOL_t
-    -------------------------------------------------------------------------*/
-v_BOOL_t sme_IsPmcBmps(tHalHandle hHal);
-/* ---------------------------------------------------------------------------
     \fn sme_SetTdlsPowerSaveProhibited
     \API to set/reset the isTdlsPowerSaveProhibited.
 
@@ -2785,6 +2794,14 @@ v_BOOL_t sme_IsPmcBmps(tHalHandle hHal);
     -------------------------------------------------------------------------*/
 void sme_SetTdlsPowerSaveProhibited(tHalHandle hHal, v_BOOL_t val);
 #endif
+/* ---------------------------------------------------------------------------
+    \fn sme_IsPmcBmps
+    \brief  API to Check if PMC state is BMPS.
+
+    \- return v_BOOL_t
+    -------------------------------------------------------------------------*/
+v_BOOL_t sme_IsPmcBmps(tHalHandle hHal);
+
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
 typedef struct smeTdlsDisResult
 {
@@ -2853,4 +2870,9 @@ VOS_STATUS sme_SelectCBMode(tHalHandle hHal, eCsrPhyMode eCsrPhyMode, tANI_U8 ch
 
 eHalStatus sme_HandoffRequest(tHalHandle hHal, tCsrHandoffRequest *pHandoffInfo);
 #endif
+/*
+ * sme API to find if any infra station or P2P-Client is connected
+ * return status
+*/
+VOS_STATUS sme_isSta_p2p_clientConnected(tHalHandle hHal);
 #endif //#if !defined( __SME_API_H )

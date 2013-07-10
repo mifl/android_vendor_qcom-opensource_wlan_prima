@@ -195,7 +195,18 @@ static void cbNotifySetEnableSSR(hdd_context_t *pHddCtx, unsigned long NotifyId)
 static void cbNotifyUpdateRoamScanOffloadEnabled(hdd_context_t *pHddCtx, unsigned long NotifyId)
 {
     sme_UpdateRoamScanOffloadEnabled((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->isRoamOffloadScanEnabled);
+    if (0 == pHddCtx->cfg_ini->isRoamOffloadScanEnabled)
+    {
+        pHddCtx->cfg_ini->bFastRoamInConIniFeatureEnabled = 0;
+        sme_UpdateEnableFastRoamInConcurrency((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->bFastRoamInConIniFeatureEnabled );
+    }
 }
+
+static void cbNotifySetEnableFastRoamInConcurrency(hdd_context_t *pHddCtx, unsigned long NotifyId)
+{
+    sme_UpdateEnableFastRoamInConcurrency((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->bFastRoamInConIniFeatureEnabled );
+}
+
 #endif
 
 REG_TABLE_ENTRY g_registry_table[] =
@@ -722,14 +733,6 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_BEACON_INTERVAL_DEFAULT,
                  CFG_BEACON_INTERVAL_MIN,
                  CFG_BEACON_INTERVAL_MAX ),
-
-   REG_VARIABLE( CFG_ENABLE_HANDOFF_NAME, WLAN_PARAM_Integer,
-                 hdd_config_t, fIsHandoffEnabled,
-                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-                 CFG_ENABLE_HANDOFF_DEFAULT,
-                 CFG_ENABLE_HANDOFF_MIN,
-                 CFG_ENABLE_HANDOFF_MAX ),
-
 
    REG_VARIABLE( CFG_ENABLE_IDLE_SCAN_NAME , WLAN_PARAM_Integer,
                  hdd_config_t, nEnableIdleScan,
@@ -1593,6 +1596,13 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_ENABLE_HOST_ARPOFFLOAD_MIN,
                  CFG_ENABLE_HOST_ARPOFFLOAD_MAX ),
 
+   REG_VARIABLE( CFG_ENABLE_HOST_NSOFFLOAD_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, fhostNSOffload,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_ENABLE_HOST_NSOFFLOAD_DEFAULT,
+                 CFG_ENABLE_HOST_NSOFFLOAD_MIN,
+                 CFG_ENABLE_HOST_NSOFFLOAD_MAX ),
+
    REG_VARIABLE( CFG_QOS_WMM_TS_INFO_ACK_POLICY_NAME , WLAN_PARAM_HexInteger,
                  hdd_config_t, tsInfoAckPolicy,
                  VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -2318,6 +2328,24 @@ REG_VARIABLE( CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD, WLAN_PARAM_Integer,
              CFG_ENABLE_VHT_FOR_24GHZ_MIN,
              CFG_ENABLE_VHT_FOR_24GHZ_MAX),
 #endif
+
+   REG_VARIABLE( CFG_SCAN_OFFLOAD_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, fScanOffload,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_SCAN_OFFLOAD_DEFAULT,
+                CFG_SCAN_OFFLOAD_DISABLE,
+                CFG_SCAN_OFFLOAD_ENABLE ),
+
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+   REG_DYNAMIC_VARIABLE( CFG_ENABLE_FAST_ROAM_IN_CONCURRENCY, WLAN_PARAM_Integer,
+                        hdd_config_t, bFastRoamInConIniFeatureEnabled,
+                        VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                        CFG_ENABLE_FAST_ROAM_IN_CONCURRENCY_DEFAULT,
+                        CFG_ENABLE_FAST_ROAM_IN_CONCURRENCY_MIN,
+                        CFG_ENABLE_FAST_ROAM_IN_CONCURRENCY_MAX,
+                        cbNotifySetEnableFastRoamInConcurrency, 0 ),
+#endif
+
 };
 
 /*
@@ -4007,6 +4035,13 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 #endif
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
    smeConfig.csrConfig.isRoamOffloadScanEnabled = pConfig->isRoamOffloadScanEnabled;
+   smeConfig.csrConfig.bFastRoamInConIniFeatureEnabled = pConfig->bFastRoamInConIniFeatureEnabled;
+
+   if (0 == smeConfig.csrConfig.isRoamOffloadScanEnabled)
+   {
+       /* Disable roaming in concurrency if roam scan offload is disabled */
+       smeConfig.csrConfig.bFastRoamInConIniFeatureEnabled = 0;
+   }
 #endif
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
    smeConfig.csrConfig.neighborRoamConfig.nNeighborReassocRssiThreshold = pConfig->nNeighborReassocRssiThreshold;
@@ -4037,6 +4072,8 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 
    /* update SSR config */
    sme_UpdateEnableSSR((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->enableSSR);
+   /* Update the Directed scan offload setting */
+   smeConfig.fScanOffload =  pHddCtx->cfg_ini->fScanOffload;
 
    halStatus = sme_UpdateConfig( pHddCtx->hHal, &smeConfig);
    if ( !HAL_STATUS_SUCCESS( halStatus ) )

@@ -143,7 +143,7 @@ static int wlan_suspend(hdd_context_t* pHddCtx)
    */
    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s: Suspending Mc, Rx and Tx Threads",__func__);
 
-   init_completion(&pHddCtx->tx_sus_event_var);
+   INIT_COMPLETION(pHddCtx->tx_sus_event_var);
 
    /* Indicate Tx Thread to Suspend */
    set_bit(TX_SUSPEND_EVENT_MASK, &vosSchedContext->txEventFlag);
@@ -163,7 +163,7 @@ static int wlan_suspend(hdd_context_t* pHddCtx)
    /* Set the Tx Thread as Suspended */
    pHddCtx->isTxThreadSuspended = TRUE;
 
-   init_completion(&pHddCtx->rx_sus_event_var);
+   INIT_COMPLETION(pHddCtx->rx_sus_event_var);
 
    /* Indicate Rx Thread to Suspend */
    set_bit(RX_SUSPEND_EVENT_MASK, &vosSchedContext->rxEventFlag);
@@ -191,7 +191,7 @@ static int wlan_suspend(hdd_context_t* pHddCtx)
    /* Set the Rx Thread as Suspended */
    pHddCtx->isRxThreadSuspended = TRUE;
 
-   init_completion(&pHddCtx->mc_sus_event_var);
+   INIT_COMPLETION(pHddCtx->mc_sus_event_var);
 
    /* Indicate MC Thread to Suspend */
    set_bit(MC_SUSPEND_EVENT_MASK, &vosSchedContext->mcEventFlag);
@@ -519,8 +519,8 @@ void hddDevTmLevelChangedHandler(struct device *dev, int changedTmLevel)
       return;
    }
 
-   if (changedTmLevel != WLAN_HDD_TM_LEVEL_4)
-      sme_SetTmLevel(pHddCtx->hHal, changedTmLevel, 0);
+   if (newTmLevel != WLAN_HDD_TM_LEVEL_4)
+      sme_SetTmLevel(pHddCtx->hHal, newTmLevel, 0);
 
    if (mutex_lock_interruptible(&pHddCtx->tmInfo.tmOperationLock))
    {
@@ -529,7 +529,7 @@ void hddDevTmLevelChangedHandler(struct device *dev, int changedTmLevel)
       return;
    }
 
-   pHddCtx->tmInfo.currentTmLevel = changedTmLevel;
+   pHddCtx->tmInfo.currentTmLevel = newTmLevel;
    pHddCtx->tmInfo.txFrameCount = 0;
    vos_mem_copy(&pHddCtx->tmInfo.tmAction,
                 &thermalMigrationAction[newTmLevel],

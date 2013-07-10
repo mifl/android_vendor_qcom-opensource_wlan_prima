@@ -3276,6 +3276,7 @@ typedef struct sSirNsOffloadReq
     tANI_U8 selfMacAddr[6];
     tANI_U8 srcIPv6AddrValid;
     tANI_U8 targetIPv6AddrValid[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA];
+    tANI_U8 slotIdx;
 } tSirNsOffloadReq, *tpSirNsOffloadReq;
 #endif //WLAN_NS_OFFLOAD
 
@@ -4169,5 +4170,72 @@ typedef struct sAniHandoffReq
     tANI_U8   bssid[WNI_CFG_BSSID_LEN];
     tANI_U8   channel;
 } tAniHandoffReq, *tpAniHandoffReq;
+
+typedef struct sSirScanOffloadReq {
+    tANI_U8 sessionId;
+    tSirMacAddr bssId;
+    tANI_U8 numSsid;
+    tSirMacSSid ssId[SIR_SCAN_MAX_NUM_SSID];
+    tANI_U8 hiddenSsid;
+    tSirMacAddr selfMacAddr;
+    tSirBssType bssType;
+    tANI_U8 dot11mode;
+    tSirScanType scanType;
+    tANI_U32 minChannelTime;
+    tANI_U32 maxChannelTime;
+    tANI_BOOLEAN p2pSearch;
+    tANI_U16 uIEFieldLen;
+    tANI_U16 uIEFieldOffset;
+    tSirChannelList channelList;
+    /*-----------------------------
+      sSirScanOffloadReq....
+      -----------------------------
+      uIEFieldLen
+      -----------------------------
+      uIEFieldOffset               ----+
+      -----------------------------    |
+      channelList.numChannels          |
+      -----------------------------    |
+      ... variable size up to          |
+      channelNumber[numChannels-1]     |
+      This can be zero, if             |
+      numChannel is zero.              |
+      ----------------------------- <--+
+      ... variable size uIEField
+      up to uIEFieldLen (can be 0)
+      -----------------------------*/
+} tSirScanOffloadReq, *tpSirScanOffloadReq;
+
+typedef enum sSirScanEventType {
+    SCAN_EVENT_STARTED=0x1,          /* Scan command accepted by FW */
+    SCAN_EVENT_COMPLETED=0x2,        /* Scan has been completed by FW */
+    SCAN_EVENT_BSS_CHANNEL=0x4,      /* FW is going to move to HOME channel */
+    SCAN_EVENT_FOREIGN_CHANNEL = 0x8,/* FW is going to move to FORIEGN channel */
+    SCAN_EVENT_DEQUEUED=0x10,       /* scan request got dequeued */
+    SCAN_EVENT_PREEMPTED=0x20,      /* preempted by other high priority scan */
+    SCAN_EVENT_START_FAILED=0x40,   /* scan start failed */
+    SCAN_EVENT_RESTARTED=0x80,      /*scan restarted*/
+    SCAN_EVENT_MAX=0x8000
+} tSirScanEventType;
+
+typedef struct sSirScanOffloadEvent{
+    tSirScanEventType event;
+    tSirResultCodes reasonCode;
+    tANI_U32 chanFreq;
+    tANI_U32 requestor;
+    tANI_U32 scanId;
+} tSirScanOffloadEvent, *tpSirScanOffloadEvent;
+
+typedef struct sSirUpdateChanParam
+{
+    tANI_U8 chanId;
+    tANI_U8 pwr;
+} tSirUpdateChanParam, *tpSirUpdateChanParam;
+
+typedef struct sSirUpdateChan
+{
+    tANI_U8 numChan;
+    tSirUpdateChanParam chanParam[1];
+} tSirUpdateChanList, *tpSirUpdateChanList;
 
 #endif /* __SIR_API_H */
