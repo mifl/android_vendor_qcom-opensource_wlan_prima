@@ -107,7 +107,6 @@ when        who    what, where, why
 #include "sirApi.h"
 #include "csrApi.h"
 #include "sapApi.h"
-
 /*----------------------------------------------------------------------------
  * Preprocessor Definitions and Constants
  * -------------------------------------------------------------------------*/
@@ -2623,6 +2622,62 @@ v_VOID_t
 WLANTL_ClearTxXmitPending
 (
   v_PVOID_t       pvosGCtx
+);
+
+/*==========================================================================
+  FUNCTION   WLANTL_TxThreadDebugHandler
+
+  DESCRIPTION
+    Printing TL Snapshot dump, processed under TxThread context, currently
+    information regarding the global TlCb struture. Dumps information related
+    to per active STA connection currently in use by TL.
+
+  DEPENDENCIES
+    The TL must be initialized before this gets called.
+
+  PARAMETERS
+
+    IN
+    pvosGCtx:       pointer to the global vos context; a handle to TL's
+                    or WDA's control block can be extracted from its context
+
+  RETURN VALUE      None
+
+  SIDE EFFECTS
+
+============================================================================*/
+
+v_VOID_t
+WLANTL_TxThreadDebugHandler
+(
+  v_PVOID_t       *pvosGCtx
+);
+
+/*==========================================================================
+  FUNCTION   WLANTL_TLDebugMessage
+
+  DESCRIPTION
+    Post a TL Snapshot request, posts message in TxThread.
+
+  DEPENDENCIES
+    The TL must be initialized before this gets called.
+
+  PARAMETERS
+
+    IN
+    displaySnapshot Boolean showing whether to dump the snapshot or not.
+
+  RETURN VALUE      None
+
+  SIDE EFFECTS
+
+============================================================================*/
+
+
+v_VOID_t
+WLANTL_TLDebugMessage
+(
+  v_BOOL_t displaySnapshot
 );
 
 #endif /* #ifndef WLAN_QCT_WLANTL_H */
