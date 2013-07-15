@@ -2770,15 +2770,20 @@ csrIsconcurrentsessionValid(tpAniSirGlobal pMac,tANI_U32 cursessionId,
                 case VOS_STA_SAP_MODE:
                     if((pMac->roam.roamSession[sessionId].bssParams.bssPersona
                                       == VOS_STA_SAP_MODE)&&
-                    (pMac->roam.roamSession[sessionId].connectState != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
+                       (pMac->roam.roamSession[sessionId].connectState
+                                      != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
                     {
                         smsLog(pMac, LOGE, FL(" ****SoftAP mode already exists ****"));
                         return eHAL_STATUS_FAILURE;
                     }
-                    
-                    else if((pMac->roam.roamSession[sessionId].bssParams.bssPersona
-                                      == VOS_P2P_GO_MODE) &&
-                    (pMac->roam.roamSession[sessionId].connectState != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
+                    else if( (pMac->roam.roamSession[sessionId].bssParams.bssPersona
+                                      == VOS_P2P_GO_MODE &&
+                              pMac->roam.roamSession[sessionId].connectState
+                                      != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED) ||
+                             (pMac->roam.roamSession[sessionId].bssParams.bssPersona
+                                      == VOS_IBSS_MODE &&
+                              pMac->roam.roamSession[sessionId].connectState
+                                      != eCSR_ASSOC_STATE_TYPE_IBSS_DISCONNECTED))
                     {
                         smsLog(pMac, LOGE, FL(" ****Cannot start Multiple Beaconing Role ****"));
                         return eHAL_STATUS_FAILURE;
@@ -2798,20 +2803,45 @@ csrIsconcurrentsessionValid(tpAniSirGlobal pMac,tANI_U32 cursessionId,
                 case VOS_P2P_GO_MODE:
                     if((pMac->roam.roamSession[sessionId].bssParams.bssPersona
                                       == VOS_P2P_GO_MODE) &&
-                    (pMac->roam.roamSession[sessionId].connectState != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
+                       (pMac->roam.roamSession[sessionId].connectState
+                                      != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
                     {
                         smsLog(pMac, LOGE, FL(" ****P2P GO mode already exists ****"));
                         return eHAL_STATUS_FAILURE;
                     }
-                    else if((pMac->roam.roamSession[sessionId].bssParams.bssPersona
-                                      == VOS_STA_SAP_MODE) &&
-                    (pMac->roam.roamSession[sessionId].connectState != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED))
+                    else if( (pMac->roam.roamSession[sessionId].bssParams.bssPersona
+                                      == VOS_STA_SAP_MODE &&
+                              pMac->roam.roamSession[sessionId].connectState
+                                      != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED) ||
+                             (pMac->roam.roamSession[sessionId].bssParams.bssPersona
+                                      == VOS_IBSS_MODE &&
+                              pMac->roam.roamSession[sessionId].connectState
+                                      != eCSR_ASSOC_STATE_TYPE_IBSS_DISCONNECTED) )
                     {
                         smsLog(pMac, LOGE, FL(" ****Cannot start Multiple Beaconing Role ****"));
                         return eHAL_STATUS_FAILURE;
                     }
                     break;
-
+                case VOS_IBSS_MODE:
+                    if((pMac->roam.roamSession[sessionId].bssParams.bssPersona
+                                      == VOS_IBSS_MODE) &&
+                       (pMac->roam.roamSession[sessionId].connectState
+                                      != eCSR_ASSOC_STATE_TYPE_IBSS_CONNECTED))
+                    {
+                        smsLog(pMac, LOGE, FL(" ****IBSS mode already exists ****"));
+                        return eHAL_STATUS_FAILURE;
+                    }
+                    else if( (pMac->roam.roamSession[sessionId].bssParams.bssPersona
+                                      == VOS_P2P_GO_MODE ||
+                              pMac->roam.roamSession[sessionId].bssParams.bssPersona
+                                      == VOS_STA_SAP_MODE) &&
+                              pMac->roam.roamSession[sessionId].connectState
+                                     != eCSR_ASSOC_STATE_TYPE_NOT_CONNECTED)
+                    {
+                        smsLog(pMac, LOGE, FL(" ****Cannot start Multiple Beaconing Role ****"));
+                        return eHAL_STATUS_FAILURE;
+                    }
+                    break;
                 default :
                     smsLog(pMac, LOGE, FL("***Persona not handled = %d*****"),currBssPersona);
                     break;
@@ -3743,6 +3773,9 @@ tANI_U8 csrConstructRSNIe( tHalHandle hHal, tANI_U32 sessionId, tCsrRoamProfile 
     tCsrRSNCapabilities RSNCapabilities;
     tCsrRSNPMKIe        *pPMK;
     tANI_U8 PMKId[CSR_RSN_PMKID_SIZE];
+#ifdef WLAN_FEATURE_11W
+    tANI_U8 *pGroupMgmtCipherSuite;
+#endif
     tDot11fBeaconIEs *pIesLocal = pIes;
 
     smsLog(pMac, LOGW, "%s called...", __func__);
@@ -3802,10 +3835,20 @@ tANI_U8 csrConstructRSNIe( tHalHandle hHal, tANI_U32 sessionId, tCsrRoamProfile 
             pPMK->cPMKIDs = 0;
         }
 
+#ifdef WLAN_FEATURE_11W
+        if ( pProfile->MFPEnabled )
+        {
+            pGroupMgmtCipherSuite = (tANI_U8 *) pPMK + sizeof ( tANI_U16 ) +
+                ( pPMK->cPMKIDs * CSR_RSN_PMKID_SIZE );
+            palCopyMemory( pMac->hHdd, pGroupMgmtCipherSuite, csrRSNOui[07], CSR_WPA_OUI_SIZE );
+        }
+#endif
+
         // Add in the fixed fields plus 1 Unicast cypher, less the IE Header length
         // Add in the size of the Auth suite (count plus a single OUI)
         // Add in the RSN caps field.
         // Add PMKID count and PMKID (if any)
+        // Add group management cipher suite
         pRSNIe->IeHeader.Length = (tANI_U8) (sizeof( *pRSNIe ) - sizeof ( pRSNIe->IeHeader ) +
                                   sizeof( *pAuthSuite ) +
                                   sizeof( tCsrRSNCapabilities ));
@@ -3814,6 +3857,15 @@ tANI_U8 csrConstructRSNIe( tHalHandle hHal, tANI_U32 sessionId, tCsrRoamProfile 
             pRSNIe->IeHeader.Length += (tANI_U8)(sizeof( tANI_U16 ) +
                                         (pPMK->cPMKIDs * CSR_RSN_PMKID_SIZE));
         }
+#ifdef WLAN_FEATURE_11W
+        if ( pProfile->MFPEnabled )
+        {
+            if ( 0 == pPMK->cPMKIDs )
+                pRSNIe->IeHeader.Length += sizeof( tANI_U16 );
+            pRSNIe->IeHeader.Length += CSR_WPA_OUI_SIZE;
+        }
+#endif
+
         // return the size of the IE header (total) constructed...
         cbRSNIe = pRSNIe->IeHeader.Length + sizeof( pRSNIe->IeHeader );
 
@@ -4626,6 +4678,7 @@ tAniEdType csrTranslateEncryptTypeToEdType( eCsrEncryptionType EncryptType )
 #ifdef FEATURE_WLAN_WAPI
         case eCSR_ENCRYPT_TYPE_WPI:
             edType = eSIR_ED_WPI;
+            break ;
 #endif
 #ifdef WLAN_FEATURE_11W
         //11w BIP
@@ -5992,11 +6045,18 @@ eCsrCfgDot11Mode csrGetCfgDot11ModeFromCsrPhyMode(tCsrRoamProfile *pProfile, eCs
         }
         else
         {
-            cfgDot11Mode = eCSR_CFG_DOT11_MODE_11AC;
+            cfgDot11Mode = eCSR_CFG_DOT11_MODE_11N;
         }
         break;
     case eCSR_DOT11_MODE_11ac_ONLY:
-        cfgDot11Mode = eCSR_CFG_DOT11_MODE_11AC_ONLY;
+        if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
+        {
+            cfgDot11Mode = eCSR_CFG_DOT11_MODE_11AC_ONLY;
+        }
+        else
+        {
+            cfgDot11Mode = eCSR_CFG_DOT11_MODE_11N;
+        }
         break;
 #endif
     default:
