@@ -1,8 +1,44 @@
 /*
-* Copyright (c) 2012 Qualcomm Atheros, Inc.
-* All Rights Reserved.
-* Qualcomm Atheros Confidential and Proprietary.
-*/
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
 
 /**=========================================================================
   
@@ -13,7 +49,6 @@
    This file contains the external API exposed by the wlan data transfer abstraction layer module.
    Copyright (c) 2010-2011 Qualcomm Technologies, Inc.
    All Rights Reserved.
-   Qualcomm Technologies Confidential and Proprietary
 ========================================================================*/
 
 /*===========================================================================
@@ -1966,14 +2001,6 @@ static wpt_status dxeRXFrameRefillRing
 
    while(channelEntry->numFreeDesc > 0)
    {
-      /* If RX thread drain small size of frame from HW too fast
-       * Sometimes HW cannot handle interrupt fast enough
-       * And system crash might happen
-       * To avoid system crash, input 1usec delay each frame draining
-       * within host side, This is SW work around, to fix HW problem
-       * Throughput and SnS test done successfully */
-      wpalUsecSleep(1);
-
       /* Current Control block is free
        * and associated frame buffer is not linked with control block anymore
        * allocate new frame buffer for current control block */
@@ -2223,11 +2250,11 @@ static wpt_status dxeRXFrameReady
          {
             if(!(WLANDXE_U32_SWAP_ENDIAN(descCtrl) & WLANDXE_DESC_CTRL_VALID))
             {
-               HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
+               HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                         "Found Invalidated Descriptor %d", (int)descLoop);
                if(eWLAN_PAL_STATUS_SUCCESS == wpalIsPacketLocked(currentCtrlBlk->xfrFrame))
                {
-                  HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
+                  HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                            "Packet locked, Resync Host and HW");
                   channelEntry->headCtrlBlk = currentCtrlBlk;
                   invalidatedFound = 1;
@@ -2235,7 +2262,7 @@ static wpt_status dxeRXFrameReady
                }
                else
                {
-                  HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
+                  HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                            "Packet Not Locked, cannot transfer frame");
                }
             }
@@ -2650,16 +2677,6 @@ void dxeRXEventHandler
       return;         
    }
 
-   /* Enable system level ISR */
-   /* Enable RX ready Interrupt at here */
-   status = wpalEnableInterrupt(DXE_INTERRUPT_RX_READY);
-   if(eWLAN_PAL_STATUS_SUCCESS != status)
-   {
-      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
-               "dxeRXEventHandler Enable RX Ready interrupt fail");
-      return;         
-   }
-
    /* Prepare Control Register EN Channel */
    if(!(dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].extraConfig.chan_mask & WLANDXE_CH_CTRL_EN_MASK))
    {
@@ -2682,6 +2699,16 @@ void dxeRXEventHandler
    wpalReadRegister(WLANDXE_INT_MASK_REG_ADDRESS, &regValue);
    regValue &= WLANDXE_RX_INTERRUPT_PRO_UNMASK;
    wpalWriteRegister(WLANDXE_INT_MASK_REG_ADDRESS, regValue);
+
+   /* Enable system level ISR */
+   /* Enable RX ready Interrupt at here */
+   status = wpalEnableInterrupt(DXE_INTERRUPT_RX_READY);
+   if(eWLAN_PAL_STATUS_SUCCESS != status)
+   {
+      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
+               "dxeRXEventHandler Enable RX Ready interrupt fail");
+      return;
+   }
 
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Exit", __func__);
@@ -2874,14 +2901,16 @@ static wpt_status dxeTXPushFrame
 #else
    wpt_iterator                iterator;
 #endif /* FEATURE_R33D */
+   wpt_uint32                  isEmpty = 0;
 
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __func__);
 
-   if(WLANDXE_POWER_STATE_BMPS == tempDxeCtrlBlk->hostPowerState)
+   tempDxeCtrlBlk->smsmToggled = eWLAN_PAL_FALSE;
+   if((0 == tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].numRsvdDesc) &&
+      (0 == tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI].numRsvdDesc))
    {
-      tempDxeCtrlBlk->rivaPowerState = WLANDXE_RIVA_POWER_STATE_BMPS_UNKNOWN;
-      dxeNotifySmsm(eWLAN_PAL_FALSE, eWLAN_PAL_TRUE);
+      isEmpty = 1;
    }
 
    channelEntry->numFragmentCurrentChain = 0;
@@ -3024,10 +3053,16 @@ static wpt_status dxeTXPushFrame
    {
       /* Update channel head as next avaliable linked slot */
       channelEntry->headCtrlBlk = currentCtrlBlk;
-      tempDxeCtrlBlk->ringNotEmpty = eWLAN_PAL_TRUE;
-      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW, "SMSM_ret LO=%d HI=%d", tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].numRsvdDesc,
-               tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI].numRsvdDesc );
-      dxeNotifySmsm(eWLAN_PAL_TRUE, eWLAN_PAL_FALSE);
+      if(isEmpty)
+      {
+         tempDxeCtrlBlk->ringNotEmpty = eWLAN_PAL_TRUE;
+         HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
+                  "SMSM_ret LO=%d HI=%d",
+                  tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].numRsvdDesc,
+                  tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI].numRsvdDesc );
+         dxeNotifySmsm(eWLAN_PAL_TRUE, eWLAN_PAL_FALSE);
+         tempDxeCtrlBlk->smsmToggled = eWLAN_PAL_TRUE;
+      }
       return status;
    }
 
@@ -3707,6 +3742,18 @@ void dxeTXCompleteProcessing
                dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI].numRsvdDesc,
                channelType[dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].channelType],
                dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].numRsvdDesc);
+
+      if((WLANDXE_POWER_STATE_FULL != dxeCtxt->hostPowerState) &&
+         (eWLAN_PAL_FALSE == tempDxeCtrlBlk->smsmToggled))
+      {
+         /* After TX Comp processing, still remaining frame on the DXE TX ring
+          * And when push frame, RING was not empty marked
+          * Then when push frame, no SMSM toggle happen
+          * To avoid permanent TX stall, SMSM toggle is needed at here
+          * With this toggle, host should gaurantee SMSM state should be changed */
+         dxeNotifySmsm(eWLAN_PAL_FALSE, eWLAN_PAL_TRUE);
+         dxeNotifySmsm(eWLAN_PAL_TRUE, eWLAN_PAL_FALSE);
+      }
    }
    
    /*Kicking the DXE after the TX Complete interrupt was enabled - to avoid 
@@ -4159,6 +4206,7 @@ void *WLANDXE_Open
    tempDxeCtrlBlk->rxIntDisabledByIMPS = eWLAN_PAL_FALSE;
    tempDxeCtrlBlk->txIntDisabledByIMPS = eWLAN_PAL_FALSE;
    tempDxeCtrlBlk->driverReloadInProcessing = eWLAN_PAL_FALSE;
+   tempDxeCtrlBlk->smsmToggled              = eWLAN_PAL_FALSE;
 
    /* Initialize SMSM state
     * Init State is
