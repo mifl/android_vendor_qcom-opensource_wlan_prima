@@ -12545,7 +12545,10 @@ VOS_STATUS WDA_ProcessUpdateScanParams(tWDA_CbContext *pWDA,
 void WDA_RoamOffloadScanReqCallback(WDI_Status status, void* pUserData)
 {
    tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData;
-   VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+   vos_msg_t vosMsg;
+   wpt_uint8 reason = 0;
+
+   VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
                                           "<------ %s " ,__func__);
     if (NULL == pWdaParams)
    {
@@ -12558,6 +12561,7 @@ void WDA_RoamOffloadScanReqCallback(WDI_Status status, void* pUserData)
    {
       if ( pWdaParams->wdaWdiApiMsgParam != NULL )
       {
+         reason = ((WDI_RoamScanOffloadReqParamsType *)pWdaParams->wdaWdiApiMsgParam)->wdiRoamOffloadScanInfo.StartScanReason;
          vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
       }
       if ( pWdaParams->wdaMsgParam != NULL)
@@ -12567,6 +12571,20 @@ void WDA_RoamOffloadScanReqCallback(WDI_Status status, void* pUserData)
 
       vos_mem_free(pWdaParams) ;
    }
+   vosMsg.type = eWNI_SME_ROAM_SCAN_OFFLOAD_RSP;
+   vosMsg.bodyptr = NULL;
+   if (WDI_STATUS_SUCCESS != status)
+   {
+      reason = 0;
+   }
+   vosMsg.bodyval = reason;
+   if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MQ_ID_SME, (vos_msg_t*)&vosMsg))
+   {
+      /* free the mem and return */
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+                 "Failed to post the rsp to UMAC" ,__func__);
+   }
+
    return ;
 }
 #endif
