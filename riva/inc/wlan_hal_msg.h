@@ -107,9 +107,13 @@ typedef tANI_U8 tHalIpv4Addr[4];
 #define WLAN_HAL_VERSION_LENGTH  64
 
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+#define CHANNEL_LIST_STATIC                   1 /* Occupied channel list remains static */
+#define CHANNEL_LIST_DYNAMIC_INIT             2 /* Occupied channel list can be learnt after init */
+#define CHANNEL_LIST_DYNAMIC_FLUSH            3 /* Occupied channel list can be learnt after flush */
+#define CHANNEL_LIST_DYNAMIC_UPDATE           4 /* Occupied channel list can be learnt after update */
 #define WLAN_HAL_ROAM_SCAN_MAX_PROBE_SIZE     450
 #define WLAN_HAL_ROAM_SCAN_MAX_CHANNELS       NUM_RF_CHANNELS
-#define WLAN_HAL_ROAM_SCAN_RESERVED_BYTES     64
+#define WLAN_HAL_ROAM_SCAN_RESERVED_BYTES     61
 #endif
 
 /* Message types for messages exchanged between WDI and HAL */
@@ -368,10 +372,16 @@ typedef enum
    WLAN_HAL_DEL_BA_IND                      = 188,
    WLAN_HAL_DHCP_START_IND                  = 189,
    WLAN_HAL_DHCP_STOP_IND                   = 190,
-   WLAN_START_ROAM_CANDIDATE_LOOKUP_REQ     = 191,
-   WLAN_START_ROAM_CANDIDATE_LOOKUP_RSP     = 192,
+   WLAN_ROAM_SCAN_OFFLOAD_REQ               = 191,
+   WLAN_ROAM_SCAN_OFFLOAD_RSP               = 192,
    WLAN_HAL_WIFI_PROXIMITY_REQ              = 193,
    WLAN_HAL_WIFI_PROXIMITY_RSP              = 194,
+   WLAN_HAL_TDLS_LINK_ESTABLISHED_REQ       = 198,
+   WLAN_HAL_TDLS_LINK_ESTABLISHED_RSP       = 199,
+   WLAN_HAL_TDLS_LINK_TEARDOWN_REQ          = 200,
+   WLAN_HAL_TDLS_LINK_TEARDOWN_RSP          = 201,
+   WLAN_HAL_TDLS_IND                        = 202,
+
   WLAN_HAL_MSG_MAX = WLAN_HAL_MSG_TYPE_MAX_ENUM_SIZE
 }tHalHostMsgType;
 
@@ -565,6 +575,7 @@ typedef enum eSriLinkState {
     eSIR_LINK_FINISH_CAL_STATE  = 13,
 #ifdef WLAN_FEATURE_P2P
     eSIR_LINK_LISTEN_STATE      = 14,
+    eSIR_LINK_SEND_ACTION_STATE = 15,
 #endif
     eSIR_LINK_MAX = WLAN_HAL_MAX_ENUM_SIZE
 } tSirLinkState;
@@ -4932,16 +4943,6 @@ typedef PACKED_PRE struct PACKED_POST
 /*Maximum size of the probe template*/
 #define WLAN_HAL_PNO_MAX_PROBE_SIZE     450
 
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-#define CHANNEL_LIST_STATIC                   1 /* Occupied channel list remains static */
-#define CHANNEL_LIST_DYNAMIC_INIT             2 /* Occupied channel list can be learnt after init */
-#define CHANNEL_LIST_DYNAMIC_FLUSH            3 /* Occupied channel list can be learnt after flush */
-#define CHANNEL_LIST_DYNAMIC_UPDATE           4 /* Occupied channel list can be learnt after update */
-#define WLAN_HAL_ROAM_SCAN_MAX_PROBE_SIZE     450
-#define WLAN_HAL_ROAM_SCAN_MAX_CHANNELS       NUM_RF_CHANNELS
-#define WLAN_HAL_ROAM_SCAN_RESERVED_BYTES     64
-#endif
-
 /*Type of PNO enabling 
   Immediate - scanning will start immediately and PNO procedure will
   be repeated based on timer
@@ -5241,6 +5242,8 @@ typedef PACKED_PRE struct PACKED_POST {
    tANI_U16          us5GProbeSize;
    tANI_U8           a5GProbeTemplate[WLAN_HAL_ROAM_SCAN_MAX_PROBE_SIZE];
    /* Add Reserved bytes */
+   tANI_U8           nProbes;
+   tANI_U16          HomeAwayTime;
    tANI_U8           ReservedBytes[WLAN_HAL_ROAM_SCAN_RESERVED_BYTES];
    tRoamNetworkType  ConnectedNetwork;
    tMobilityDomainInfo MDID;
@@ -5997,6 +6000,110 @@ typedef PACKED_PRE struct PACKED_POST{
 }  tSetWifiProximityRspMsg, *tpSetWifiProxmityRspMsg;
 
 #endif
+#ifdef FEATURE_WLAN_TDLS
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_TDLS_LINK_ESTABLISHED_REQ
+ *-------------------------------------------------------------------------*/
+typedef PACKED_PRE struct PACKED_POST
+{
+    /*STA Index*/
+    tANI_U16        staIdx;
+
+    /* if this is 1, self is initiator and peer is reponder */
+    tANI_U8                bIsResponder;
+
+    /* QoS Info */
+    tANI_U8        acVOUAPSDFlag:1;
+    tANI_U8        acVIUAPSDFlag:1;
+    tANI_U8        acBKUAPSDFlag:1;
+    tANI_U8        acBEUAPSDFlag:1;
+    tANI_U8        aAck:1;
+    tANI_U8        maxServicePeriodLength:2;
+    tANI_U8        moreDataAck:1;
+
+    /*TDLS Peer U-APSD Buffer STA Support*/
+    tANI_U8        TPUBufferStaSupport;
+
+}tTDLSLinkEstablishedType, *tpTDLSLinkEstablishedType;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tHalMsgHeader               header;
+    tTDLSLinkEstablishedType    tdlsLinkEstablishedParams;
+} tTDLSLinkEstablishedReqMsg, *tpTDLSLinkEstablishedReqMsg;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_TDLS_LINK_ESTABLISHED_RSP
+ *-------------------------------------------------------------------------*/
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tANI_U32   status;
+
+    /*STA Index*/
+    tANI_U16        staIdx;
+} tTDLSLinkEstablishedResp, *tpTDLSLinkEstablishedResp;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tHalMsgHeader header;
+    tTDLSLinkEstablishedResp TDLSLinkEstablishedRespParams;
+}  tTDLSLinkEstablishedRespMsg,  *tpTDLSLinkEstablishedRespMsg;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_TDLS_LINK_TEARDOWN_REQ
+ *-------------------------------------------------------------------------*/
+typedef PACKED_PRE struct PACKED_POST
+{
+    /*STA Index*/
+    tANI_U16        staIdx;
+}tTDLSLinkTeardownType, *tpTDLSLinkTeardownType;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tHalMsgHeader               header;
+    tTDLSLinkTeardownType    tdlsLinkTeardownParams;
+} tTDLSLinkTeardownReqMsg, *tpTDLSLinkTeardownReqMsg;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_TDLS_LINK_TEARDOWN_RSP
+ *-------------------------------------------------------------------------*/
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tANI_U32   status;
+
+    /*STA Index*/
+    tANI_U16        staIdx;
+} tTDLSLinkTeardownResp, *tpTDLSLinkTeardownResp;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tHalMsgHeader header;
+    tTDLSLinkTeardownResp TDLSLinkTeardownRespParams;
+}  tTDLSLinkTeardownRespMsg,  *tpTDLSLinkTeardownRespMsg;
+
+/*---------------------------------------------------------------------------
+ *WLAN_HAL_TDLS_IND
+ *--------------------------------------------------------------------------*/
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tANI_U16    assocId;
+    tANI_U16    staIdx;
+    tANI_U16    status;
+    tANI_U16    reasonCode;
+}tTdlsIndParams, *tpTdlsIndParams;
+
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tHalMsgHeader header;
+    tTdlsIndParams tdlsIndParams;
+}tTdlsIndMsg, *tpTdlsIndMsg;
+
+#endif
+
 #if defined(__ANI_COMPILER_PRAGMA_PACK_STACK)
 #pragma pack(pop)
 #elif defined(__ANI_COMPILER_PRAGMA_PACK)

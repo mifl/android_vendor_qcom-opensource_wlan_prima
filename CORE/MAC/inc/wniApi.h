@@ -244,6 +244,7 @@ enum eWniMsgTypes
     eWNI_SME_ACTION_FRAME_SEND_CNF,
     eWNI_SME_ABORT_REMAIN_ON_CHAN_IND,
     eWNI_SME_UPDATE_NOA,
+    eWNI_SME_CLEAR_DFS_CHANNEL_LIST,
     eWNI_SME_PRE_CHANNEL_SWITCH_FULL_POWER,
     //General Power Save Messages
     eWNI_PMC_MSG_TYPES_BEGIN,
@@ -346,6 +347,8 @@ enum eWniMsgTypes
 #ifdef FEATURE_WLAN_TDLS_OXYGEN_DISAPPEAR_AP
     eWNI_SME_TDLS_AP_DISAPPEAR_IND,
 #endif
+    eWNI_SME_TDLS_LINK_ESTABLISH_REQ,
+    eWNI_SME_TDLS_LINK_ESTABLISH_RSP,
 #endif
     //NOTE: If you are planning to add more mesages, please make sure that 
     //SIR_LIM_ITC_MSG_TYPES_BEGIN is moved appropriately. It is set as
@@ -374,7 +377,9 @@ enum eWniMsgTypes
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
     eWNI_PMC_GTK_OFFLOAD_GETINFO_RSP,
 #endif // WLAN_FEATURE_GTK_OFFLOAD
-    eWNI_SME_CANDIDATE_FOUND_IND, //ROAM candidate indication from FW
+    eWNI_SME_CANDIDATE_FOUND_IND, /*ROAM candidate indication from FW*/
+    eWNI_SME_HANDOFF_REQ,/*upper layer requested handoff to driver in STA mode*/
+    eWNI_SME_ROAM_SCAN_OFFLOAD_RSP,/*Fwd the LFR scan offload rsp from FW to SME*/
     eWNI_SME_MSG_TYPES_END
 };
 

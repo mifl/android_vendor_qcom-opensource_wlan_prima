@@ -253,6 +253,11 @@ typedef struct sLimTimers
     TX_TIMER           gLimDeauthAckTimer;
     // This timer is started when single shot NOA insert msg is sent to FW for scan in P2P GO mode
     TX_TIMER           gLimP2pSingleShotNoaInsertTimer;
+    /* This timer is used to convert active channel to
+     * passive channel when there is no beacon
+     * for a period of time on a particular DFS channel
+     */
+    TX_TIMER           gLimActiveToPassiveChannelTimer;
 //********************TIMER SECTION ENDS**************************************************
 // ALL THE FIELDS BELOW THIS CAN BE ZEROED OUT in limInitialize
 //****************************************************************************************
@@ -659,6 +664,8 @@ typedef struct sAniSirLim
     tLimAdmitPolicyInfo admitPolicyInfo;
     vos_lock_t lkPeGlobalLock;
     tANI_U8 disableLDPCWithTxbfAP;
+    tANI_U8 gLimTDLSBufStaEnabled;
+    tANI_U8 gLimTDLSUapsdMask;
 
 
 
@@ -909,6 +916,7 @@ tLimMlmOemDataRsp       *gpLimMlmOemDataRsp;
 #endif
     tLimDisassocDeauthCnfReq limDisassocDeauthCnfReq;
     tANI_U8 deferredMsgCnt;
+    tSirDFSChannelList    dfschannelList;
 } tAniSirLim, *tpAniSirLim;
 
 typedef struct sLimMgmtFrameRegistration

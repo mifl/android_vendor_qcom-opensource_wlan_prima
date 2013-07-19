@@ -160,6 +160,13 @@ static int wlan_hdd_inited;
  */
 #define WLAN_HDD_RESTART_RETRY_DELAY_MS 5000  /* 5 second */
 #define WLAN_HDD_RESTART_RETRY_MAX_CNT  5     /* 5 retries */
+
+/*
+ * Size of Driver command strings from upper layer
+ */
+#define SIZE_OF_SETROAMMODE             11    /* size of SETROAMMODE */
+#define SIZE_OF_GETROAMMODE             11    /* size of GETROAMMODE */
+
 #ifdef WLAN_OPEN_SOURCE
 static struct wake_lock wlan_wake_lock;
 #endif
@@ -191,6 +198,9 @@ static VOS_STATUS hdd_parse_countryrev(tANI_U8 *pValue, tANI_U8 *pChannelList, t
 static VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApBssid,
                               tANI_U8 *pChannel, tANI_U8 *pDwellTime,
                               tANI_U8 **pBuf, tANI_U8 *pBufLen);
+static VOS_STATUS hdd_parse_reassoc_command_data(tANI_U8 *pValue,
+                                                 tANI_U8 *pTargetApBssid,
+                                                 tANI_U8 *pChannel);
 #endif
 static int hdd_netdev_notifier_call(struct notifier_block * nb,
                                          unsigned long state,
@@ -406,6 +416,37 @@ static void hdd_wdi_trace_enable(wpt_moduleid moduleId, v_U32_t bitmask)
    }
 }
 
+/*
+ * FUNCTION: wlan_hdd_validate_context
+ * This function is used to check the HDD context
+ */
+int wlan_hdd_validate_context(hdd_context_t *pHddCtx)
+{
+    ENTER();
+
+    if (NULL == pHddCtx || NULL == pHddCtx->cfg_ini)
+    {
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "%s: HDD context is Null", __func__);
+        return -ENODEV;
+    }
+
+    if (pHddCtx->isLogpInProgress)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: LOGP in Progress. Ignore!!!", __func__);
+        return -EAGAIN;
+    }
+
+    if (pHddCtx->isLoadUnloadInProgress)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: Unloading/Loading in Progress. Ignore!!!", __func__);
+        return -EAGAIN;
+    }
+    return 0;
+}
+
 void hdd_checkandupdate_phymode( hdd_adapter_t *pAdapter, char *country_code)
 {
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
@@ -593,7 +634,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            hdd_checkandupdate_dfssetting(pAdapter, country_code);
            hdd_checkandupdate_phymode(pAdapter, country_code);
            ret = (int)sme_ChangeCountryCode(pHddCtx->hHal, NULL, country_code,
-                    pAdapter, pHddCtx->pvosContext);
+                    pAdapter, pHddCtx->pvosContext, eSIR_TRUE);
            if( 0 != ret )
            {
                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
@@ -641,7 +682,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            hdd_checkandupdate_dfssetting(pAdapter, countryCode);
            hdd_checkandupdate_phymode(pAdapter, countryCode);
            ret = (int)sme_ChangeCountryCode(pHddCtx->hHal, NULL, countryCode,
-                    pAdapter, pHddCtx->pvosContext);
+                    pAdapter, pHddCtx->pvosContext, eSIR_TRUE);
            if (0 != ret)
            {
                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
@@ -861,6 +902,83 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                goto exit;
            }
        }
+#ifdef FEATURE_WLAN_LFR
+       /* SETROAMMODE */
+       else if (strncmp(command, "SETROAMMODE", SIZE_OF_SETROAMMODE) == 0)
+       {
+           tANI_U8 *value = command;
+	   tANI_BOOLEAN roamMode = CFG_LFR_FEATURE_ENABLED_DEFAULT;
+
+	   /* Move pointer to ahead of SETROAMMODE<delimiter> */
+	   value = value + SIZE_OF_SETROAMMODE + 1;
+
+	   /* Convert the value from ascii to integer */
+	   ret = kstrtou8(value, SIZE_OF_SETROAMMODE, &roamMode);
+	   if (ret < 0)
+	   {
+	      /* If the input value is greater than max value of datatype, then also
+		  kstrtou8 fails */
+	      VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+		   "%s: kstrtou8 failed range [%d - %d]", __func__,
+		   CFG_LFR_FEATURE_ENABLED_MIN,
+		   CFG_LFR_FEATURE_ENABLED_MAX);
+              ret = -EINVAL;
+	      goto exit;
+	   }
+           if ((roamMode < CFG_LFR_FEATURE_ENABLED_MIN) ||
+	       (roamMode > CFG_LFR_FEATURE_ENABLED_MAX))
+           {
+              VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+			"Roam Mode value %d is out of range"
+			" (Min: %d Max: %d)", roamMode,
+			CFG_LFR_FEATURE_ENABLED_MIN,
+			CFG_LFR_FEATURE_ENABLED_MAX);
+	      ret = -EINVAL;
+	      goto exit;
+	   }
+
+	   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+		   "%s: Received Command to Set Roam Mode = %d", __func__, roamMode);
+           /*
+	    * Note that
+	    *     SETROAMMODE 0 is to enable LFR while
+	    *     SETROAMMODE 1 is to disable LFR, but
+	    *     NotifyIsFastRoamIniFeatureEnabled 0/1 is to enable/disable.
+	    *     So, we have to invert the value to call sme_UpdateIsFastRoamIniFeatureEnabled.
+	    */
+	   if (CFG_LFR_FEATURE_ENABLED_MIN == roamMode)
+	       roamMode = CFG_LFR_FEATURE_ENABLED_MAX;    /* Roam enable */
+	   else
+	       roamMode = CFG_LFR_FEATURE_ENABLED_MIN;    /* Roam disable */
+
+	   pHddCtx->cfg_ini->isFastRoamIniFeatureEnabled = roamMode;
+           sme_UpdateIsFastRoamIniFeatureEnabled((tHalHandle)(pHddCtx->hHal), roamMode);
+       }
+       /* GETROAMMODE */
+       else if (strncmp(priv_data.buf, "GETROAMMODE", SIZE_OF_GETROAMMODE) == 0)
+       {
+	   tANI_BOOLEAN roamMode = sme_getIsLfrFeatureEnabled((tHalHandle)(pHddCtx->hHal));
+	   char extra[32];
+	   tANI_U8 len = 0;
+
+           /*
+            * roamMode value shall be inverted because the sementics is different.
+            */
+           if (CFG_LFR_FEATURE_ENABLED_MIN == roamMode)
+	       roamMode = CFG_LFR_FEATURE_ENABLED_MAX;
+           else
+	       roamMode = CFG_LFR_FEATURE_ENABLED_MIN;
+
+	   len = snprintf(extra, sizeof(extra), "%s %d", command, roamMode);
+	   if (copy_to_user(priv_data.buf, &extra, len + 1))
+	   {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: failed to copy data to user buffer", __func__);
+               ret = -EFAULT;
+               goto exit;
+	   }
+       }
+#endif
 #endif
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
        else if (strncmp(command, "SETROAMDELTA", 12) == 0)
@@ -1214,11 +1332,11 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            /* Fill destination address (bssid of the AP) */
            vos_mem_copy(finalBuf + 4, targetApBssid, sizeof(targetApBssid));
 
-           /* Fill BSSID (STA mac address) */
+           /* Fill source address (STA mac address) */
            vos_mem_copy(finalBuf + 10, pAdapter->macAddressCurrent.bytes, sizeof(pAdapter->macAddressCurrent.bytes));
 
-           /* Fill source address (STA mac address) */
-           vos_mem_copy(finalBuf + 16, pAdapter->macAddressCurrent.bytes, sizeof(pAdapter->macAddressCurrent.bytes));
+           /* Fill BSSID (AP mac address) */
+           vos_mem_copy(finalBuf + 16, targetApBssid, sizeof(targetApBssid));
 
            /* Fill received buffer from 24th address */
            vos_mem_copy(finalBuf + 24, buf, bufLen);
@@ -1463,6 +1581,186 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                ret = -EFAULT;
                goto exit;
            }
+       }
+       else if (strncmp(command, "SETSCANNPROBES", 14) == 0)
+       {
+           tANI_U8 *value = command;
+           tANI_U8 nProbes = CFG_ROAM_SCAN_N_PROBES_DEFAULT;
+
+           /* Move pointer to ahead of SETSCANNPROBES<delimiter> */
+           value = value + 15;
+           /* Convert the value from ascii to integer */
+           ret = kstrtou8(value, 10, &nProbes);
+           if (ret < 0)
+           {
+               /* If the input value is greater than max value of datatype, then also
+                  kstrtou8 fails */
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "%s: kstrtou8 failed range [%d - %d]", __func__,
+                      CFG_ROAM_SCAN_N_PROBES_MIN,
+                      CFG_ROAM_SCAN_N_PROBES_MAX);
+               ret = -EINVAL;
+               goto exit;
+           }
+
+           if ((nProbes < CFG_ROAM_SCAN_N_PROBES_MIN) ||
+               (nProbes > CFG_ROAM_SCAN_N_PROBES_MAX))
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "NProbes value %d is out of range"
+                      " (Min: %d Max: %d)", nProbes,
+                      CFG_ROAM_SCAN_N_PROBES_MIN,
+                      CFG_ROAM_SCAN_N_PROBES_MAX);
+               ret = -EINVAL;
+               goto exit;
+           }
+
+           VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                      "%s: Received Command to Set nProbes = %d", __func__, nProbes);
+
+           pHddCtx->cfg_ini->nProbes = nProbes;
+           sme_UpdateRoamScanNProbes((tHalHandle)(pHddCtx->hHal), nProbes);
+       }
+       else if (strncmp(priv_data.buf, "GETSCANNPROBES", 14) == 0)
+       {
+           tANI_U8 val = sme_getRoamScanNProbes((tHalHandle)(pHddCtx->hHal));
+           char extra[32];
+           tANI_U8 len = 0;
+
+           len = snprintf(extra, sizeof(extra), "%s %d", command, val);
+           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: failed to copy data to user buffer", __func__);
+               ret = -EFAULT;
+               goto exit;
+           }
+       }
+       else if (strncmp(command, "SETSCANHOMEAWAYTIME", 19) == 0)
+       {
+           tANI_U8 *value = command;
+           tANI_U16 homeAwayTime = CFG_ROAM_SCAN_HOME_AWAY_TIME_DEFAULT;
+
+           /* Move pointer to ahead of SETSCANHOMEAWAYTIME<delimiter> */
+           /* input value is in units of msec */
+           value = value + 20;
+           /* Convert the value from ascii to integer */
+           ret = kstrtou16(value, 10, &homeAwayTime);
+           if (ret < 0)
+           {
+               /* If the input value is greater than max value of datatype, then also
+                  kstrtou8 fails */
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "%s: kstrtou8 failed range [%d - %d]", __func__,
+                      CFG_ROAM_SCAN_HOME_AWAY_TIME_MIN,
+                      CFG_ROAM_SCAN_HOME_AWAY_TIME_MAX);
+               ret = -EINVAL;
+               goto exit;
+           }
+
+           /*Currently Home Away Time has a MIN value of 3.
+            * But, we sould allow the user to input Zero,
+            * since we are using the value of Zero to disable
+            * this and fallback to LFR1.5 behaviour.*/
+           if (0 != homeAwayTime)
+           if ((homeAwayTime < CFG_ROAM_SCAN_HOME_AWAY_TIME_MIN) ||
+               (homeAwayTime > CFG_ROAM_SCAN_HOME_AWAY_TIME_MAX))
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "homeAwayTime value %d is out of range"
+                      " (Min: %d Max: %d)", homeAwayTime,
+                      CFG_ROAM_SCAN_HOME_AWAY_TIME_MIN,
+                      CFG_ROAM_SCAN_HOME_AWAY_TIME_MAX);
+               ret = -EINVAL;
+               goto exit;
+           }
+
+           VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                      "%s: Received Command to Set scan away time = %d", __func__, homeAwayTime);
+
+           pHddCtx->cfg_ini->nRoamScanHomeAwayTime = homeAwayTime;
+           sme_UpdateRoamScanHomeAwayTime((tHalHandle)(pHddCtx->hHal), homeAwayTime);
+       }
+       else if (strncmp(priv_data.buf, "GETSCANHOMEAWAYTIME", 19) == 0)
+       {
+           tANI_U16 val = sme_getRoamScanHomeAwayTime((tHalHandle)(pHddCtx->hHal));
+           char extra[32];
+           tANI_U8 len = 0;
+
+           len = snprintf(extra, sizeof(extra), "%s %d", command, val);
+           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: failed to copy data to user buffer", __func__);
+               ret = -EFAULT;
+               goto exit;
+           }
+       }
+       else if (strncmp(command, "REASSOC", 7) == 0)
+       {
+           tANI_U8 *value = command;
+           tANI_U8 channel = 0;
+           tSirMacAddr targetApBssid;
+           eHalStatus status = eHAL_STATUS_SUCCESS;
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+           tCsrHandoffRequest handoffInfo;
+#endif
+           hdd_station_ctx_t *pHddStaCtx = NULL;
+           tANI_BOOLEAN wesMode = eANI_BOOLEAN_FALSE;
+           pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+
+           wesMode = sme_GetWESMode((tHalHandle)(pHddCtx->hHal));
+
+           /* Reassoc command is allowed only if WES mode is enabled */
+           if (!wesMode)
+           {
+               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s:WES Mode is not enabled(%d)",__func__, wesMode);
+               ret = -EINVAL;
+               goto exit;
+           }
+
+           /* if not associated, no need to proceed with reassoc */
+           if (eConnectionState_Associated != pHddStaCtx->conn_info.connState)
+           {
+               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s:Not associated!",__func__);
+               ret = -EINVAL;
+               goto exit;
+           }
+
+           status = hdd_parse_reassoc_command_data(value, targetApBssid, &channel);
+           if (eHAL_STATUS_SUCCESS != status)
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: Failed to parse reassoc command data", __func__);
+               ret = -EINVAL;
+               goto exit;
+           }
+
+           /* if the target bssid is same as currently associated AP,
+              then no need to proceed with reassoc */
+           if (VOS_TRUE == vos_mem_compare(targetApBssid,
+                                           pHddStaCtx->conn_info.bssId, sizeof(tSirMacAddr)))
+           {
+               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s:Reassoc BSSID is same as currently associated AP bssid",__func__);
+               ret = -EINVAL;
+               goto exit;
+           }
+
+           /* Check channel number is a valid channel number */
+           if(VOS_STATUS_SUCCESS !=
+                         wlan_hdd_validate_operation_channel(pAdapter, channel))
+           {
+               hddLog(VOS_TRACE_LEVEL_ERROR,
+                      "%s: Invalid Channel [%d] \n", __func__, channel);
+               return -EINVAL;
+           }
+
+           /* Proceed with reassoc */
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+           handoffInfo.channel = channel;
+           vos_mem_copy(handoffInfo.bssid, targetApBssid, sizeof(tSirMacAddr));
+           sme_HandoffRequest(pHddCtx->hHal, &handoffInfo);
+#endif
        }
 #endif
 #ifdef FEATURE_WLAN_LFR
@@ -1836,7 +2134,14 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
     }
     if ( *pBufLen <= 0)  return -EINVAL;
 
-    *pBuf = vos_mem_malloc(sizeof(*pBufLen));
+    /* Allocate the number of bytes based on the number of input characters
+       whether it is even or odd.
+       if the number of input characters are even, then we need N/2 byte.
+       if the number of input characters are odd, then we need do (N+1)/2 to
+       compensate rounding off.
+       For example, if N = 18, then (18 + 1)/2 = 9 bytes are enough.
+       If N = 19, then we need 10 bytes, hence (19 + 1)/2 = 10 bytes */
+    *pBuf = vos_mem_malloc((*pBufLen + 1)/2);
     if (NULL == *pBuf)
     {
         hddLog(VOS_TRACE_LEVEL_FATAL,
@@ -1857,7 +2162,6 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
     return VOS_STATUS_SUCCESS;
 }
 
-#endif
 /**---------------------------------------------------------------------------
 
   \brief hdd_parse_countryrev() - HDD Parse country code revision
@@ -2054,6 +2358,84 @@ VOS_STATUS hdd_parse_channellist(tANI_U8 *pValue, tANI_U8 *pChannelList, tANI_U8
 
     return VOS_STATUS_SUCCESS;
 }
+
+
+/**---------------------------------------------------------------------------
+
+  \brief hdd_parse_reassoc_command_data() - HDD Parse reassoc command data
+
+  This function parses the reasoc command data passed in the format
+  REASSOC<space><bssid><space><channel>
+
+  \param  - pValue Pointer to input country code revision
+  \param  - pTargetApBssid Pointer to target Ap bssid
+  \param  - pChannel Pointer to the Target AP channel
+
+  \return - 0 for success non-zero for failure
+
+  --------------------------------------------------------------------------*/
+VOS_STATUS hdd_parse_reassoc_command_data(tANI_U8 *pValue, tANI_U8 *pTargetApBssid, tANI_U8 *pChannel)
+{
+    tANI_U8 *inPtr = pValue;
+    int tempInt;
+    int v = 0;
+    tANI_U8 tempBuf[32];
+
+    inPtr = strnchr(pValue, strlen(pValue), SPACE_ASCII_VALUE);
+    /*no argument after the command*/
+    if (NULL == inPtr)
+    {
+        return -EINVAL;
+    }
+
+    /*no space after the command*/
+    else if (SPACE_ASCII_VALUE != *inPtr)
+    {
+        return -EINVAL;
+    }
+
+    /*removing empty spaces*/
+    while ((SPACE_ASCII_VALUE  == *inPtr) && ('\0' !=  *inPtr) ) inPtr++;
+
+    /*no argument followed by spaces*/
+    if ('\0' == *inPtr)
+    {
+        return -EINVAL;
+    }
+
+    /*getting the first argument ie the target AP bssid */
+    if (inPtr[2] != ':' || inPtr[5] != ':' || inPtr[8] != ':' || inPtr[11] != ':' || inPtr[14] != ':')
+    {
+       return -EINVAL;
+    }
+    sscanf(inPtr, "%2x:%2x:%2x:%2x:%2x:%2x", (unsigned int *)&pTargetApBssid[0], (unsigned int *)&pTargetApBssid[1],
+                  (unsigned int *)&pTargetApBssid[2], (unsigned int *)&pTargetApBssid[3],
+                  (unsigned int *)&pTargetApBssid[4], (unsigned int *)&pTargetApBssid[5]);
+
+    /* point to the next argument */
+    inPtr = strnchr(inPtr, strlen(inPtr), SPACE_ASCII_VALUE);
+    /*no argument after the command*/
+    if (NULL == inPtr) return -EINVAL;
+
+    /*removing empty spaces*/
+    while ((SPACE_ASCII_VALUE  == *inPtr) && ('\0' !=  *inPtr) ) inPtr++;
+
+    /*no argument followed by spaces*/
+    if ('\0' == *inPtr)
+    {
+        return -EINVAL;
+    }
+
+    /*getting the next argument ie the channel number */
+    sscanf(inPtr, "%s ", tempBuf);
+    v = kstrtos32(tempBuf, 10, &tempInt);
+    if ( v < 0) return -EINVAL;
+
+    *pChannel = tempInt;
+    return VOS_STATUS_SUCCESS;
+}
+
+#endif
 
 /**---------------------------------------------------------------------------
 
@@ -2689,6 +3071,7 @@ static hdd_adapter_t* hdd_alloc_station_adapter( hdd_context_t *pHddCtx, tSirMac
       init_completion(&pAdapter->tdls_add_station_comp);
       init_completion(&pAdapter->tdls_del_station_comp);
       init_completion(&pAdapter->tdls_mgmt_comp);
+      init_completion(&pAdapter->tdls_link_establish_req_comp);
 #endif
       init_completion(&pHddCtx->mc_sus_event_var);
       init_completion(&pHddCtx->tx_sus_event_var);
@@ -3018,33 +3401,70 @@ void hdd_cleanup_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter, tANI_
 
 void hdd_set_pwrparams(hdd_context_t *pHddCtx)
 {
-   tSirSetPowerParamsReq powerRequest = { 0 };
+   VOS_STATUS status;
+   hdd_adapter_t *pAdapter = NULL;
+   hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
 
-   powerRequest.uIgnoreDTIM = 1;
-   powerRequest.uMaxLIModulatedDTIM = pHddCtx->cfg_ini->fMaxLIModulatedDTIM;
+   status =  hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
 
-   if (pHddCtx->cfg_ini->enableModulatedDTIM)
+   /*loop through all adapters.*/
+   while ( NULL != pAdapterNode && VOS_STATUS_SUCCESS == status )
    {
-       powerRequest.uDTIMPeriod = pHddCtx->cfg_ini->enableModulatedDTIM;
-       powerRequest.uListenInterval = pHddCtx->hdd_actual_LI_value;
-   }
-   else
-   {
-       powerRequest.uListenInterval = pHddCtx->cfg_ini->enableDynamicDTIM;
-   }
+       pAdapter = pAdapterNode->pAdapter;
+       if ( (WLAN_HDD_INFRA_STATION != pAdapter->device_mode)
+         && (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode) )
 
-   /* Update ignoreDTIM and ListedInterval in CFG to remain at the DTIM
-   *specified during Enter/Exit BMPS when LCD off*/
-   ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_IGNORE_DTIM, powerRequest.uIgnoreDTIM,
-                    NULL, eANI_BOOLEAN_FALSE);
-   ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_LISTEN_INTERVAL, powerRequest.uListenInterval,
-                    NULL, eANI_BOOLEAN_FALSE);
+       {  // we skip this registration for modes other than STA and P2P client modes.
+           status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
+           pAdapterNode = pNext;
+           continue;
+       }
 
-   /* switch to the DTIM specified in cfg.ini */
-   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                  "Switch to DTIM%d", powerRequest.uListenInterval);
-   sme_SetPowerParams( pHddCtx->hHal, &powerRequest, TRUE);
+       //Apply Dynamic DTIM For P2P
+       //Only if ignoreDynamicDtimInP2pMode is not set in ini
+      if ((pHddCtx->cfg_ini->enableDynamicDTIM ||
+           pHddCtx->cfg_ini->enableModulatedDTIM) &&
+          ((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
+          ((WLAN_HDD_P2P_CLIENT == pAdapter->device_mode) &&
+          !(pHddCtx->cfg_ini->ignoreDynamicDtimInP2pMode))) &&
+          (eANI_BOOLEAN_TRUE == pAdapter->higherDtimTransition) &&
+          (eConnectionState_Associated ==
+          (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState) &&
+          (pHddCtx->cfg_ini->fIsBmpsEnabled))
+      {
+           tSirSetPowerParamsReq powerRequest = { 0 };
 
+           powerRequest.uIgnoreDTIM = 1;
+           powerRequest.uMaxLIModulatedDTIM = pHddCtx->cfg_ini->fMaxLIModulatedDTIM;
+
+           if (pHddCtx->cfg_ini->enableModulatedDTIM)
+           {
+               powerRequest.uDTIMPeriod = pHddCtx->cfg_ini->enableModulatedDTIM;
+               powerRequest.uListenInterval = pHddCtx->hdd_actual_LI_value;
+           }
+           else
+           {
+               powerRequest.uListenInterval = pHddCtx->cfg_ini->enableDynamicDTIM;
+           }
+
+           /* Update ignoreDTIM and ListedInterval in CFG to remain at the DTIM
+            * specified during Enter/Exit BMPS when LCD off*/
+            ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_IGNORE_DTIM, powerRequest.uIgnoreDTIM,
+                       NULL, eANI_BOOLEAN_FALSE);
+            ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_LISTEN_INTERVAL, powerRequest.uListenInterval,
+                       NULL, eANI_BOOLEAN_FALSE);
+
+           /* switch to the DTIM specified in cfg.ini */
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                      "Switch to DTIM %d", powerRequest.uListenInterval);
+            sme_SetPowerParams( pHddCtx->hHal, &powerRequest, TRUE);
+            break;
+
+      }
+
+      status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
+      pAdapterNode = pNext;
+    }
 }
 
 void hdd_reset_pwrparams(hdd_context_t *pHddCtx)
@@ -3392,7 +3812,11 @@ resume_bmps:
    //If bmps disabled enable it
    if(VOS_STATUS_SUCCESS == exitbmpsStatus)
    {
-      hdd_enable_bmps_imps(pHddCtx);
+       if (pHddCtx->hdd_wlan_suspended)
+       {
+           hdd_set_pwrparams(pHddCtx);
+       }
+       hdd_enable_bmps_imps(pHddCtx);
    }
    return NULL;
 }
@@ -3429,7 +3853,11 @@ VOS_STATUS hdd_close_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
            ((pHddCtx->no_of_sessions[VOS_STA_MODE] >= 1) || 
            (pHddCtx->no_of_sessions[VOS_P2P_CLIENT_MODE] >= 1)))
       {
-         hdd_enable_bmps_imps(pHddCtx);
+          if (pHddCtx->hdd_wlan_suspended)
+          {
+              hdd_set_pwrparams(pHddCtx);
+          }
+          hdd_enable_bmps_imps(pHddCtx);
       }
 
       return VOS_STATUS_SUCCESS;
@@ -4658,6 +5086,7 @@ VOS_STATUS hdd_post_voss_start_config(hdd_context_t* pHddCtx)
 {
    eHalStatus halStatus;
    v_U32_t listenInterval;
+   tANI_U32    ignoreDtim;
 
 
    // Send ready indication to the HDD.  This will kick off the MAC
@@ -4670,12 +5099,15 @@ VOS_STATUS hdd_post_voss_start_config(hdd_context_t* pHddCtx)
       return VOS_STATUS_E_FAILURE;
    }
 
-   // Set default LI into HDD context,
+   // Set default LI and ignoreDtim into HDD context,
    // otherwise under some race condition, HDD will set 0 LI value into RIVA,
    // And RIVA will crash
    wlan_cfgGetInt(pHddCtx->hHal, WNI_CFG_LISTEN_INTERVAL, &listenInterval);
    pHddCtx->hdd_actual_LI_value = listenInterval;
-   
+   wlan_cfgGetInt(pHddCtx->hHal, WNI_CFG_IGNORE_DTIM, &ignoreDtim);
+   pHddCtx->hdd_actual_ignore_DTIM_value = ignoreDtim;
+
+
    return VOS_STATUS_SUCCESS;
 }
 
@@ -5449,6 +5881,10 @@ static int hdd_driver_init( void)
    int max_retries = 0;
 #endif
 
+#ifdef WCONN_TRACE_KMSG_LOG_BUFF
+   vos_wconn_trace_init();
+#endif
+
    ENTER();
 
 #ifdef WLAN_OPEN_SOURCE
@@ -5661,6 +6097,10 @@ static void hdd_driver_exit(void)
 #endif
 #ifdef MEMORY_DEBUG
    vos_mem_exit();
+#endif
+
+#ifdef WCONN_TRACE_KMSG_LOG_BUFF
+   vos_wconn_trace_exit();
 #endif
 
 done:

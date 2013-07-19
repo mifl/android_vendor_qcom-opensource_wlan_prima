@@ -376,6 +376,9 @@ WDI_TxBdFastFwd
 
     ucTxFlag:    different option setting for TX.
 
+    ucProtMgmtFrame: for management frames, whether the frame is
+                     protected (protect bit is set in FC)
+
     uTimeStamp:      Timestamp when the frame was received from HDD. (usec)
    
    @return
@@ -394,6 +397,7 @@ WDI_FillTxBd
     wpt_uint8              ucDisableFrmXtl, 
     void*                  pTxBd, 
     wpt_uint8              ucTxFlag, 
+    wpt_uint8              ucProtMgmtFrame,
     wpt_uint32             uTimeStamp,
     wpt_uint8*             staIndex
 )
@@ -840,6 +844,7 @@ WDI_FillTxBd
 
             if(ucIsRMF && pSta->rmfEnabled)
             {
+                pBd->dpuNE = !ucProtMgmtFrame;
                 pBd->rmf = 1;
                 if(!ucUnicastDst)
                     pBd->dpuDescIdx = pSta->bcastMgmtDpuIndex; /* IGTK */
@@ -919,16 +924,19 @@ WDI_FillTxBd
             return VOS_STATUS_E_FAILURE;
         } */
 #ifdef WLAN_SOFTAP_VSTA_FEATURE
-       // if this is a Virtual Station then change the DPU Routing Flag so
+       // if this is a Virtual Station or statype is TDLS and trig enabled mask
+       // set then change the DPU Routing Flag so
        // that the frame will be routed to Firmware for queuing & transmit
-       if (IS_VSTA_IDX(ucStaId))
+       if (IS_VSTA_IDX(ucStaId) ||
+                 ((ucSTAType == WDI_STA_ENTRY_TDLS_PEER ) &&
+                  (ucTxFlag & WDI_TRIGGER_ENABLED_AC_MASK)))
        {
            pBd->dpuRF = BMUWQ_FW_DPU_TX;
        }
 #endif
 
-    } 
-    
+    }
+
     /*------------------------------------------------------------------------
        Over SDIO bus, SIF won't swap data bytes to/from data FIFO. 
        In order for MAC modules to recognize BD in Riva's default endian
@@ -942,7 +950,7 @@ WDI_FillTxBd
        byte order */
     pBd->txBdSignature = uTxBdSignature ;
 #endif        
-    
+
     return wdiStatus;
 }/*WDI_FillTxBd*/
 
@@ -1027,10 +1035,10 @@ WDI_SwapTxBd(wpt_uint8 *pBd)
 /**
  @brief WDI_RxAmsduBdFix - fix for HW issue for AMSDU 
 
-  
+
  @param   pWDICtx:       Context to the WDI
           pBDHeader - pointer to the BD header
-  
+
  @return None
 */
 void 

@@ -844,6 +844,20 @@ stopbss :
          * we don't want interfaces to become re-enabled */
         pHostapdState->bssState = BSS_STOP;
 
+        if (0 != (WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->nAPAutoShutOff)
+        {
+            if (VOS_TIMER_STATE_RUNNING == pHddApCtx->hdd_ap_inactivity_timer.state)
+            {
+                vos_status = vos_timer_stop(&pHddApCtx->hdd_ap_inactivity_timer);
+                if (!VOS_IS_STATUS_SUCCESS(vos_status))
+                    hddLog(LOGE, FL("Failed to stop AP inactivity timer"));
+            }
+
+            vos_status = vos_timer_destroy(&pHddApCtx->hdd_ap_inactivity_timer);
+            if (!VOS_IS_STATUS_SUCCESS(vos_status))
+                hddLog(LOGE, FL("Failed to Destroy AP inactivity timer"));
+        }
+
         /* Stop the pkts from n/w stack as we are going to free all of
          * the TX WMM queues for all STAID's */
         hdd_hostapd_stop(dev);
@@ -1472,8 +1486,8 @@ static iw_softap_commit(struct net_device *dev,
     // ht_capab is not what the name conveys,this is used for protection bitmap
     pConfig->ht_capab = (WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->apProtection;
 
-    if (pCommitConfig->num_accept_mac > MAX_MAC_ADDRESS_ACCEPTED)
-        num_mac = pConfig->num_accept_mac = MAX_MAC_ADDRESS_ACCEPTED;
+    if (pCommitConfig->num_accept_mac > MAX_ACL_MAC_ADDRESS)
+        num_mac = pConfig->num_accept_mac = MAX_ACL_MAC_ADDRESS;
     else
         num_mac = pConfig->num_accept_mac = pCommitConfig->num_accept_mac;
     acl_entry = pCommitConfig->accept_mac;
@@ -1482,8 +1496,8 @@ static iw_softap_commit(struct net_device *dev,
         vos_mem_copy(&pConfig->accept_mac[i], acl_entry->addr, sizeof(v_MACADDR_t));
         acl_entry++;
     }
-    if (pCommitConfig->num_deny_mac > MAX_MAC_ADDRESS_DENIED)
-        num_mac = pConfig->num_deny_mac = MAX_MAC_ADDRESS_DENIED;
+    if (pCommitConfig->num_deny_mac > MAX_ACL_MAC_ADDRESS)
+        num_mac = pConfig->num_deny_mac = MAX_ACL_MAC_ADDRESS;
     else
         num_mac = pConfig->num_deny_mac = pCommitConfig->num_deny_mac;
     acl_entry = pCommitConfig->deny_mac;

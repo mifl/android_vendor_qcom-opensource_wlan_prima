@@ -1407,7 +1407,8 @@ eHalStatus sme_ChangeCountryCode( tHalHandle hHal,
                                   tSmeChangeCountryCallback callback,
                                   tANI_U8 *pCountry,
                                   void *pContext,
-                                  void* pVosContext );
+                                  void* pVosContext,
+                                  tAniBool countryFromUserSpace );
 
 
 /* ---------------------------------------------------------------------------
@@ -2162,7 +2163,7 @@ eHalStatus sme_HideSSID(tHalHandle hHal, v_U8_t sessionId, v_U8_t ssidHidden);
     \param  hHal - The handle returned by macOpen.
     \param  newTMLevel - new Thermal Mitigation Level
     \param  tmMode - Thermal Mitigation handle mode, default 0
-    \return eHalStatus     
+    \return eHalStatus
   ---------------------------------------------------------------------------*/
 eHalStatus sme_SetTmLevel(tHalHandle hHal, v_U16_t newTMLevel, v_U16_t tmMode);
 
@@ -2262,12 +2263,50 @@ eHalStatus sme_UpdateRoamPrefer5GHz(tHalHandle hHal, v_BOOL_t nRoamPrefer5GHz);
 eHalStatus sme_setRoamIntraBand(tHalHandle hHal, const v_BOOL_t nRoamIntraBand);
 
 /* ---------------------------------------------------------------------------
+    \fn sme_UpdateRoamScanNProbes
+    \brief  function to update roam scan N probes
+            This function is called through dynamic setConfig callback function
+            to update roam scan N probes
+    \param  hHal - HAL handle for device
+    \param  nProbes number of probe requests to be sent out
+    \- return Success or failure
+    -------------------------------------------------------------------------*/
+eHalStatus sme_UpdateRoamScanNProbes(tHalHandle hHal, const v_U8_t nProbes);
+
+/* ---------------------------------------------------------------------------
+    \fn sme_UpdateRoamScanHomeAwayTime
+    \brief  function to update roam scan Home away time
+            This function is called through dynamic setConfig callback function
+            to update roam scan home away time
+    \param  hHal - HAL handle for device
+    \param  nRoamScanAwayTime Scan home away time
+    \- return Success or failure
+    -------------------------------------------------------------------------*/
+eHalStatus sme_UpdateRoamScanHomeAwayTime(tHalHandle hHal, const v_U16_t nRoamScanHomeAwayTime);
+
+/* ---------------------------------------------------------------------------
     \fn sme_getRoamIntraBand
     \brief  get Intra band roaming
     \param  hHal - HAL handle for device
     \- return Success or failure
     -------------------------------------------------------------------------*/
 v_BOOL_t sme_getRoamIntraBand(tHalHandle hHal);
+
+/* ---------------------------------------------------------------------------
+    \fn sme_getRoamScanNProbes
+    \brief  get N Probes
+    \param  hHal - HAL handle for device
+    \- return Success or failure
+    -------------------------------------------------------------------------*/
+v_U8_t sme_getRoamScanNProbes(tHalHandle hHal);
+
+/* ---------------------------------------------------------------------------
+    \fn sme_getRoamScanHomeAwayTime
+    \brief  get Roam scan home away time
+    \param  hHal - HAL handle for device
+    \- return Success or failure
+    -------------------------------------------------------------------------*/
+v_U16_t sme_getRoamScanHomeAwayTime(tHalHandle hHal);
 
 /* ---------------------------------------------------------------------------
     \fn sme_UpdateImmediateRoamRssiDiff
@@ -2675,6 +2714,21 @@ eHalStatus sme_UpdateRoamScanOffloadEnabled(tHalHandle hHal, v_BOOL_t nRoamScanO
     -------------------------------------------------------------------------*/
 tANI_U8 sme_IsFeatureSupportedByFW(tANI_U8 featEnumValue);
 #ifdef FEATURE_WLAN_TDLS
+
+/* ---------------------------------------------------------------------------
+    \fn sme_SendTdlsLinkEstablishParams
+    \brief  API to send TDLS Link Establishment Parameters.
+
+    \param  peerMac - peer's Mac Adress.
+    \param  tdlsLinkEstablishParams - TDLS Peer Link Establishment Parameters
+    \- return VOS_STATUS_SUCCES
+    -------------------------------------------------------------------------*/
+
+VOS_STATUS sme_SendTdlsLinkEstablishParams(tHalHandle hHal,
+                                                   tANI_U8 sessionId,
+                                                   tSirMacAddr peerMac,
+                                                   tCsrTdlsLinkEstablishParams *tdlsLinkEstablishParams);
+
 /* ---------------------------------------------------------------------------
     \fn sme_SendTdlsMgmtFrame
     \brief  API to send TDLS management frames.
@@ -2784,4 +2838,19 @@ eCsrPhyMode sme_GetPhyMode(tHalHandle hHal);
  */
 VOS_STATUS sme_SelectCBMode(tHalHandle hHal, eCsrPhyMode eCsrPhyMode, tANI_U8 channel);
 
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+/*--------------------------------------------------------------------------
+  \brief sme_HandoffRequest() - a wrapper function to Request a handoff
+  from CSR.
+  This is a synchronous call
+  \param hHal - The handle returned by macOpen
+  \param pHandoffInfo - info provided by HDD with the handoff request (namely:
+  BSSID, channel etc.)
+  \return eHAL_STATUS_SUCCESS - SME passed the request to CSR successfully.
+          Other status means SME is failed to send the request.
+  \sa
+  --------------------------------------------------------------------------*/
+
+eHalStatus sme_HandoffRequest(tHalHandle hHal, tCsrHandoffRequest *pHandoffInfo);
+#endif
 #endif //#if !defined( __SME_API_H )
