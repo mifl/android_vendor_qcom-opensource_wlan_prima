@@ -1025,6 +1025,7 @@ typedef struct sSirSmeJoinReq
     tAniBool            is11Rconnection;
 #endif
 #ifdef FEATURE_WLAN_CCX
+    tAniBool            isCCXFeatureIniEnabled;
     tAniBool            isCCXconnection;
     tCCXTspecInfo       ccxTspecInfo;
 #endif
