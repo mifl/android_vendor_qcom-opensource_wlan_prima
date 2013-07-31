@@ -442,7 +442,6 @@ eHalStatus csrClose(tpAniSirGlobal pMac)
 {
     eHalStatus status = eHAL_STATUS_SUCCESS;
 
-    csrStop(pMac);
     csrRoamClose(pMac);
     csrScanClose(pMac);
     csrLLClose(&pMac->roam.statsClientReqList);
@@ -6839,7 +6838,12 @@ eHalStatus csrRoamSaveConnectedInfomation(tpAniSirGlobal pMac, tANI_U32 sessionI
         smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
         return eHAL_STATUS_FAILURE;
     }
-    
+
+    if(pConnectProfile->pAddIEAssoc)
+    {
+        palFreeMemory(pMac->hHdd, pConnectProfile->pAddIEAssoc);
+        pConnectProfile->pAddIEAssoc = NULL;
+    }
     palZeroMemory(pMac->hHdd, &pSession->connectedProfile, sizeof(tCsrRoamConnectedProfile));
     pConnectProfile->AuthType = pProfile->negotiatedAuthType;
         pConnectProfile->AuthInfo = pProfile->AuthType;
@@ -6854,11 +6858,7 @@ eHalStatus csrRoamSaveConnectedInfomation(tpAniSirGlobal pMac, tANI_U32 sessionI
     pConnectProfile->beaconInterval = pSirBssDesc->beaconInterval;
 
     palCopyMemory(pMac->hHdd, &pConnectProfile->Keys, &pProfile->Keys, sizeof(tCsrKeys));
-    if(pConnectProfile->pAddIEAssoc)
-    {
-        palFreeMemory(pMac->hHdd, pConnectProfile->pAddIEAssoc);
-        pConnectProfile->pAddIEAssoc = NULL;
-    }
+
     /* saving the addional IE`s like Hot spot indication element and extended capabilities */
     if(pProfile->nAddIEAssocLength)
     {
@@ -14430,6 +14430,28 @@ eHalStatus csrGetRoamRssi(tpAniSirGlobal pMac,
    return status;
 }
 #endif
+
+/* ---------------------------------------------------------------------------
+    \fn csrGetTLSTAState
+    \helper function to get teh TL STA State whenever the function is called.
+
+    \param staId - The staID to be passed to the TL
+            to get the relevant TL STA State
+    \return the state as tANI_U16
+  ---------------------------------------------------------------------------*/
+tANI_U16 csrGetTLSTAState(tpAniSirGlobal pMac, tANI_U8 staId)
+{
+   WLANTL_STAStateType tlSTAState;
+   tlSTAState = WLANTL_STA_INIT;
+
+   //request TL for STA State
+   if ( !VOS_IS_STATUS_SUCCESS(WLANTL_GetSTAState(pMac->roam.gVosContext, staId, &tlSTAState)) )
+   {
+      smsLog(pMac, LOGE, FL("csrGetTLSTAState:couldn't get the STA state from TL"));
+   }
+
+   return tlSTAState;
+}
 
 eHalStatus csrGetStatistics(tpAniSirGlobal pMac, eCsrStatsRequesterType requesterId, 
                             tANI_U32 statsMask, 
