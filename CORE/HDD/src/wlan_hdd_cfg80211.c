@@ -653,7 +653,7 @@ int wlan_hdd_cfg80211_register(struct device *dev,
 
     wiphy->max_scan_ssids = MAX_SCAN_SSID;
 
-    wiphy->max_scan_ie_len = 200 ; //TODO: define a macro
+    wiphy->max_scan_ie_len = SIR_MAC_MAX_IE_LENGTH;
 
     wiphy->max_acl_mac_addrs = MAX_ACL_MAC_ADDRESS;
 
@@ -2543,6 +2543,23 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                     pAdapter->device_mode = (type == NL80211_IFTYPE_STATION) ?
                                 WLAN_HDD_INFRA_STATION: WLAN_HDD_P2P_CLIENT;
                 }
+#ifdef FEATURE_WLAN_TDLS
+                /* The open adapter for the p2p shall skip initializations in
+                 * tdls_init if the device mode is WLAN_HDD_P2P_DEVICE, for
+                 * TDLS is supported only on WLAN_HDD_P2P_CLIENT. Hence invoke
+                 * tdls_init when the change_iface sets the device mode to
+                 * WLAN_HDD_P2P_CLIENT.
+                 */
+
+                if ( pAdapter->device_mode == WLAN_HDD_P2P_CLIENT)
+                {
+                    if (0 != wlan_hdd_tdls_init (pAdapter))
+                    {
+                        return -EINVAL;
+                    }
+                }
+#endif
+
                 break;
             case NL80211_IFTYPE_ADHOC:
                 hddLog(VOS_TRACE_LEVEL_INFO,
