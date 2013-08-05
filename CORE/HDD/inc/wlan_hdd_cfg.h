@@ -1791,9 +1791,27 @@ typedef enum
 #define CFG_PNO_SCAN_TIMER_REPEAT_VALUE_MAX          ( 0xffffffff )
 #endif
 
-/*--------------------------------------------------------------------------- 
+//Macro to enable/disable dynamic timer
+#define CFG_DYNAMIC_SPLIT_SCAN_NAME                    "gEnableDynSplitScan"
+#define CFG_DYNAMIC_SPLIT_SCAN_MIN                     ( 0 )
+#define CFG_DYNAMIC_SPLIT_SCAN_MAX                     ( 1 )
+#define CFG_DYNAMIC_SPLIT_SCAN_DEFAULT                 ( 1 )
+
+//Macro to monitor the packet count
+#define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_THRSHLD_NAME    "gSplitScanTxRxThreshold"
+#define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_THRSHLD_MIN     ( 10 )
+#define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_THRSHLD_MAX     ( 100 )
+#define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_THRSHLD_DEFAULT ( 50 )
+
+//Macro to handle the monitor timer value in milliseconds
+#define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_NAME      "gSplitScanTxRxTimer"
+#define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_MIN       ( 1000 )
+#define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_MAX       ( 10000 )
+#define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_DEFAULT   ( 5000 )
+
+/*---------------------------------------------------------------------------
   Type declarations
-  -------------------------------------------------------------------------*/ 
+  -------------------------------------------------------------------------*/
 
 typedef struct
 {
@@ -1874,7 +1892,6 @@ typedef struct
    v_BOOL_t      fIsShortPreamble;
    v_BOOL_t      fIsAutoIbssBssid;
    v_MACADDR_t   IbssBssid;
-   
    v_U8_t        intfAddrMask;
    v_MACADDR_t   intfMacAddr[VOS_MAX_CONCURRENCY_PERSONA];
    v_U8_t        crdaDefaultCountryCode [3];
@@ -1887,12 +1904,12 @@ typedef struct
    v_U8_t        MinFramesProcThres;
    v_U8_t        apCntryCode[4];
    v_BOOL_t      apDisableIntraBssFwd;
-   v_U8_t        nEnableListenMode;    
+   v_U8_t        nEnableListenMode;
    v_U32_t       nAPAutoShutOff;
    v_U8_t        apStartChannelNum;
    v_U8_t        apEndChannelNum;
    v_U8_t        apOperatingBand;
-   v_BOOL_t      apAutoChannelSelection;
+ v_BOOL_t      apAutoChannelSelection;
    v_U8_t        enableLTECoex;
    v_U32_t       apKeepAlivePeriod;
    v_U32_t       goKeepAlivePeriod;
@@ -1919,8 +1936,8 @@ typedef struct
    v_U8_t        nNeighborReassocRssiThreshold;
    v_U8_t        nNeighborLookupRssiThreshold;
    v_U8_t        neighborScanChanList[WNI_CFG_VALID_CHANNEL_LIST_LEN];
-   v_U16_t       nNeighborScanMinChanTime; 
-   v_U16_t       nNeighborScanMaxChanTime; 
+   v_U16_t       nNeighborScanMinChanTime;
+   v_U16_t       nNeighborScanMaxChanTime;
    v_U16_t       nMaxNeighborReqTries;
    v_U16_t       nNeighborResultsRefreshPeriod;
    v_U16_t       nEmptyScanRefreshPeriod;
@@ -2010,7 +2027,7 @@ typedef struct
    v_U16_t                      InfraSbaAcVo;
 
    /* default TSPEC parameters for AC_VI */
-   sme_QosWmmDirType            InfraDirAcVi;
+sme_QosWmmDirType            InfraDirAcVi;
    v_U16_t                      InfraNomMsduSizeAcVi;
    v_U32_t                      InfraMeanDataRateAcVi;
    v_U32_t                      InfraMinPhyRateAcVi;
@@ -2038,10 +2055,10 @@ typedef struct
    v_U32_t                      DelayedTriggerFrmInt;
 
    /* Wowl pattern */
-   char                        wowlPattern[1024];         
+   char                        wowlPattern[1024];
    v_BOOL_t                    b19p2MhzPmicClkEnabled;
 
-   /* Control for Replay counetr. value 1 means 
+   /* Control for Replay counetr. value 1 means
       single replay counter for all TID*/
    v_BOOL_t                    bSingleTidRc;
    v_U8_t                      mcastBcastFilterSetting;
@@ -2049,7 +2066,6 @@ typedef struct
    v_BOOL_t                    fhostNSOffload;
    v_BOOL_t                    burstSizeDefinition;
    v_U8_t                      tsInfoAckPolicy;
-   
    /* RF Settling Time Clock */
    v_U32_t                     rfSettlingTimeUs;
    v_U8_t                      enableBtAmp;
@@ -2128,10 +2144,10 @@ typedef struct
    v_BOOL_t                    enableFirstScan2GOnly;
    v_BOOL_t                    skipDfsChnlInP2pSearch;
    v_BOOL_t                    ignoreDynamicDtimInP2pMode;
-   v_U16_t                     configMccParam;
+v_U16_t                     configMccParam;
    v_U32_t                     numBuffAdvert;
    v_BOOL_t                    enableRxSTBC;
-#ifdef FEATURE_WLAN_TDLS       
+#ifdef FEATURE_WLAN_TDLS
    v_BOOL_t                    fEnableTDLSSupport;
    v_BOOL_t                    fEnableTDLSImplicitTrigger;
    v_U32_t                     fTDLSTxStatsPeriod;
@@ -2176,6 +2192,12 @@ typedef struct
    v_U32_t                     cfgBtcSapActiveWlanLen;
    v_U32_t                     cfgBtcSapActiveBtLen;
    v_BOOL_t                    enableVhtFor24GHzBand;
+   //TX and RX traffic threshold for split scan
+   v_U8_t                      txRxThresholdForSplitScan;
+   v_U8_t                      dynSplitscan;   //Enable/Disable dynamic
+                                                 //splitscan
+   //Traffic monitor timer for split scan
+   v_U32_t                     trafficMntrTmrForSplitScan;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
