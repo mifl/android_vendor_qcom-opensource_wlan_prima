@@ -123,6 +123,7 @@ int wlan_hdd_ftm_start(hdd_context_t *pAdapter);
 #ifdef FEATURE_WLAN_TDLS
 #include "wlan_hdd_tdls.h"
 #endif
+#include "wlan_hdd_debugfs.h"
 
 #ifdef MODULE
 #define WLAN_MODULE_NAME  module_name(THIS_MODULE)
@@ -1176,6 +1177,19 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
+           /* Check if the features OKC/CCX/11R are supported simultaneously,
+              then this operation is not permitted (return FAILURE) */
+           if (ccxMode &&
+               hdd_is_okc_mode_enabled(pHddCtx) &&
+               sme_getIsFtFeatureEnabled((tHalHandle)(pHddCtx->hHal)))
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                  "%s: OKC/CCX/11R are supported simultaneously"
+                  " hence this operation is not permitted!", __func__);
+               ret = -EPERM;
+               goto exit;
+           }
+
            len = snprintf(extra, sizeof(extra), "%s %d", "GETCCXMODE", ccxMode);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
@@ -1190,6 +1204,19 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            tANI_BOOLEAN okcMode = hdd_is_okc_mode_enabled(pHddCtx);
            char extra[32];
            tANI_U8 len = 0;
+
+           /* Check if the features OKC/CCX/11R are supported simultaneously,
+              then this operation is not permitted (return FAILURE) */
+           if (okcMode &&
+               sme_getIsCcxFeatureEnabled((tHalHandle)(pHddCtx->hHal)) &&
+               sme_getIsFtFeatureEnabled((tHalHandle)(pHddCtx->hHal)))
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                  "%s: OKC/CCX/11R are supported simultaneously"
+                  " hence this operation is not permitted!", __func__);
+               ret = -EPERM;
+               goto exit;
+           }
 
            len = snprintf(extra, sizeof(extra), "%s %d", "GETOKCMODE", okcMode);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
@@ -1546,44 +1573,6 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            pHddCtx->cfg_ini->nRoamIntraBand = val;
            sme_setRoamIntraBand((tHalHandle)(pHddCtx->hHal), val);
        }
-       else if (strncmp(command, "SETWESMODE", 10) == 0)
-       {
-           tANI_U8 *value = command;
-           tANI_BOOLEAN wesMode = CFG_ENABLE_WES_MODE_NAME_DEFAULT;
-
-           /* Move pointer to ahead of SETWESMODE<delimiter> */
-           value = value + 11;
-           /* Convert the value from ascii to integer */
-           ret = kstrtou8(value, 10, &wesMode);
-           if (ret < 0)
-           {
-               /* If the input value is greater than max value of datatype, then also
-                  kstrtou8 fails */
-               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                      "%s: kstrtou8 failed range [%d - %d]", __func__,
-                      CFG_ENABLE_WES_MODE_NAME_MIN,
-                      CFG_ENABLE_WES_MODE_NAME_MAX);
-               ret = -EINVAL;
-               goto exit;
-           }
-
-           if ((wesMode < CFG_ENABLE_WES_MODE_NAME_MIN) ||
-               (wesMode > CFG_ENABLE_WES_MODE_NAME_MAX))
-           {
-               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                      "WES Mode value %d is out of range"
-                      " (Min: %d Max: %d)", wesMode,
-                      CFG_ENABLE_WES_MODE_NAME_MIN,
-                      CFG_ENABLE_WES_MODE_NAME_MAX);
-               ret = -EINVAL;
-               goto exit;
-           }
-           VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                      "%s: Received Command to Set WES Mode rssi diff = %d", __func__, wesMode);
-
-           pHddCtx->cfg_ini->isWESModeEnabled = wesMode;
-           sme_UpdateWESMode((tHalHandle)(pHddCtx->hHal), wesMode);
-       }
        else if (strncmp(command, "GETROAMINTRABAND", 16) == 0)
        {
            tANI_U16 val = sme_getRoamIntraBand((tHalHandle)(pHddCtx->hHal));
@@ -1592,21 +1581,6 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
            /* value is interms of msec */
            len = snprintf(extra, sizeof(extra), "%s %d", "GETROAMINTRABAND", val);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
-               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                  "%s: failed to copy data to user buffer", __func__);
-               ret = -EFAULT;
-               goto exit;
-           }
-       }
-       else if (strncmp(priv_data.buf, "GETWESMODE", 10) == 0)
-       {
-           tANI_BOOLEAN wesMode = sme_GetWESMode((tHalHandle)(pHddCtx->hHal));
-           char extra[32];
-           tANI_U8 len = 0;
-
-           len = snprintf(extra, sizeof(extra), "%s %d", command, wesMode);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -1751,18 +1725,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            tCsrHandoffRequest handoffInfo;
 #endif
            hdd_station_ctx_t *pHddStaCtx = NULL;
-           tANI_BOOLEAN wesMode = eANI_BOOLEAN_FALSE;
            pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-
-           wesMode = sme_GetWESMode((tHalHandle)(pHddCtx->hHal));
-
-           /* Reassoc command is allowed only if WES mode is enabled */
-           if (!wesMode)
-           {
-               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s:WES Mode is not enabled(%d)",__func__, wesMode);
-               ret = -EINVAL;
-               goto exit;
-           }
 
            /* if not associated, no need to proceed with reassoc */
            if (eConnectionState_Associated != pHddStaCtx->conn_info.connState)
@@ -1896,6 +1859,19 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            tANI_U8 *value = command;
            tANI_U8 ccxMode = CFG_CCX_FEATURE_ENABLED_DEFAULT;
 
+           /* Check if the features OKC/CCX/11R are supported simultaneously,
+              then this operation is not permitted (return FAILURE) */
+           if (sme_getIsCcxFeatureEnabled((tHalHandle)(pHddCtx->hHal)) &&
+               hdd_is_okc_mode_enabled(pHddCtx) &&
+               sme_getIsFtFeatureEnabled((tHalHandle)(pHddCtx->hHal)))
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                  "%s: OKC/CCX/11R are supported simultaneously"
+                  " hence this operation is not permitted!", __func__);
+               ret = -EPERM;
+               goto exit;
+           }
+
            /* Move pointer to ahead of SETCCXMODE<delimiter> */
            value = value + 11;
            /* Convert the value from ascii to integer */
@@ -1966,6 +1942,19 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        {
            tANI_U8 *value = command;
            tANI_U8 okcMode = CFG_OKC_FEATURE_ENABLED_DEFAULT;
+
+           /* Check if the features OKC/CCX/11R are supported simultaneously,
+              then this operation is not permitted (return FAILURE) */
+           if (sme_getIsCcxFeatureEnabled((tHalHandle)(pHddCtx->hHal)) &&
+               hdd_is_okc_mode_enabled(pHddCtx) &&
+               sme_getIsFtFeatureEnabled((tHalHandle)(pHddCtx->hHal)))
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                  "%s: OKC/CCX/11R are supported simultaneously"
+                  " hence this operation is not permitted!", __func__);
+               ret = -EPERM;
+               goto exit;
+           }
 
            /* Move pointer to ahead of SETOKCMODE<delimiter> */
            value = value + 11;
@@ -2049,6 +2038,64 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                    pAdapter->sessionId);
        }
 #endif
+       else if (strncmp(command, "BTCOEXMODE", 10) == 0 )
+       {
+           char *dhcpPhase;
+           dhcpPhase = command + 12;
+           if ('1' == *dhcpPhase)
+           {
+               sme_DHCPStartInd(pHddCtx->hHal, pAdapter->device_mode,
+                                pAdapter->macAddressCurrent.bytes);
+           }
+           else if ('2' == *dhcpPhase)
+           {
+               sme_DHCPStopInd(pHddCtx->hHal, pAdapter->device_mode,
+                               pAdapter->macAddressCurrent.bytes);
+           }
+       }
+       else if (strncmp(command, "SCAN-ACTIVE", 11) == 0)
+       {
+          pHddCtx->scan_info.scan_mode = eSIR_ACTIVE_SCAN;
+       }
+       else if (strncmp(command, "SCAN-PASSIVE", 12) == 0)
+       {
+          pHddCtx->scan_info.scan_mode = eSIR_PASSIVE_SCAN;
+       }
+       else if (strncmp(command, "GETDWELLTIME", 12) == 0)
+       {
+           hdd_config_t *pCfg = (WLAN_HDD_GET_CTX(pAdapter))->cfg_ini;
+           char extra[32];
+           tANI_U8 len = 0;
+
+           len = snprintf(extra, sizeof(extra), "GETDWELLTIME %u\n",
+                  (int)pCfg->nActiveMaxChnTime);
+           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: failed to copy data to user buffer", __func__);
+               ret = -EFAULT;
+               goto exit;
+           }
+           ret = len;
+       }
+       else if (strncmp(command, "SETDWELLTIME", 12) == 0)
+       {
+           tANI_U8 *value = command;
+           hdd_config_t *pCfg = (WLAN_HDD_GET_CTX(pAdapter))->cfg_ini;
+           int val = 0, temp;
+
+           value = value + 13;
+           temp = kstrtou32(value, 10, &val);
+           if ( temp != 0 || val < CFG_ACTIVE_MAX_CHANNEL_TIME_MIN ||
+                             val > CFG_ACTIVE_MAX_CHANNEL_TIME_MAX )
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "%s: argument passed for SETDWELLTIME is incorrect", __func__);
+               ret = -EFAULT;
+               goto exit;
+           }
+           pCfg->nActiveMaxChnTime = val;
+       }
        else {
            hddLog( VOS_TRACE_LEVEL_WARN, "%s: Unsupported GUI command %s",
                    __func__, command);
@@ -4159,6 +4206,8 @@ VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx )
       netif_tx_disable(pAdapter->dev);
       netif_carrier_off(pAdapter->dev);
 
+      pAdapter->sessionCtx.station.hdd_ReassocScenario = VOS_FALSE;
+
       hdd_deinit_tx_rx(pAdapter);
       hdd_wmm_adapter_close(pAdapter);
 
@@ -4213,6 +4262,7 @@ VOS_STATUS hdd_start_all_adapters( hdd_context_t *pHddCtx )
                wrqu.ap_addr.sa_family = ARPHRD_ETHER;
                memset(wrqu.ap_addr.sa_data,'\0',ETH_ALEN);
                wireless_send_event(pAdapter->dev, SIOCGIWAP, &wrqu, NULL);
+               pAdapter->sessionCtx.station.hdd_ReassocScenario = VOS_FALSE;
 
                /* indicate disconnected event to nl80211 */
                cfg80211_disconnected(pAdapter->dev, WLAN_REASON_UNSPECIFIED,
@@ -4936,6 +4986,21 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    // all scans will be cancelled.
    hdd_abort_mac_scan( pHddCtx );
 
+   //Stop the timer if already running
+   if (VOS_TIMER_STATE_RUNNING ==
+           vos_timer_getCurrentState(&pHddCtx->hdd_p2p_go_conn_is_in_progress))
+   {
+       vos_timer_stop(&pHddCtx->hdd_p2p_go_conn_is_in_progress);
+   }
+
+   // Destroy hdd_p2p_go_conn_is_in_progress timer
+   if (!VOS_IS_STATUS_SUCCESS(vos_timer_destroy(
+                         &pHddCtx->hdd_p2p_go_conn_is_in_progress)))
+   {
+       hddLog(VOS_TRACE_LEVEL_ERROR,
+           "%s: Cannot deallocate p2p connection timer", __func__);
+   }
+
    //Disable IMPS/BMPS as we do not want the device to enter any power
    //save mode during shutdown
    sme_DisablePowerSave(pHddCtx->hHal, ePMC_IDLE_MODE_POWER_SAVE);
@@ -4984,6 +5049,8 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
       }
    }
 
+   hdd_debugfs_exit(pHddCtx);
+
    // Unregister the Net Device Notifier
    unregister_netdevice_notifier(&hdd_netdev_notifier);
    
@@ -5016,6 +5083,7 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
 
    vos_chipVoteOffXOBuffer(NULL, NULL, NULL);
 
+
    //This requires pMac access, Call this before vos_close().
    hdd_unregister_mcast_bcast_filter(pHddCtx);
 
@@ -5047,7 +5115,11 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
 
    //Clean up HDD Nlink Service
    send_btc_nlink_msg(WLAN_MODULE_DOWN_IND, 0);
+#ifdef WLAN_KD_READY_NOTIFIER
+   nl_srv_exit(pHddCtx->ptt_pid);
+#else
    nl_srv_exit();
+#endif /* WLAN_KD_READY_NOTIFIER */
 
    /* Cancel the vote for XO Core ON. 
     * This is done here to ensure there is no race condition since MC, TX and WD threads have
@@ -5353,6 +5425,12 @@ void hdd_exchange_version_and_caps(hdd_context_t *pHddCtx)
          if(!pHddCtx->cfg_ini->fEnableActiveModeOffload)
             sme_disableFeatureCapablity(WLANACTIVE_OFFLOAD);
 #endif
+         /* Indicate if IBSS heartbeat monitoring needs to be offloaded */
+         if (!pHddCtx->cfg_ini->enableIbssHeartBeatOffload)
+         {
+            sme_disableFeatureCapablity(IBSS_HEARTBEAT_OFFLOAD);
+         }
+
          sme_featureCapsExchange(pHddCtx->hHal);
       }
 
@@ -5836,6 +5914,14 @@ int hdd_wlan_startup(struct device *dev )
 #endif //WLAN_BTAMP_FEATURE
    }
 
+   /* Open debugfs interface */
+   if (VOS_STATUS_SUCCESS != hdd_debugfs_init(pAdapter))
+   {
+      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                 "%s: hdd_debugfs_init failed!", __func__);
+      goto err_close_debugfs;
+   }
+
    /* Register TM level change handler function to the platform */
    status = hddDevTmRegisterNotifyCallback(pHddCtx);
    if ( !VOS_IS_STATUS_SUCCESS( status ) )
@@ -5915,15 +6001,24 @@ int hdd_wlan_startup(struct device *dev )
 
    vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    hdd_allow_suspend();
-   
+
    // Initialize the restart logic
    wlan_hdd_restart_init(pHddCtx);
 
+   if (!VOS_IS_STATUS_SUCCESS( vos_timer_init( &pHddCtx->hdd_p2p_go_conn_is_in_progress,
+         VOS_TIMER_TYPE_SW, wlan_hdd_p2p_go_connection_in_progresscb, pAdapter) ) )
+   {
+       hddLog(VOS_TRACE_LEVEL_ERROR,
+           "%s: vos timer init failed for hdd_p2p_go_conn_is_in_progress", __func__);
+   }
    goto success;
 
 err_nl_srv:
+#ifdef WLAN_KD_READY_NOTIFIER
+   nl_srv_exit(pHddCtx->ptt_pid);
+#else
    nl_srv_exit();
-
+#endif /* WLAN_KD_READY_NOTIFIER */
 err_reg_netdev:
    unregister_netdevice_notifier(&hdd_netdev_notifier);
 
@@ -5933,6 +6028,9 @@ err_free_power_on_lock:
 err_unregister_pmops:
    hddDevTmUnregisterNotifyCallback(pHddCtx);
    hddDeregisterPmOps(pHddCtx);
+
+err_close_debugfs:
+   hdd_debugfs_exit(pHddCtx);
 
 #ifdef WLAN_BTAMP_FEATURE
 err_bap_stop:
@@ -6035,6 +6133,9 @@ static int hdd_driver_init( void)
    {
       hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Libra WLAN not Powered Up. "
           "exiting", __func__);
+#ifdef WLAN_OPEN_SOURCE
+      wake_lock_destroy(&wlan_wake_lock);
+#endif
       return -EIO;
    }
 
@@ -6053,6 +6154,9 @@ static int hdd_driver_init( void)
    }
    if (max_retries >= 5) {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: WCNSS driver not ready", __func__);
+#ifdef WLAN_OPEN_SOURCE
+      wake_lock_destroy(&wlan_wake_lock);
+#endif
       return -ENODEV;
    }
 #endif
@@ -6142,7 +6246,6 @@ static int hdd_driver_init( void)
       send_btc_nlink_msg(WLAN_MODULE_UP_IND, 0);
 
       pr_info("%s: driver loaded\n", WLAN_MODULE_NAME);
-
    }
 
    EXIT();

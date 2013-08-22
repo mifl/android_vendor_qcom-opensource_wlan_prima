@@ -393,6 +393,12 @@ typedef enum
   /* TDLS_Indication */
   WDI_TDLS_IND,
 
+  /* LPHB Timeout Indication from FW to umac */
+  WDI_LPHB_WAIT_TIMEOUT_IND,
+
+  /* IBSS Peer Inactivity Indication */
+  WDI_IBSS_PEER_INACTIVITY_IND,
+
   WDI_MAX_IND
 }WDI_LowLevelIndEnumType;
 
@@ -498,6 +504,17 @@ typedef struct
 } WDI_CoexIndType;
 
 /*---------------------------------------------------------------------------
+  WDI_DHCPInd
+---------------------------------------------------------------------------*/
+
+typedef struct
+{
+  wpt_uint8       device_mode;
+  wpt_uint8       macAddr[WDI_MAC_ADDR_LEN];
+}WDI_DHCPInd;
+
+/*---------------------------------------------------------------------------
+
   WDI_MacSSid
 ---------------------------------------------------------------------------*/
 typedef struct 
@@ -590,6 +607,28 @@ typedef struct
     wpt_uint8       bssIdx;  /*bssidx on which beacon is missed*/
 } WDI_MissedBeaconIndType;
 
+#ifdef FEATURE_WLAN_LPHB
+/*---------------------------------------------------------------------------
+ WDI_LPHBTimeoutIndData
+-----------------------------------------------------------------------------*/
+typedef struct
+{
+   wpt_uint8 bssIdx;
+   wpt_uint8 sessionIdx;
+   wpt_uint8 protocolType; /*TCP or UDP*/
+   wpt_uint8 eventReason;
+} WDI_LPHBTimeoutIndData;
+#endif /* FEATURE_WLAN_LPHB */
+
+/*---------------------------------------------------------------------------
+ WDI_IbssPeerInactivityIndType
+-----------------------------------------------------------------------------*/
+typedef struct
+{
+   wpt_uint8   bssIdx;
+   wpt_uint8   staIdx;
+   wpt_macAddr staMacAddr;
+}WDI_IbssPeerInactivityIndType;
 
 /*---------------------------------------------------------------------------
   WDI_LowLevelIndType
@@ -640,6 +679,14 @@ typedef struct
     WDI_WakeReasonIndType        wdiWakeReasonInd;
 #endif // WLAN_WAKEUP_EVENTS
     WDI_MissedBeaconIndType      wdiMissedBeaconInd;
+
+#ifdef FEATURE_WLAN_LPHB
+    WDI_LPHBTimeoutIndData       wdiLPHBTimeoutInd;
+#endif /* FEATURE_WLAN_LPHB */
+
+    /* IBSS Peer Inactivity Indication */
+    WDI_IbssPeerInactivityIndType   wdiIbssPeerInactivityInd;
+
   }  wdiIndicationData;
 }WDI_LowLevelIndType;
 
@@ -2154,13 +2201,8 @@ typedef struct
 ---------------------------------------------------------------------------*/
 typedef struct
 {
-   /*BSS Index of the BSS*/
-   wpt_uint8      ucBssIdx;
-
-  /* Boolean to indicate if EDCA params are valid. UMAC might not have valid 
-    EDCA params or might not desire to apply EDCA params during config BSS. 
-    0 implies Not Valid ; Non-Zero implies valid*/
-  wpt_uint8   ucEDCAParamsValid;
+  /*BSS Index of the BSS*/
+  wpt_uint16      ucBssIdx;
 
   /*EDCA params for BE*/
   WDI_EdcaParamRecord wdiEdcaBEInfo;
@@ -4299,6 +4341,83 @@ typedef struct
   WDI_Status   wdiStatus; 
 }WDI_SuspendResumeRspParamsType;
 
+#ifdef FEATURE_WLAN_LPHB
+/*---------------------------------------------------------------------------
+  WDI Low Power Heart Beat Config request
+  Copy from sirApi.h to avoid compile error
+---------------------------------------------------------------------------*/
+#define WDI_LPHB_FILTER_LEN   64
+
+typedef enum
+{
+   WDI_LPHB_SET_EN_PARAMS_INDID = 0x0001,
+   WDI_LPHB_SET_TCP_PARAMS_INDID,
+   WDI_LPHB_SET_TCP_PKT_FILTER_INDID,
+   WDI_LPHB_SET_UDP_PARAMS_INDID,
+   WDI_LPHB_SET_UDP_PKT_FILTER_INDID,
+   WDI_LPHB_SET_NETWORK_INFO_INDID,
+} WDI_LPHBIndType;
+
+typedef struct
+{
+   wpt_uint8 enable;
+   wpt_uint8 item;
+   wpt_uint8 session;
+} WDI_LPHBEnableStruct;
+
+typedef struct
+{
+   wpt_uint32 srv_ip;
+   wpt_uint32 dev_ip;
+   wpt_uint16 src_port;
+   wpt_uint16 dst_port;
+   wpt_uint16 timeout;
+   wpt_uint8  session;
+   wpt_uint8  gateway_mac[WDI_MAC_ADDR_LEN];
+} WDI_LPHBTcpParamStruct;
+
+typedef struct
+{
+   wpt_uint16 length;
+   wpt_uint8  offset;
+   wpt_uint8  session;
+   wpt_uint8  filter[WDI_LPHB_FILTER_LEN];
+} WDI_LPHBTcpFilterStruct;
+
+typedef struct
+{
+   wpt_uint32 srv_ip;
+   wpt_uint32 dev_ip;
+   wpt_uint16 src_port;
+   wpt_uint16 dst_port;
+   wpt_uint16 interval;
+   wpt_uint16 timeout;
+   wpt_uint8  session;
+   wpt_uint8  gateway_mac[WDI_MAC_ADDR_LEN];
+} WDI_LPHBUdpParamStruct;
+
+typedef struct
+{
+   wpt_uint16 length;
+   wpt_uint8  offset;
+   wpt_uint8  session;
+   wpt_uint8  filter[WDI_LPHB_FILTER_LEN];
+} WDI_LPHBUdpFilterStruct;
+
+typedef struct
+{
+   wpt_uint16 cmd;
+   wpt_uint16 dummy;
+   union
+   {
+      WDI_LPHBEnableStruct     lphbEnableReq;
+      WDI_LPHBTcpParamStruct   lphbTcpParamReq;
+      WDI_LPHBTcpFilterStruct  lphbTcpFilterReq;
+      WDI_LPHBUdpParamStruct   lphbUdpParamReq;
+      WDI_LPHBUdpFilterStruct  lphbUdpFilterReq;
+   } params;
+} WDI_LPHBReq;
+#endif /* FEATURE_WLAN_LPHB */
 
 #ifdef FEATURE_WLAN_SCAN_PNO
 
@@ -4982,6 +5101,16 @@ typedef struct
   WDI_Status       wdiStatus;
   void*            pUserData;
 }WDI_SetTmLevelRspType;
+
+#ifdef FEATURE_WLAN_LPHB
+/*---------------------------------------------------------------------------
+  WDI_LPHBConfigParamsType
+---------------------------------------------------------------------------*/
+typedef struct
+{
+  void*             pLphsConfIndData;
+}WDI_LPHBConfigParamsType;
+#endif /* FEATURE_WLAN_LPHB */
 
 /*----------------------------------------------------------------------------
  *   WDI callback types
@@ -6782,6 +6911,10 @@ typedef void  (*WDI_UpdateVHTOpModeCb)(WDI_Status   wdiStatus,
                                 void*        pUserData);
 #endif
 
+#ifdef FEATURE_WLAN_LPHB
+typedef void  (*WDI_LphbCfgCb)(WDI_Status   wdiStatus,
+                                void*        pUserData);
+#endif /* FEATURE_WLAN_LPHB */
 
 /*========================================================================
  *     Function Declarations and Documentation
@@ -9444,6 +9577,40 @@ WDI_SetPowerParamsReq
   WDI_SetPowerParamsCb             wdiPowerParamsCb,
   void*                            pUserData
 );
+/**
+ @brief WDI_dhcpStartInd
+       Forward the DHCP Start event
+
+ @param
+
+ wdiDHCPInd: device mode and MAC address is passed
+
+ @see
+ @return Result of the function call
+*/
+
+WDI_Status
+WDI_dhcpStartInd
+(
+  WDI_DHCPInd *wdiDHCPInd
+);
+/**
+ @brief WDI_dhcpStopReq
+       Forward the DHCP Stop event
+
+ @param
+
+     wdiDHCPInd: device mode and MAC address is passed
+
+ @see
+ @return Result of the function call
+*/
+
+WDI_Status
+WDI_dhcpStopInd
+(
+  WDI_DHCPInd *wdiDHCPInd
+);
 
 #ifdef WLAN_FEATURE_GTK_OFFLOAD
 /**
@@ -9659,6 +9826,24 @@ WDI_SsrTimerCB
 */
 void WDI_SetEnableSSR(wpt_boolean  enableSSR);
 
+#ifdef FEATURE_WLAN_LPHB
+/**
+ @brief WDI_LPHBConfReq
+    This API is called to config FW LPHB rule
+
+ @param lphbconfParam : LPHB rule should config to FW
+        usrData : Client context
+        lphbCfgCb : Configuration status callback
+ @see
+ @return SUCCESS or FAIL
+*/
+WDI_Status WDI_LPHBConfReq
+(
+   void *lphbconfParam,
+   void *usrData,
+   WDI_LphbCfgCb lphbCfgCb
+);
+#endif /* FEATURE_WLAN_LPHB */
 #ifdef __cplusplus
  }
 #endif 

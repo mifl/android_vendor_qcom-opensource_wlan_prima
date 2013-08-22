@@ -1057,6 +1057,10 @@ int wlan_hdd_ftm_open(hdd_context_t *pHddCtx)
        goto err_ftm_register_wext_close;
     }
 
+#ifdef WLAN_KD_READY_NOTIFIER
+   pHddCtx->kd_nl_init = 1;
+#endif /* WLAN_KD_READY_NOTIFIER */
+
 #ifdef PTT_SOCK_SVC_ENABLE
     //Initialize the PTT service
     if(ptt_sock_activate_svc(pHddCtx) != 0)
@@ -1108,8 +1112,11 @@ int wlan_hdd_ftm_open(hdd_context_t *pHddCtx)
     return VOS_STATUS_SUCCESS;
 
 err_nl_srv_init:
+#ifdef WLAN_KD_READY_NOTIFIER
+nl_srv_exit(pHddCtx->ptt_pid);
+#else
 nl_srv_exit();
-
+#endif /* WLAN_KD_READY_NOTIFIER */
 err_ftm_register_wext_close:
 hdd_UnregisterWext(pAdapter->dev);
 
@@ -1154,8 +1161,11 @@ int wlan_hdd_ftm_close(hdd_context_t *pHddCtx)
 
     vos_chipVoteOffXOBuffer(NULL, NULL, NULL);
 
+#ifdef WLAN_KD_READY_NOTIFIER
+    nl_srv_exit(pHddCtx->ptt_pid);
+#else
     nl_srv_exit();
-
+#endif /* WLAN_KD_READY_NOTIFIER */
     //TODO----------
     //Deregister the device with the kernel
     hdd_UnregisterWext(pAdapter->dev);
