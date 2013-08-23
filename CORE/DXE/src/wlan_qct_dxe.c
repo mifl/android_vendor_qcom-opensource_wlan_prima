@@ -3778,7 +3778,6 @@ void dxeTXCompleteProcessing
 {
    wpt_status                status     = eWLAN_PAL_STATUS_SUCCESS;
    WLANDXE_ChannelCBType    *channelCb  = NULL;
-   wpt_uint32                chStat;
 
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __func__);
@@ -3819,17 +3818,6 @@ void dxeTXCompleteProcessing
          dxeNotifySmsm(eWLAN_PAL_FALSE, eWLAN_PAL_TRUE);
          dxeNotifySmsm(eWLAN_PAL_TRUE, eWLAN_PAL_FALSE);
       }
-   }
-   /* Full power mode and no remaining frame within DXE TX chain,
-    * Then host interrupt will not be enabled
-    * This situation, RIVA HW interrupt should be cleared by host */
-   else if((eWLAN_PAL_FALSE          == dxeCtxt->txIntEnable) &&
-           (WLANDXE_POWER_STATE_FULL == dxeCtxt->hostPowerState))
-   {
-      channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI];
-      dxeChannelCleanInt(channelCb, &chStat);
-      channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI];
-      dxeChannelCleanInt(channelCb, &chStat);
    }
    
    /*Kicking the DXE after the TX Complete interrupt was enabled - to avoid 
