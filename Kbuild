@@ -11,6 +11,8 @@ ifeq ($(KERNEL_BUILD),1)
 	# Need to explicitly define for Kernel-based builds
 	MODNAME := wlan
 	WLAN_ROOT := drivers/staging/prima
+	#Flag to enable TDLS feature
+	CONFIG_QCOM_TDLS := y
 endif
 
 ifeq ($(KERNEL_BUILD),0)
