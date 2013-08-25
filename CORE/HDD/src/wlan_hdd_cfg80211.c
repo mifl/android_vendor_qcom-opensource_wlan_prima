@@ -503,6 +503,33 @@ static struct index_vht_data_rate_type supported_vht_mcs_rate[] =
 
 extern struct net_device_ops net_ops_struct;
 
+#ifdef WLAN_NL80211_TESTMODE
+enum wlan_hdd_tm_attr
+{
+    WLAN_HDD_TM_ATTR_INVALID = 0,
+    WLAN_HDD_TM_ATTR_CMD     = 1,
+    WLAN_HDD_TM_ATTR_DATA    = 2,
+    WLAN_HDD_TM_ATTR_TYPE    = 3,
+    /* keep last */
+    WLAN_HDD_TM_ATTR_AFTER_LAST,
+    WLAN_HDD_TM_ATTR_MAX       = WLAN_HDD_TM_ATTR_AFTER_LAST - 1,
+};
+
+enum wlan_hdd_tm_cmd
+{
+    WLAN_HDD_TM_CMD_WLAN_HB    = 1,
+};
+
+#define WLAN_HDD_TM_DATA_MAX_LEN    5000
+
+static const struct nla_policy wlan_hdd_tm_policy[WLAN_HDD_TM_ATTR_MAX + 1] =
+{
+    [WLAN_HDD_TM_ATTR_CMD]        = { .type = NLA_U32 },
+    [WLAN_HDD_TM_ATTR_DATA]       = { .type = NLA_BINARY,
+                                    .len = WLAN_HDD_TM_DATA_MAX_LEN },
+};
+#endif /* WLAN_NL80211_TESTMODE */
+
 /*
  * FUNCTION: wlan_hdd_cfg80211_init
  * This function is called by hdd_wlan_startup()
@@ -653,7 +680,7 @@ int wlan_hdd_cfg80211_register(struct device *dev,
 
     wiphy->max_scan_ssids = MAX_SCAN_SSID;
 
-    wiphy->max_scan_ie_len = 200 ; //TODO: define a macro
+    wiphy->max_scan_ie_len = SIR_MAC_MAX_IE_LENGTH;
 
     wiphy->max_acl_mac_addrs = MAX_ACL_MAC_ADDRESS;
 
@@ -2356,6 +2383,10 @@ static int wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
 #endif
         status = wlan_hdd_cfg80211_start_bss(pAdapter, &params->beacon, params->ssid,
                                              params->ssid_len, params->hidden_ssid);
+        if (0 == status)
+        {
+            hdd_start_p2p_go_connection_in_progress_timer(pAdapter);
+        }
     }
 
     EXIT();
@@ -2539,6 +2570,23 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                     pAdapter->device_mode = (type == NL80211_IFTYPE_STATION) ?
                                 WLAN_HDD_INFRA_STATION: WLAN_HDD_P2P_CLIENT;
                 }
+#ifdef FEATURE_WLAN_TDLS
+                /* The open adapter for the p2p shall skip initializations in
+                 * tdls_init if the device mode is WLAN_HDD_P2P_DEVICE, for
+                 * TDLS is supported only on WLAN_HDD_P2P_CLIENT. Hence invoke
+                 * tdls_init when the change_iface sets the device mode to
+                 * WLAN_HDD_P2P_CLIENT.
+                 */
+
+                if ( pAdapter->device_mode == WLAN_HDD_P2P_CLIENT)
+                {
+                    if (0 != wlan_hdd_tdls_init (pAdapter))
+                    {
+                        return -EINVAL;
+                    }
+                }
+#endif
+
                 break;
             case NL80211_IFTYPE_ADHOC:
                 hddLog(VOS_TRACE_LEVEL_INFO,
@@ -4308,6 +4356,14 @@ v_BOOL_t hdd_isScanAllowed( hdd_context_t *pHddCtx )
     VOS_STATUS status = 0;
     v_U8_t staId = 0;
     v_U8_t *staMac = NULL;
+
+    if (VOS_TIMER_STATE_RUNNING ==
+                vos_timer_getCurrentState(&pHddCtx->hdd_p2p_go_conn_is_in_progress))
+    {
+        hddLog(VOS_TRACE_LEVEL_INFO,
+              "%s: Connection is in progress, Do not allow the scan", __func__);
+        return VOS_FALSE;
+    }
 
     status = hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
 
@@ -8032,6 +8088,154 @@ static int wlan_hdd_cfg80211_set_mac_acl(struct wiphy *wiphy,
     return 0;
 }
 
+#ifdef WLAN_NL80211_TESTMODE
+#ifdef FEATURE_WLAN_LPHB
+static void wlan_hdd_cfg80211_lphb_wait_timeout_ind_handler
+(
+   void *pAdapter,
+   void *indCont
+)
+{
+   tSirLPHBTimeoutInd   *lphbTimeoutInd;
+   struct sk_buff       *skb;
+
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+             "LPHB wait timeout indication arrived");
+
+   if (NULL == indCont)
+   {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "LPHB timeout, invalid argument");
+      return;
+   }
+
+   lphbTimeoutInd = (tSirLPHBTimeoutInd *)indCont;
+   skb = cfg80211_testmode_alloc_event_skb(
+                  ((hdd_adapter_t *)pAdapter)->wdev.wiphy,
+                  sizeof(tSirLPHBTimeoutInd),
+                  GFP_ATOMIC);
+   if (!skb)
+   {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+             "LPHB timeout, NL buffer alloc fail");
+      return;
+   }
+
+   NLA_PUT_U32(skb, WLAN_HDD_TM_ATTR_CMD, WLAN_HDD_TM_CMD_WLAN_HB);
+   NLA_PUT_U32(skb, WLAN_HDD_TM_ATTR_TYPE, lphbTimeoutInd->protocolType);
+   NLA_PUT(skb, WLAN_HDD_TM_ATTR_DATA,
+           sizeof(tSirLPHBTimeoutInd), lphbTimeoutInd);
+   cfg80211_testmode_event(skb, GFP_ATOMIC);
+   return;
+
+nla_put_failure:
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+             "NLA Put fail");
+   kfree_skb(skb);
+
+   return;
+}
+#endif /* FEATURE_WLAN_LPHB */
+
+static int wlan_hdd_cfg80211_testmode(struct wiphy *wiphy, void *data, int len)
+{
+    struct nlattr *tb[WLAN_HDD_TM_ATTR_MAX + 1];
+    int err = 0;
+#ifdef FEATURE_WLAN_LPHB
+    hdd_context_t *pHddCtx = wiphy_priv(wiphy);
+#endif /* FEATURE_WLAN_LPHB */
+
+    err = nla_parse(tb, WLAN_HDD_TM_ATTR_MAX, data, len, wlan_hdd_tm_policy);
+    if (err)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s Testmode INV ATTR", __func__);
+        return err;
+    }
+
+    if (!tb[WLAN_HDD_TM_ATTR_CMD])
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s Testmode INV CMD", __func__);
+        return -EINVAL;
+    }
+
+    switch (nla_get_u32(tb[WLAN_HDD_TM_ATTR_CMD]))
+    {
+#ifdef FEATURE_WLAN_LPHB
+        /* Low Power Heartbeat configuration request */
+        case WLAN_HDD_TM_CMD_WLAN_HB:
+        {
+            int   buf_len;
+            void *buf;
+            tSirLPHBReq *hb_params = NULL;
+
+            if (!tb[WLAN_HDD_TM_ATTR_DATA])
+            {
+                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                          "%s Testmode INV DATA", __func__);
+                return -EINVAL;
+            }
+
+            buf = nla_data(tb[WLAN_HDD_TM_ATTR_DATA]);
+            buf_len = nla_len(tb[WLAN_HDD_TM_ATTR_DATA]);
+            hb_params = (tSirLPHBReq *)vos_mem_malloc(sizeof(tSirLPHBReq));
+            if (NULL == hb_params)
+            {
+                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                          "%s Request Buffer Alloc Fail", __func__);
+                return -EINVAL;
+            }
+
+            vos_mem_copy(hb_params, buf, buf_len);
+
+            /* LPHB enable and disable request will send to FW
+             * when host suspend and resume
+             * host suspend -> enable LPHB
+             * host resume  -> disable LPHB
+             * if host is not suspend, cache into HDD context
+             * and when host goes to suspend, send request to FW */
+            if ((LPHB_SET_EN_PARAMS_INDID == hb_params->cmd) &&
+               (!pHddCtx->hdd_wlan_suspended))
+            {
+               /* Feature enable command cache into HDD context,
+                * if WLAN is not suspend
+                * When WLAN goes into suspend, send enable command to FW */
+               pHddCtx->lphbEnableReq.enable  =
+                                    hb_params->params.lphbEnableReq.enable;
+               pHddCtx->lphbEnableReq.item    =
+                                    hb_params->params.lphbEnableReq.item;
+               pHddCtx->lphbEnableReq.session =
+                                    hb_params->params.lphbEnableReq.session;
+               vos_mem_free(hb_params);
+            }
+            else
+            {
+               eHalStatus smeStatus;
+
+               /* If WLAN is suspend state, send enable command immediately */
+               smeStatus = sme_LPHBConfigReq((tHalHandle)(pHddCtx->hHal),
+                              hb_params,
+                              wlan_hdd_cfg80211_lphb_wait_timeout_ind_handler);
+               if (eHAL_STATUS_SUCCESS != smeStatus)
+               {
+                  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                            "LPHB Config Fail, disable");
+                  pHddCtx->lphbEnableReq.enable = 0;
+                  vos_mem_free(hb_params);
+               }
+            }
+            return 0;
+         }
+#endif /* FEATURE_WLAN_LPHB */
+        default:
+            return -EOPNOTSUPP;
+    }
+
+   return err;
+}
+#endif /* CONFIG_NL80211_TESTMODE */
+
 /* cfg80211_ops */
 static struct cfg80211_ops wlan_hdd_cfg80211_ops =
 {
@@ -8096,5 +8300,8 @@ static struct cfg80211_ops wlan_hdd_cfg80211_ops =
      .sched_scan_stop = wlan_hdd_cfg80211_sched_scan_stop,
 #endif /*FEATURE_WLAN_SCAN_PNO */
      .set_mac_acl = wlan_hdd_cfg80211_set_mac_acl,
+#ifdef WLAN_NL80211_TESTMODE
+     .testmode_cmd = wlan_hdd_cfg80211_testmode,
+#endif
 };
 

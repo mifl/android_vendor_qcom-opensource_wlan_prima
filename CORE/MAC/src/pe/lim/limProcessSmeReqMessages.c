@@ -648,6 +648,9 @@ __limHandleSmeStartBssRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         psessionEntry->txLdpcIniFeatureEnabled = 
                                     pSmeStartBssReq->txLdpcIniFeatureEnabled;
 
+        psessionEntry->oxygenNwkIniFeatureEnabled =
+                                    pSmeStartBssReq->oxygenNwkIniFeatureEnabled;
+
         palCopyMemory(pMac->hHdd, (void*)&psessionEntry->rateSet,
             (void*)&pSmeStartBssReq->operationalRateSet,
             sizeof(tSirMacRateSet));
@@ -1102,6 +1105,7 @@ static eHalStatus limSendHalStartScanOffloadReq(tpAniSirGlobal pMac,
     {
         limLog(pMac, LOGE,
                 FL("Invalid value (%d) for numSsid"), SIR_SCAN_MAX_NUM_SSID);
+        palFreeMemory(pMac->hHdd, (void *)pScanOffloadReq);
         return eHAL_STATUS_FAILURE;
     }
 
@@ -1743,6 +1747,10 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         {
             psessionEntry->limRmfEnabled = 0;
         }
+#endif
+
+#ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM
+        psessionEntry->rssi =  pSmeJoinReq->bssDescription.rssi;
 #endif
 
         /*Store Persona */

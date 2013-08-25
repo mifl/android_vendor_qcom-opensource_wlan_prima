@@ -626,7 +626,6 @@ typedef struct tagCsrConfig
     tANI_U8       nImmediateRoamRssiDiff;
     tANI_BOOLEAN  nRoamPrefer5GHz;
     tANI_BOOLEAN  nRoamIntraBand;
-    tANI_BOOLEAN  isWESModeEnabled;
     tANI_BOOLEAN  nRoamScanControl;
     tANI_U8       nProbes;
     tANI_U16      nRoamScanHomeAwayTime;
@@ -654,7 +653,12 @@ typedef struct tagCsrConfig
     tANI_BOOLEAN enableVhtFor24GHz;
 #endif
     tANI_U8   txLdpcEnable;
+    tANI_BOOLEAN  enableOxygenNwk;
 
+    /*
+     * Enable/Disable heartbeat offload
+     */
+    tANI_BOOLEAN enableHeartBeatOffload;
 }tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo
@@ -690,13 +694,13 @@ typedef struct tagCsrScanStruct
     tDblLinkList tempScanResults;
     tANI_BOOLEAN fScanEnable;
     tANI_BOOLEAN fFullScanIssued;
-    tPalTimerHandle hTimerGetResult;
+    vos_timer_t hTimerGetResult;
 #ifdef WLAN_AP_STA_CONCURRENCY
-    tPalTimerHandle hTimerStaApConcTimer;
+    vos_timer_t hTimerStaApConcTimer;
 #endif
-    tPalTimerHandle hTimerIdleScan;
-    tPalTimerHandle hTimerResultAging;
-    tPalTimerHandle hTimerResultCfgAging;
+    vos_timer_t hTimerIdleScan;
+    vos_timer_t hTimerResultAging;
+    vos_timer_t hTimerResultCfgAging;
     tPalTimerHandle hTimerBgScan;
     //changes on every scan, it is used as a flag for whether 11d info is found on every scan
     tANI_U8 channelOf11dInfo;
@@ -849,7 +853,7 @@ typedef struct tagCsrTlStatsReqInfo
 {
    tANI_U32               periodicity;
    tANI_BOOLEAN           timerRunning;
-   tPalTimerHandle        hTlStatsTimer;
+   vos_timer_t            hTlStatsTimer;
    tANI_U8                numClient;
 }tCsrTlStatsReqInfo;
 
@@ -899,8 +903,8 @@ typedef struct tagCsrRoamSession
     tCsrTimerInfo roamingTimerInfo;
     eCsrRoamingReason roamingReason;
     tANI_BOOLEAN fCancelRoaming;
-    tPalTimerHandle hTimerRoaming;
-    tPalTimerHandle hTimerIbssJoining;
+    vos_timer_t hTimerRoaming;
+    vos_timer_t hTimerIbssJoining;
     tCsrTimerInfo ibssJoinTimerInfo;
     tANI_BOOLEAN ibss_join_pending;
     eCsrRoamResult roamResult;  //the roamResult that is used when the roaming timer fires
@@ -916,7 +920,7 @@ typedef struct tagCsrRoamSession
     tANI_BOOLEAN fWMMConnection;
 #ifdef FEATURE_WLAN_BTAMP_UT_RF
     //To retry a join later when it fails if so desired
-    tPalTimerHandle hTimerJoinRetry;
+    vos_timer_t hTimerJoinRetry;
     tCsrTimerInfo joinRetryTimerInfo;
     tANI_U32 maxRetryCount;
 #endif
@@ -954,7 +958,7 @@ typedef struct tagCsrRoamStruct
     tANI_U32 numValidChannels; //total number of channels in CFG
 
     tANI_S32 sPendingCommands;
-    tPalTimerHandle hTimerWaitForKey;  //To support timeout for WaitForKey state
+    vos_timer_t hTimerWaitForKey;  //To support timeout for WaitForKey state
     tCsrSummaryStatsInfo       summaryStatsInfo;
     tCsrGlobalClassAStatsInfo  classAStatsInfo;
     tCsrGlobalClassBStatsInfo  classBStatsInfo;
@@ -986,7 +990,6 @@ typedef struct tagCsrRoamStruct
 #endif
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
     tANI_U8        RoamRssiDiff;
-    tANI_BOOLEAN   isWESModeEnabled;
 #endif
 }tCsrRoamStruct;
 
@@ -1209,6 +1212,15 @@ eHalStatus csrGetStatistics(tpAniSirGlobal pMac, eCsrStatsRequesterType requeste
                             tANI_U32 periodicity, tANI_BOOLEAN cache,
                             tANI_U8 staId, void *pContext);
 
+/* ---------------------------------------------------------------------------
+    \fn csrGetTLSTAState
+    \helper function to get the TL STA State whenever the function is called.
+
+    \param staId - The staID to be passed to the TL
+            to get the relevant TL STA State
+    \return the state as tANI_U16
+  ---------------------------------------------------------------------------*/
+tANI_U16 csrGetTLSTAState(tpAniSirGlobal pMac, tANI_U8 staId);
 
 eHalStatus csrGetRssi(tpAniSirGlobal pMac,tCsrRssiCallback callback,tANI_U8 staId,tCsrBssid bssId,void * pContext,void * pVosContext);
 #if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)

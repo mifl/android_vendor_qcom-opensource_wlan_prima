@@ -90,6 +90,7 @@ extern tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #include <wlan_qct_pal_api.h>
 
 #define READ_MEMORY_DUMP_CMD     9
+#define TL_INIT_STATE            0
 
 // TxMB Functions
 extern eHalStatus pmcPrepareCommand( tpAniSirGlobal pMac, eSmeCommandType cmdType, void *pvParam,
@@ -1173,6 +1174,20 @@ eHalStatus sme_UpdateConfig(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams)
    /* update the directed scan offload setting */
    pMac->fScanOffload = pSmeConfigParams->fScanOffload;
 
+   if (pMac->fScanOffload)
+   {
+       /* If scan offload is enabled then lim has allow the sending of
+       scan request to firmware even in powersave mode. The firmware has
+       to take care of exiting from power save mode */
+       status = ccmCfgSetInt(hHal, WNI_CFG_SCAN_IN_POWERSAVE,
+                   eANI_BOOLEAN_TRUE, NULL, eANI_BOOLEAN_FALSE);
+
+       if (eHAL_STATUS_SUCCESS != status)
+       {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                   "Could not pass on WNI_CFG_SCAN_IN_POWERSAVE to CCM");
+       }
+   }
    return status;
 }
 
@@ -1805,6 +1820,19 @@ eHalStatus sme_ProcessMsg(tHalHandle hHal, vos_msg_t* pMsg)
                 }
                 break ;
 #endif
+
+#ifdef FEATURE_WLAN_LPHB
+          /* LPHB timeout indication arrived, send IND to client */
+          case eWNI_SME_LPHB_WAIT_TIMEOUT_IND:
+                if (pMac->sme.pLphbWaitTimeoutCb)
+                {
+                   pMac->sme.pLphbWaitTimeoutCb(pMac->pAdapter, pMsg->bodyptr);
+                }
+                vos_mem_free(pMsg->bodyptr);
+
+                break;
+#endif /* FEATURE_WLAN_LPHB */
+
           default:
 
              if ( ( pMsg->type >= eWNI_SME_MSG_TYPES_BEGIN )
@@ -4029,6 +4057,30 @@ eHalStatus sme_GetStatistics(tHalHandle hHal, eCsrStatsRequesterType requesterId
 }
 
 /* ---------------------------------------------------------------------------
+    \fn smeGetTLSTAState
+    \helper function to get the TL STA State whenever the function is called.
+
+    \param staId - The staID to be passed to the TL
+            to get the relevant TL STA State
+    \return the state as tANI_U16
+  ---------------------------------------------------------------------------*/
+tANI_U16 smeGetTLSTAState(tHalHandle hHal, tANI_U8 staId)
+{
+   tANI_U16 tlSTAState = TL_INIT_STATE;
+   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+   eHalStatus status = eHAL_STATUS_FAILURE;
+
+   status = sme_AcquireGlobalLock( &pMac->sme );
+   if ( HAL_STATUS_SUCCESS( status ) )
+   {
+      tlSTAState = csrGetTLSTAState( pMac, staId);
+      sme_ReleaseGlobalLock( &pMac->sme );
+   }
+
+   return tlSTAState;
+}
+
+/* ---------------------------------------------------------------------------
 
     \fn sme_GetCountryCode
 
@@ -4345,6 +4397,123 @@ eHalStatus sme_ChangeCountryCode( tHalHandle hHal,
 
    return (status);
 }
+/* ---------------------------------------------------------------------------
+
+    \fn sme_DHCPStartInd
+
+    \brief API to signal the FW about the DHCP Start event.
+
+    \param hHal - HAL handle for device.
+
+    \param device_mode - mode(AP,SAP etc) of the device.
+
+    \param macAddr  - MAC address of the device.
+
+    \return eHalStatus  SUCCESS.
+
+                         FAILURE or RESOURCES  The API finished and failed.
+  --------------------------------------------------------------------------*/
+eHalStatus sme_DHCPStartInd( tHalHandle hHal,
+                                   tANI_U8 device_mode,
+                                   tANI_U8 *macAddr )
+{
+    eHalStatus          status;
+    VOS_STATUS          vosStatus;
+    tpAniSirGlobal      pMac = PMAC_STRUCT( hHal );
+    vos_msg_t           vosMessage;
+    tAniDHCPInd         *pMsg;
+
+    status = sme_AcquireGlobalLock(&pMac->sme);
+    if ( eHAL_STATUS_SUCCESS == status)
+    {
+        pMsg = (tAniDHCPInd*)vos_mem_malloc(sizeof(tAniDHCPInd));
+        if (NULL == pMsg)
+        {
+            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                   "%s: Not able to allocate memory for dhcp start", __func__);
+            sme_ReleaseGlobalLock( &pMac->sme );
+            return eHAL_STATUS_FAILURE;
+        }
+        pMsg->msgType = WDA_DHCP_START_IND;
+        pMsg->msgLen = (tANI_U16)sizeof(tAniDHCPInd);
+        pMsg->device_mode = device_mode;
+        vos_mem_copy( pMsg->macAddr, macAddr, sizeof(tSirMacAddr));
+
+        vosMessage.type = WDA_DHCP_START_IND;
+        vosMessage.bodyptr = pMsg;
+        vosMessage.reserved = 0;
+
+        vosStatus = vos_mq_post_message( VOS_MQ_ID_WDA, &vosMessage );
+        if ( !VOS_IS_STATUS_SUCCESS(vosStatus) )
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                         "%s: Post DHCP Start MSG fail", __func__);
+           vos_mem_free(pMsg);
+           status = eHAL_STATUS_FAILURE;
+        }
+        sme_ReleaseGlobalLock( &pMac->sme );
+    }
+    return (status);
+}
+/* ---------------------------------------------------------------------------
+    \fn sme_DHCPStopInd
+
+    \brief API to signal the FW about the DHCP complete event.
+
+    \param hHal - HAL handle for device.
+
+    \param device_mode - mode(AP, SAP etc) of the device.
+
+    \param macAddr  - MAC address of the device.
+
+    \return eHalStatus  SUCCESS.
+                         FAILURE or RESOURCES  The API finished and failed.
+  --------------------------------------------------------------------------*/
+eHalStatus sme_DHCPStopInd( tHalHandle hHal,
+                              tANI_U8 device_mode,
+                              tANI_U8 *macAddr )
+{
+    eHalStatus          status;
+    VOS_STATUS          vosStatus;
+    tpAniSirGlobal      pMac = PMAC_STRUCT( hHal );
+    vos_msg_t           vosMessage;
+    tAniDHCPInd         *pMsg;
+
+    status = sme_AcquireGlobalLock(&pMac->sme);
+    if ( eHAL_STATUS_SUCCESS == status)
+    {
+        pMsg = (tAniDHCPInd*)vos_mem_malloc(sizeof(tAniDHCPInd));
+        if (NULL == pMsg)
+        {
+            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Not able to allocate memory for dhcp stop", __func__);
+            sme_ReleaseGlobalLock( &pMac->sme );
+            return eHAL_STATUS_FAILURE;
+       }
+
+       pMsg->msgType = WDA_DHCP_STOP_IND;
+       pMsg->msgLen = (tANI_U16)sizeof(tAniDHCPInd);
+       pMsg->device_mode = device_mode;
+       vos_mem_copy( pMsg->macAddr, macAddr, sizeof(tSirMacAddr));
+
+       vosMessage.type = WDA_DHCP_STOP_IND;
+       vosMessage.bodyptr = pMsg;
+       vosMessage.reserved = 0;
+
+       vosStatus = vos_mq_post_message( VOS_MQ_ID_WDA, &vosMessage );
+       if ( !VOS_IS_STATUS_SUCCESS(vosStatus) )
+       {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                        "%s: Post DHCP Stop MSG fail", __func__);
+           vos_mem_free(pMsg);
+           status = eHAL_STATUS_FAILURE;
+       }
+
+       sme_ReleaseGlobalLock( &pMac->sme );
+    }
+    return (status);
+}
+
 
 /* ---------------------------------------------------------------------------
     \fn sme_BtcSignalBtEvent
@@ -7255,36 +7424,6 @@ eHalStatus sme_UpdateFastTransitionEnabled(tHalHandle hHal,
 }
 
 /* ---------------------------------------------------------------------------
-    \fn sme_UpdateWESMode
-    \brief  Update WES Mode
-            This function is called through dynamic setConfig callback function
-            to configure isWESModeEnabled
-    \param  hHal - HAL handle for device
-    \return eHAL_STATUS_SUCCESS - SME update isWESModeEnabled config successfully.
-          Other status means SME is failed to update isWESModeEnabled.
-    -------------------------------------------------------------------------*/
-
-eHalStatus sme_UpdateWESMode(tHalHandle hHal, v_BOOL_t isWESModeEnabled)
-{
-    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-    eHalStatus          status    = eHAL_STATUS_SUCCESS;
-
-    status = sme_AcquireGlobalLock( &pMac->sme );
-    if ( HAL_STATUS_SUCCESS( status ) )
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_DEBUG,
-                     "LFR runtime successfully set WES Mode to %d - old value is %d - roam state is %d",
-                     isWESModeEnabled,
-                     pMac->roam.configParam.isWESModeEnabled,
-                     pMac->roam.neighborRoamInfo.neighborRoamState);
-        pMac->roam.configParam.isWESModeEnabled = isWESModeEnabled;
-        sme_ReleaseGlobalLock( &pMac->sme );
-    }
-
-    return status ;
-}
-
-/* ---------------------------------------------------------------------------
     \fn sme_SetRoamScanControl
     \brief  Set roam scan control
             This function is called to set roam scan control
@@ -7358,24 +7497,6 @@ eHalStatus sme_UpdateIsFastRoamIniFeatureEnabled(tHalHandle hHal,
   pMac->roam.configParam.isFastRoamIniFeatureEnabled = isFastRoamIniFeatureEnabled;
   csrNeighborRoamUpdateFastRoamingEnabled(pMac, isFastRoamIniFeatureEnabled);
 
-  if(TRUE == isFastRoamIniFeatureEnabled)
-  {
-      sme_UpdateConfigFwRssiMonitoring(hHal, TRUE);
-  }
-  else
-  {
-      /* CCX also depend on FW Monitoring.
-         Hence Disabling LFR should check for CCX enable before disabling FW Monitoring */
-#ifdef FEATURE_WLAN_CCX
-      if(FALSE == pMac->roam.configParam.isCcxIniFeatureEnabled)
-#endif
-      {
-          VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-                     "%s: Turn off FW Monitoring", __func__);
-          sme_UpdateConfigFwRssiMonitoring(hHal, FALSE);
-      }
-  }
-
   return eHAL_STATUS_SUCCESS;
 }
 
@@ -7448,22 +7569,8 @@ eHalStatus sme_UpdateIsCcxFeatureEnabled(tHalHandle hHal,
   if(TRUE == isCcxIniFeatureEnabled)
   {
       sme_UpdateFastTransitionEnabled(hHal, TRUE);
-      sme_UpdateConfigFwRssiMonitoring(hHal, TRUE);
   }
-  else
-  {
-      /* LFR also depend on FW Monitoring.
-         Hence Disabling CCX should check for LFR enable before disabling FW Monitoring and Fast Transition */
-#ifdef FEATURE_WLAN_LFR
-      if(FALSE == pMac->roam.configParam.isFastRoamIniFeatureEnabled)
-#endif
-      {
-          VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-                     "%s: Turn off FW Monitoring/Fast Transition", __func__);
-          sme_UpdateFastTransitionEnabled(hHal, FALSE);
-          sme_UpdateConfigFwRssiMonitoring(hHal, FALSE);
-      }
-  }
+
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
     if (pMac->roam.configParam.isRoamOffloadScanEnabled)
     {
@@ -8076,19 +8183,6 @@ tANI_BOOLEAN sme_getIsCcxFeatureEnabled(tHalHandle hHal)
 }
 
 /*--------------------------------------------------------------------------
-  \brief sme_GetWESMode() - get WES Mode
-  This is a synchronous call
-  \param hHal - The handle returned by macOpen
-  \return v_U8_t - WES Mode Enabled(1)/Disabled(0)
-  \sa
-  --------------------------------------------------------------------------*/
-v_BOOL_t sme_GetWESMode(tHalHandle hHal)
-{
-    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-    return pMac->roam.configParam.isWESModeEnabled;
-}
-
-/*--------------------------------------------------------------------------
   \brief sme_GetRoamScanControl() - get scan control
   This is a synchronous call
   \param hHal - The handle returned by macOpen.
@@ -8606,4 +8700,60 @@ VOS_STATUS sme_isSta_p2p_clientConnected(tHalHandle hHal)
     }
     return VOS_STATUS_E_FAILURE;
 }
+
+
+#ifdef FEATURE_WLAN_LPHB
+/* ---------------------------------------------------------------------------
+    \fn sme_LPHBConfigReq
+    \API to make configuration LPHB within FW.
+    \param hHal - The handle returned by macOpen
+    \param lphdReq - LPHB request argument by client
+    \param pCallbackfn - LPHB timeout notification callback function pointer
+    \- return Configuration message posting status, SUCCESS or Fail
+    -------------------------------------------------------------------------*/
+eHalStatus sme_LPHBConfigReq
+(
+   tHalHandle hHal,
+   tSirLPHBReq *lphdReq,
+   void (*pCallbackfn)(void *pAdapter, void *indParam)
+)
+{
+    eHalStatus          status    = eHAL_STATUS_SUCCESS;
+    VOS_STATUS          vosStatus = VOS_STATUS_SUCCESS;
+    tpAniSirGlobal      pMac      = PMAC_STRUCT(hHal);
+    vos_msg_t           vosMessage;
+
+    status = sme_AcquireGlobalLock(&pMac->sme);
+    if (eHAL_STATUS_SUCCESS == status)
+    {
+        if ((LPHB_SET_EN_PARAMS_INDID == lphdReq->cmd) &&
+            (NULL == pCallbackfn) &&
+            (NULL == pMac->sme.pLphbWaitTimeoutCb))
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Indication Call back did not registered", __func__);
+           sme_ReleaseGlobalLock(&pMac->sme);
+           return eHAL_STATUS_FAILURE;
+        }
+        else if (NULL != pCallbackfn)
+        {
+           pMac->sme.pLphbWaitTimeoutCb = pCallbackfn;
+        }
+
+        /* serialize the req through MC thread */
+        vosMessage.bodyptr = lphdReq;
+        vosMessage.type    = WDA_LPHB_CONF_REQ;
+        vosStatus = vos_mq_post_message(VOS_MQ_ID_WDA, &vosMessage);
+        if (!VOS_IS_STATUS_SUCCESS(vosStatus))
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Post Config LPHB MSG fail", __func__);
+           status = eHAL_STATUS_FAILURE;
+        }
+        sme_ReleaseGlobalLock(&pMac->sme);
+    }
+
+    return(status);
+}
+#endif /* FEATURE_WLAN_LPHB */
 
