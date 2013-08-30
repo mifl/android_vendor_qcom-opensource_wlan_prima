@@ -865,19 +865,11 @@ static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
         wlanSuspendParam->configuredMcstBcstFilterSetting = pHddCtx->configuredMcastBcastFilter;
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING
-        if (pHddCtx->cfg_ini->isMcAddrListFilter)
-        {
-           /*Multicast addr list filter is enabled during suspend*/
-           if (((pAdapter->device_mode == WLAN_HDD_INFRA_STATION) || 
-                    (pAdapter->device_mode == WLAN_HDD_P2P_CLIENT))
-                 && pAdapter->mc_addr_list.mc_cnt
-                 && (eConnectionState_Associated == 
-                    (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState))
-           {
-              /*set the filter*/
-              wlan_hdd_set_mc_addr_list(pAdapter, TRUE);
-           }
-        }
+        /* During suspend, configure MC Addr list filter to the firmware
+         * function takes care of checking necessary conditions before
+         * configuring.
+         */
+        wlan_hdd_set_mc_addr_list(pAdapter, TRUE);
 #endif
     }
 
@@ -922,17 +914,11 @@ static void hdd_conf_resume_ind(hdd_adapter_t *pAdapter)
     }
 
 
-#ifdef WLAN_FEATURE_PACKET_FILTERING    
-    if (pHddCtx->cfg_ini->isMcAddrListFilter)
-    {
-       /*Multicast addr filtering is enabled*/
-       if (pAdapter->mc_addr_list.isFilterApplied)
-       {
-          /*Filter applied during suspend mode*/
-          /*Clear it here*/
-          wlan_hdd_set_mc_addr_list(pAdapter, FALSE);
-       }
-    }
+#ifdef WLAN_FEATURE_PACKET_FILTERING
+    /* Filer was applied during suspend inditication
+     * clear it when we resume.
+     */
+    wlan_hdd_set_mc_addr_list(pAdapter, FALSE);
 #endif
 }
 
@@ -945,6 +931,7 @@ void hdd_suspend_wlan(void)
    VOS_STATUS status;
    hdd_adapter_t *pAdapter = NULL;
    hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
+   bool hdd_enter_bmps = FALSE;
 
    hddLog(VOS_TRACE_LEVEL_INFO, "%s: WLAN being suspended by Android OS",__func__);
 
@@ -970,22 +957,49 @@ void hdd_suspend_wlan(void)
    }
 
    hdd_set_pwrparams(pHddCtx);
-
-   if (BMPS == pmcGetPmcState(pHddCtx->hHal))
-   {
-       /* put the device into full power */
-       wlan_hdd_enter_bmps(pAdapter, DRIVER_POWER_MODE_ACTIVE);
-
-       /* put the device back into BMPS */
-       wlan_hdd_enter_bmps(pAdapter, DRIVER_POWER_MODE_AUTO);
-
-       pHddCtx->hdd_ignore_dtim_enabled = TRUE;
-   }
-
    status =  hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
    while ( NULL != pAdapterNode && VOS_STATUS_SUCCESS == status )
    {
        pAdapter = pAdapterNode->pAdapter;
+
+#ifdef FEATURE_WLAN_LPHB
+       if ((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) &&
+           (pHddCtx->lphbEnableReq.enable))
+       {
+           tSirLPHBReq *hb_params = NULL;
+
+           hb_params = (tSirLPHBReq *)vos_mem_malloc(sizeof(tSirLPHBReq));
+           if (NULL == hb_params)
+           {
+               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                         "%s: hb_params alloc failed", __func__);
+           }
+           else
+           {
+               eHalStatus smeStatus;
+
+               hb_params->cmd    = LPHB_SET_EN_PARAMS_INDID;
+               hb_params->params.lphbEnableReq.enable  =
+                                    pHddCtx->lphbEnableReq.enable;
+               hb_params->params.lphbEnableReq.item    =
+                                    pHddCtx->lphbEnableReq.item;
+               hb_params->params.lphbEnableReq.session =
+                                    pHddCtx->lphbEnableReq.session;
+               /* If WLAN is suspend state, send enable command immediately */
+               smeStatus = sme_LPHBConfigReq((tHalHandle)(pHddCtx->hHal),
+                                             hb_params,
+                                             NULL);
+               if (eHAL_STATUS_SUCCESS != smeStatus)
+               {
+                   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                             "LPHB Config Fail, disable");
+                   pHddCtx->lphbEnableReq.enable = 0;
+                   vos_mem_free(hb_params);
+               }
+           }
+       }
+#endif /* FEATURE_WLAN_LPHB */
+
        if ( (WLAN_HDD_INFRA_STATION != pAdapter->device_mode)
          && (WLAN_HDD_SOFTAP != pAdapter->device_mode)
          && (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode) )
@@ -995,7 +1009,22 @@ void hdd_suspend_wlan(void)
            pAdapterNode = pNext;
            continue;
        }
+       /* Avoid multiple enter/exit BMPS in this while loop using
+        * hdd_enter_bmps flag
+        */
+       if (FALSE == hdd_enter_bmps && (BMPS == pmcGetPmcState(pHddCtx->hHal)))
+       {
+            hdd_enter_bmps = TRUE;
 
+           /* If device was already in BMPS, and dynamic DTIM is set,
+            * exit(set the device to full power) and enter BMPS again
+            * to reflect new DTIM value */
+           wlan_hdd_enter_bmps(pAdapter, DRIVER_POWER_MODE_ACTIVE);
+
+           wlan_hdd_enter_bmps(pAdapter, DRIVER_POWER_MODE_AUTO);
+
+           pHddCtx->hdd_ignore_dtim_enabled = TRUE;
+       }
 #ifdef SUPPORT_EARLY_SUSPEND_STANDBY_DEEPSLEEP
        if (pHddCtx->cfg_ini->nEnableSuspend == WLAN_MAP_SUSPEND_TO_STANDBY)
        {
@@ -1282,6 +1311,44 @@ void hdd_resume_wlan(void)
       }
 
       hdd_conf_resume_ind(pAdapter);
+
+#ifdef FEATURE_WLAN_LPHB
+      if ((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) &&
+          (pHddCtx->lphbEnableReq.enable))
+      {
+         tSirLPHBReq *hb_params = NULL;
+
+         hb_params = (tSirLPHBReq *)vos_mem_malloc(sizeof(tSirLPHBReq));
+         if (NULL == hb_params)
+         {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "%s: hb_params alloc failed", __func__);
+         }
+         else
+         {
+            eHalStatus smeStatus;
+
+            hb_params->cmd    = LPHB_SET_EN_PARAMS_INDID;
+            hb_params->params.lphbEnableReq.enable  = 0;
+            hb_params->params.lphbEnableReq.item    =
+                              pHddCtx->lphbEnableReq.item;
+            hb_params->params.lphbEnableReq.session =
+                              pHddCtx->lphbEnableReq.session;
+            /* If WLAN is suspend state, send enable command immediately */
+            smeStatus = sme_LPHBConfigReq((tHalHandle)(pHddCtx->hHal),
+                                          hb_params,
+                                          NULL);
+            if (eHAL_STATUS_SUCCESS != smeStatus)
+            {
+               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                         "LPHB Config Fail, disable");
+               pHddCtx->lphbEnableReq.enable = 0;
+               vos_mem_free(hb_params);
+            }
+         }
+      }
+#endif /* FEATURE_WLAN_LPHB */
+
       status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
       pAdapterNode = pNext;
    }
@@ -1715,7 +1782,11 @@ err_vosclose:
        unregister_netdevice_notifier(&hdd_netdev_notifier);
        /* Clean up HDD Nlink Service */
        send_btc_nlink_msg(WLAN_MODULE_DOWN_IND, 0);
+#ifdef WLAN_KD_READY_NOTIFIER
+       nl_srv_exit(pHddCtx->ptt_pid);
+#else
        nl_srv_exit();
+#endif /* WLAN_KD_READY_NOTIFIER */
        /* Free up dynamically allocated members inside HDD Adapter */
        kfree(pHddCtx->cfg_ini);
        pHddCtx->cfg_ini= NULL;
