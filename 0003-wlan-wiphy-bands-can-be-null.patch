@@ -1,0 +1,73 @@
+From f72d34d9e09b3e6ae2ca1752b5e0925ca557bf3f Mon Sep 17 00:00:00 2001
+From: Agarwal Ashish <ashishka@codeaurora.org>
+Date: Tue, 21 May 2013 15:27:11 +0530
+Subject: [PATCH 3/3] wlan: wiphy->bands[] can be null.
+
+In somecase if wiphy->bands[] becomes null,
+access to null memory can be reason for crash.
+
+CRs-Fixed: 490153
+Change-Id: Ib3636938f6ebd09d1e3d0d05522f196a8ba9e17a
+---
+ CORE/VOSS/src/vos_nvitem.c | 41 ++++++++++++++++++++++-------------------
+ 1 file changed, 22 insertions(+), 19 deletions(-)
+
+diff --git a/CORE/VOSS/src/vos_nvitem.c b/CORE/VOSS/src/vos_nvitem.c
+index 23aaa93..07224f6 100644
+--- a/CORE/VOSS/src/vos_nvitem.c
++++ b/CORE/VOSS/src/vos_nvitem.c
+@@ -2459,29 +2459,32 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
+           }
+           /* Haven't seen any condition that will set by driver after init.
+            If we do, then we should also call sme_ChangeCountryCode */
+-          for (j=0; j<wiphy->bands[IEEE80211_BAND_5GHZ ]->n_channels; j++)
++          if (wiphy->bands[IEEE80211_BAND_5GHZ])
+           {
+-              // p2p UNII-1 band channels are passive when domain is FCC.
+-              if ((wiphy->bands[IEEE80211_BAND_5GHZ ]->channels[j].center_freq == 5180 ||
+-                             wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5200 ||
+-                             wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5220 ||
+-                             wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5240) &&
+-                             (ccode[0]== 'U'&& ccode[1]=='S'))
+-              {
+-                 wiphy->bands[IEEE80211_BAND_5GHZ ]->channels[j].flags |= IEEE80211_CHAN_PASSIVE_SCAN;
+-              }
+-              else if ((wiphy->bands[IEEE80211_BAND_5GHZ ]->channels[j].center_freq == 5180 ||
+-                                  wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5200 ||
+-                                  wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5220 ||
+-                                  wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5240) &&
+-                                  (ccode[0]!= 'U'&& ccode[1]!='S'))
+-              {
+-                 wiphy->bands[IEEE80211_BAND_5GHZ ]->channels[j].flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+-              }
++             for (j=0; j<wiphy->bands[IEEE80211_BAND_5GHZ]->n_channels; j++)
++             {
++                 // p2p UNII-1 band channels are passive when domain is FCC.
++                if ((wiphy->bands[IEEE80211_BAND_5GHZ ]->channels[j].center_freq == 5180 ||
++                               wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5200 ||
++                               wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5220 ||
++                               wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5240) &&
++                               (ccode[0]== 'U'&& ccode[1]=='S'))
++                {
++                   wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].flags |= IEEE80211_CHAN_PASSIVE_SCAN;
++                }
++                else if ((wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5180 ||
++                                    wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5200 ||
++                                    wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5220 ||
++                                    wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5240) &&
++                                    (ccode[0]!= 'U'&& ccode[1]!='S'))
++                {
++                   wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
++                }
++             }
+           }
+           if (request->initiator == NL80211_REGDOM_SET_BY_CORE)
+           {
+-              request->processed = 1;
++             request->processed = 1;
+           }
+        }
+     }
+-- 
+1.8.2
+
