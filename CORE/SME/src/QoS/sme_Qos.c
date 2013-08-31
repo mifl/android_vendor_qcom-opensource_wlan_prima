@@ -3974,6 +3974,9 @@ eHalStatus sme_QosProcessAddTsRsp(tpAniSirGlobal pMac, void *pMsgBuf)
     sme_QosACInfo *pACInfo;
     sme_QosEdcaAcType ac;
 #endif
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
+    WLAN_VOS_DIAG_EVENT_DEF(qos, vos_event_wlan_qos_payload_type);
+#endif
 
     pSession = &sme_QosCb.sessionInfo[sessionId];
 
@@ -4002,9 +4005,6 @@ eHalStatus sme_QosProcessAddTsRsp(tpAniSirGlobal pMac, void *pMsgBuf)
     }
 #endif
 
-#ifdef FEATURE_WLAN_DIAG_SUPPORT
-   WLAN_VOS_DIAG_EVENT_DEF(qos, vos_event_wlan_qos_payload_type);
-#endif
    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_HIGH, 
              "%s: %d: Invoked on session %d with return code %d",
              __func__, __LINE__,
@@ -5266,8 +5266,6 @@ eHalStatus sme_QosProcessAddTsSuccessRsp(tpAniSirGlobal pMac,
                 "%s: %d: On session %d an AddTS is not pending on AC %d",
                 __func__, __LINE__,
                 sessionId, ac);
-      //ASSERT
-      VOS_ASSERT(0);
       return eHAL_STATUS_FAILURE;
    }
    //App is looking for APSD or the App which was looking for APSD has been 
