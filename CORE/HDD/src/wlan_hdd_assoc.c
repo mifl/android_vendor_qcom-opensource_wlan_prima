@@ -1334,7 +1334,11 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
 
                 }
             }
-            cfg80211_put_bss(bss);
+            cfg80211_put_bss(
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
+                             pHddCtx->wiphy,
+#endif
+                             bss);
             // Register the Station with TL after associated...
             vosStatus = hdd_roamRegisterSTA( pAdapter,
                     pRoamInfo,
@@ -1556,7 +1560,11 @@ static void hdd_RoamIbssIndicationHandler( hdd_adapter_t *pAdapter,
             }
 
             cfg80211_ibss_joined(pAdapter->dev, bss->bssid, GFP_KERNEL);
-            cfg80211_put_bss(bss);
+            cfg80211_put_bss(
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
+                             pHddCtx->wiphy,
+#endif
+                             bss);
          }
 
          netif_carrier_on(pAdapter->dev);
@@ -1692,7 +1700,11 @@ static eHalStatus roamIbssConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo 
    }
    /* send ibss join indication to nl80211 */
    cfg80211_ibss_joined(pAdapter->dev, &pRoamInfo->bssid[0], GFP_KERNEL);
-   cfg80211_put_bss(bss);
+   cfg80211_put_bss(
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
+                    WLAN_HDD_GET_CTX(pAdapter)->wiphy,
+#endif
+                    bss);
 
    return( eHAL_STATUS_SUCCESS );
 }
@@ -2332,6 +2344,7 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
     hdd_wext_state_t *pWextState = NULL;
     hdd_station_ctx_t *pHddStaCtx = NULL;
     VOS_STATUS status = VOS_STATUS_SUCCESS;
+    hdd_context_t *pHddCtx = NULL;
 
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
             "CSR Callback: status= %d result= %d roamID=%ld",
@@ -2456,10 +2469,13 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
                         "****eCSR_ROAM_DISASSOCIATED****");
                 halStatus = hdd_DisConnectHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
                 /* Check if Mcast/Bcast Filters are set, if yes clear the filters here */
-                if ((WLAN_HDD_GET_CTX(pAdapter))->hdd_mcastbcast_filter_set == TRUE)
+                pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+                if (pHddCtx->hdd_mcastbcast_filter_set == TRUE)
                 {
+                    hdd_conf_mcastbcast_filter(pHddCtx, FALSE);
+                    pHddCtx->configuredMcastBcastFilter =
+                        pHddCtx->sus_res_mcastbcast_filter;
 
-                    hdd_conf_mcastbcast_filter((WLAN_HDD_GET_CTX(pAdapter)), FALSE);
                     (WLAN_HDD_GET_CTX(pAdapter))->hdd_mcastbcast_filter_set = FALSE;
                 }
 #ifdef WLAN_FEATURE_PACKET_FILTERING
