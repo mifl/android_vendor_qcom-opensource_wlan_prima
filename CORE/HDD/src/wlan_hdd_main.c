@@ -1388,8 +1388,17 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            /* done with the parsed buffer */
            vos_mem_free(buf);
 
-           wlan_hdd_action( NULL, dev, &chan, 0, NL80211_CHAN_HT20,
-                       1, dwellTime, finalBuf, finalLen,  1,
+           wlan_hdd_action( NULL,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
+                       &(pAdapter->wdev),
+#else
+                       dev,
+#endif
+                       &chan, 0,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0))
+                       NL80211_CHAN_HT20, 1,
+#endif
+                       dwellTime, finalBuf, finalLen,  1,
                        1, &cookie );
            vos_mem_free(finalBuf);
        }
@@ -5540,6 +5549,8 @@ int hdd_wlan_startup(struct device *dev )
    init_completion(&pHddCtx->scan_info.abortscan_event_var);
    init_completion(&pHddCtx->driver_crda_req);
 
+   spin_lock_init(&pHddCtx->schedScan_lock);
+
    hdd_list_init( &pHddCtx->hddAdapters, MAX_NUMBER_OF_ADAPTERS );
 
    // Load all config first as TL config is needed during vos_open
@@ -6524,7 +6535,8 @@ VOS_STATUS hdd_softap_sta_deauth(hdd_adapter_t *pAdapter, v_U8_t *pDestMacAddres
 
     ENTER();
 
-    hddLog( LOGE, "hdd_softap_sta_deauth:(%p, false)", (WLAN_HDD_GET_CTX(pAdapter))->pvosContext);
+    hddLog(LOG1, "hdd_softap_sta_deauth:(%p, false)",
+           (WLAN_HDD_GET_CTX(pAdapter))->pvosContext);
 
     //Ignore request to deauth bcmc station
     if( pDestMacAddress[0] & 0x1 )
