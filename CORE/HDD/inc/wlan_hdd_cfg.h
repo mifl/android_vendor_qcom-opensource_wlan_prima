@@ -1824,6 +1824,11 @@ typedef enum
 #define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MIN     ( 0 )
 #define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MAX     ( 1 )
 
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_NAME                "gAmsduSupportInAMPDU"
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_MIN                 (0)
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_MAX                 (1)
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT             (0) //disabled
+
 /*---------------------------------------------------------------------------
   Type declarations
   -------------------------------------------------------------------------*/
@@ -2216,6 +2221,7 @@ v_U16_t                     configMccParam;
    //Traffic monitor timer for split scan
    v_U32_t                     trafficMntrTmrForSplitScan;
    v_BOOL_t                    debugP2pRemainOnChannel;
+   v_U8_t                      isAmsduSupportInAMPDU;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

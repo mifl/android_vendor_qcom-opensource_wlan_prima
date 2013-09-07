@@ -117,6 +117,7 @@ typedef struct _smeConfigParams
     tANI_U8       RoamRssiDiff;
     tANI_BOOLEAN  isWESModeEnabled;
 #endif
+    tANI_U8  isAmsduSupportInAMPDU;
 } tSmeConfigParams, *tpSmeConfigParams;
 
 
