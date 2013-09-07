@@ -1,0 +1,235 @@
+From f056e82e84bdd492c704c1f7bb0af8fb383b748a Mon Sep 17 00:00:00 2001
+From: krunal soni <ksoni@qca.qualcomm.com>
+Date: Fri, 6 Sep 2013 22:19:02 -0700
+Subject: [PATCH] wlan: adding a new ini parameter to disable/enable AMSDU in
+ AMPDU
+
+This fix will give us a control on when to enable AMSDU support
+and when to disable it. by default we are disabling AMSDU support
+
+Change-Id: Ibfcf5245f1dd0bf938dcc7819642c939c4013c2c
+CRs-fixed: 539301
+---
+ CORE/HDD/inc/wlan_hdd_cfg.h                    |  7 +++++++
+ CORE/HDD/src/wlan_hdd_cfg.c                    | 11 +++++++++++
+ CORE/MAC/inc/sirApi.h                          |  1 +
+ CORE/MAC/src/pe/include/limSession.h           |  1 +
+ CORE/MAC/src/pe/lim/limProcessSmeReqMessages.c |  1 +
+ CORE/MAC/src/pe/lim/limSendManagementFrames.c  | 11 ++++++++++-
+ CORE/MAC/src/pe/lim/limSerDesUtils.c           |  5 +++++
+ CORE/SME/inc/csrApi.h                          |  3 +++
+ CORE/SME/inc/csrInternal.h                     |  1 +
+ CORE/SME/inc/sme_Api.h                         |  1 +
+ CORE/SME/src/csr/csrApiRoam.c                  |  6 ++++++
+ 11 files changed, 47 insertions(+), 1 deletion(-)
+
+diff --git a/CORE/HDD/inc/wlan_hdd_cfg.h b/CORE/HDD/inc/wlan_hdd_cfg.h
+index f7889b3..e840893 100644
+--- a/CORE/HDD/inc/wlan_hdd_cfg.h
++++ b/CORE/HDD/inc/wlan_hdd_cfg.h
+@@ -1830,6 +1830,12 @@ typedef enum
+ #define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_MAX       ( 10000 )
+ #define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_DEFAULT   ( 5000 )
+ 
++
++#define CFG_AMSDU_SUPPORT_IN_AMPDU_NAME                "gAmsduSupportInAMPDU"
++#define CFG_AMSDU_SUPPORT_IN_AMPDU_MIN                 (0)
++#define CFG_AMSDU_SUPPORT_IN_AMPDU_MAX                 (1)
++#define CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT             (0) //disabled
++
+ /*--------------------------------------------------------------------------- 
+   Type declarations
+   -------------------------------------------------------------------------*/ 
+@@ -2218,6 +2224,7 @@ typedef struct
+    v_BOOL_t                    enableIbssHeartBeatOffload;
+    v_U32_t                     antennaDiversity;
+    v_BOOL_t                    fEnableSNRMonitoring;
++   v_U8_t                      isAmsduSupportInAMPDU;
+ } hdd_config_t;
+ /*--------------------------------------------------------------------------- 
+   Function declarations and documenation
+diff --git a/CORE/HDD/src/wlan_hdd_cfg.c b/CORE/HDD/src/wlan_hdd_cfg.c
+index daf41fc..6b40d3a 100644
+--- a/CORE/HDD/src/wlan_hdd_cfg.c
++++ b/CORE/HDD/src/wlan_hdd_cfg.c
+@@ -2391,6 +2391,13 @@ REG_VARIABLE( CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD, WLAN_PARAM_Integer,
+                  CFG_ENABLE_SNR_MONITORING_MIN,
+                  CFG_ENABLE_SNR_MONITORING_MAX),
+ 
++   REG_VARIABLE( CFG_AMSDU_SUPPORT_IN_AMPDU_NAME , WLAN_PARAM_Integer,
++                 hdd_config_t, isAmsduSupportInAMPDU,
++                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
++                 CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT,
++                 CFG_AMSDU_SUPPORT_IN_AMPDU_MIN,
++                 CFG_AMSDU_SUPPORT_IN_AMPDU_MAX ),
++
+ };
+ 
+ /*
+@@ -2775,6 +2782,8 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gFlexConnectPowerFactor] Value = [%u] ", pHddCtx->cfg_ini->flexConnectPowerFactor);
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableIbssHeartBeatOffload] Value = [%u] ", pHddCtx->cfg_ini->enableIbssHeartBeatOffload);
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gAntennaDiversity] Value = [%u] ", pHddCtx->cfg_ini->antennaDiversity);
++  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gAmsduSupportInAMPDU] Value = [%lu] ",pHddCtx->cfg_ini->isAmsduSupportInAMPDU);
++
+ }
+ 
+ 
+@@ -4141,6 +4150,8 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
+    // Prop IE enabling/disabling option
+    smeConfig.csrConfig.enableOxygenNwk = pConfig->enableOxygenNwk;
+ 
++   smeConfig.csrConfig.isAmsduSupportInAMPDU = pConfig->isAmsduSupportInAMPDU;
++
+    /* update SSR config */
+    sme_UpdateEnableSSR((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->enableSSR);
+    /* Update the Directed scan offload setting */
+diff --git a/CORE/MAC/inc/sirApi.h b/CORE/MAC/inc/sirApi.h
+index 967ba30..ef73850 100644
+--- a/CORE/MAC/inc/sirApi.h
++++ b/CORE/MAC/inc/sirApi.h
+@@ -1053,6 +1053,7 @@ typedef struct sSirSmeJoinReq
+     tANI_U8             txBFIniFeatureEnabled;
+     tANI_U8             txBFCsnValue;
+ #endif
++    tANI_U8             isAmsduSupportInAMPDU;
+ 
+     tAniTitanCBNeighborInfo cbNeighbors;
+     tAniBool            spectrumMgtIndicator;
+diff --git a/CORE/MAC/src/pe/include/limSession.h b/CORE/MAC/src/pe/include/limSession.h
+index fa3e439..98ffa96 100644
+--- a/CORE/MAC/src/pe/include/limSession.h
++++ b/CORE/MAC/src/pe/include/limSession.h
+@@ -357,6 +357,7 @@ typedef struct sPESession           // Added to Support BT-AMP
+ #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM
+     tANI_S8 rssi;
+ #endif
++    tANI_U8 isAmsduSupportInAMPDU;
+ }tPESession, *tpPESession;
+ 
+ #define LIM_MAX_ACTIVE_SESSIONS 4
+diff --git a/CORE/MAC/src/pe/lim/limProcessSmeReqMessages.c b/CORE/MAC/src/pe/lim/limProcessSmeReqMessages.c
+index 34bf65e..3fa4751 100644
+--- a/CORE/MAC/src/pe/lim/limProcessSmeReqMessages.c
++++ b/CORE/MAC/src/pe/lim/limProcessSmeReqMessages.c
+@@ -1670,6 +1670,7 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
+             }
+         }   
+         handleHTCapabilityandHTInfo(pMac, psessionEntry);
++        psessionEntry->isAmsduSupportInAMPDU = pSmeJoinReq->isAmsduSupportInAMPDU;
+ 
+         /* Store Session related parameters */
+         /* Store PE session Id in session Table */
+diff --git a/CORE/MAC/src/pe/lim/limSendManagementFrames.c b/CORE/MAC/src/pe/lim/limSendManagementFrames.c
+index 35d83dd..ea75b40 100644
+--- a/CORE/MAC/src/pe/lim/limSendManagementFrames.c
++++ b/CORE/MAC/src/pe/lim/limSendManagementFrames.c
+@@ -5085,7 +5085,16 @@ tSirRetStatus limSendAddBARsp( tpAniSirGlobal pMac,
+       frmAddBARsp.AddBAParameterSet.tid = pMlmAddBARsp->baTID;
+       frmAddBARsp.AddBAParameterSet.policy = pMlmAddBARsp->baPolicy;
+       frmAddBARsp.AddBAParameterSet.bufferSize = pMlmAddBARsp->baBufferSize;
+-      frmAddBARsp.AddBAParameterSet.amsduSupported = psessionEntry->amsduSupportedInBA;
++
++      if(psessionEntry->isAmsduSupportInAMPDU)
++      {
++         frmAddBARsp.AddBAParameterSet.amsduSupported =
++                                          psessionEntry->amsduSupportedInBA;
++      }
++      else
++      {
++         frmAddBARsp.AddBAParameterSet.amsduSupported = 0;
++      }
+ 
+       // BA timeout
+       // 0 - indicates no BA timeout
+diff --git a/CORE/MAC/src/pe/lim/limSerDesUtils.c b/CORE/MAC/src/pe/lim/limSerDesUtils.c
+index 6b7bd295..bfee321 100644
+--- a/CORE/MAC/src/pe/lim/limSerDesUtils.c
++++ b/CORE/MAC/src/pe/lim/limSerDesUtils.c
+@@ -1170,6 +1170,11 @@ limJoinReqSerDes(tpAniSirGlobal pMac, tpSirSmeJoinReq pJoinReq, tANI_U8 *pBuf)
+     if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
+         return eSIR_FAILURE;
+ 
++    pJoinReq->isAmsduSupportInAMPDU= *pBuf++;
++    len--;
++    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
++        return eSIR_FAILURE;
++
+     // Extract Titan CB Neighbor BSS info
+     pJoinReq->cbNeighbors.cbBssFoundPri = *pBuf;
+     pBuf++;
+diff --git a/CORE/SME/inc/csrApi.h b/CORE/SME/inc/csrApi.h
+index 2fac39c..f525083 100644
+--- a/CORE/SME/inc/csrApi.h
++++ b/CORE/SME/inc/csrApi.h
+@@ -1106,6 +1106,9 @@ typedef struct tagCsrConfigParam
+     tANI_U8   enableTxLdpc;
+ 
+     tANI_BOOLEAN  enableOxygenNwk;
++
++    tANI_U8 isAmsduSupportInAMPDU;
++
+ }tCsrConfigParam;
+ 
+ //Tush
+diff --git a/CORE/SME/inc/csrInternal.h b/CORE/SME/inc/csrInternal.h
+index 1d3f7c0..95c13b5 100644
+--- a/CORE/SME/inc/csrInternal.h
++++ b/CORE/SME/inc/csrInternal.h
+@@ -659,6 +659,7 @@ typedef struct tagCsrConfig
+      * Enable/Disable heartbeat offload
+      */
+     tANI_BOOLEAN enableHeartBeatOffload;
++    tANI_U8 isAmsduSupportInAMPDU;
+ }tCsrConfig;
+ 
+ typedef struct tagCsrChannelPowerInfo
+diff --git a/CORE/SME/inc/sme_Api.h b/CORE/SME/inc/sme_Api.h
+index f604be3..2185884 100644
+--- a/CORE/SME/inc/sme_Api.h
++++ b/CORE/SME/inc/sme_Api.h
+@@ -117,6 +117,7 @@ typedef struct _smeConfigParams
+     tANI_U8       RoamRssiDiff;
+ #endif
+     tANI_BOOLEAN  fScanOffload;
++    tANI_U8  isAmsduSupportInAMPDU;
+ } tSmeConfigParams, *tpSmeConfigParams;
+ 
+ 
+diff --git a/CORE/SME/src/csr/csrApiRoam.c b/CORE/SME/src/csr/csrApiRoam.c
+index a037ba4..5203d37 100644
+--- a/CORE/SME/src/csr/csrApiRoam.c
++++ b/CORE/SME/src/csr/csrApiRoam.c
+@@ -1566,6 +1566,7 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
+ #endif
+         pMac->roam.configParam.txLdpcEnable = pParam->enableTxLdpc;
+         pMac->roam.configParam.enableOxygenNwk = pParam->enableOxygenNwk;
++        pMac->roam.configParam.isAmsduSupportInAMPDU = pParam->isAmsduSupportInAMPDU;
+     }
+     
+     return status;
+@@ -1688,6 +1689,7 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
+ 
+         pParam->enableTxLdpc = pMac->roam.configParam.txLdpcEnable;
+         pParam->enableOxygenNwk = pMac->roam.configParam.enableOxygenNwk;
++        pParam->isAmsduSupportInAMPDU = pMac->roam.configParam.isAmsduSupportInAMPDU;
+ 
+         csrSetChannels(pMac, pParam);
+ 
+@@ -12358,9 +12360,13 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
+         *pBuf = (tANI_U8)pMac->roam.configParam.txBFCsnValue;
+         pBuf++;
+ #endif
++        *pBuf = (tANI_U8)pMac->roam.configParam.isAmsduSupportInAMPDU;
++        pBuf++;
++
+         //BssDesc
+         csrPrepareJoinReassocReqBuffer( pMac, pBssDescription, pBuf,
+                 (tANI_U8)pProfile->uapsd_mask);
++
+         status = palSendMBMessage(pMac->hHdd, pMsg );
+         if(!HAL_STATUS_SUCCESS(status))
+         {
+-- 
+1.8.2.1
+
