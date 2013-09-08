@@ -1,0 +1,232 @@
+From ba53b18fd6cdb77713d5c9b227708dd27ea8ce99 Mon Sep 17 00:00:00 2001
+From: krunal soni <ksoni@qca.qualcomm.com>
+Date: Fri, 6 Sep 2013 22:19:02 -0700
+Subject: [PATCH] wlan: adding a new ini parameter to disable/enable AMSDU in
+ AMPDU
+
+This fix will give us a control on when to enable AMSDU support
+and when to disable it. by default we are disabling AMSDU support
+
+Change-Id: Ibfcf5245f1dd0bf938dcc7819642c939c4013c2c
+CRs-fixed: 539301
+---
+ CORE/HDD/inc/wlan_hdd_cfg.h                    |  6 ++++++
+ CORE/HDD/src/wlan_hdd_cfg.c                    |  9 +++++++++
+ CORE/MAC/inc/sirApi.h                          |  1 +
+ CORE/MAC/src/pe/include/limSession.h           |  1 +
+ CORE/MAC/src/pe/lim/limProcessSmeReqMessages.c |  1 +
+ CORE/MAC/src/pe/lim/limSendManagementFrames.c  | 11 ++++++++++-
+ CORE/MAC/src/pe/lim/limSerDesUtils.c           |  4 ++++
+ CORE/SME/inc/csrApi.h                          |  2 ++
+ CORE/SME/inc/csrInternal.h                     |  2 +-
+ CORE/SME/inc/sme_Api.h                         |  1 +
+ CORE/SME/src/csr/csrApiRoam.c                  |  7 +++++++
+ 11 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/CORE/HDD/inc/wlan_hdd_cfg.h b/CORE/HDD/inc/wlan_hdd_cfg.h
+index a216c52..aecb7d8 100644
+--- a/CORE/HDD/inc/wlan_hdd_cfg.h
++++ b/CORE/HDD/inc/wlan_hdd_cfg.h
+@@ -1799,6 +1799,11 @@ typedef enum
+ #define CFG_ENABLE_FAST_ROAM_IN_CONCURRENCY_DEFAULT  ( 1 )
+ #endif
+ 
++#define CFG_AMSDU_SUPPORT_IN_AMPDU_NAME                "gAmsduSupportInAMPDU"
++#define CFG_AMSDU_SUPPORT_IN_AMPDU_MIN                 (0)
++#define CFG_AMSDU_SUPPORT_IN_AMPDU_MAX                 (1)
++#define CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT             (0) //disabled
++
+ /*--------------------------------------------------------------------------- 
+   Type declarations
+   -------------------------------------------------------------------------*/ 
+@@ -2182,6 +2187,7 @@ typedef struct
+    /* Flag indicating whether legacy fast roam during concurrency is enabled in cfg.ini or not */
+    v_BOOL_t                    bFastRoamInConIniFeatureEnabled;
+ #endif
++   v_U8_t                      isAmsduSupportInAMPDU;
+ } hdd_config_t;
+ /*--------------------------------------------------------------------------- 
+   Function declarations and documenation
+diff --git a/CORE/HDD/src/wlan_hdd_cfg.c b/CORE/HDD/src/wlan_hdd_cfg.c
+index c0ab631..9b9f4a5 100644
+--- a/CORE/HDD/src/wlan_hdd_cfg.c
++++ b/CORE/HDD/src/wlan_hdd_cfg.c
+@@ -2363,6 +2363,12 @@ REG_VARIABLE( CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD, WLAN_PARAM_Integer,
+                         CFG_ENABLE_FAST_ROAM_IN_CONCURRENCY_MAX,
+                         cbNotifySetEnableFastRoamInConcurrency, 0 ),
+ #endif
++  REG_VARIABLE( CFG_AMSDU_SUPPORT_IN_AMPDU_NAME , WLAN_PARAM_Integer,
++                hdd_config_t, isAmsduSupportInAMPDU,
++                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
++                CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT,
++                CFG_AMSDU_SUPPORT_IN_AMPDU_MIN,
++                CFG_AMSDU_SUPPORT_IN_AMPDU_MAX ),
+ 
+ };
+ 
+@@ -2746,6 +2752,7 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
+ 
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableTrafficMonitor] Value = [%u] ", pHddCtx->cfg_ini->enableTrafficMonitor);
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gTrafficIdleTimeout] Value = [%u] ", pHddCtx->cfg_ini->trafficIdleTimeout);
++  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gAmsduSupportInAMPDU] Value = [%lu] ",pHddCtx->cfg_ini->isAmsduSupportInAMPDU);
+ }
+ 
+ 
+@@ -4096,6 +4103,8 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
+ 
+    smeConfig.csrConfig.enableTxLdpc = pConfig->enableTxLdpc;
+ 
++   smeConfig.csrConfig.isAmsduSupportInAMPDU = pConfig->isAmsduSupportInAMPDU;
++
+    /* update SSR config */
+    sme_UpdateEnableSSR((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->enableSSR);
+    /* Update the Directed scan offload setting */
+diff --git a/CORE/MAC/inc/sirApi.h b/CORE/MAC/inc/sirApi.h
+index aed8177..a17af0a 100644
+--- a/CORE/MAC/inc/sirApi.h
++++ b/CORE/MAC/inc/sirApi.h
+@@ -1047,6 +1047,7 @@ typedef struct sSirSmeJoinReq
+     tANI_U8             txBFIniFeatureEnabled;
+     tANI_U8             txBFCsnValue;
+ #endif
++    tANI_U8             isAmsduSupportInAMPDU;
+ 
+     tAniTitanCBNeighborInfo cbNeighbors;
+     tAniBool            spectrumMgtIndicator;
+diff --git a/CORE/MAC/src/pe/include/limSession.h b/CORE/MAC/src/pe/include/limSession.h
+index f28227d..ab508d8 100644
+--- a/CORE/MAC/src/pe/include/limSession.h
++++ b/CORE/MAC/src/pe/include/limSession.h
+@@ -353,6 +353,7 @@ typedef struct sPESession           // Added to Support BT-AMP
+ #endif
+     tANI_BOOLEAN fWaitForProbeRsp;
+     tANI_BOOLEAN fIgnoreCapsChange;
++    tANI_U8 isAmsduSupportInAMPDU;
+ }tPESession, *tpPESession;
+ 
+ #define LIM_MAX_ACTIVE_SESSIONS 4
+diff --git a/CORE/MAC/src/pe/lim/limProcessSmeReqMessages.c b/CORE/MAC/src/pe/lim/limProcessSmeReqMessages.c
+index b1b4d25..5a942bb 100644
+--- a/CORE/MAC/src/pe/lim/limProcessSmeReqMessages.c
++++ b/CORE/MAC/src/pe/lim/limProcessSmeReqMessages.c
+@@ -1660,6 +1660,7 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
+             }
+         }   
+         handleHTCapabilityandHTInfo(pMac, psessionEntry);
++        psessionEntry->isAmsduSupportInAMPDU = pSmeJoinReq->isAmsduSupportInAMPDU;
+ 
+         /* Store Session related parameters */
+         /* Store PE session Id in session Table */
+diff --git a/CORE/MAC/src/pe/lim/limSendManagementFrames.c b/CORE/MAC/src/pe/lim/limSendManagementFrames.c
+index dfee03d..e478893 100644
+--- a/CORE/MAC/src/pe/lim/limSendManagementFrames.c
++++ b/CORE/MAC/src/pe/lim/limSendManagementFrames.c
+@@ -5095,7 +5095,16 @@ tSirRetStatus limSendAddBARsp( tpAniSirGlobal pMac,
+       frmAddBARsp.AddBAParameterSet.tid = pMlmAddBARsp->baTID;
+       frmAddBARsp.AddBAParameterSet.policy = pMlmAddBARsp->baPolicy;
+       frmAddBARsp.AddBAParameterSet.bufferSize = pMlmAddBARsp->baBufferSize;
+-      frmAddBARsp.AddBAParameterSet.amsduSupported = psessionEntry->amsduSupportedInBA;
++
++      if(psessionEntry->isAmsduSupportInAMPDU)
++      {
++         frmAddBARsp.AddBAParameterSet.amsduSupported =
++                                          psessionEntry->amsduSupportedInBA;
++      }
++      else
++      {
++         frmAddBARsp.AddBAParameterSet.amsduSupported = 0;
++      }
+ 
+       // BA timeout
+       // 0 - indicates no BA timeout
+diff --git a/CORE/MAC/src/pe/lim/limSerDesUtils.c b/CORE/MAC/src/pe/lim/limSerDesUtils.c
+index 7990a69..cfd0854 100644
+--- a/CORE/MAC/src/pe/lim/limSerDesUtils.c
++++ b/CORE/MAC/src/pe/lim/limSerDesUtils.c
+@@ -1163,6 +1163,10 @@ limJoinReqSerDes(tpAniSirGlobal pMac, tpSirSmeJoinReq pJoinReq, tANI_U8 *pBuf)
+     if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
+         return eSIR_FAILURE;
+ 
++    pJoinReq->isAmsduSupportInAMPDU= *pBuf++;
++    len--;
++    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
++        return eSIR_FAILURE;
+ 
+     // Extract Titan CB Neighbor BSS info
+     pJoinReq->cbNeighbors.cbBssFoundPri = *pBuf;
+diff --git a/CORE/SME/inc/csrApi.h b/CORE/SME/inc/csrApi.h
+index aa88d71..7793c50 100644
+--- a/CORE/SME/inc/csrApi.h
++++ b/CORE/SME/inc/csrApi.h
+@@ -1111,6 +1111,8 @@ typedef struct tagCsrConfigParam
+     tANI_U8 scanCfgAgingTime;
+ 
+     tANI_U8   enableTxLdpc;
++    tANI_U8 isAmsduSupportInAMPDU;
++
+ }tCsrConfigParam;
+ 
+ //Tush
+diff --git a/CORE/SME/inc/csrInternal.h b/CORE/SME/inc/csrInternal.h
+index ef481d1..a946d25 100644
+--- a/CORE/SME/inc/csrInternal.h
++++ b/CORE/SME/inc/csrInternal.h
+@@ -653,7 +653,7 @@ typedef struct tagCsrConfig
+     tANI_BOOLEAN enableVhtFor24GHz;
+ #endif
+     tANI_U8   txLdpcEnable;
+-
++    tANI_U8 isAmsduSupportInAMPDU;
+ }tCsrConfig;
+ 
+ typedef struct tagCsrChannelPowerInfo
+diff --git a/CORE/SME/inc/sme_Api.h b/CORE/SME/inc/sme_Api.h
+index c598332..c7602bd 100644
+--- a/CORE/SME/inc/sme_Api.h
++++ b/CORE/SME/inc/sme_Api.h
+@@ -115,6 +115,7 @@ typedef struct _smeConfigParams
+     tANI_U8       RoamRssiDiff;
+ #endif
+     tANI_BOOLEAN  fScanOffload;
++    tANI_U8  isAmsduSupportInAMPDU;
+ } tSmeConfigParams, *tpSmeConfigParams;
+ 
+ 
+diff --git a/CORE/SME/src/csr/csrApiRoam.c b/CORE/SME/src/csr/csrApiRoam.c
+index 54c4c4a..0aae7be 100644
+--- a/CORE/SME/src/csr/csrApiRoam.c
++++ b/CORE/SME/src/csr/csrApiRoam.c
+@@ -1653,6 +1653,7 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
+         pMac->roam.configParam.enableVhtFor24GHz = pParam->enableVhtFor24GHz;
+ #endif
+         pMac->roam.configParam.txLdpcEnable = pParam->enableTxLdpc;
++        pMac->roam.configParam.isAmsduSupportInAMPDU = pParam->isAmsduSupportInAMPDU;
+     }
+     
+     return status;
+@@ -1774,6 +1775,8 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
+ #endif
+ 
+         pParam->enableTxLdpc = pMac->roam.configParam.txLdpcEnable;
++        pParam->isAmsduSupportInAMPDU = pMac->roam.configParam.isAmsduSupportInAMPDU;
++
+         csrSetChannels(pMac, pParam);
+ 
+         status = eHAL_STATUS_SUCCESS;
+@@ -12388,9 +12391,13 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
+         *pBuf = (tANI_U8)pMac->roam.configParam.txBFCsnValue;
+         pBuf++;
+ #endif
++        *pBuf = (tANI_U8)pMac->roam.configParam.isAmsduSupportInAMPDU;
++        pBuf++;
++
+         //BssDesc
+         csrPrepareJoinReassocReqBuffer( pMac, pBssDescription, pBuf,
+                 (tANI_U8)pProfile->uapsd_mask);
++
+         status = palSendMBMessage(pMac->hHdd, pMsg );
+         if(!HAL_STATUS_SUCCESS(status))
+         {
+-- 
+1.8.2.1
+
