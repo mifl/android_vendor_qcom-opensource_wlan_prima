@@ -103,6 +103,7 @@
 #include "wlan_hal_msg.h"
 
 #include "pttMsgApi.h"
+#include "vos_trace.h"
 
 /*===========================================================================
    WLAN DAL Control Path Internal Data Definitions and Declarations
@@ -156,15 +157,17 @@ static placeHolderInCapBitmap supportEnabledFeatures[] =
     ,FEATURE_NOT_SUPPORTED          //19
     ,FEATURE_NOT_SUPPORTED          //20
     ,FEATURE_NOT_SUPPORTED          //21
+    ,WOW                            //22
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-    ,WLAN_ROAM_SCAN_OFFLOAD         //22
+    ,WLAN_ROAM_SCAN_OFFLOAD         //23
 #else
     ,FEATURE_NOT_SUPPORTED
 #endif
-    ,FEATURE_NOT_SUPPORTED          //23
     ,FEATURE_NOT_SUPPORTED          //24
     ,FEATURE_NOT_SUPPORTED          //25
     ,IBSS_HEARTBEAT_OFFLOAD         //26
+    ,FEATURE_NOT_SUPPORTED          //27
+    ,WLAN_PERIODIC_TX_PTRN          //28
    };
 
 /*-------------------------------------------------------------------------- 
@@ -20748,6 +20751,7 @@ WDI_RXMsgCTSCB
                WDI_getRespMsgString(pWDICtx->wdiExpectedResponse),
                pWDICtx->wdiExpectedResponse);
     /* WDI_DetectedDeviceError( pWDICtx, WDI_ERR_INVALID_RSP_FMT); */
+    VOS_BUG(0);
     return;
   }
 
@@ -25148,9 +25152,11 @@ WDI_ProcessPrefNetworkFoundInd
 
   // DEBUG
   WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_FATAL,
-              "[PNO WDI] PREF_NETWORK_FOUND_IND Type (%x) data (SSID=%s, RSSI=%d)",
+              "[PNO WDI] PREF_NETWORK_FOUND_IND Type (%x) data (SSID=%.*s, LENGTH=%u,  RSSI=%u)",
               wdiInd.wdiIndicationType,
+              wdiInd.wdiIndicationData.wdiPrefNetworkFoundInd.ssId.ucLength,
               wdiInd.wdiIndicationData.wdiPrefNetworkFoundInd.ssId.sSSID,
+              wdiInd.wdiIndicationData.wdiPrefNetworkFoundInd.ssId.ucLength,
               wdiInd.wdiIndicationData.wdiPrefNetworkFoundInd.rssi );
 
   if ( pWDICtx->wdiLowLevelIndCB )
