@@ -1,0 +1,30 @@
+From df92f6e8a11b6a3a452dc78522833272d5b450cf Mon Sep 17 00:00:00 2001
+From: Leela Venkata Kiran Kumar Reddy Chirala <kchirala@qca.qualcomm.com>
+Date: Wed, 28 Aug 2013 10:52:21 -0700
+Subject: [PATCH] Fix for WEP connectivity issue
+
+when connecting in WEP security mode due to wrong check in driver
+connection fails.correct the wrong check
+
+Change-Id: Idd6dceb7d95925146d5252056bf0c82e0daea940
+CRs-fixed: 530907
+---
+ CORE/MAC/src/pe/lim/limSendManagementFrames.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/CORE/MAC/src/pe/lim/limSendManagementFrames.c b/CORE/MAC/src/pe/lim/limSendManagementFrames.c
+index dfee03d..67cb155 100644
+--- a/CORE/MAC/src/pe/lim/limSendManagementFrames.c
++++ b/CORE/MAC/src/pe/lim/limSendManagementFrames.c
+@@ -3369,7 +3369,7 @@ limSendAuthMgmtFrame(tpAniSirGlobal pMac,
+         *((tANI_U16 *)(pBody)) = sirSwapU16ifNeeded(pAuthFrameBody->authStatusCode);
+         pBody   += sizeof(tANI_U16);
+         bodyLen -= sizeof(tANI_U16);
+-        if ( bodyLen < sizeof (pAuthFrameBody->type) + sizeof (pAuthFrameBody->length) + sizeof (pAuthFrameBody->challengeText))
++        if ( bodyLen <= sizeof (pAuthFrameBody->type) + sizeof (pAuthFrameBody->length) + sizeof (pAuthFrameBody->challengeText))
+             palCopyMemory( pMac->hHdd, pBody, (tANI_U8 *) &pAuthFrameBody->type, bodyLen);
+ 
+ #if defined WLAN_FEATURE_VOWIFI_11R
+-- 
+1.7.8.3
+
