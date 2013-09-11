@@ -1,0 +1,46 @@
+From 9562a33299eb537c7278ad10a391360305a83f33 Mon Sep 17 00:00:00 2001
+From: Sameer Thalappil <sameert@qca.qualcomm.com>
+Date: Mon, 9 Sep 2013 17:11:51 -0700
+Subject: [PATCH] wlan: Panic if there is a WDI timeout during SSR
+
+We have seen instances where the first WDI message (NV Download) from
+the host driver times out after SSR. A WDI timeout during SSR cannot be
+handled, so invoke panic to collect more logs on this failure.
+
+Change-Id: Ib59ec833297affddc83653da54c9b9faf6a4d7da
+CRs-Fixed: 537018
+---
+ CORE/HDD/src/wlan_hdd_early_suspend.c | 1 +
+ CORE/VOSS/src/vos_api.c               | 4 ++++
+ 2 files changed, 5 insertions(+)
+
+diff --git a/CORE/HDD/src/wlan_hdd_early_suspend.c b/CORE/HDD/src/wlan_hdd_early_suspend.c
+index 57c13b3..3595972 100644
+--- a/CORE/HDD/src/wlan_hdd_early_suspend.c
++++ b/CORE/HDD/src/wlan_hdd_early_suspend.c
+@@ -1750,6 +1750,7 @@ VOS_STATUS hdd_wlan_re_init(void)
+     /* Restart all adapters */
+    hdd_start_all_adapters(pHddCtx);
+    pHddCtx->isLogpInProgress = FALSE;
++   vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, FALSE);
+    pHddCtx->hdd_mcastbcast_filter_set = FALSE;
+    hdd_register_mcast_bcast_filter(pHddCtx);
+ 
+diff --git a/CORE/VOSS/src/vos_api.c b/CORE/VOSS/src/vos_api.c
+index 1931805..424887c 100644
+--- a/CORE/VOSS/src/vos_api.c
++++ b/CORE/VOSS/src/vos_api.c
+@@ -666,6 +666,10 @@ VOS_STATUS vos_start( v_CONTEXT_t vosContext )
+      }
+      VOS_ASSERT(0);
+      vos_event_reset( &(gpVosContext->wdaCompleteEvent) );
++     if (vos_is_logp_in_progress(VOS_MODULE_ID_VOSS, NULL))
++     {
++         VOS_BUG(0);
++     }
+      WDA_setNeedShutdown(vosContext);
+      return VOS_STATUS_E_FAILURE;
+   }
+-- 
+1.8.2.1
+
