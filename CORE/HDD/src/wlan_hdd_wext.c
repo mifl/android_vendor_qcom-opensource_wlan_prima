@@ -4235,6 +4235,14 @@ static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *i
     hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 #endif
 
+    if (NULL == WLAN_HDD_GET_CTX(pAdapter))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                                        "%s: HDD Context is NULL!", __func__);
+
+        return -EINVAL;
+    }
+
     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
@@ -5027,25 +5035,29 @@ static int iw_add_tspec(struct net_device *dev, struct iw_request_info *info,
        (tSpec.ts_info.up == SME_QOS_WMM_UP_NC))
    {
        tSpec.ts_info.psb = ((WLAN_HDD_GET_CTX(pAdapter))->cfg_ini->UapsdMask &
-                             SME_QOS_UAPSD_VO);
+                             SME_QOS_UAPSD_VO)? 1 : 0;
    }
    else if ((tSpec.ts_info.up == SME_QOS_WMM_UP_VI) ||
             (tSpec.ts_info.up == SME_QOS_WMM_UP_CL))
    {
        tSpec.ts_info.psb = ((WLAN_HDD_GET_CTX(pAdapter))->cfg_ini->UapsdMask &
-                             SME_QOS_UAPSD_VI);
+                             SME_QOS_UAPSD_VI) ? 1 : 0;
 
    }
    else if (tSpec.ts_info.up == SME_QOS_WMM_UP_BE)
    {
        tSpec.ts_info.psb = ((WLAN_HDD_GET_CTX(pAdapter))->cfg_ini->UapsdMask &
-                             SME_QOS_UAPSD_BE);
+                             SME_QOS_UAPSD_BE)? 1 : 0;
    }
    else if (tSpec.ts_info.up == SME_QOS_WMM_UP_BK)
    {
        tSpec.ts_info.psb = ((WLAN_HDD_GET_CTX(pAdapter))->cfg_ini->UapsdMask &
-                             SME_QOS_UAPSD_BK);
+                             SME_QOS_UAPSD_BK)? 1 : 0;
    }
+
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+             "%s:TS_INFO PSB %d UP %d !!!", __func__,
+             tSpec.ts_info.psb, tSpec.ts_info.up);
 
    tSpec.nominal_msdu_size = params[HDD_WLAN_WMM_PARAM_NOMINAL_MSDU_SIZE];
    tSpec.maximum_msdu_size = params[HDD_WLAN_WMM_PARAM_MAXIMUM_MSDU_SIZE];
@@ -6069,17 +6081,20 @@ void wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, v_U8_t set)
 {
     v_U8_t i;
     tpSirRcvFltMcAddrList pMulticastAddrs = NULL;
-    tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
+    tHalHandle hHal = NULL;
     hdd_context_t* pHddCtx = (hdd_context_t*)pAdapter->pHddCtx;
+
+    if (NULL == pHddCtx)
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR, FL("HDD CTX is NULL"));
+        return;
+    }
+
+    hHal = pHddCtx->hHal;
 
     if (NULL == hHal)
     {
         hddLog(VOS_TRACE_LEVEL_ERROR, FL("HAL Handle is NULL"));
-        return;
-    }
-    if (NULL == pHddCtx)
-    {
-        hddLog(VOS_TRACE_LEVEL_ERROR, FL("HDD CTX is NULL"));
         return;
     }
 
