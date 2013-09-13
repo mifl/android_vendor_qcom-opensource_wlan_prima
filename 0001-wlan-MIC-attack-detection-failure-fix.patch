@@ -1,0 +1,73 @@
+From 19ee136dcde2c8397c1b0306af5b871363863439 Mon Sep 17 00:00:00 2001
+From: Leo Chang <leochang@codeaurora.org>
+Date: Thu, 12 Sep 2013 18:19:30 -0700
+Subject: [PATCH] wlan: MIC attack detection failure fix
+
+Within MIC attack detection function,
+one of the argument is used not correct init value.
+As a result, that argument assigned as a junk value and
+MIC attack handle will return fail.
+This problem is regression introduced by DIAG support.
+
+Change-Id: I38200a14046d377f7c0a305e5c956a456ac23af4
+CRs-fixed: 539877
+---
+ CORE/SME/src/csr/csrApiRoam.c | 35 +++++++++++++++++++----------------
+ 1 file changed, 19 insertions(+), 16 deletions(-)
+
+diff --git a/CORE/SME/src/csr/csrApiRoam.c b/CORE/SME/src/csr/csrApiRoam.c
+index a037ba4..812674c 100644
+--- a/CORE/SME/src/csr/csrApiRoam.c
++++ b/CORE/SME/src/csr/csrApiRoam.c
+@@ -9013,6 +9013,24 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
+                 tpSirSmeMicFailureInd pMicInd = (tpSirSmeMicFailureInd)pSirMsg;
+                 tCsrRoamInfo roamInfo, *pRoamInfo = NULL;
+                 eCsrRoamResult result = eCSR_ROAM_RESULT_MIC_ERROR_UNICAST;
++
++                status = csrRoamGetSessionIdFromBSSID( pMac, (tCsrBssid *)pMicInd->bssId, &sessionId );
++                if( HAL_STATUS_SUCCESS( status ) )
++                {
++                    palZeroMemory(pMac->hHdd, &roamInfo, sizeof(tCsrRoamInfo));
++                    roamInfo.u.pMICFailureInfo = &pMicInd->info;
++                    pRoamInfo = &roamInfo;
++                    if(pMicInd->info.multicast)
++                    {
++                        result = eCSR_ROAM_RESULT_MIC_ERROR_GROUP;
++                    }
++                    else
++                    {
++                        result = eCSR_ROAM_RESULT_MIC_ERROR_UNICAST;
++                    }
++                    csrRoamCallCallback(pMac, sessionId, pRoamInfo, 0, eCSR_ROAM_MIC_ERROR_IND, result);
++                }
++
+ #ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
+                 {
+                     WLAN_VOS_DIAG_EVENT_DEF(secEvent, vos_event_wlan_security_payload_type);
+@@ -9035,22 +9053,7 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
+                     WLAN_VOS_DIAG_EVENT_REPORT(&secEvent, EVENT_WLAN_SECURITY);
+                 }
+ #endif//FEATURE_WLAN_DIAG_SUPPORT_CSR
+-                status = csrRoamGetSessionIdFromBSSID( pMac, (tCsrBssid *)pMicInd->bssId, &sessionId );
+-                if( HAL_STATUS_SUCCESS( status ) )
+-                {
+-                    palZeroMemory(pMac->hHdd, &roamInfo, sizeof(tCsrRoamInfo));
+-                    roamInfo.u.pMICFailureInfo = &pMicInd->info;
+-                    pRoamInfo = &roamInfo;
+-                    if(pMicInd->info.multicast)
+-                    {
+-                        result = eCSR_ROAM_RESULT_MIC_ERROR_GROUP;
+-                    }
+-                    else
+-                    {
+-                        result = eCSR_ROAM_RESULT_MIC_ERROR_UNICAST;
+-                    }
+-                    csrRoamCallCallback(pMac, sessionId, pRoamInfo, 0, eCSR_ROAM_MIC_ERROR_IND, result);
+-                }
++
+             }
+             break;
+         case eWNI_SME_WPS_PBC_PROBE_REQ_IND:
+-- 
+1.8.2
+
