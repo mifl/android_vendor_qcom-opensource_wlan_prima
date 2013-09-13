@@ -1,0 +1,108 @@
+From a2da5f370abf27e2627d5d0c12c327592c8c10a8 Mon Sep 17 00:00:00 2001
+From: Amar Singhal <asinghal@qca.qualcomm.com>
+Date: Tue, 13 Aug 2013 13:25:12 -0700
+Subject: [PATCH 1/2] wlan: restore filter setting on resume
+
+During suspend, the setting pHddCtx->configuredMcastBcastFilter is changed
+to reflect the setting done by the sme_ConfigureSuspendInd call. If the
+setting is not restored during resume, the next suspend won't configure the
+right setting. Therfore restore the setting on resume.
+
+Change-Id: Ie473ae53032a499600a8bf8d1d9ba66625a94cc0
+CRs-fixed: 499812
+---
+ CORE/HDD/inc/wlan_hdd_main.h          |  2 ++
+ CORE/HDD/src/wlan_hdd_assoc.c         |  8 ++++++--
+ CORE/HDD/src/wlan_hdd_early_suspend.c | 10 ++++++++--
+ 3 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/CORE/HDD/inc/wlan_hdd_main.h b/CORE/HDD/inc/wlan_hdd_main.h
+index a533b29..f56795e 100644
+--- a/CORE/HDD/inc/wlan_hdd_main.h
++++ b/CORE/HDD/inc/wlan_hdd_main.h
+@@ -1025,6 +1025,8 @@ struct hdd_context_s
+      * */
+     v_U8_t configuredMcastBcastFilter;
+ 
++    v_U8_t sus_res_mcastbcast_filter;
++
+     vos_timer_t hdd_p2p_go_conn_is_in_progress;
+ 
+ #ifdef FEATURE_WLAN_LPHB
+diff --git a/CORE/HDD/src/wlan_hdd_assoc.c b/CORE/HDD/src/wlan_hdd_assoc.c
+index 03aa6df..e4e3d16 100644
+--- a/CORE/HDD/src/wlan_hdd_assoc.c
++++ b/CORE/HDD/src/wlan_hdd_assoc.c
+@@ -2332,6 +2332,7 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
+     hdd_wext_state_t *pWextState = NULL;
+     hdd_station_ctx_t *pHddStaCtx = NULL;
+     VOS_STATUS status = VOS_STATUS_SUCCESS;
++    hdd_context_t *pHddCtx = NULL;
+ 
+     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+             "CSR Callback: status= %d result= %d roamID=%ld",
+@@ -2456,10 +2457,13 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
+                         "****eCSR_ROAM_DISASSOCIATED****");
+                 halStatus = hdd_DisConnectHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
+                 /* Check if Mcast/Bcast Filters are set, if yes clear the filters here */
+-                if ((WLAN_HDD_GET_CTX(pAdapter))->hdd_mcastbcast_filter_set == TRUE)
++                pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
++                if (pHddCtx->hdd_mcastbcast_filter_set == TRUE)
+                 {
++                    hdd_conf_mcastbcast_filter(pHddCtx, FALSE);
++                    pHddCtx->configuredMcastBcastFilter =
++                        pHddCtx->sus_res_mcastbcast_filter;
+ 
+-                    hdd_conf_mcastbcast_filter((WLAN_HDD_GET_CTX(pAdapter)), FALSE);
+                     (WLAN_HDD_GET_CTX(pAdapter))->hdd_mcastbcast_filter_set = FALSE;
+                 }
+ #ifdef WLAN_FEATURE_PACKET_FILTERING
+diff --git a/CORE/HDD/src/wlan_hdd_early_suspend.c b/CORE/HDD/src/wlan_hdd_early_suspend.c
+index 20510ce..4c04be3 100644
+--- a/CORE/HDD/src/wlan_hdd_early_suspend.c
++++ b/CORE/HDD/src/wlan_hdd_early_suspend.c
+@@ -848,6 +848,9 @@ static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
+     tpSirWlanSuspendParam wlanSuspendParam =
+       vos_mem_malloc(sizeof(tSirWlanSuspendParam));
+ 
++    pHddCtx->sus_res_mcastbcast_filter =
++        pHddCtx->configuredMcastBcastFilter;
++
+     if(NULL == wlanSuspendParam)
+     {
+         hddLog(VOS_TRACE_LEVEL_FATAL,
+@@ -913,6 +916,9 @@ static void hdd_conf_resume_ind(hdd_adapter_t *pAdapter)
+         pHddCtx->hdd_mcastbcast_filter_set = FALSE;
+     }
+ 
++    pHddCtx->configuredMcastBcastFilter =
++      pHddCtx->sus_res_mcastbcast_filter;
++
+ 
+ #ifdef WLAN_FEATURE_PACKET_FILTERING
+     /* Filer was applied during suspend inditication
+@@ -1065,7 +1071,6 @@ static void hdd_PowerStateChangedCB
+ )
+ {
+    hdd_context_t *pHddCtx = callbackContext;
+-   
+    /* if the driver was not in BMPS during early suspend,
+     * the dynamic DTIM is now updated at Riva */
+    if ((newState == BMPS) && pHddCtx->hdd_wlan_suspended
+@@ -1077,11 +1082,12 @@ static void hdd_PowerStateChangedCB
+    spin_lock(&pHddCtx->filter_lock);
+    if((newState == BMPS) &&  pHddCtx->hdd_wlan_suspended) {
+       spin_unlock(&pHddCtx->filter_lock);
++      pHddCtx->sus_res_mcastbcast_filter = pHddCtx->configuredMcastBcastFilter;
+       hdd_conf_mcastbcast_filter(pHddCtx, TRUE);
+       if(pHddCtx->hdd_mcastbcast_filter_set != TRUE)
+          hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Not able to set mcast/bcast filter ", __func__);
+    }
+-   else 
++   else
+       spin_unlock(&pHddCtx->filter_lock);
+ }
+ 
+-- 
+1.8.2.1
+
