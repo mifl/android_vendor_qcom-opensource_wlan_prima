@@ -1,0 +1,97 @@
+From 927178b86b30756286d0833ef5148bbb1f579a7e Mon Sep 17 00:00:00 2001
+From: Deepthi Gowri <deepthi@codeaurora.org>
+Date: Sun, 15 Sep 2013 23:37:11 +0530
+Subject: [PATCH] wlan: To get correct link speed while multiple clients are
+ there.
+
+When WFD client is connected, return the link speed for first
+client connected.
+
+CRs-Fixed: 533928
+Change-Id: I035cf7faf5b37694b82b23971d1d85165e07d4fb
+---
+ CORE/HDD/inc/wlan_hdd_softap_tx_rx.h | 10 ++++++++++
+ CORE/HDD/src/wlan_hdd_hostapd.c      | 21 +++++++++++++++++----
+ CORE/HDD/src/wlan_hdd_softap_tx_rx.c | 15 +++++++++++++++
+ 3 files changed, 42 insertions(+), 4 deletions(-)
+
+diff --git a/CORE/HDD/inc/wlan_hdd_softap_tx_rx.h b/CORE/HDD/inc/wlan_hdd_softap_tx_rx.h
+index ec4a80b..5168123 100644
+--- a/CORE/HDD/inc/wlan_hdd_softap_tx_rx.h
++++ b/CORE/HDD/inc/wlan_hdd_softap_tx_rx.h
+@@ -319,4 +319,14 @@ extern VOS_STATUS hdd_softap_change_STA_state( hdd_adapter_t *pAdapter, v_MACADD
+   =========================================================================== */
+ extern VOS_STATUS hdd_softap_GetStaId( hdd_adapter_t *pAdapter, v_MACADDR_t *pMacAddress, v_U8_t *staId);
+ 
++/**============================================================================
++  @brief hdd_softap_GetConnectedStaId - Helper function to get station Id of the connected device
++
++  @param pAdapter : [in] pointer to adapter context
++  @param staId    : [out] station id
++  @return         : VOS_STATUS_E_FAILURE if any errors encountered
++                  : VOS_STATUS_SUCCESS otherwise
++  =========================================================================== */
++extern VOS_STATUS hdd_softap_GetConnectedStaId( hdd_adapter_t *pAdapter, v_U8_t *staId);
++
+ #endif    // end #if !defined( WLAN_HDD_SOFTAP_TX_RX_H )
+diff --git a/CORE/HDD/src/wlan_hdd_hostapd.c b/CORE/HDD/src/wlan_hdd_hostapd.c
+index 17eb399..c3ed6d9 100644
+--- a/CORE/HDD/src/wlan_hdd_hostapd.c
++++ b/CORE/HDD/src/wlan_hdd_hostapd.c
+@@ -2635,13 +2635,26 @@ int iw_get_softap_linkspeed(struct net_device *dev,
+        return valid;
+    }
+ 
+-   if ( hdd_string_to_hex ((char *)wrqu->data.pointer, wrqu->data.length, macAddress ) )
++   hddLog(VOS_TRACE_LEVEL_INFO, "%s wrqu->data.length= %d\n", __func__, wrqu->data.length);
++   status = hdd_string_to_hex ((char *)wrqu->data.pointer, wrqu->data.length, macAddress );
++
++   if (!VOS_IS_STATUS_SUCCESS(status ))
+    {
+-      hddLog(VOS_TRACE_LEVEL_FATAL, FL("ERROR: Command not found"));
+-      return -EINVAL;
++      hddLog(VOS_TRACE_LEVEL_ERROR, FL("String to Hex conversion Failed"));
+    }
+ 
+-   status = hdd_softap_GetStaId(pHostapdAdapter, (v_MACADDR_t *)macAddress, (void *)(&staId));
++   /* If no mac address is passed and/or its length is less than 18,
++    * link speed for first connected client will be returned.
++    */
++   if (!VOS_IS_STATUS_SUCCESS(status ) || wrqu->data.length < 18)
++   {
++      status = hdd_softap_GetConnectedStaId(pHostapdAdapter, (void *)(&staId));
++   }
++   else
++   {
++      status = hdd_softap_GetStaId(pHostapdAdapter,
++                               (v_MACADDR_t *)macAddress, (void *)(&staId));
++   }
+ 
+    if (!VOS_IS_STATUS_SUCCESS(status))
+    {
+diff --git a/CORE/HDD/src/wlan_hdd_softap_tx_rx.c b/CORE/HDD/src/wlan_hdd_softap_tx_rx.c
+index 7326079..455d647 100644
+--- a/CORE/HDD/src/wlan_hdd_softap_tx_rx.c
++++ b/CORE/HDD/src/wlan_hdd_softap_tx_rx.c
+@@ -1696,3 +1696,18 @@ VOS_STATUS hdd_softap_GetStaId(hdd_adapter_t *pAdapter, v_MACADDR_t *pMacAddress
+     return VOS_STATUS_E_FAILURE;
+ }
+ 
++VOS_STATUS hdd_softap_GetConnectedStaId(hdd_adapter_t *pAdapter, v_U8_t *staId)
++{
++    v_U8_t i;
++
++    for (i = 0; i < WLAN_MAX_STA_COUNT; i++)
++    {
++        if (pAdapter->aStaInfo[i].isUsed)
++        {
++            *staId = i;
++            return VOS_STATUS_SUCCESS;
++        }
++    }
++
++    return VOS_STATUS_E_FAILURE;
++}
+-- 
+1.8.2
+
