@@ -1,0 +1,34 @@
+From 30aff1431e4396a55fd312d12fdea66e9a70e4e8 Mon Sep 17 00:00:00 2001
+From: Hardik Kantilal Patel <hkpatel@qti.qualcomm.com>
+Date: Thu, 19 Sep 2013 16:58:12 +0530
+Subject: [PATCH] wlan: Fix for FTM mode spin lock crash
+
+During Open adapter in FTM mode disable TX queue and initialize
+spin lock for each wmm access category
+
+Change-Id: Ie28d046046535564afd30182826ca9c71797c802
+CRs-Fixed: 547323
+---
+ CORE/HDD/src/wlan_hdd_main.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/CORE/HDD/src/wlan_hdd_main.c b/CORE/HDD/src/wlan_hdd_main.c
+index 334c389..0f66b00 100644
+--- a/CORE/HDD/src/wlan_hdd_main.c
++++ b/CORE/HDD/src/wlan_hdd_main.c
+@@ -3776,6 +3776,12 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
+          pAdapter->wdev.iftype = NL80211_IFTYPE_STATION;
+          pAdapter->device_mode = session_type;
+          status = hdd_register_interface( pAdapter, rtnl_held );
++
++         hdd_init_tx_rx( pAdapter );
++
++         //Stop the Interface TX queue.
++         netif_tx_disable(pAdapter->dev);
++         netif_carrier_off(pAdapter->dev);
+       }
+          break;
+       default:
+-- 
+1.8.2
+
