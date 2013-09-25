@@ -26,21 +26,24 @@
  *OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  *IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#if !defined _WLAN_NV_TEMPLATE_API_H
+#define  _WLAN_NV_TEMPLATE_API_H
 
-#ifndef _WLAN_HDD_DEBUGFS_H
-#define _WLAN_HDD_DEBUGFS_H
+#include "wlan_nv_types.h"
 
-#ifdef WLAN_OPEN_SOURCE
-VOS_STATUS hdd_debugfs_init(hdd_adapter_t *pAdapter);
-void hdd_debugfs_exit(hdd_context_t *pHddCtx);
-#else
-inline VOS_STATUS hdd_debugfs_init(hdd_adapter_t *pAdapter)
-{
-    return VOS_STATUS_SUCCESS;
-}
-inline void hdd_debugfs_exit(hdd_context_t *pHddCtx)
-{
-}
-#endif /* #ifdef WLAN_OPEN_SOURCE */
-#endif /* #ifndef _WLAN_HDD_DEBUGFS_H */
+/*
+* API Prototypes
+* These are meant to be exposed to outside applications
+*/
+//extern void writeNvData(void);
+//extern VOS_STATUS nvParser(tANI_U8 *pnvEncodedBuf, tANI_U32 nvReadBufSize, sHalNv *);
 
+/*
+* Parsing control bitmap
+*/
+#define _ABORT_WHEN_MISMATCH_MASK  0x00000001     /*set: abort when mismatch, clear: continue taking matched entries*/
+#define _IGNORE_THE_APPENDED_MASK  0x00000002     /*set: ignore, clear: take*/
+
+#define _FLAG_AND_ABORT(b)    (((b) & _ABORT_WHEN_MISMATCH_MASK) ? 1 : 0)
+
+#endif /*#if !defined(_WLAN_NV_TEMPLATE_API_H) */

@@ -26,21 +26,24 @@
  *OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  *IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#if !defined __WLAN_NV_TYPES_H
+#define __WLAN_NV_TYPES_H
 
-#ifndef _WLAN_HDD_DEBUGFS_H
-#define _WLAN_HDD_DEBUGFS_H
+#include "halLegacyPalTypes.h"
+#include "halCompiler.h"
+#include "vos_status.h"
+#include <linux/string.h>
 
-#ifdef WLAN_OPEN_SOURCE
-VOS_STATUS hdd_debugfs_init(hdd_adapter_t *pAdapter);
-void hdd_debugfs_exit(hdd_context_t *pHddCtx);
-#else
-inline VOS_STATUS hdd_debugfs_init(hdd_adapter_t *pAdapter)
-{
-    return VOS_STATUS_SUCCESS;
-}
-inline void hdd_debugfs_exit(hdd_context_t *pHddCtx)
-{
-}
-#endif /* #ifdef WLAN_OPEN_SOURCE */
-#endif /* #ifndef _WLAN_HDD_DEBUGFS_H */
+typedef char tANI_BOOL;
 
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+#define nul '\0'
+
+#endif

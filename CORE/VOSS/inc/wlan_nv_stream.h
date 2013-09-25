@@ -26,21 +26,32 @@
  *OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  *IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#if !defined _WLAN_NV_STREAM_H
+#define _WLAN_NV_STREAM_H
 
-#ifndef _WLAN_HDD_DEBUGFS_H
-#define _WLAN_HDD_DEBUGFS_H
+#include "wlan_nv_types.h"
 
-#ifdef WLAN_OPEN_SOURCE
-VOS_STATUS hdd_debugfs_init(hdd_adapter_t *pAdapter);
-void hdd_debugfs_exit(hdd_context_t *pHddCtx);
-#else
-inline VOS_STATUS hdd_debugfs_init(hdd_adapter_t *pAdapter)
-{
-    return VOS_STATUS_SUCCESS;
-}
-inline void hdd_debugfs_exit(hdd_context_t *pHddCtx)
-{
-}
-#endif /* #ifdef WLAN_OPEN_SOURCE */
-#endif /* #ifndef _WLAN_HDD_DEBUGFS_H */
+typedef tANI_U8 _NV_STREAM_BUF;
 
+typedef struct {
+   _NV_STREAM_BUF *dataBuf;
+   tANI_U32 currentIndex;
+   tANI_U32 totalLength;
+}_STREAM_BUF;
+
+extern _STREAM_BUF streamBuf;
+
+typedef enum {
+   RC_FAIL,
+   RC_SUCCESS,
+} _STREAM_RC;
+
+typedef enum {
+   STREAM_READ,
+   STREAM_WRITE,
+} _STREAM_OPERATION;
+
+_STREAM_RC nextStream (tANI_U32 *length, tANI_U8 *dataBuf);
+_STREAM_RC initReadStream ( tANI_U8 *readBuf, tANI_U32 length);
+
+#endif
