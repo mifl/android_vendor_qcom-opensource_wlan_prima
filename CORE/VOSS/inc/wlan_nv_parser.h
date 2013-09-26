@@ -26,21 +26,11 @@
  *OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  *IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#if !defined __WLAN_NV_PARSER_H
+#define __WLAN_NV_PARSER_H
 
-#ifndef _WLAN_HDD_DEBUGFS_H
-#define _WLAN_HDD_DEBUGFS_H
+#include <vos_status.h>
 
-#ifdef WLAN_OPEN_SOURCE
-VOS_STATUS hdd_debugfs_init(hdd_adapter_t *pAdapter);
-void hdd_debugfs_exit(hdd_context_t *pHddCtx);
-#else
-inline VOS_STATUS hdd_debugfs_init(hdd_adapter_t *pAdapter)
-{
-    return VOS_STATUS_SUCCESS;
-}
-inline void hdd_debugfs_exit(hdd_context_t *pHddCtx)
-{
-}
-#endif /* #ifdef WLAN_OPEN_SOURCE */
-#endif /* #ifndef _WLAN_HDD_DEBUGFS_H */
+VOS_STATUS nvParser(tANI_U8 *pnvEncodedBuf, tANI_U32 nvReadBufSize, sHalNv *);
 
+#endif
