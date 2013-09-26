@@ -1008,6 +1008,15 @@ struct hdd_context_s
 
     vos_timer_t hdd_p2p_go_conn_is_in_progress;
 
+    v_U8_t sus_res_mcastbcast_filter;
+#ifdef FEATURE_WLAN_LPHB
+    lphbEnableStruct  lphbEnableReq;
+#endif /* FEATURE_WLAN_LPHB */
+
+    v_BOOL_t sus_res_mcastbcast_filter_valid;
+
+    /* debugfs entry */
+    struct dentry *debugfs_phy;
 };
 
 
