@@ -1,0 +1,96 @@
+From 96fb59740ab57be91786981880cb7f869c9bbd68 Mon Sep 17 00:00:00 2001
+From: Madan Mohan Koyyalamudi <mkoyyala@qca.qualcomm.com>
+Date: Tue, 6 Aug 2013 22:45:43 +0530
+Subject: [PATCH] wlan: Correcting timeout value for event driver_crda_req.
+
+The driver is waiting on event 'driver_crda_req' for 3 seconds
+instead of 300ms. The function is expecting the the time in
+jiffies, so passing the time value in jiffies.
+Adding debug logs in case of timeout happens.
+
+CRs-Fixed: 524133
+Change-Id: Iad7a01bd2537d3bb15c73116c222f067378bafef
+---
+ CORE/HDD/src/wlan_hdd_cfg80211.c | 15 ++++++++++++---
+ CORE/HDD/src/wlan_hdd_main.c     |  1 +
+ CORE/VOSS/src/vos_nvitem.c       | 14 +++++++++++---
+ 3 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/CORE/HDD/src/wlan_hdd_cfg80211.c b/CORE/HDD/src/wlan_hdd_cfg80211.c
+index 4b7091f..6193915 100644
+--- a/CORE/HDD/src/wlan_hdd_cfg80211.c
++++ b/CORE/HDD/src/wlan_hdd_cfg80211.c
+@@ -762,13 +762,22 @@ int wlan_hdd_cfg80211_register(struct device *dev,
+ int wlan_hdd_get_crda_regd_entry(struct wiphy *wiphy, hdd_config_t *pCfg)
+ {
+    hdd_context_t *pHddCtx = wiphy_priv(wiphy);
++   int status;
++
+    if (memcmp(pCfg->crdaDefaultCountryCode,
+               CFG_CRDA_DEFAULT_COUNTRY_CODE_DEFAULT , 2) != 0)
+    {
+-      init_completion(&pHddCtx->driver_crda_req);
++      INIT_COMPLETION(pHddCtx->driver_crda_req);
+       regulatory_hint(wiphy, pCfg->crdaDefaultCountryCode);
+-      wait_for_completion_interruptible_timeout(&pHddCtx->driver_crda_req,
+-        CRDA_WAIT_TIME);
++      status = wait_for_completion_interruptible_timeout(
++              &pHddCtx->driver_crda_req,
++              msecs_to_jiffies(CRDA_WAIT_TIME));
++      if (!status)
++      {
++          hddLog(VOS_TRACE_LEVEL_ERROR,"%s: timeout waiting for CRDA REQ",
++                  __func__);
++      }
++
+       /* if the country is not found from current regulatory.bin,
+          fall back to world domain */
+       if (is_crda_regulatory_entry_valid() == VOS_FALSE)
+diff --git a/CORE/HDD/src/wlan_hdd_main.c b/CORE/HDD/src/wlan_hdd_main.c
+index afdd38f..410539a 100644
+--- a/CORE/HDD/src/wlan_hdd_main.c
++++ b/CORE/HDD/src/wlan_hdd_main.c
+@@ -5411,6 +5411,7 @@ int hdd_wlan_startup(struct device *dev )
+    init_completion(&pHddCtx->req_bmps_comp_var);
+    init_completion(&pHddCtx->scan_info.scan_req_completion_event);
+    init_completion(&pHddCtx->scan_info.abortscan_event_var);
++   init_completion(&pHddCtx->driver_crda_req);
+ 
+    hdd_list_init( &pHddCtx->hddAdapters, MAX_NUMBER_OF_ADAPTERS );
+ 
+diff --git a/CORE/VOSS/src/vos_nvitem.c b/CORE/VOSS/src/vos_nvitem.c
+index afda284..cb71219 100644
+--- a/CORE/VOSS/src/vos_nvitem.c
++++ b/CORE/VOSS/src/vos_nvitem.c
+@@ -772,6 +772,7 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
+    v_CONTEXT_t pVosContext = NULL;
+    hdd_context_t *pHddCtx = NULL;
+    struct wiphy *wiphy = NULL;
++   int status;
+    // sanity checks
+    if (NULL == pRegDomain)
+    {
+@@ -836,10 +837,17 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
+            }
+ 
+            wiphy = pHddCtx->wiphy;
+-           init_completion(&pHddCtx->driver_crda_req);
++           INIT_COMPLETION(pHddCtx->driver_crda_req);
+            regulatory_hint(wiphy, countryCode);
+-           wait_for_completion_interruptible_timeout(&pHddCtx->driver_crda_req,
+-               CRDA_WAIT_TIME);
++           status = wait_for_completion_interruptible_timeout(
++                   &pHddCtx->driver_crda_req,
++                   msecs_to_jiffies(CRDA_WAIT_TIME));
++           if (!status)
++           {
++               VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
++                       "%s: Timeout waiting for CRDA REQ", __func__);
++           }
++
+            if (crda_regulatory_run_time_entry_valid == VOS_TRUE)
+            {
+               VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO_HIGH,
+-- 
+1.8.2.1
+
