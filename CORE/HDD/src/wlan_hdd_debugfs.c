@@ -149,8 +149,8 @@ static ssize_t wcnss_patterngen_write(struct file *file,
     }
 
     /* Get command from user */
-    if (count <= MAX_USER_COMMAND_SIZE_FRAME)
-        cmd = vos_mem_malloc(count + 1);
+    if (count < MAX_USER_COMMAND_SIZE_FRAME)
+        cmd = vos_mem_malloc(count);
     else
     {
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
