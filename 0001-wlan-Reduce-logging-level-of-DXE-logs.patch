@@ -1,0 +1,30 @@
+From 0e56dd89ea0b988f060415faf7794f9ed7616fe4 Mon Sep 17 00:00:00 2001
+From: Gopichand Nakkala <gnakkala@qca.qualcomm.com>
+Date: Wed, 19 Jun 2013 21:50:26 +0530
+Subject: [PATCH] wlan: Reduce logging level of DXE logs
+
+Reduce logging level of some DXE logs to prvent
+watchdog bite
+
+Change-Id: Iedfe0618ecae5732a3ce2447c75ec4862ac2b1f5
+CRs-Fixed: 479479
+---
+ CORE/DXE/src/wlan_qct_dxe.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CORE/DXE/src/wlan_qct_dxe.c b/CORE/DXE/src/wlan_qct_dxe.c
+index ff2b5ed..017b6c1 100644
+--- a/CORE/DXE/src/wlan_qct_dxe.c
++++ b/CORE/DXE/src/wlan_qct_dxe.c
+@@ -2320,7 +2320,7 @@ static wpt_status dxeRXFrameReady
+        * Do not try reload driver at here*/
+       if(!(chStat & WLANDXE_CH_CTRL_EN_MASK))
+       {
+-         HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
++         HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
+                   "dxeRXFrameReady %s RING Wrapped, RX Free Low 0x%x",
+                   channelType[channelEntry->channelType], chStat);
+          /* This is not empty interrupt case
+-- 
+1.8.2.1
+
