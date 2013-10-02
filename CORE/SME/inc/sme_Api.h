@@ -2830,4 +2830,6 @@ VOS_STATUS sme_isSta_p2p_clientConnected(tHalHandle hHal);
   --------------------------------------------------------------------------*/
 void sme_enable_disable_split_scan (tHalHandle hHal, tANI_U8 nNumStaChan,
                                     tANI_U8 nNumP2PChan);
+
+void smeGetCommandQStatus( tHalHandle hHal );
 #endif //#if !defined( __SME_API_H )
