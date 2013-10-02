@@ -7717,7 +7717,9 @@ static int wlan_hdd_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *d
 
              /*delete the last PMKID cache in CSR*/
              if (eHAL_STATUS_SUCCESS !=
-                 sme_RoamDelPMKIDfromCache(halHandle, pAdapter->sessionId, pmksa->bssid))
+                 sme_RoamDelPMKIDfromCache(halHandle,
+                                           pAdapter->sessionId,
+                                           pBSSID))
              {
                 hddLog(VOS_TRACE_LEVEL_ERROR,"%s: cannot delete PMKSA %d CONTENT.",
                           __func__,PMKIDCacheIndex);
