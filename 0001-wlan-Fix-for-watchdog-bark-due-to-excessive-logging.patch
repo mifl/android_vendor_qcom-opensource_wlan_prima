@@ -1,0 +1,31 @@
+From 4cb49d5a2a796825d1097f6f492227fe6ff5e9ce Mon Sep 17 00:00:00 2001
+From: Mahesh A Saptasagar <c_msapta@qti.qualcomm.com>
+Date: Wed, 25 Sep 2013 16:20:07 +0530
+Subject: [PATCH] wlan: Fix for watchdog bark due to excessive logging.
+
+Reduce the log level from ERROR to INFO in function
+wlan_hdd_hard_start_xmit to avoid watchdog bark due
+to excessive logging.
+
+Change-Id: I14714422842c3b72ff6c3c6b67775b1a8fb2fea1
+CRs-Fixed: 542091
+---
+ CORE/HDD/src/wlan_hdd_tx_rx.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CORE/HDD/src/wlan_hdd_tx_rx.c b/CORE/HDD/src/wlan_hdd_tx_rx.c
+index 64d2926..470b2a1 100644
+--- a/CORE/HDD/src/wlan_hdd_tx_rx.c
++++ b/CORE/HDD/src/wlan_hdd_tx_rx.c
+@@ -547,7 +547,7 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+    ++pAdapter->hdd_stats.hddTxRxStats.txXmitCalled;
+ 
+    if (unlikely(netif_queue_stopped(dev))) {
+-       VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
++       VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                   "%s is called when netif TX is disabled", __func__);
+        return NETDEV_TX_BUSY;
+    }
+-- 
+1.8.2.1
+
