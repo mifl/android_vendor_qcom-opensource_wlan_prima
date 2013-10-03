@@ -1,0 +1,30 @@
+From b3cc2bf01596f5a73da7b7da179118b86be8ae42 Mon Sep 17 00:00:00 2001
+From: Mihir Shete <smihir@qti.qualcomm.com>
+Date: Sat, 28 Sep 2013 07:57:11 +0530
+Subject: [PATCH] wlan: Disable 11d hints from the core
+
+Advertise to the core that we do not want
+it to handle 11D for us
+
+Change-Id: I6252e287f37f62b7d76a2a8e7df391f8402ccce5
+CRs-Fixed: 542802
+---
+ CORE/HDD/src/wlan_hdd_cfg80211.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/CORE/HDD/src/wlan_hdd_cfg80211.c b/CORE/HDD/src/wlan_hdd_cfg80211.c
+index 50ca5b8..553d9c8 100644
+--- a/CORE/HDD/src/wlan_hdd_cfg80211.c
++++ b/CORE/HDD/src/wlan_hdd_cfg80211.c
+@@ -678,6 +678,8 @@ int wlan_hdd_cfg80211_register(struct device *dev,
+        regulatory settings */
+     wiphy->reg_notifier = wlan_hdd_crda_reg_notifier;
+ 
++    wiphy->flags |= WIPHY_FLAG_DISABLE_11D_HINT_FROM_CORE;
++
+     wiphy->max_scan_ssids = MAX_SCAN_SSID;
+ 
+     wiphy->max_scan_ie_len = SIR_MAC_MAX_IE_LENGTH;
+-- 
+1.8.2
+
