@@ -96,6 +96,10 @@
 #define SIR_MAX_24G_5G_CHANNEL_RANGE      166
 
 
+#ifdef FEATURE_WLAN_BATCH_SCAN
+#define SIR_MAX_SSID_SIZE (32)
+#endif
+
 
 #define SIR_NUM_11B_RATES 4   //1,2,5.5,11
 #define SIR_NUM_11A_RATES 8  //6,9,12,18,24,36,48,54
@@ -4380,5 +4384,217 @@ typedef struct sSirDelPeriodicTxPtrn
     /* Bitmap of pattern IDs that need to be deleted */
     tANI_U32 ucPatternIdBitmap;
 } tSirDelPeriodicTxPtrn, *tpSirDelPeriodicTxPtrn;
+
+typedef struct sSirRateUpdateInd
+{
+    /* 0 implies RA, positive value implies fixed rate, -1 implies ignore this
+     * param.
+     */
+    tANI_S32 ucastDataRate;
+
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags ucastDataRateTxFlag;
+
+    /* BSSID - Optional. 00-00-00-00-00-00 implies apply to all BCAST STAs */
+    tSirMacAddr bssid;
+
+    /*
+     * 0 implies MCAST RA, positive value implies fixed rate,
+     * -1 implies ignore this param
+     */
+    tANI_S32 reliableMcastDataRate;//unit Mbpsx10
+
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags reliableMcastDataRateTxFlag;
+
+    /*
+     * MCAST(or BCAST) fixed data rate in 2.4 GHz, unit Mbpsx10,
+     * 0 implies ignore
+     */
+    tANI_U32 mcastDataRate24GHz;
+
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags mcastDataRate24GHzTxFlag;
+
+    /*
+     * MCAST(or BCAST) fixed data rate in 5 GHz,
+     * unit Mbpsx10, 0 implies ignore
+     */
+    tANI_U32 mcastDataRate5GHz;
+
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags mcastDataRate5GHzTxFlag;
+
+} tSirRateUpdateInd, *tpSirRateUpdateInd;
+
+#if defined WLAN_FEATURE_RELIABLE_MCAST
+
+#define SIR_RMC_NUM_MAX_LEADERS  8  /* HAL_NUM_MAX_LEADERS */
+typedef struct sSirSetRMCReq
+{
+    tANI_U16       msgType;
+    tANI_U16       msgLen;
+    tSirMacAddr    mcastTransmitter;
+} tSirSetRMCReq, *tpSirSetRMCReq;
+
+typedef struct sSirRMCInfo
+{
+    tANI_U8       dialogToken;
+    tANI_U8       action;
+    tSirMacAddr   mcastLeader;
+} tSirRMCInfo, *tpSirRMCInfo;
+
+typedef struct sSirRmcLeaderSelectInd
+{
+    tANI_U16      status;
+    tSirMacAddr   mcastTransmitter;
+    tSirMacAddr   mcastGroup;
+    tSirMacAddr   leader[SIR_RMC_NUM_MAX_LEADERS];
+} tSirRmcLeaderSelectInd, *tpSirRmcLeaderSelectInd;
+
+typedef struct sSirRmcBecomeLeaderInd
+{
+    tANI_U16      status;
+    tSirMacAddr   mcastTransmitter;
+    tSirMacAddr   mcastGroup;
+} tSirRmcBecomeLeaderInd, *tpSirRmcBecomeLeaderInd;
+
+typedef struct sSirRmcLeaderReq
+{
+    // Common for all types are requests
+    tANI_U16      msgType; // message type is same as the request type
+    tANI_U16      msgLen;  // length of the entire request
+    tANI_U8       cmd;     // tLeaderReqCmdType
+    tSirMacAddr   mcastTransmitter;
+    tSirMacAddr   mcastGroup;
+    tSirMacAddr   blacklist[SIR_RMC_NUM_MAX_LEADERS];
+} tSirRmcLeaderReq, *tpSirRmcLeaderReq;
+
+typedef struct sSirRmcUpdateInd
+{
+    // Common for all types are requests
+    tANI_U16      msgType;    // message type is same as the request type
+    tANI_U16      msgLen;     // length of the entire request
+    tANI_U8       indication; // tLbpUpdateIndType
+    tANI_U8       role;       // tLbpRoleType
+    tSirMacAddr   mcastTransmitter;
+    tSirMacAddr   mcastGroup;
+    tSirMacAddr   mcastLeader;
+    tSirMacAddr   leader[SIR_RMC_NUM_MAX_LEADERS];
+} tSirRmcUpdateInd, *tpSirRmcUpdateInd;
+
+#endif /* WLAN_FEATURE_RELIABLE_MCAST */
+
+#ifdef FEATURE_CESIUM_PROPRIETARY
+/*---------------------------------------------------------------------------
+* tSirIbssGetPeerInfoReqParams
+*--------------------------------------------------------------------------*/
+typedef struct
+{
+    tANI_BOOLEAN    allPeerInfoReqd; // If set, all IBSS peers stats are reported
+    tANI_U8         staIdx;          // If allPeerInfoReqd is not set, only stats
+                                     // of peer with staIdx is reported
+}tSirIbssGetPeerInfoReqParams, *tpSirIbssGetPeerInfoReqParams;
+
+/*---------------------------------------------------------------------------
+* tSirIbssGetPeerInfoParams
+*--------------------------------------------------------------------------*/
+typedef struct
+{
+   tANI_U8  staIdx;      //StaIdx
+   tANI_U32 txRate;       //Tx Rate
+   tANI_U32 mcsIndex;    //MCS Index
+   tANI_U32 txRateFlags; //TxRate Flags
+   tANI_S8  rssi;        //RSSI
+}tSirIbssPeerInfoParams;
+
+typedef struct
+{
+   tANI_U32   status;
+   tANI_U8    numPeers;
+   tSirIbssPeerInfoParams  peerInfoParams[32];
+}tSirPeerInfoRspParams, *tpSirIbssPeerInfoRspParams;
+
+/*---------------------------------------------------------------------------
+* tSirIbssGetPeerInfoRspParams
+*--------------------------------------------------------------------------*/
+typedef struct
+{
+   tANI_U16   mesgType;
+   tANI_U16   mesgLen;
+   tSirPeerInfoRspParams ibssPeerInfoRspParams;
+} tSirIbssGetPeerInfoRspParams, *tpSirIbssGetPeerInfoRspParams;
+#endif /* FEATURE_CESIUM_PROPRIETARY */
+
+#ifdef FEATURE_WLAN_BATCH_SCAN
+// Set batch scan resposne from FW
+typedef struct
+{
+  /*maximum number of scans which FW can cache*/
+  tANI_U32 nScansToBatch;
+} tSirSetBatchScanRsp, *tpSirSetBatchScanRsp;
+
+// Set batch scan request to FW
+typedef struct
+{
+    tANI_U32 scanFrequency;        /* how frequent to do scan - default 30Sec*/
+    tANI_U32 numberOfScansToBatch; /* number of scans to batch */
+    tANI_U32 bestNetwork;          /* best networks in terms of rssi */
+    tANI_U8  rfBand;               /* band to scan :
+                                      0 ->both Band, 1->2.4Ghz Only
+                                      and 2-> 5GHz Only */
+    tANI_U32 rtt;                  /* set if required to do RTT it is not
+                                      supported in current version */
+} tSirSetBatchScanReq, *tpSirSetBatchScanReq;
+
+
+// Stop batch scan request to FW
+typedef struct
+{
+    tANI_U32 param;
+} tSirStopBatchScanInd, *tpSirStopBatchScanInd;
+
+// Trigger batch scan result indication to FW
+typedef struct
+{
+    tANI_U32 param;
+} tSirTriggerBatchScanResultInd, *tpSirTriggerBatchScanResultInd;
+
+// Batch scan result indication from FW
+typedef PACKED_PRE struct PACKED_POST
+{
+    tANI_U8   bssid[6];     /* BSSID */
+    tANI_U8   ssid[32];     /* SSID */
+    tANI_U8   ch;           /* Channel */
+    tANI_U8   rssi;         /* RSSI or Level */
+    /*Timestamp when Network was found. Used to calculate age based on timestamp
+      in GET_RSP msg header */
+    tANI_U32  timestamp;
+} tSirBatchScanNetworkInfo, *tpSirBatchScanNetworkInfo;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tANI_U32   scanId; /* Scan List ID. */
+    /*No of AP in a Scan Result. Should be same as bestNetwork in SET_REQ msg*/
+    tANI_U32   numNetworksInScanList;
+    /*Variable data ptr: Number of AP in Scan List*/
+    /*Following numNetworkInScanList is data of type tSirBatchScanNetworkInfo
+     *of sizeof(tSirBatchScanNetworkInfo) * numNetworkInScanList */
+    tANI_U8    scanList[1];
+} tSirBatchScanList, *tpSirBatchScanList;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tANI_U32      timestamp;
+    tANI_U32      numScanLists;
+    boolean       isLastResult;
+    /* Variable Data ptr: Number of Scan Lists*/
+    /* following isLastResult is data of type tSirBatchScanList
+     * of sizeof(tSirBatchScanList) * numScanLists*/
+    tANI_U8       scanResults[1];
+}  tSirBatchScanResultIndParam, *tpSirBatchScanResultIndParam;
+
+#endif // FEATURE_WLAN_BATCH_SCAN
+
 
 #endif /* __SIR_API_H */
