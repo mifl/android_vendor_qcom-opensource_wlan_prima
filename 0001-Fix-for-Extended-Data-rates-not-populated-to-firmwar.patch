@@ -1,0 +1,33 @@
+From 645f8619360e140daf16145d67c3945fc32aac6b Mon Sep 17 00:00:00 2001
+From: Leela Venkata Kiran Kumar Reddy Chirala <kchirala@qca.qualcomm.com>
+Date: Thu, 3 Oct 2013 14:30:53 -0700
+Subject: [PATCH] Fix for Extended Data rates not populated to firmware
+
+for 11n and 11a modes the extended rates from beacon are not
+populated from host to firmware.this commit populates the extended
+rates to fimware
+
+Change-Id: Iebfaaaeee7e67ce22a4daab196d16fef5e287f5c
+CRs-fixed: 553952
+---
+ CORE/MAC/src/pe/lim/limAssocUtils.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/CORE/MAC/src/pe/lim/limAssocUtils.c b/CORE/MAC/src/pe/lim/limAssocUtils.c
+index a86ae76..afd0277 100644
+--- a/CORE/MAC/src/pe/lim/limAssocUtils.c
++++ b/CORE/MAC/src/pe/lim/limAssocUtils.c
+@@ -1833,7 +1833,9 @@ limPopulatePeerRateSet(tpAniSirGlobal pMac,
+         limLog(pMac, LOGE, FL("more than SIR_MAC_RATESET_EID_MAX rates\n"));
+         goto error;
+     }
+-    if (psessionEntry->dot11mode == WNI_CFG_PHY_MODE_11G)
++    if ((psessionEntry->dot11mode == WNI_CFG_DOT11_MODE_11G) ||
++        (psessionEntry->dot11mode == WNI_CFG_DOT11_MODE_11A) ||
++        (psessionEntry->dot11mode == WNI_CFG_DOT11_MODE_11N))
+     {
+         if (psessionEntry->extRateSet.numRates < SIR_MAC_RATESET_EID_MAX)
+         {
+-- 
+1.8.2.1
+
