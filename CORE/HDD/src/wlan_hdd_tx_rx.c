@@ -562,7 +562,6 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
    v_BOOL_t granted;
    v_U8_t STAId = WLAN_MAX_STA_COUNT;
    hdd_station_ctx_t *pHddStaCtx = &pAdapter->sessionCtx.station;
-   
    v_BOOL_t txSuspended = VOS_FALSE;
 
    ++pAdapter->hdd_stats.hddTxRxStats.txXmitCalled;
@@ -574,10 +573,23 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
        return NETDEV_TX_BUSY;
    }
 
-   if (WLAN_HDD_IBSS == pAdapter->device_mode &&
-       eConnectionState_IbssConnected == pHddStaCtx->conn_info.connState)
+   //Get TL AC corresponding to Qdisc queue index/AC.
+   ac = hdd_QdiscAcToTlAC[skb->queue_mapping];
+
+   if (WLAN_HDD_IBSS == pAdapter->device_mode)
    {
       v_MACADDR_t *pDestMacAddress = (v_MACADDR_t*)skb->data;
+
+      if (eConnectionState_IbssConnected != pHddStaCtx->conn_info.connState)
+      {
+         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                   "%s: Tx frame in disconnected state in IBSS mode", __func__);
+         ++pAdapter->stats.tx_dropped;
+         ++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
+         ++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
+         kfree_skb(skb);
+         return NETDEV_TX_OK;
+      }
 
       STAId = *(v_U8_t *)(((v_U8_t *)(skb->data)) - 1);
 
@@ -591,10 +603,11 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
       }
       else if (STAId == HDD_WLAN_INVALID_STA_ID)
       {
-         VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_WARN,
-                    "%s: Received Unicast frame with invalid staID", __func__);
+         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                   "%s: Received Unicast frame with invalid staID", __func__);
          ++pAdapter->stats.tx_dropped;
          ++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
+         ++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
          kfree_skb(skb);
          return NETDEV_TX_OK;
       }
@@ -603,8 +616,6 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
    {
       STAId = pHddStaCtx->conn_info.staId[0];
    }
-   //Get TL AC corresponding to Qdisc queue index/AC.
-   ac = hdd_QdiscAcToTlAC[skb->queue_mapping];
 
    //user priority from IP header, which is already extracted and set from
    //select_queue call back function
@@ -636,6 +647,9 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
          VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                     "%s: WLANTL_STAPktPending() returned error code %d",
                     __func__, status);
+         ++pAdapter->stats.tx_dropped;
+         ++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
+         ++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
          kfree_skb(skb);
          spin_unlock(&pAdapter->wmm_tx_queue[ac].lock);
          return NETDEV_TX_OK;
@@ -644,12 +658,29 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
    //If we have already reached the max queue size, disable the TX queue
    if ( pAdapter->wmm_tx_queue[ac].count == pAdapter->wmm_tx_queue[ac].max_size)
    {
-      ++pAdapter->hdd_stats.hddTxRxStats.txXmitBackPressured;
-      ++pAdapter->hdd_stats.hddTxRxStats.txXmitBackPressuredAC[ac];
-
-      netif_tx_stop_queue(netdev_get_tx_queue(dev, skb_get_queue_mapping(skb)));
-      pAdapter->isTxSuspended[ac] = VOS_TRUE;
-      txSuspended = VOS_TRUE;
+      if (WLAN_HDD_IBSS != pAdapter->device_mode)
+      {
+         ++pAdapter->hdd_stats.hddTxRxStats.txXmitBackPressured;
+         ++pAdapter->hdd_stats.hddTxRxStats.txXmitBackPressuredAC[ac];
+         netif_tx_stop_queue(netdev_get_tx_queue(dev, skb_get_queue_mapping(skb)));
+         pAdapter->isTxSuspended[ac] = VOS_TRUE;
+         txSuspended = VOS_TRUE;
+      }
+      else
+      {
+         /* In IBSS when a IBSS peer departs, there is no explicit
+            DEAUTH/DISASSOC to detect peer has left the N/W. The only way to
+            detect peer leaving is via heartbeat which is of the order of few
+            seconds. Hence do not back pressure during IBSS as one peer leaving
+            can potentially throttle traffic for other peers in the N/W
+         */
+         ++pAdapter->stats.tx_dropped;
+         ++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
+         ++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
+         kfree_skb(skb);
+         spin_unlock(&pAdapter->wmm_tx_queue[ac].lock);
+         return NETDEV_TX_OK;
+      }
    }
 
    /* If 3/4th of the max queue size is used then enable the flag.
