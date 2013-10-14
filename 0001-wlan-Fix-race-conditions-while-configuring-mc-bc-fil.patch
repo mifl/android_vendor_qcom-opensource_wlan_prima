@@ -1,0 +1,184 @@
+From 6ec836dc9ac36e986920631304e3b3dfcf13dd27 Mon Sep 17 00:00:00 2001
+From: Amar Singhal <asinghal@qca.qualcomm.com>
+Date: Thu, 26 Sep 2013 11:03:45 -0700
+Subject: [PATCH] wlan: Fix race conditions while configuring mc/bc filter
+
+multicast/broadcast filter is configured when the device goes into
+suspend. Fix race conditions that can occur while configuring the filter.
+
+Change-Id: I90aa40cf67b7335222adadc1aac821427100ab42
+CRs-Fixed: 540698
+---
+ CORE/HDD/inc/wlan_hdd_main.h          |  9 ++++++
+ CORE/HDD/src/wlan_hdd_assoc.c         | 17 ++++++++++--
+ CORE/HDD/src/wlan_hdd_cfg80211.c      |  3 ++
+ CORE/HDD/src/wlan_hdd_early_suspend.c | 52 ++++++++++++++++++++++++++++++-----
+ 4 files changed, 71 insertions(+), 10 deletions(-)
+
+diff --git a/CORE/HDD/inc/wlan_hdd_main.h b/CORE/HDD/inc/wlan_hdd_main.h
+index 3603dd8..6348709 100644
+--- a/CORE/HDD/inc/wlan_hdd_main.h
++++ b/CORE/HDD/inc/wlan_hdd_main.h
+@@ -1008,6 +1008,15 @@ struct hdd_context_s
+ 
+     vos_timer_t hdd_p2p_go_conn_is_in_progress;
+ 
++    v_U8_t sus_res_mcastbcast_filter;
++#ifdef FEATURE_WLAN_LPHB
++    lphbEnableStruct  lphbEnableReq;
++#endif /* FEATURE_WLAN_LPHB */
++
++    v_BOOL_t sus_res_mcastbcast_filter_valid;
++
++    /* debugfs entry */
++    struct dentry *debugfs_phy;
+ };
+ 
+ 
+diff --git a/CORE/HDD/src/wlan_hdd_assoc.c b/CORE/HDD/src/wlan_hdd_assoc.c
+index 20bba5b..b819d05 100644
+--- a/CORE/HDD/src/wlan_hdd_assoc.c
++++ b/CORE/HDD/src/wlan_hdd_assoc.c
+@@ -2332,6 +2332,7 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
+     hdd_wext_state_t *pWextState = NULL;
+     hdd_station_ctx_t *pHddStaCtx = NULL;
+     VOS_STATUS status = VOS_STATUS_SUCCESS;
++    hdd_context_t *pHddCtx = NULL;
+ 
+     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+             "CSR Callback: status= %d result= %d roamID=%ld",
+@@ -2455,10 +2456,20 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
+                         "****eCSR_ROAM_DISASSOCIATED****");
+                 halStatus = hdd_DisConnectHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
+                 /* Check if Mcast/Bcast Filters are set, if yes clear the filters here */
+-                if ((WLAN_HDD_GET_CTX(pAdapter))->hdd_mcastbcast_filter_set == TRUE)
++                pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
++                if (pHddCtx->hdd_mcastbcast_filter_set == TRUE)
+                 {
+-
+-                    hdd_conf_mcastbcast_filter((WLAN_HDD_GET_CTX(pAdapter)), FALSE);
++                    hdd_conf_mcastbcast_filter(pHddCtx, FALSE);
++                    pHddCtx->configuredMcastBcastFilter =
++                        pHddCtx->sus_res_mcastbcast_filter;
++                    pHddCtx->sus_res_mcastbcast_filter_valid = VOS_FALSE;
++
++                    hddLog(VOS_TRACE_LEVEL_INFO,
++                           "offload: disassociation happening, restoring configuredMcastBcastFilter");
++                    hddLog(VOS_TRACE_LEVEL_INFO,"McastBcastFilter = %d",
++                           pHddCtx->configuredMcastBcastFilter);
++                    hddLog(VOS_TRACE_LEVEL_INFO,
++                           "offload: already called mcastbcast filter");
+                     (WLAN_HDD_GET_CTX(pAdapter))->hdd_mcastbcast_filter_set = FALSE;
+                 }
+ #ifdef WLAN_FEATURE_PACKET_FILTERING
+diff --git a/CORE/HDD/src/wlan_hdd_cfg80211.c b/CORE/HDD/src/wlan_hdd_cfg80211.c
+index 4b7091f..9b44f72 100644
+--- a/CORE/HDD/src/wlan_hdd_cfg80211.c
++++ b/CORE/HDD/src/wlan_hdd_cfg80211.c
+@@ -6755,6 +6755,9 @@ static int wlan_hdd_cfg80211_set_power_mgmt(struct wiphy *wiphy,
+         (eConnectionState_Associated ==
+              (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState))
+     {
++
++        hddLog(VOS_TRACE_LEVEL_INFO,
++               "offload: in cfg80211_set_power_mgmt, calling arp offload");
+         vos_status = hdd_conf_arp_offload(pAdapter, TRUE);
+         if (!VOS_IS_STATUS_SUCCESS(vos_status))
+         {
+diff --git a/CORE/HDD/src/wlan_hdd_early_suspend.c b/CORE/HDD/src/wlan_hdd_early_suspend.c
+index c5f26c6..2eda00a 100644
+--- a/CORE/HDD/src/wlan_hdd_early_suspend.c
++++ b/CORE/HDD/src/wlan_hdd_early_suspend.c
+@@ -714,15 +714,21 @@ VOS_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, v_BOOL_t fenable)
+ 
+            hddLog(VOS_TRACE_LEVEL_INFO, "%s: Enabled \n", __func__);
+ 
+-           if((HDD_MCASTBCASTFILTER_FILTER_ALL_BROADCAST ==
+-              pHddCtx->configuredMcastBcastFilter) ||
+-              (HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST_BROADCAST ==
+-              pHddCtx->configuredMcastBcastFilter))
++           if (((HDD_MCASTBCASTFILTER_FILTER_ALL_BROADCAST ==
++                pHddCtx->sus_res_mcastbcast_filter) ||
++               (HDD_MCASTBCASTFILTER_FILTER_ALL_MULTICAST_BROADCAST ==
++                pHddCtx->sus_res_mcastbcast_filter)) &&
++               (VOS_TRUE == pHddCtx->sus_res_mcastbcast_filter_valid))
+            {
+                offLoadRequest.enableOrDisable =
+-               SIR_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE;
++                   SIR_OFFLOAD_ARP_AND_BCAST_FILTER_ENABLE;
++               hddLog(VOS_TRACE_LEVEL_INFO,
++                      "offload: inside arp offload conditional check");
+            }
+-           
++
++           hddLog(VOS_TRACE_LEVEL_INFO, "offload: arp filter programmed = %d",
++                  offLoadRequest.enableOrDisable);
++
+            //converting u32 to IPV4 address
+            for(i = 0 ; i < 4; i++)
+            {
+@@ -848,6 +854,17 @@ static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
+     tpSirWlanSuspendParam wlanSuspendParam =
+       vos_mem_malloc(sizeof(tSirWlanSuspendParam));
+ 
++    if (VOS_FALSE == pHddCtx->sus_res_mcastbcast_filter_valid) {
++        pHddCtx->sus_res_mcastbcast_filter =
++            pHddCtx->configuredMcastBcastFilter;
++        pHddCtx->sus_res_mcastbcast_filter_valid = VOS_TRUE;
++        hddLog(VOS_TRACE_LEVEL_INFO, "offload: hdd_conf_suspend_ind");
++        hddLog(VOS_TRACE_LEVEL_INFO, "configuredMCastBcastFilter saved = %d",
++               pHddCtx->configuredMcastBcastFilter);
++
++    }
++
++
+     if(NULL == wlanSuspendParam)
+     {
+         hddLog(VOS_TRACE_LEVEL_FATAL,
+@@ -855,7 +872,7 @@ static void hdd_conf_suspend_ind(hdd_context_t* pHddCtx,
+         return;
+     }
+ 
+-    hddLog(VOS_TRACE_LEVEL_INFO, 
++    hddLog(VOS_TRACE_LEVEL_INFO,
+       "%s: send wlan suspend indication", __func__);
+ 
+     if((pHddCtx->cfg_ini->nEnableSuspend == WLAN_MAP_SUSPEND_TO_MCAST_BCAST_FILTER))
+@@ -913,6 +930,14 @@ static void hdd_conf_resume_ind(hdd_adapter_t *pAdapter)
+         pHddCtx->hdd_mcastbcast_filter_set = FALSE;
+     }
+ 
++    pHddCtx->configuredMcastBcastFilter =
++      pHddCtx->sus_res_mcastbcast_filter;
++    pHddCtx->sus_res_mcastbcast_filter_valid = VOS_FALSE;
++
++    hddLog(VOS_TRACE_LEVEL_INFO,
++           "offload: in hdd_conf_resume_ind, restoring configuredMcastBcastFilter");
++    hddLog(VOS_TRACE_LEVEL_INFO, "configuredMcastBcastFilter = %d",
++                  pHddCtx->configuredMcastBcastFilter);
+ 
+ #ifdef WLAN_FEATURE_PACKET_FILTERING
+     /* Filer was applied during suspend inditication
+@@ -1038,6 +1063,19 @@ static void hdd_PowerStateChangedCB
+    spin_lock(&pHddCtx->filter_lock);
+    if((newState == BMPS) &&  pHddCtx->hdd_wlan_suspended) {
+       spin_unlock(&pHddCtx->filter_lock);
++      if (VOS_FALSE == pHddCtx->sus_res_mcastbcast_filter_valid) {
++          pHddCtx->sus_res_mcastbcast_filter =
++              pHddCtx->configuredMcastBcastFilter;
++          pHddCtx->sus_res_mcastbcast_filter_valid = VOS_TRUE;
++
++          hddLog(VOS_TRACE_LEVEL_INFO, "offload: callback to associated");
++          hddLog(VOS_TRACE_LEVEL_INFO, "saving configuredMcastBcastFilter = %d",
++                 pHddCtx->configuredMcastBcastFilter);
++          hddLog(VOS_TRACE_LEVEL_INFO,
++                 "offload: calling hdd_conf_mcastbcast_filter");
++
++      }
++
+       hdd_conf_mcastbcast_filter(pHddCtx, TRUE);
+       if(pHddCtx->hdd_mcastbcast_filter_set != TRUE)
+          hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Not able to set mcast/bcast filter ", __func__);
+-- 
+1.8.2.1
+
