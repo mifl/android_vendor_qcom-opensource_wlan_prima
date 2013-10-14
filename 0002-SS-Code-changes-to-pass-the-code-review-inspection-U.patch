@@ -1,0 +1,210 @@
+From e2bd0aa43c3a1bfd5690c6126c0bfc8c5bace53d Mon Sep 17 00:00:00 2001
+From: Praveen Kumar Sirisilla <c_pksiri@qca.qualcomm.com>
+Date: Thu, 10 Oct 2013 17:20:48 -0700
+Subject: [PATCH 2/2] SS Code changes to pass the code review inspection [UMAC}
+ changes
+
+The patch modifies UMAC code to pass the SS code review inspection
+
+Change-Id: Id527265f0e3ed33a03ab242a3e0afec069487269
+CRs-Fixed: 555476
+---
+ CORE/BAP/src/bapApiLinkCntl.c        |  2 +-
+ CORE/MAC/src/pe/lim/limAssocUtils.c  |  7 ++++---
+ CORE/MAC/src/pe/lim/limProcessTdls.c |  1 +
+ CORE/MAC/src/pe/pmm/pmmApi.c         | 10 ++++++----
+ CORE/SME/src/QoS/sme_Qos.c           | 13 ++++++++++++-
+ CORE/SME/src/csr/csrApiRoam.c        |  8 +++++++-
+ CORE/SME/src/csr/csrApiScan.c        |  2 +-
+ CORE/SME/src/csr/csrNeighborRoam.c   | 23 +++++++++++------------
+ 8 files changed, 43 insertions(+), 23 deletions(-)
+
+diff --git a/CORE/BAP/src/bapApiLinkCntl.c b/CORE/BAP/src/bapApiLinkCntl.c
+index b8ae3c5..fa96812 100644
+--- a/CORE/BAP/src/bapApiLinkCntl.c
++++ b/CORE/BAP/src/bapApiLinkCntl.c
+@@ -1572,7 +1572,7 @@ WLAN_BAPLogicalLinkDisconnect
+     /* Derive logical link index from handle */
+     log_link_index = ((pBapHCILogLinkDisconnect->log_link_handle) >> 8);
+ 
+-    if( log_link_index > WLANBAP_MAX_LOG_LINKS )
++    if( log_link_index >= WLANBAP_MAX_LOG_LINKS )
+     {
+        VOS_TRACE( VOS_MODULE_ID_BAP, VOS_TRACE_LEVEL_ERROR, 
+                   "Critical error: Invalid input parameter on %s", 
+diff --git a/CORE/MAC/src/pe/lim/limAssocUtils.c b/CORE/MAC/src/pe/lim/limAssocUtils.c
+index a86ae76..6f904d9 100644
+--- a/CORE/MAC/src/pe/lim/limAssocUtils.c
++++ b/CORE/MAC/src/pe/lim/limAssocUtils.c
+@@ -1823,7 +1823,7 @@ limPopulatePeerRateSet(tpAniSirGlobal pMac,
+     isArate = 0;
+ 
+     /* copy operational rate set from psessionEntry */
+-    if ( psessionEntry->rateSet.numRates < SIR_MAC_RATESET_EID_MAX )
++    if ( psessionEntry->rateSet.numRates <= SIR_MAC_RATESET_EID_MAX )
+     {
+         palCopyMemory(pMac->hHdd,(tANI_U8 *)tempRateSet.rate,(tANI_U8*)(psessionEntry->rateSet.rate), psessionEntry->rateSet.numRates);
+         tempRateSet.numRates = psessionEntry->rateSet.numRates;
+@@ -1835,7 +1835,8 @@ limPopulatePeerRateSet(tpAniSirGlobal pMac,
+     }
+     if (psessionEntry->dot11mode == WNI_CFG_PHY_MODE_11G)
+     {
+-        if (psessionEntry->extRateSet.numRates < SIR_MAC_RATESET_EID_MAX)
++
++        if (psessionEntry->extRateSet.numRates <= SIR_MAC_RATESET_EID_MAX)
+         {
+             palCopyMemory(pMac->hHdd,(tANI_U8 *)tempRateSet2.rate, (tANI_U8*)(psessionEntry->extRateSet.rate), psessionEntry->extRateSet.numRates);
+             tempRateSet2.numRates = psessionEntry->extRateSet.numRates;
+@@ -1847,7 +1848,7 @@ limPopulatePeerRateSet(tpAniSirGlobal pMac,
+     }
+     else
+         tempRateSet2.numRates = 0;
+-    if ((tempRateSet.numRates + tempRateSet2.numRates) > 12)
++    if ((tempRateSet.numRates + tempRateSet2.numRates) > SIR_MAC_RATESET_EID_MAX)
+     {
+         //we are in big trouble
+         limLog(pMac, LOGP, FL("more than 12 rates in CFG"));
+diff --git a/CORE/MAC/src/pe/lim/limProcessTdls.c b/CORE/MAC/src/pe/lim/limProcessTdls.c
+index 1f515c8..684dadc 100644
+--- a/CORE/MAC/src/pe/lim/limProcessTdls.c
++++ b/CORE/MAC/src/pe/lim/limProcessTdls.c
+@@ -2522,6 +2522,7 @@ limTdlsPopulateMatchingRateSet(tpAniSirGlobal pMac,
+     {
+         /// Could not get rateset from CFG. Log error.
+         limLog(pMac, LOGP, FL("could not retrieve rateset"));
++        val = 0;
+     }
+     tempRateSet.numRates = val;
+ 
+diff --git a/CORE/MAC/src/pe/pmm/pmmApi.c b/CORE/MAC/src/pe/pmm/pmmApi.c
+index 7e2cf7f..4abb68f 100644
+--- a/CORE/MAC/src/pe/pmm/pmmApi.c
++++ b/CORE/MAC/src/pe/pmm/pmmApi.c
+@@ -320,10 +320,6 @@ void pmmExitBmpsRequestHandler(tpAniSirGlobal pMac, tpExitBmpsInfo pExitBmpsInfo
+ 
+     tPmmState origState = pMac->pmm.gPmmState;
+ 
+-#ifdef FEATURE_WLAN_DIAG_SUPPORT 
+-    limDiagEventReport(pMac, WLAN_PE_DIAG_EXIT_BMPS_REQ_EVENT, peGetValidPowerSaveSession(pMac), 0, (tANI_U16)pExitBmpsInfo->exitBmpsReason);
+-#endif //FEATURE_WLAN_DIAG_SUPPORT
+-
+     if (NULL == pExitBmpsInfo)
+     {
+         respStatus = eSIR_SME_BMPS_REQ_REJECT;
+@@ -331,6 +327,12 @@ void pmmExitBmpsRequestHandler(tpAniSirGlobal pMac, tpExitBmpsInfo pExitBmpsInfo
+         goto failure;
+     }
+ 
++#ifdef FEATURE_WLAN_DIAG_SUPPORT
++    limDiagEventReport(pMac, WLAN_PE_DIAG_EXIT_BMPS_REQ_EVENT,
++                       peGetValidPowerSaveSession(pMac), 0,
++                       (tANI_U16)pExitBmpsInfo->exitBmpsReason);
++#endif //FEATURE_WLAN_DIAG_SUPPORT
++
+     /* PMC is not aware of Background scan, which is done in
+      * BMPS mode while Nth Beacon is delivered. Essentially, PMC
+      * can request the device to get out of power-save while
+diff --git a/CORE/SME/src/QoS/sme_Qos.c b/CORE/SME/src/QoS/sme_Qos.c
+index e1b5ca4..df0c7e5 100644
+--- a/CORE/SME/src/QoS/sme_Qos.c
++++ b/CORE/SME/src/QoS/sme_Qos.c
+@@ -4354,7 +4354,7 @@ eHalStatus sme_QosProcessReassocReqEv(tpAniSirGlobal pMac, v_U8_t sessionId, voi
+ eHalStatus sme_QosProcessReassocSuccessEv(tpAniSirGlobal pMac, v_U8_t sessionId, void * pEvent_info)
+ {
+ 
+-   tCsrRoamSession *pCsrRoamSession = CSR_GET_SESSION( pMac, sessionId );
++   tCsrRoamSession *pCsrRoamSession = NULL;
+    sme_QosSessionInfo *pSession;
+    sme_QosACInfo *pACInfo;
+    sme_QosEdcaAcType ac, ac_index;
+@@ -4368,6 +4368,17 @@ eHalStatus sme_QosProcessReassocSuccessEv(tpAniSirGlobal pMac, v_U8_t sessionId,
+              "%s: %d: invoked on session %d",
+              __func__, __LINE__,
+              sessionId);
++
++   if (CSR_ROAM_SESSION_MAX <= sessionId) {
++       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
++                "%s: %d: invoked on session %d",
++                __func__, __LINE__,
++                sessionId);
++       return status;
++   }
++
++   pCsrRoamSession = CSR_GET_SESSION( pMac, sessionId );
++
+    pSession = &sme_QosCb.sessionInfo[sessionId];
+    // our pending reassociation has completed
+    // we can allow powersave
+diff --git a/CORE/SME/src/csr/csrApiRoam.c b/CORE/SME/src/csr/csrApiRoam.c
+index 7143887..0043148 100644
+--- a/CORE/SME/src/csr/csrApiRoam.c
++++ b/CORE/SME/src/csr/csrApiRoam.c
+@@ -9824,8 +9824,14 @@ void csrRoamWaitForKeyTimeOutHandler(void *pv)
+         }
+ #endif
+         smsLog(pMac, LOGW, " SME pre-auth state timeout. ");
++
+         //Change the substate so command queue is unblocked.
+-        csrRoamSubstateChange( pMac, eCSR_ROAM_SUBSTATE_NONE, pInfo->sessionId);
++        if (CSR_ROAM_SESSION_MAX > pInfo->sessionId)
++        {
++            csrRoamSubstateChange(pMac, eCSR_ROAM_SUBSTATE_NONE,
++                                  pInfo->sessionId);
++        }
++
+         if (pSession)
+         {
+             if( csrIsConnStateConnectedInfra(pMac, pInfo->sessionId) ) 
+diff --git a/CORE/SME/src/csr/csrApiScan.c b/CORE/SME/src/csr/csrApiScan.c
+index 430de57..37da0be 100644
+--- a/CORE/SME/src/csr/csrApiScan.c
++++ b/CORE/SME/src/csr/csrApiScan.c
+@@ -7732,7 +7732,7 @@ eHalStatus csrScanCreateEntryInScanCache(tpAniSirGlobal pMac, tANI_U32 sessionId
+     eHalStatus status = eHAL_STATUS_SUCCESS;
+     tDot11fBeaconIEs *pNewIes = NULL;
+     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
+-    tSirBssDescription *pNewBssDescriptor;
++    tSirBssDescription *pNewBssDescriptor = NULL;
+     tANI_U32 size = 0;
+ 
+     if(NULL == pSession)
+diff --git a/CORE/SME/src/csr/csrNeighborRoam.c b/CORE/SME/src/csr/csrNeighborRoam.c
+index 82fe3cf..26caf06 100644
+--- a/CORE/SME/src/csr/csrNeighborRoam.c
++++ b/CORE/SME/src/csr/csrNeighborRoam.c
+@@ -3840,21 +3840,20 @@ eHalStatus csrNeighborRoamIndicateDisconnect(tpAniSirGlobal pMac, tANI_U8 sessio
+                 return eHAL_STATUS_SUCCESS;
+             }
+         }
+-    }
+ 
+ #ifdef FEATURE_WLAN_CCX
+-    {
+-      if (pSession->connectedProfile.isCCXAssoc)
+-      {
+-          vos_mem_copy(&pSession->prevApSSID, &pSession->connectedProfile.SSID, sizeof(tSirMacSSid));
+-          vos_mem_copy(pSession->prevApBssid, pSession->connectedProfile.bssid, sizeof(tSirMacAddr));
+-          pSession->prevOpChannel = pSession->connectedProfile.operationChannel;
+-          pSession->isPrevApInfoValid = TRUE;
+-          pSession->roamTS1 = vos_timer_get_system_time();
+-
+-      }
+-    }
++        if (pSession->connectedProfile.isCCXAssoc)
++        {
++           vos_mem_copy(&pSession->prevApSSID, &pSession->connectedProfile.SSID,
++                        sizeof(tSirMacSSid));
++           vos_mem_copy(pSession->prevApBssid, pSession->connectedProfile.bssid,
++                        sizeof(tSirMacAddr));
++           pSession->prevOpChannel = pSession->connectedProfile.operationChannel;
++           pSession->isPrevApInfoValid = TRUE;
++           pSession->roamTS1 = vos_timer_get_system_time();
++        }
+ #endif
++    } //if (NULL != pSession)
+    
+ #ifdef RSSI_HACK
+     dumpCmdRSSI = -40;
+-- 
+1.8.2.1
+

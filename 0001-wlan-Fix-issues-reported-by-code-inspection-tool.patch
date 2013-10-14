@@ -1,0 +1,154 @@
+From 9825f0856db1f74161fc07e8caa92577f923659e Mon Sep 17 00:00:00 2001
+From: Wilson Yang <c_yangw@qca.qualcomm.com>
+Date: Thu, 10 Oct 2013 23:13:38 -0700
+Subject: [PATCH 1/2] wlan: Fix issues reported by code inspection tool
+
+Address issues found by third party code inspection tool
+
+Change-Id: I873bc845487a72338ef5aaf705c54d005284b45d
+CRs-fixed: 555246
+---
+ CORE/HDD/src/wlan_hdd_cfg80211.c |  1 +
+ CORE/HDD/src/wlan_hdd_debugfs.c  |  4 +++-
+ CORE/HDD/src/wlan_hdd_wext.c     |  2 ++
+ CORE/VOSS/src/vos_diag.c         |  9 ++++++---
+ CORE/WDI/CP/src/wlan_qct_wdi.c   | 14 +++++++-------
+ 5 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/CORE/HDD/src/wlan_hdd_cfg80211.c b/CORE/HDD/src/wlan_hdd_cfg80211.c
+index 50ca5b8..244ba66 100644
+--- a/CORE/HDD/src/wlan_hdd_cfg80211.c
++++ b/CORE/HDD/src/wlan_hdd_cfg80211.c
+@@ -5929,6 +5929,7 @@ static int wlan_hdd_cfg80211_set_privacy_ibss(
+             tHalHandle halHandle = WLAN_HDD_GET_HAL_CTX(pAdapter);
+             u8 *ie;
+ 
++            memset(&dot11WPAIE, 0, sizeof(dot11WPAIE));
+             ie = wlan_hdd_cfg80211_get_ie_ptr (params->ie,
+                                      params->ie_len, DOT11F_EID_WPA);
+             if ( NULL != ie )
+diff --git a/CORE/HDD/src/wlan_hdd_debugfs.c b/CORE/HDD/src/wlan_hdd_debugfs.c
+index d24e94f..7c46286 100644
+--- a/CORE/HDD/src/wlan_hdd_debugfs.c
++++ b/CORE/HDD/src/wlan_hdd_debugfs.c
+@@ -117,7 +117,7 @@ static ssize_t wcnss_patterngen_write(struct file *file,
+                const char __user *buf, size_t count, loff_t *ppos)
+ {
+     hdd_adapter_t *pAdapter = (hdd_adapter_t *)file->private_data;
+-    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
++    hdd_context_t *pHddCtx;
+     tSirAddPeriodicTxPtrn *addPeriodicTxPtrnParams;
+     tSirDelPeriodicTxPtrn *delPeriodicTxPtrnParams;
+ 
+@@ -137,6 +137,8 @@ static ssize_t wcnss_patterngen_write(struct file *file,
+         return -EINVAL;
+     }
+ 
++    pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
++
+     if (!sme_IsFeatureSupportedByFW(WLAN_PERIODIC_TX_PTRN))
+     {
+         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+diff --git a/CORE/HDD/src/wlan_hdd_wext.c b/CORE/HDD/src/wlan_hdd_wext.c
+index 83804c3..ba8c1ce 100644
+--- a/CORE/HDD/src/wlan_hdd_wext.c
++++ b/CORE/HDD/src/wlan_hdd_wext.c
+@@ -3716,6 +3716,8 @@ static int iw_setint_getnone(struct net_device *dev, struct iw_request_info *inf
+         case WE_SET_11D_STATE:
+         {
+             tSmeConfigParams smeConfig;
++            memset(&smeConfig, 0x00, sizeof(smeConfig));
++
+             if((ENABLE_11D == set_value) || (DISABLE_11D == set_value)) {
+ 
+                 sme_GetConfigParam(hHal,&smeConfig);
+diff --git a/CORE/VOSS/src/vos_diag.c b/CORE/VOSS/src/vos_diag.c
+index 12abd98..4c5e6cc 100644
+--- a/CORE/VOSS/src/vos_diag.c
++++ b/CORE/VOSS/src/vos_diag.c
+@@ -174,7 +174,9 @@ void vos_log_submit(v_VOID_t *plog_hdr_ptr)
+         {
+             if( ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, pHddCtx->ptt_pid) < 0) {
+         
+-                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, ("Ptt Socket error sending message to the app!!\n"));
++                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
++                          ("Ptt Socket error sending message to the app!!\n"));
++                vos_mem_free((v_VOID_t *)wmsg);
+                 return;
+             }
+        
+@@ -249,8 +251,9 @@ void vos_event_report_payload(v_U16_t event_Id, v_U16_t length, v_VOID_t *pPaylo
+         memcpy(pBuf, pPayload,length);
+       
+         if( ptt_sock_send_msg_to_app(wmsg, 0, ANI_NL_MSG_PUMAC, pHddCtx->ptt_pid) < 0) {
+-    
+-            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, ("Ptt Socket error sending message to the app!!\n"));
++            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
++                       ("Ptt Socket error sending message to the app!!\n"));
++            vos_mem_free((v_VOID_t*)wmsg);
+             return;
+         }
+     
+diff --git a/CORE/WDI/CP/src/wlan_qct_wdi.c b/CORE/WDI/CP/src/wlan_qct_wdi.c
+index 22d59ee..7f2fa58 100644
+--- a/CORE/WDI/CP/src/wlan_qct_wdi.c
++++ b/CORE/WDI/CP/src/wlan_qct_wdi.c
+@@ -11032,6 +11032,7 @@ WDI_ProcessAddPeriodicTxPtrnInd
+   {
+     WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+                "%s: Failed to get selfStaIdx!", __func__);
++    wpalMemoryFree(pSendBuffer);
+ 
+     return WDI_STATUS_E_FAILURE;
+   }
+@@ -11124,6 +11125,7 @@ WDI_ProcessDelPeriodicTxPtrnInd
+   {
+     WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+                "%s: Failed to get selfStaIdx!", __func__);
++    wpalMemoryFree(pSendBuffer);
+ 
+     return WDI_STATUS_E_FAILURE;
+   }
+@@ -27105,9 +27107,6 @@ WDI_ProcessGtkOffloadRsp
+    WDI_GtkOffloadCb    wdiGtkOffloadCb   = NULL;
+    tHalGtkOffloadRspParams halGtkOffloadRspParams;
+    WDI_GtkOffloadRspParams  wdiGtkOffloadRsparams;
+-   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+-
+-   wdiGtkOffloadCb = (WDI_GtkOffloadCb)pWDICtx->pfncRspCB; 
+ 
+    /*-------------------------------------------------------------------------
+      Sanity check 
+@@ -27121,6 +27120,8 @@ WDI_ProcessGtkOffloadRsp
+       return WDI_STATUS_E_FAILURE; 
+    }
+ 
++   wdiGtkOffloadCb = (WDI_GtkOffloadCb)pWDICtx->pfncRspCB;
++
+    /*-------------------------------------------------------------------------
+      Extract response and send it to UMAC
+    -------------------------------------------------------------------------*/
+@@ -27169,9 +27170,6 @@ WDI_ProcessGTKOffloadGetInfoRsp
+    WDI_GtkOffloadGetInfoRspParams wdiGtkOffloadGetInfoRsparams;
+    WDI_BSSSessionType*              pBSSSes = NULL;
+ 
+-   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+-
+-   wdiGtkOffloadGetInfoCb = (WDI_GtkOffloadGetInfoCb)pWDICtx->pfncRspCB; 
+ 
+    /*-------------------------------------------------------------------------
+      Sanity check 
+@@ -27185,7 +27183,9 @@ WDI_ProcessGTKOffloadGetInfoRsp
+       return WDI_STATUS_E_FAILURE; 
+    }
+ 
+-   /*-------------------------------------------------------------------------
++   wdiGtkOffloadGetInfoCb = (WDI_GtkOffloadGetInfoCb)pWDICtx->pfncRspCB;
++
++  /*-------------------------------------------------------------------------
+      Extract response and send it to UMAC
+    -------------------------------------------------------------------------*/
+    if(WDI_getFwWlanFeatCaps(SLM_SESSIONIZATION))
+-- 
+1.8.2.1
+
