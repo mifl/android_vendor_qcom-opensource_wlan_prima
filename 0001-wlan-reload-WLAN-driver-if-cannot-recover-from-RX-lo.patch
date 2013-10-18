@@ -1,0 +1,145 @@
+From 4c4624809b3c9335e20fb1ca186dc5f07ba04dd8 Mon Sep 17 00:00:00 2001
+From: Leo Chang <leochang@codeaurora.org>
+Date: Fri, 18 Oct 2013 09:33:07 -0700
+Subject: [PATCH] wlan: reload WLAN driver if cannot recover from RX low
+ resource
+
+If WLAN host driver could not recover Out of RX buffer problem,
+Trigger re-load host driver to recover from dead end
+
+Change-Id: I04895f56892cc0b25fcee341829eb7eb91ab1553
+CRs-fixed: 500022
+---
+ CORE/DXE/src/wlan_qct_dxe.c   | 61 +++++++++++++++++++++++++++++++++++++++++--
+ CORE/DXE/src/wlan_qct_dxe_i.h |  1 +
+ 2 files changed, 60 insertions(+), 2 deletions(-)
+
+diff --git a/CORE/DXE/src/wlan_qct_dxe.c b/CORE/DXE/src/wlan_qct_dxe.c
+index 017b6c1..4d714ab 100644
+--- a/CORE/DXE/src/wlan_qct_dxe.c
++++ b/CORE/DXE/src/wlan_qct_dxe.c
+@@ -1858,6 +1858,35 @@ static wpt_status dxeChannelCleanInt
+ }
+ 
+ /*==========================================================================
++  @  Function Name
++			      dxeRXResourceAvailableTimerExpHandler
++
++  @  Description
++      During pre-set timeperiod, if free available RX buffer is not allocated
++      Trigger Driver re-loading to recover RX dead end
++
++  @  Parameters
++   v_VOID_t     *usrData
++                DXE context
++
++  @  Return
++      NONE
++
++===========================================================================*/
++void dxeRXResourceAvailableTimerExpHandler
++(
++   void    *usrData
++)
++{
++   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
++            "RX Low resource, Durign wait time period %d, RX resource not allocated",
++            T_WLANDXE_MAX_RX_PACKET_WAIT);
++   wpalWlanReload();
++
++   return;
++}
++
++/*==========================================================================
+   @  Function Name 
+       dxeRXPacketAvailableCB
+ 
+@@ -1988,8 +2017,8 @@ static wpt_status dxeRXFrameSingleBufferAlloc
+    }
+    else if(!dxeCtxt->rxPalPacketUnavailable)
+    {
+-   /* Allocate platform Packet buffer and OS Frame Buffer at here */
+-   currentPalPacketBuffer = wpalPacketAlloc(eWLAN_PAL_PKT_TYPE_RX_RAW,
++      /* Allocate platform Packet buffer and OS Frame Buffer at here */
++      currentPalPacketBuffer = wpalPacketAlloc(eWLAN_PAL_PKT_TYPE_RX_RAW,
+                                             WLANDXE_DEFAULT_RX_OS_BUFFER_SIZE,
+                                             dxeRXPacketAvailableCB,
+                                             (void *)dxeCtxt);
+@@ -1997,6 +2026,16 @@ static wpt_status dxeRXFrameSingleBufferAlloc
+       if(NULL == currentPalPacketBuffer)
+       {
+          dxeCtxt->rxPalPacketUnavailable = eWLAN_PAL_TRUE;
++         /* Out of RX free buffer,
++          * Start timer to recover from RX dead end */
++         if(VOS_TIMER_STATE_RUNNING !=
++            wpalTimerGetCurStatus(&dxeCtxt->rxResourceAvailableTimer))
++         {
++            HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
++                     "RX Low resource, wait available resource");
++            wpalTimerStart(&dxeCtxt->rxResourceAvailableTimer,
++                           T_WLANDXE_MAX_RX_PACKET_WAIT);
++         }
+       }
+    }
+    
+@@ -2870,6 +2909,13 @@ void dxeRXPacketAvailableEventHandler
+    }
+ 
+    dxeCtxt    = (WLANDXE_CtrlBlkType *)(rxPktAvailMsg->pContext);
++   /* Available resource allocated
++    * Stop timer not needed */
++   if(VOS_TIMER_STATE_RUNNING ==
++      wpalTimerGetCurStatus(&dxeCtxt->rxResourceAvailableTimer))
++   {
++      wpalTimerStop(&dxeCtxt->rxResourceAvailableTimer);
++   }
+ 
+    do
+    {
+@@ -4358,6 +4404,10 @@ void *WLANDXE_Open
+       return NULL;
+    }
+ 
++   wpalTimerInit(&tempDxeCtrlBlk->rxResourceAvailableTimer,
++                 dxeRXResourceAvailableTimerExpHandler,
++                 tempDxeCtrlBlk);
++
+    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
+             "WLANDXE_Open Success");
+    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
+@@ -4868,6 +4918,12 @@ wpt_status WLANDXE_Stop
+    wpalUnRegisterInterrupt(DXE_INTERRUPT_TX_COMPLE);
+    wpalUnRegisterInterrupt(DXE_INTERRUPT_RX_READY);
+ 
++   if(VOS_TIMER_STATE_STOPPED !=
++      wpalTimerGetCurStatus(&dxeCtxt->rxResourceAvailableTimer))
++   {
++      wpalTimerStop(&dxeCtxt->rxResourceAvailableTimer);
++   }
++
+    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
+             "%s Exit", __func__);
+    return status;
+@@ -4917,6 +4973,7 @@ wpt_status WLANDXE_Close
+    }
+ 
+    dxeCtxt = (WLANDXE_CtrlBlkType *)pDXEContext;
++   wpalTimerDelete(&dxeCtxt->rxResourceAvailableTimer);
+    for(idx = 0; idx < WDTS_CHANNEL_MAX; idx++)
+    {
+       wpalMutexDelete(&dxeCtxt->dxeChannel[idx].dxeChannelLock);
+diff --git a/CORE/DXE/src/wlan_qct_dxe_i.h b/CORE/DXE/src/wlan_qct_dxe_i.h
+index 5f95b33..6d5980c 100644
+--- a/CORE/DXE/src/wlan_qct_dxe_i.h
++++ b/CORE/DXE/src/wlan_qct_dxe_i.h
+@@ -644,6 +644,7 @@ typedef struct
+    wpt_boolean                     rxPalPacketUnavailable;
+    wpt_boolean                     driverReloadInProcessing;
+    wpt_boolean                     smsmToggled;
++   wpt_timer                       rxResourceAvailableTimer;
+ } WLANDXE_CtrlBlkType;
+ 
+ /*==========================================================================
+-- 
+1.8.2.1
+
