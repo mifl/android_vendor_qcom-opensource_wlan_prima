@@ -7336,7 +7336,7 @@ static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
     pPnoRequest->scanTimers.aTimerValues[0].uTimerValue =
           (request->interval)/1000;
     pPnoRequest->scanTimers.aTimerValues[0].uTimerRepeat = 0;
-    pPnoRequest->modePNO = SIR_PNO_MODE_ON_SUSPEND;
+    pPnoRequest->modePNO = SIR_PNO_MODE_IMMEDIATE;
 
     status = sme_SetPreferredNetworkList(WLAN_HDD_GET_HAL_CTX(pAdapter),
                               pPnoRequest, pAdapter->sessionId,
