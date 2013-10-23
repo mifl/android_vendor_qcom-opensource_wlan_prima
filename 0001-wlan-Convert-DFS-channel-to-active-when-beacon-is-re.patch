@@ -1,0 +1,61 @@
+From 21da48ceeee6f85653add21514332a2db5bfe9bd Mon Sep 17 00:00:00 2001
+From: Agarwal Ashish <ashishka@codeaurora.org>
+Date: Thu, 26 Sep 2013 01:22:15 +0530
+Subject: [PATCH] wlan: Convert DFS channel to active when beacon is received.
+
+Conversion for DFS channel to active channel should be happen
+when any beaocn is recived.
+
+CRs-Fixed: 550234
+Change-Id: I09c829bc931670f7f2fa5dda0ef57fccf8153e0d
+---
+ CORE/MAC/src/pe/lim/limProcessBeaconFrame.c | 9 +++++++++
+ CORE/MAC/src/pe/lim/limScanResultUtils.c    | 4 ----
+ 2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/CORE/MAC/src/pe/lim/limProcessBeaconFrame.c b/CORE/MAC/src/pe/lim/limProcessBeaconFrame.c
+index 45a2339..28b2bee 100644
+--- a/CORE/MAC/src/pe/lim/limProcessBeaconFrame.c
++++ b/CORE/MAC/src/pe/lim/limProcessBeaconFrame.c
+@@ -174,7 +174,12 @@ limProcessBeaconFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo,tpPESession ps
+                 limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo, 
+                        ((pMac->lim.gLimHalScanState == eLIM_HAL_SCANNING_STATE) ? eANI_BOOLEAN_TRUE : eANI_BOOLEAN_FALSE), 
+                        eANI_BOOLEAN_FALSE);
++
+             }
++            /* Calling dfsChannelList which will convert DFS channel
++             * to Active channel for x secs if this channel is DFS channel */
++             limSetDFSChannelList(pMac, pBeacon->channelNumber,
++                                    &pMac->lim.dfschannelList);
+         }
+         else if (pMac->lim.gLimMlmState == eLIM_MLM_LEARN_STATE)
+         {
+@@ -299,6 +304,10 @@ limProcessBeaconFrameNoSession(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo)
+             {
+                 limCheckAndAddBssDescription(pMac, pBeacon, pRxPacketInfo, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_FALSE);
+             }
++            /* Calling dfsChannelList which will convert DFS channel
++             * to Active channel for x secs if this channel is DFS channel */
++            limSetDFSChannelList(pMac, pBeacon->channelNumber,
++                                    &pMac->lim.dfschannelList);
+         }
+         else if (pMac->lim.gLimMlmState == eLIM_MLM_LEARN_STATE)
+         {
+diff --git a/CORE/MAC/src/pe/lim/limScanResultUtils.c b/CORE/MAC/src/pe/lim/limScanResultUtils.c
+index bf9cc90..0ed6fea 100644
+--- a/CORE/MAC/src/pe/lim/limScanResultUtils.c
++++ b/CORE/MAC/src/pe/lim/limScanResultUtils.c
+@@ -509,10 +509,6 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
+     limCollectBssDescription(pMac, &pBssDescr->bssDescription,
+                              pBPR, pRxPacketInfo);
+ #endif
+-    /* Calling dfsChannelList which will convert DFS channel
+-     * to Active channel for x secs if this channel is DFS channel */
+-    limSetDFSChannelList(pMac, pBssDescr->bssDescription.channelIdSelf,
+-                               &pMac->lim.dfschannelList);
+     pBssDescr->bssDescription.fProbeRsp = fProbeRsp;
+ 
+     pBssDescr->next = NULL;
+-- 
+1.8.2.1
+
