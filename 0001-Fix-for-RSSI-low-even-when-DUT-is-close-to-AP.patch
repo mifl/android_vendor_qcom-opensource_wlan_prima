@@ -1,0 +1,97 @@
+From 6ebb7e260472f07a47375c58697e3bb89f313cce Mon Sep 17 00:00:00 2001
+From: Leela Venkata Kiran Kumar Reddy Chirala <kchirala@qca.qualcomm.com>
+Date: Wed, 16 Oct 2013 15:43:47 -0700
+Subject: [PATCH] Fix for RSSI low even when DUT is close to AP
+
+when Rssi is reported based on the beacon received from the adjacent
+channels other than current operating channel it is low even though
+Ap is close to DUT.so filtering the beacons received from the channels
+other than current opearting channel is currently present only for
+Aps operating in 2.4GHZ channels.this commit extends the filtering
+mechanism to HT capable Aps which are operating in 5GHZ channels
+
+Change-Id: Ie1f243a532b388e956d44e02ff8c179b02446b24
+CRs-fixed: 552800
+---
+ CORE/MAC/src/pe/lim/limScanResultUtils.c | 54 ++++++++++++++++++--------------
+ 1 file changed, 30 insertions(+), 24 deletions(-)
+
+diff --git a/CORE/MAC/src/pe/lim/limScanResultUtils.c b/CORE/MAC/src/pe/lim/limScanResultUtils.c
+index bf9cc90..a483814 100644
+--- a/CORE/MAC/src/pe/lim/limScanResultUtils.c
++++ b/CORE/MAC/src/pe/lim/limScanResultUtils.c
+@@ -369,6 +369,8 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
+     tANI_U8               rxChannelInBeacon = 0;
+     eHalStatus            status;
+     tANI_U8               dontUpdateAll = 0;
++    tANI_U8               rfBand = 0;
++    tANI_U8               rxChannelInBD = 0;
+ 
+     tSirMacAddr bssid = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+     tANI_BOOLEAN fFound = FALSE;
+@@ -443,34 +445,38 @@ limCheckAndAddBssDescription(tpAniSirGlobal pMac,
+      * from another channel heard as noise on the current scanning channel
+      */
+ 
+-    if (pBPR->dsParamsPresent)
++    if ((pBPR->dsParamsPresent) || (pBPR->HTInfo.present))
+     {
+        /* This means that we are in 2.4GHz mode or 5GHz 11n mode */
+        rxChannelInBeacon = limGetChannelFromBeacon(pMac, pBPR);
+-       if (rxChannelInBeacon < 15)
++       rfBand = WDA_GET_RX_RFBAND(pRxPacketInfo);
++       rxChannelInBD = WDA_GET_RX_CH(pRxPacketInfo);
++
++       if ((!rfBand) || IS_5G_BAND(rfBand))
++       {
++          rxChannelInBD = limUnmapChannel(rxChannelInBD);
++       }
++
++       if(rxChannelInBD != rxChannelInBeacon)
+        {
+-          /* This means that we are in 2.4GHz mode */
+-          if(WDA_GET_RX_CH(pRxPacketInfo) != rxChannelInBeacon)
+-          {
+-             /* BCAST Frame, if CH do not match, Drop */
+-             if(WDA_IS_RX_BCAST(pRxPacketInfo))
+-             {
+-                limLog(pMac, LOG3, FL("Beacon/Probe Rsp dropped. Channel in BD %d. "
+-                                      "Channel in beacon" " %d"),
+-                       WDA_GET_RX_CH(pRxPacketInfo),limGetChannelFromBeacon(pMac, pBPR));
+-                return;
+-             }
+-             /* Unit cast frame, Probe RSP, do not drop */
+-             else
+-             {
+-                dontUpdateAll = 1;
+-                limLog(pMac, LOG3, FL("SSID %s, CH in ProbeRsp %d, CH in BD %d, miss-match, Do Not Drop"),
+-                                       pBPR->ssId.ssId,
+-                                       rxChannelInBeacon,
+-                                       WDA_GET_RX_CH(pRxPacketInfo));
+-                WDA_GET_RX_CH(pRxPacketInfo) = rxChannelInBeacon;
+-             }
+-          }
++           /* BCAST Frame, if CH do not match, Drop */
++           if(WDA_IS_RX_BCAST(pRxPacketInfo))
++           {
++              limLog(pMac, LOG3, FL("Beacon/Probe Rsp dropped. Channel in BD %d. "
++                                    "Channel in beacon" " %d"),
++                     WDA_GET_RX_CH(pRxPacketInfo),limGetChannelFromBeacon(pMac, pBPR));
++              return;
++           }
++           /* Unit cast frame, Probe RSP, do not drop */
++           else
++           {
++              dontUpdateAll = 1;
++              limLog(pMac, LOG3, FL("SSID %s, CH in ProbeRsp %d, CH in BD %d, miss-match, Do Not Drop"),
++                                     pBPR->ssId.ssId,
++                                     rxChannelInBeacon,
++                                     WDA_GET_RX_CH(pRxPacketInfo));
++              WDA_GET_RX_CH(pRxPacketInfo) = rxChannelInBeacon;
++           }
+        }
+     }
+ 
+-- 
+1.8.2.1
+
