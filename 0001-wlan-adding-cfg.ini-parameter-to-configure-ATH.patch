@@ -1,0 +1,237 @@
+From 216a5fc5c3f72f886c3a7a69bdcc815951fd2aa6 Mon Sep 17 00:00:00 2001
+From: Hanumantha Reddy Pothula <c_hpothu@codeaurora.org>
+Date: Fri, 18 Oct 2013 18:32:26 +0530
+Subject: [PATCH] wlan: adding cfg.ini parameter to configure ATH.
+
+this gerit provides an option to configure(enable/disable)
+Adaptive TH, throuth cfg.ini.
+
+Change-Id: I6c630daf8dc1b3e49f31b14aac64cb355c51972a
+CRs-Fixed: 552703.
+---
+ CORE/HDD/inc/wlan_hdd_cfg.h      |   6 ++++++
+ CORE/HDD/src/wlan_hdd_cfg.c      |  15 +++++++++++++++
+ CORE/MAC/inc/wniCfgAp.h          |  15 ++++++++++++---
+ CORE/MAC/inc/wniCfgSta.h         |   9 +++++++--
+ CORE/MAC/src/cfg/cfgParamName.c  |   1 +
+ CORE/MAC/src/cfg/cfgUtil/cfg.txt |  33 +++++++++++++--------------------
+ CORE/WDA/src/wlan_qct_wda.c      |  13 +++++++++++++
+ firmware_bin/WCNSS_cfg.dat       | Bin 10586 -> 10618 bytes
+ 8 files changed, 67 insertions(+), 25 deletions(-)
+
+diff --git a/CORE/HDD/inc/wlan_hdd_cfg.h b/CORE/HDD/inc/wlan_hdd_cfg.h
+index f5c3d47..19270b4 100644
+--- a/CORE/HDD/inc/wlan_hdd_cfg.h
++++ b/CORE/HDD/inc/wlan_hdd_cfg.h
+@@ -1842,6 +1842,11 @@ typedef enum
+ #define CFG_PNO_SCAN_TIMER_REPEAT_VALUE_MAX          ( 0xffffffff )
+ #endif
+ 
++#define CFG_DISABLE_ATH_NAME                       "gAthDisable"
++#define CFG_DISABLE_ATH_MIN                        (0)
++#define CFG_DISABLE_ATH_MAX                        (1)
++#define CFG_DISABLE_ATH_DEFAULT                    (0)
++
+ /*--------------------------------------------------------------------------- 
+   Type declarations
+   -------------------------------------------------------------------------*/ 
+@@ -2235,6 +2240,7 @@ typedef struct
+ #if FEATURE_WLAN_SCAN_PNO
+    v_U32_t                     configPNOScanTimerRepeatValue;
+ #endif
++  v_BOOL_t                    cfgAthDisable;
+ } hdd_config_t;
+ /*--------------------------------------------------------------------------- 
+   Function declarations and documenation
+diff --git a/CORE/HDD/src/wlan_hdd_cfg.c b/CORE/HDD/src/wlan_hdd_cfg.c
+index 216b85f..3afa7d3 100644
+--- a/CORE/HDD/src/wlan_hdd_cfg.c
++++ b/CORE/HDD/src/wlan_hdd_cfg.c
+@@ -2406,6 +2406,13 @@ REG_VARIABLE( CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD, WLAN_PARAM_Integer,
+                  CFG_PNO_SCAN_TIMER_REPEAT_VALUE_MIN,
+                  CFG_PNO_SCAN_TIMER_REPEAT_VALUE_MAX),
+ #endif
++
++   REG_VARIABLE( CFG_DISABLE_ATH_NAME , WLAN_PARAM_Integer,
++                 hdd_config_t, cfgAthDisable,
++                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
++                 CFG_DISABLE_ATH_DEFAULT,
++                 CFG_DISABLE_ATH_MIN,
++                 CFG_DISABLE_ATH_MAX ),
+ };
+ 
+ /*
+@@ -3952,6 +3959,14 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
+       hddLog(LOGE, "Could not pass on WNI_CFG_ANTENNA_DIVESITY to CCM");
+    }
+ 
++   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_ATH_DISABLE,
++                    pConfig->cfgAthDisable, NULL,
++                    eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
++   {
++      fStatus = FALSE;
++      hddLog(LOGE, "Could not pass on WNI_CFG_ATH_DISABLE to CCM");
++   }
++
+    return fStatus;
+ }
+ 
+diff --git a/CORE/MAC/inc/wniCfgAp.h b/CORE/MAC/inc/wniCfgAp.h
+index 0369f5a..08337ea 100644
+--- a/CORE/MAC/inc/wniCfgAp.h
++++ b/CORE/MAC/inc/wniCfgAp.h
+@@ -363,6 +363,7 @@
+ #define WNI_CFG_OXYGEN_NETWORK_DATA    303
+ #define WNI_CFG_FLEX_CONNECT_POWER_FACTOR    304
+ #define WNI_CFG_ANTENNA_DIVESITY    305
++#define WNI_CFG_ATH_DISABLE    306
+ 
+ /*
+  * String parameter lengths 
+@@ -2562,10 +2563,18 @@
+ #define WNI_CFG_ANTENNA_DIVESITY_APMAX    3
+ #define WNI_CFG_ANTENNA_DIVESITY_APDEF    0
+ 
+-#define CFG_PARAM_MAX_NUM         306
+-#define CFG_AP_IBUF_MAX_SIZE      245
++#define WNI_CFG_ATH_DISABLE_STAMIN    0
++#define WNI_CFG_ATH_DISABLE_STAMAX    1
++#define WNI_CFG_ATH_DISABLE_STADEF    0
++
++#define WNI_CFG_ATH_DISABLE_APMIN    0
++#define WNI_CFG_ATH_DISABLE_APMAX    1
++#define WNI_CFG_ATH_DISABLE_APDEF    0
++
++#define CFG_PARAM_MAX_NUM         307
++#define CFG_AP_IBUF_MAX_SIZE      246
+ #define CFG_AP_SBUF_MAX_SIZE      3422
+-#define CFG_STA_IBUF_MAX_SIZE     240
++#define CFG_STA_IBUF_MAX_SIZE     241
+ #define CFG_STA_SBUF_MAX_SIZE     3388
+ #define CFG_SEM_MAX_NUM           19
+ 
+diff --git a/CORE/MAC/inc/wniCfgSta.h b/CORE/MAC/inc/wniCfgSta.h
+index c77f67f..0e855db 100644
+--- a/CORE/MAC/inc/wniCfgSta.h
++++ b/CORE/MAC/inc/wniCfgSta.h
+@@ -357,6 +357,7 @@
+ #define WNI_CFG_OXYGEN_NETWORK_DATA    303
+ #define WNI_CFG_FLEX_CONNECT_POWER_FACTOR    304
+ #define WNI_CFG_ANTENNA_DIVESITY    305
++#define WNI_CFG_ATH_DISABLE    306
+ 
+ /*
+  * String parameter lengths 
+@@ -1663,8 +1664,12 @@
+ #define WNI_CFG_ANTENNA_DIVESITY_STAMAX    3
+ #define WNI_CFG_ANTENNA_DIVESITY_STADEF    0
+ 
+-#define CFG_PARAM_MAX_NUM        306
+-#define CFG_STA_IBUF_MAX_SIZE    240
++#define WNI_CFG_ATH_DISABLE_STAMIN    0
++#define WNI_CFG_ATH_DISABLE_STAMAX    1
++#define WNI_CFG_ATH_DISABLE_STADEF    0
++
++#define CFG_PARAM_MAX_NUM        307
++#define CFG_STA_IBUF_MAX_SIZE    241
+ #define CFG_STA_SBUF_MAX_SIZE    3388
+ #define CFG_SEM_MAX_NUM          19
+ 
+diff --git a/CORE/MAC/src/cfg/cfgParamName.c b/CORE/MAC/src/cfg/cfgParamName.c
+index 9250aaa..9091053 100644
+--- a/CORE/MAC/src/cfg/cfgParamName.c
++++ b/CORE/MAC/src/cfg/cfgParamName.c
+@@ -334,6 +334,7 @@ unsigned char *gCfgParamName[] = {
+     (unsigned char *)"OXYGEN_NETWORK_DATA",
+     (unsigned char *)"FLEX_CONNECT_POWER_FACTOR",
+     (unsigned char *)"ANTENNA_DIVESITY",
++    (unsigned char *)"ATH_DISABLE",
+ };
+ 
+ 
+diff --git a/CORE/MAC/src/cfg/cfgUtil/cfg.txt b/CORE/MAC/src/cfg/cfgUtil/cfg.txt
+index 06510c1..e33f835 100644
+--- a/CORE/MAC/src/cfg/cfgUtil/cfg.txt
++++ b/CORE/MAC/src/cfg/cfgUtil/cfg.txt
+@@ -1,23 +1,3 @@
+-/*
+- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+- *
+- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+- *
+- *
+- * Permission to use, copy, modify, and/or distribute this software for
+- * any purpose with or without fee is hereby granted, provided that the
+- * above copyright notice and this permission notice appear in all
+- * copies.
+- *
+- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+- * PERFORMANCE OF THIS SOFTWARE.
+- */
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+@@ -4609,3 +4589,16 @@ HAL
+ V    RW    NP
+ HAL
+ 0    3    0
++
++*
++* ATH Enable/Disable
++*
++WNI_CFG_ATH_DISABLE    I    4    7
++V    RW    NP
++HAL
++0    1     0
++V    RW    NP
++HAL
++0    1     0
++*
++*
+diff --git a/CORE/WDA/src/wlan_qct_wda.c b/CORE/WDA/src/wlan_qct_wda.c
+index 9981d92..6456cbf 100644
+--- a/CORE/WDA/src/wlan_qct_wda.c
++++ b/CORE/WDA/src/wlan_qct_wda.c
+@@ -1583,7 +1583,20 @@ VOS_STATUS WDA_prepareConfigTLV(v_PVOID_t pVosContext,
+                "Failed to get value for WNI_CFG_ANTENNA_DIVESITY");
+       goto handle_failure;
+    }
++   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
++                            + sizeof(tHalCfg) + tlvStruct->length) ;
+ 
++   /* QWLAN_HAL_CFG_ATH_DISABLE */
++   tlvStruct->type = QWLAN_HAL_CFG_ATH_DISABLE ;
++   tlvStruct->length = sizeof(tANI_U32);
++   configDataValue = (tANI_U32 *)(tlvStruct + 1);
++   if(wlan_cfgGetInt(pMac, WNI_CFG_ATH_DISABLE,
++                                            configDataValue ) != eSIR_SUCCESS)
++   {
++      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
++               "Failed to get value for WNI_CFG_ATH_DISABLE");
++      goto handle_failure;
++   }
+    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
+                             + sizeof(tHalCfg) + tlvStruct->length) ;
+ 
+diff --git a/firmware_bin/WCNSS_cfg.dat b/firmware_bin/WCNSS_cfg.dat
+index 85338f7e3b758abca54bb25850d86e6680cb3277..8a4d9d7347388427e8a1a8be9d2d4224226f3991 100755
+GIT binary patch
+delta 136
+zcmcZ=^ef1ek%yU^k%5V^N|S+siGhKE1&B3(xJ874ffY!v0n%rH`29WzG-hOA__)#Z
+zJPYH8&5W#<nKxhH*uuQIf#(P_BjaXAfn*j|kcw}cSBe0YeBE3s`I>q11&$MwKd|v^
+aHjw+kG}(cNW3!6l1(5QOD(NgtN`(N-u_<r>
+
+delta 144
+zcmewrbSub|k%yU^k%5UZN|S+siGhKE1&B3(xI~13ffY#40n&Sb`29WzG-706_^{FR
+zJj>(>k{+7_SUZ?E-{IK6ym<o80p`si0tqavAQfLX?-V)Dvbjg{1@q)P97iU9VB^`m
+mfU}2jvVfw<WC5-RlVx}cCSTxV+3cWrfqAotY6=TeO*8;8$}FA$
+
+-- 
+1.8.2.1
+
