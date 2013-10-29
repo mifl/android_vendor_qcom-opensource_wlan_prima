@@ -1,0 +1,69 @@
+From 8d1474123bb9116b288f93ad162c546985cc62a1 Mon Sep 17 00:00:00 2001
+From: Chet Lanctot <clanctot@codeaurora.org>
+Date: Mon, 28 Oct 2013 18:38:23 -0700
+Subject: [PATCH] wlan: Prevent HDD roam profile being cleared during assoc
+ process
+
+During the normal course of association, SME returns the "roamStatus" of
+eCRS_ROAM_SHOULD_ROAM.  Currently HDD treats this as an opportunity to
+clear its copy of the "roam profile".  While this is fine for all other
+cases, this doesn't always work for WEP associations.  Because for WEP,
+since the "network profile" supplied by the supplicant isn't specific
+about "WEP open" or "WEP shared" HDD has to try both.  But since HDD
+copy of the "roam profile" is cleared during the initial association,
+this means that the re-try of the WEP assoc will be to a "cleared" or
+"wildcard" SSID.
+
+Change-Id: I3594e75e85e5a8b1aa6c2390c25f1f2d9d8b7929
+CRs-fixed: 557427
+---
+ CORE/HDD/src/wlan_hdd_assoc.c | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/CORE/HDD/src/wlan_hdd_assoc.c b/CORE/HDD/src/wlan_hdd_assoc.c
+index 20bba5b..33f821a 100644
+--- a/CORE/HDD/src/wlan_hdd_assoc.c
++++ b/CORE/HDD/src/wlan_hdd_assoc.c
+@@ -1331,7 +1331,6 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
+                             rspRsnIe, rspRsnLength,
+                             WLAN_STATUS_SUCCESS,
+                             GFP_KERNEL);
+-
+                 }
+             }
+             cfg80211_put_bss(bss);
+@@ -1450,8 +1449,11 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
+         }
+ 
+         /* CR465478: Only send up a connection failure result when CSR has
+-         * completed operation - with a ASSOCIATION_FAILURE status. */
+-        if ( eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus )
++         * completed operation - with a ASSOCIATION_FAILURE status.
++         * or an ASSOCIATION_COMPLETION with RESULT_NOT_ASSOCIATED */
++        if (( eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus ) ||
++                (( eCSR_ROAM_ASSOCIATION_COMPLETION == roamStatus )
++                 && ( eCSR_ROAM_RESULT_NOT_ASSOCIATED == roamResult )))
+         {
+             /* inform association failure event to nl80211 */
+             if ( eCSR_ROAM_RESULT_ASSOC_FAIL_CON_CHANNEL == roamResult )
+@@ -2444,8 +2446,6 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
+                     halStatus = eHAL_STATUS_FAILURE;
+                 }
+ #endif
+-                // Clear saved connection information in HDD
+-                hdd_connRemoveConnectInfo( WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) );
+             }
+            break;
+         case eCSR_ROAM_LOSTLINK:
+@@ -2496,6 +2496,8 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
+             }
+             else
+             {
++                // Clear saved connection information in HDD
++                hdd_connRemoveConnectInfo( WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) );
+                 halStatus = hdd_AssociationCompletionHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
+             }
+ 
+-- 
+1.8.2.1
+
