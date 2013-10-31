@@ -2813,6 +2813,19 @@ sme_QosStatusType sme_QosSetup(tpAniSirGlobal pMac,
                       __func__, __LINE__);
             break;
          }
+
+         if (pTspec_Info->ts_info.psb &&
+             !(pIes->WMMParams.qosInfo & SME_QOS_AP_SUPPORTS_APSD) &&
+             !(pIes->WMMInfoAp.uapsd))
+         {
+            // application is looking for APSD but AP doesn't support it
+            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                      "%s: %d: On session %d AP doesn't support APSD",
+                      __func__, __LINE__,
+                      sessionId);
+            break;
+         }
+
          if(SME_QOS_MAX_TID == pTspec_Info->ts_info.tid)
          {
             //App didn't set TID, generate one
@@ -4354,7 +4367,7 @@ eHalStatus sme_QosProcessReassocReqEv(tpAniSirGlobal pMac, v_U8_t sessionId, voi
 eHalStatus sme_QosProcessReassocSuccessEv(tpAniSirGlobal pMac, v_U8_t sessionId, void * pEvent_info)
 {
 
-   tCsrRoamSession *pCsrRoamSession = CSR_GET_SESSION( pMac, sessionId );
+   tCsrRoamSession *pCsrRoamSession = NULL;
    sme_QosSessionInfo *pSession;
    sme_QosACInfo *pACInfo;
    sme_QosEdcaAcType ac, ac_index;
@@ -4368,6 +4381,17 @@ eHalStatus sme_QosProcessReassocSuccessEv(tpAniSirGlobal pMac, v_U8_t sessionId,
              "%s: %d: invoked on session %d",
              __func__, __LINE__,
              sessionId);
+
+   if (CSR_ROAM_SESSION_MAX <= sessionId) {
+       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: %d: invoked on session %d",
+                __func__, __LINE__,
+                sessionId);
+       return status;
+   }
+
+   pCsrRoamSession = CSR_GET_SESSION( pMac, sessionId );
+
    pSession = &sme_QosCb.sessionInfo[sessionId];
    // our pending reassociation has completed
    // we can allow powersave
@@ -5483,10 +5507,14 @@ eHalStatus sme_QosAggregateParams(
    }
    vos_mem_copy(&TspecInfo, pCurrent_Tspec_Info, 
                 sizeof(sme_QosWmmTspecInfo));
+   TspecInfo.ts_info.psb = pInput_Tspec_Info->ts_info.psb;
    /*-------------------------------------------------------------------------
      APSD preference is only meaningful if service interval was set by app
    -------------------------------------------------------------------------*/
-   if(pCurrent_Tspec_Info->min_service_interval && pInput_Tspec_Info->min_service_interval)
+   if(pCurrent_Tspec_Info->min_service_interval &&
+      pInput_Tspec_Info->min_service_interval &&
+      (pCurrent_Tspec_Info->ts_info.direction !=
+      pInput_Tspec_Info->ts_info.direction))
    {
       TspecInfo.min_service_interval = VOS_MIN(
          pCurrent_Tspec_Info->min_service_interval,
@@ -5496,7 +5524,10 @@ eHalStatus sme_QosAggregateParams(
    {
       TspecInfo.min_service_interval = pInput_Tspec_Info->min_service_interval;
    }
-   if(pCurrent_Tspec_Info->max_service_interval)
+   if(pCurrent_Tspec_Info->max_service_interval &&
+      pInput_Tspec_Info->max_service_interval &&
+      (pCurrent_Tspec_Info->ts_info.direction !=
+      pInput_Tspec_Info->ts_info.direction))
    {
       TspecInfo.max_service_interval = VOS_MIN(
          pCurrent_Tspec_Info->max_service_interval,
