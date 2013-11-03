@@ -1,0 +1,30 @@
+From 71c2bb74e307829257bf6da2c5e211e8b0ab86ed Mon Sep 17 00:00:00 2001
+From: Arif Hussain <arifhussain@codeaurora.org>
+Date: Fri, 1 Nov 2013 16:52:20 -0700
+Subject: [PATCH] wlan: Initilize country IE prefrence flag
+
+Initialize country IE prefrence flag to
+disable country IE hints issued by the CORE.
+
+CRs-Fixed: 561317
+Change-Id: I07e74f5bbe9b7b605b3e54ee09c2929ef22f2f13
+---
+ CORE/HDD/src/wlan_hdd_cfg80211.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/CORE/HDD/src/wlan_hdd_cfg80211.c b/CORE/HDD/src/wlan_hdd_cfg80211.c
+index 3a48023..a6104b5 100644
+--- a/CORE/HDD/src/wlan_hdd_cfg80211.c
++++ b/CORE/HDD/src/wlan_hdd_cfg80211.c
+@@ -553,6 +553,8 @@ struct wiphy *wlan_hdd_cfg80211_init(int priv_size)
+         return NULL;
+     }
+ 
++    wiphy->country_ie_pref = NL80211_COUNTRY_IE_IGNORE_CORE;
++
+     return wiphy;
+ }
+ 
+-- 
+1.8.2.1
+
