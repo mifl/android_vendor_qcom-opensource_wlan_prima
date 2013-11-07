@@ -3899,7 +3899,7 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
         {
             smsLog( pMac, LOGE, FL("  fail to get regId %d"), domainId );
             fRet = eANI_BOOLEAN_FALSE;
-            return fRet;
+            break;
         }
         // Checking for Domain Id change
         if ( domainId != pMac->scan.domainIdCurrent )
@@ -7631,6 +7631,11 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
    }
    //Add to scan cache
    csrScanAddResult(pMac, pScanResult, pIesLocal);
+
+   if( (pScanResult->Result.pvIes == NULL) && pIesLocal )
+   {
+       vos_mem_free(pIesLocal);
+   }
 
    vos_mem_free(pParsedFrame);
 
