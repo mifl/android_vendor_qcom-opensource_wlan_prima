@@ -3223,11 +3223,20 @@ static eHalStatus hdd_smeCloseSessionCallback(void *pContext)
 
    clear_bit(SME_SESSION_OPENED, &pAdapter->event_flags);
 
+#ifndef WLAN_OPEN_SOURCE
    /* need to make sure all of our scheduled work has completed.
     * This callback is called from MC thread context, so it is safe to
     * to call below flush workqueue API from here.
+    *
+    * Even though this is called from MC thread context, if there is a faulty
+    * work item in the system, that can hang this call forever.  So flushing
+    * this global work queue is not safe; and now we make sure that
+    * individual work queues are stopped correctly. But the cancel work queue
+    * is a GPL only API, so the proprietary  version of the driver would still
+    * rely on the global work queue flush.
     */
    flush_scheduled_work();
+#endif
 
    /* We can be blocked while waiting for scheduled work to be
     * flushed, and the adapter structure can potentially be freed, in
@@ -3420,6 +3429,13 @@ void hdd_deinit_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter )
       case WLAN_HDD_SOFTAP:
       case WLAN_HDD_P2P_GO:
       {
+
+         if (test_bit(WMM_INIT_DONE, &pAdapter->event_flags))
+         {
+            hdd_wmm_adapter_close( pAdapter );
+            clear_bit(WMM_INIT_DONE, &pAdapter->event_flags);
+         }
+
          hdd_cleanup_actionframe(pHddCtx, pAdapter);
 
          hdd_unregister_hostapd(pAdapter);
@@ -4103,8 +4119,13 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter )
          }
          mutex_unlock(&pHddCtx->sap_lock);
          break;
+
       case WLAN_HDD_MONITOR:
+#ifdef WLAN_OPEN_SOURCE
+         cancel_work_sync(&pAdapter->sessionCtx.monitor.pAdapterForTx->monTxWorkQueue);
+#endif
          break;
+
       default:
          break;
    }
@@ -4159,7 +4180,11 @@ VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx )
       pAdapter->sessionCtx.station.hdd_ReassocScenario = VOS_FALSE;
 
       hdd_deinit_tx_rx(pAdapter);
-      hdd_wmm_adapter_close(pAdapter);
+      if (test_bit(WMM_INIT_DONE, &pAdapter->event_flags))
+      {
+          hdd_wmm_adapter_close( pAdapter );
+          clear_bit(WMM_INIT_DONE, &pAdapter->event_flags);
+      }
 
       status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
       pAdapterNode = pNext;
@@ -4905,6 +4930,8 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
       {
          pAdapter = hdd_get_adapter(pHddCtx,
                                     WLAN_HDD_INFRA_STATION);
+         if (pAdapter == NULL)
+            pAdapter = hdd_get_adapter(pHddCtx, WLAN_HDD_IBSS);
       }
    }
    /* DeRegister with platform driver as client for Suspend/Resume */
@@ -4934,8 +4961,15 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    // we are about to Request Full Power, and since that is synchronized,
    // the expectation is that by the time Request Full Power has completed,
    // all scans will be cancelled.
-   hdd_abort_mac_scan( pHddCtx );
-
+   if (NULL != pAdapter)
+   {
+      hdd_abort_mac_scan( pHddCtx);
+   }
+   else
+   {
+       hddLog(VOS_TRACE_LEVEL_ERROR,
+           "%s: pAdapter is NULL, cannot Abort scan", __func__);
+   }
    //Stop the traffic monitor timer
    if ( VOS_TIMER_STATE_RUNNING ==
                         vos_timer_getCurrentState(&pHddCtx->tx_rx_trafficTmr))
