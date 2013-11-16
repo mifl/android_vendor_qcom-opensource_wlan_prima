@@ -168,6 +168,14 @@ static ssize_t wcnss_patterngen_write(struct file *file,
         return -EFAULT;
     }
 
+    if (!cmd)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: Memory allocation for cmd failed!", __func__);
+
+        return -EFAULT;
+    }
+
     if (copy_from_user(cmd, buf, count))
     {
         vos_mem_free(cmd);
