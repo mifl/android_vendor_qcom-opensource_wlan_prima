@@ -320,7 +320,6 @@ done:
 
 void dumpCsrCommandInfo(tpAniSirGlobal pMac, tSmeCmd *pCmd)
 {
-#ifdef WLAN_DEBUG
     switch( pCmd->command )
     {
     case eSmeCommandScan:
@@ -348,7 +347,6 @@ void dumpCsrCommandInfo(tpAniSirGlobal pMac, tSmeCmd *pCmd)
     default:
         break;
     }
-#endif  //#ifdef WLAN_DEBUG
 }
 
 tSmeCmd *smeGetCommandBuffer( tpAniSirGlobal pMac )
@@ -3097,6 +3095,25 @@ eHalStatus sme_RoamSetPMKIDCache( tHalHandle hHal, tANI_U8 sessionId, tPmkidCach
    return (status);
 }
 
+eHalStatus sme_RoamDelPMKIDfromCache( tHalHandle hHal, tANI_U8 sessionId, tANI_U8 *pBSSId )
+{
+   eHalStatus status = eHAL_STATUS_FAILURE;
+   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+   status = sme_AcquireGlobalLock( &pMac->sme );
+   if ( HAL_STATUS_SUCCESS( status ) )
+   {
+      if( CSR_IS_SESSION_VALID( pMac, sessionId ) )
+      {
+         status = csrRoamDelPMKIDfromCache( pMac, sessionId, pBSSId );
+      }
+      else
+      {
+          status = eHAL_STATUS_INVALID_PARAMETER;
+      }
+      sme_ReleaseGlobalLock( &pMac->sme );
+   }
+   return (status);
+}
 /* ---------------------------------------------------------------------------
     \fn sme_RoamGetSecurityReqIE
     \brief a wrapper function to request CSR to return the WPA or RSN or WAPI IE CSR
@@ -9059,5 +9076,42 @@ eHalStatus sme_DelPeriodicTxPtrn(tHalHandle hHal, tSirDelPeriodicTxPtrn
     }
 
     return status;
+}
+
+void smeGetCommandQStatus( tHalHandle hHal )
+{
+    tSmeCmd *pTempCmd = NULL;
+    tListElem *pEntry;
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+    if (NULL == pMac)
+    {
+        smsLog( pMac, LOGE, "smeGetCommandQStatus: pMac is NULL" );
+        return;
+    }
+
+    pEntry = csrLLPeekHead( &pMac->sme.smeCmdActiveList, LL_ACCESS_LOCK );
+    if( pEntry )
+    {
+        pTempCmd = GET_BASE_ADDR( pEntry, tSmeCmd, Link );
+    }
+    smsLog( pMac, LOGE, "Currently smeCmdActiveList has command (0x%X)",
+            (pTempCmd) ? pTempCmd->command : eSmeNoCommand );
+    if(pTempCmd)
+    {
+        if( eSmeCsrCommandMask & pTempCmd->command )
+        {
+            //CSR command is stuck. See what the reason code is for that command
+            dumpCsrCommandInfo(pMac, pTempCmd);
+        }
+    } //if(pTempCmd)
+
+    smsLog( pMac, LOGE, "Currently smeCmdPendingList has %d commands",
+            csrLLCount(&pMac->sme.smeCmdPendingList));
+
+    smsLog( pMac, LOGE, "Currently roamCmdPendingList has %d commands",
+            csrLLCount(&pMac->roam.roamCmdPendingList));
+
+    return;
 }
 
