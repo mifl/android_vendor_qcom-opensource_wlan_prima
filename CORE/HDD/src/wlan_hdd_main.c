@@ -2167,7 +2167,8 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
     /*getting the next argument ie the channel number */
     j = sscanf(inPtr, "%s ", tempBuf);
     v = kstrtos32(tempBuf, 10, &tempInt);
-    if ( v < 0) return -EINVAL;
+    if ( v < 0 || tempInt <= 0 || tempInt > WNI_CFG_CURRENT_CHANNEL_STAMAX )
+     return -EINVAL;
 
     *pChannel = tempInt;
 
@@ -2187,7 +2188,7 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
     /*getting the next argument ie the dwell time */
     j = sscanf(inPtr, "%s ", tempBuf);
     v = kstrtos32(tempBuf, 10, &tempInt);
-    if ( v < 0) return -EINVAL;
+    if ( v < 0 || tempInt <= 0) return -EINVAL;
 
     *pDwellTime = tempInt;
 
@@ -2209,8 +2210,8 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
     while(('\0' !=  *dataEnd) )
     {
         dataEnd++;
-        ++(*pBufLen);
     }
+    *pBufLen = dataEnd - inPtr ;
     if ( *pBufLen <= 0)  return -EINVAL;
 
     /* Allocate the number of bytes based on the number of input characters
@@ -2234,7 +2235,14 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
        and f0 in 3rd location */
     for (i = 0, j = 0; j < *pBufLen; j += 2)
     {
-        tempByte = (hdd_parse_hex(inPtr[j]) << 4) | (hdd_parse_hex(inPtr[j + 1]));
+        if( j+1 == *pBufLen)
+        {
+             tempByte = hdd_parse_hex(inPtr[j]);
+        }
+        else
+        {
+              tempByte = (hdd_parse_hex(inPtr[j]) << 4) | (hdd_parse_hex(inPtr[j + 1]));
+        }
         (*pBuf)[i++] = tempByte;
     }
     *pBufLen = i;
