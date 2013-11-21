@@ -1,0 +1,44 @@
+From 1c537269a5ed7f4fdf033a75606750623b4f7392 Mon Sep 17 00:00:00 2001
+From: Sameer Thalappil <sameert@codeaurora.org>
+Date: Thu, 21 Nov 2013 15:14:48 -0800
+Subject: [PATCH] wlan: Invoke SSR on invalid response from FW
+
+When WLAN driver receives an invalid response from FW (the response is
+not matching with the expected response), then there is no way to
+recover from this failure. So invoke SSR to recover from such
+catastrophic failures.
+
+Change-Id: If44cd0b0adddc41cf61a231969b6268d4ee84b03
+CRs-Fixed: 575298
+---
+ CORE/WDI/CP/src/wlan_qct_wdi.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/CORE/WDI/CP/src/wlan_qct_wdi.c b/CORE/WDI/CP/src/wlan_qct_wdi.c
+index 22d59ee..4554a1a 100644
+--- a/CORE/WDI/CP/src/wlan_qct_wdi.c
++++ b/CORE/WDI/CP/src/wlan_qct_wdi.c
+@@ -20750,8 +20750,18 @@ WDI_RXMsgCTSCB
+                wdiEventData.wdiResponse,
+                WDI_getRespMsgString(pWDICtx->wdiExpectedResponse),
+                pWDICtx->wdiExpectedResponse);
+-    /* WDI_DetectedDeviceError( pWDICtx, WDI_ERR_INVALID_RSP_FMT); */
+-    VOS_BUG(0);
++
++    if (gWDICb.bEnableSSR == false)
++    {
++       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
++            "SSR is not enabled on WDI timeout");
++       WDI_DetectedDeviceError(pWDICtx, WDI_ERR_BASIC_OP_FAILURE);
++       return;
++    }
++    wpalWcnssResetIntr();
++    /* if this timer fires, it means Riva did not receive the FIQ */
++    wpalTimerStart(&pWDICtx->ssrTimer, WDI_SSR_TIMEOUT);
++
+     return;
+   }
+ 
+-- 
+1.8.2.1
+
