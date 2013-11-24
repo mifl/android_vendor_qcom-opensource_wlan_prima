@@ -134,7 +134,7 @@ static tCsrIgnoreChannels countryIgnoreList[MAX_COUNTRY_IGNORE] = {
     { {'T','W'}, { 36, 40, 44, 48, 52}, 5},
     { {'I','D'}, { 165}, 1 },
     { {'A','U'}, { 120, 124, 128}, 3 },
-    { {'A','G'}, { 120, 124, 128}, 3 }
+    { {'A','R'}, { 120, 124, 128}, 3 }
     };
 
 //*** This is temporary work around. It need to call CCM api to get to CFG later
@@ -3899,7 +3899,7 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
         {
             smsLog( pMac, LOGE, FL("  fail to get regId %d"), domainId );
             fRet = eANI_BOOLEAN_FALSE;
-            return fRet;
+            break;
         }
         // Checking for Domain Id change
         if ( domainId != pMac->scan.domainIdCurrent )
@@ -7631,6 +7631,11 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
    }
    //Add to scan cache
    csrScanAddResult(pMac, pScanResult, pIesLocal);
+
+   if( (pScanResult->Result.pvIes == NULL) && pIesLocal )
+   {
+       vos_mem_free(pIesLocal);
+   }
 
    vos_mem_free(pParsedFrame);
 
