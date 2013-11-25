@@ -1471,7 +1471,8 @@ limIbssCoalesce(
                                   MAC_ADDR_ARRAY(currentBssId), MAC_ADDR_ARRAY(pHdr->bssId));
 
     /* Check for IBSS Coalescing only if Beacon is from different BSS */
-    if ( !vos_mem_compare(currentBssId, pHdr->bssId, sizeof( tSirMacAddr )))
+    if ( !vos_mem_compare(currentBssId, pHdr->bssId, sizeof( tSirMacAddr ))
+          && psessionEntry->isCoalesingInIBSSAllowed)
     {
        /*
         * If STA entry is already available in the LIM hash table, then it is
@@ -1510,6 +1511,12 @@ limIbssCoalesce(
        ibss_bss_delete(pMac,psessionEntry);
        return eSIR_SUCCESS;
     }
+    else
+    {
+       if (!vos_mem_compare(currentBssId, pHdr->bssId, sizeof( tSirMacAddr )))
+           return eSIR_LIM_IGNORE_BEACON;
+    }
+
 
     // STA in IBSS mode and SSID matches with ours
     pPeerNode = ibss_peer_find(pMac, pHdr->sa);
