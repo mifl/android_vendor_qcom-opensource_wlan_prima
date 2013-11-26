@@ -788,6 +788,11 @@ typedef enum
 #define CFG_LFR_FEATURE_ENABLED_MIN                         (0)
 #define CFG_LFR_FEATURE_ENABLED_MAX                         (1)
 #define CFG_LFR_FEATURE_ENABLED_DEFAULT                     (0) //disabled
+
+#define CFG_LFR_MAWC_FEATURE_ENABLED_NAME                   "MAWCEnabled"
+#define CFG_LFR_MAWC_FEATURE_ENABLED_MIN                    (0)
+#define CFG_LFR_MAWC_FEATURE_ENABLED_MAX                    (1)
+#define CFG_LFR_MAWC_FEATURE_ENABLED_DEFAULT                (0) /* disabled */
 #endif // FEATURE_WLAN_LFR
 
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
@@ -826,6 +831,12 @@ typedef enum
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_MIN                    (0)
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_MAX                    (125)
 #define CFG_IMMEDIATE_ROAM_RSSI_DIFF_DEFAULT                (0)
+
+/*This parameter is used to set Wireless Extended Security Mode.*/
+#define CFG_ENABLE_WES_MODE_NAME                            "gWESModeEnabled"
+#define CFG_ENABLE_WES_MODE_NAME_MIN                        (0)
+#define CFG_ENABLE_WES_MODE_NAME_MAX                        (1)
+#define CFG_ENABLE_WES_MODE_NAME_DEFAULT                    (0)
 
 #define CFG_ROAM_SCAN_N_PROBES                             "gRoamScanNProbes"
 #define CFG_ROAM_SCAN_N_PROBES_MIN                          (1)
@@ -2109,6 +2120,7 @@ typedef struct
    v_U32_t                      InfraUapsdBkSuspIntv;
 #ifdef FEATURE_WLAN_LFR
    v_BOOL_t                     isFastRoamIniFeatureEnabled;
+   v_BOOL_t                     MAWCEnabled;
 #endif
 #ifdef FEATURE_WLAN_CCX
    v_U32_t                      InfraInactivityInterval;
@@ -2118,6 +2130,7 @@ typedef struct
    v_BOOL_t                     isFastTransitionEnabled;
    v_U8_t                       RoamRssiDiff;
    v_U8_t                       nImmediateRoamRssiDiff;
+   v_BOOL_t                     isWESModeEnabled;
 #endif
 #ifdef FEATURE_WLAN_OKC
    v_BOOL_t                     isOkcIniFeatureEnabled;
