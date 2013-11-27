@@ -6868,11 +6868,11 @@ static int wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_device 
         return status;
     }
 
-    wlan_hdd_get_rssi(pAdapter, &sinfo->signal);
-    sinfo->filled |= STATION_INFO_SIGNAL;
-
     wlan_hdd_get_station_stats(pAdapter);
     rate_flags = pAdapter->hdd_stats.ClassA_stat.tx_rate_flags;
+
+    wlan_hdd_get_rssi(pAdapter, &sinfo->signal);
+    sinfo->filled |= STATION_INFO_SIGNAL;
 
     //convert to the UI units of 100kbps
     myRate = pAdapter->hdd_stats.ClassA_stat.tx_rate * 5;
@@ -7545,7 +7545,6 @@ static int wlan_hdd_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *d
     tHalHandle halHandle;
     int status;
     tANI_U8  BSSIDMatched = 0;
-    tANI_U8 *pBSSId;
     hdd_context_t *pHddCtx;
     int result = 0;
 
@@ -7604,7 +7603,6 @@ static int wlan_hdd_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *d
               }
 
              /*clear the last entry in HDD cache ---[index-1]*/
-             pBSSId =(tANI_U8 *)(PMKIDCache[PMKIDCacheIndex-1].BSSID);
              vos_mem_zero(PMKIDCache[PMKIDCacheIndex-1].BSSID, WNI_CFG_BSSID_LEN);
              vos_mem_zero(PMKIDCache[PMKIDCacheIndex-1].PMKID, CSR_RSN_PMKID_SIZE);
 
@@ -7612,7 +7610,7 @@ static int wlan_hdd_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *d
              PMKIDCacheIndex--;
 
              /*delete the last PMKID cache in CSR*/
-             result = sme_RoamDelPMKIDfromCache(halHandle, pAdapter->sessionId, pBSSId);
+             result = sme_RoamDelPMKIDfromCache(halHandle, pAdapter->sessionId, pmksa->bssid);
              if (0 != result)
              {
                 hddLog(VOS_TRACE_LEVEL_ERROR,"%s: cannot delete PMKSA %d CONTENT.",
@@ -7685,10 +7683,7 @@ static int wlan_hdd_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device 
     /*delete all the PMKSA one by one */
     for (j = 0; j<PMKIDCacheIndex; j++)
     {
-          /*clear the entry in HDD cache 0--index-1 */
           pBSSId =(tANI_U8 *)(PMKIDCache[j].BSSID);
-          vos_mem_zero(PMKIDCache[j].BSSID, WNI_CFG_BSSID_LEN);
-          vos_mem_zero(PMKIDCache[j].PMKID, CSR_RSN_PMKID_SIZE);
 
           /*delete the PMKID in CSR*/
           result = sme_RoamDelPMKIDfromCache(halHandle, pAdapter->sessionId, pBSSId);
@@ -7698,6 +7693,9 @@ static int wlan_hdd_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device 
              hddLog(VOS_TRACE_LEVEL_ERROR ,"%s cannot flush PMKIDCache %d.",
                     __func__,j);
           }
+          /*clear the entry in HDD cache 0--index-1 */
+          vos_mem_zero(PMKIDCache[j].BSSID, WNI_CFG_BSSID_LEN);
+          vos_mem_zero(PMKIDCache[j].PMKID, CSR_RSN_PMKID_SIZE);
       }
 
     PMKIDCacheIndex = 0;
@@ -8806,19 +8804,19 @@ void wlan_hdd_cfg80211_lphb_ind_handler
       return;
    }
 
-   if(!nla_put_u32(skb, WLAN_HDD_TM_ATTR_CMD, WLAN_HDD_TM_CMD_WLAN_HB))
+   if(nla_put_u32(skb, WLAN_HDD_TM_ATTR_CMD, WLAN_HDD_TM_CMD_WLAN_HB))
    {
       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "WLAN_HDD_TM_ATTR_CMD put fail");
       goto nla_put_failure;
    }
-   if(!nla_put_u32(skb, WLAN_HDD_TM_ATTR_TYPE, lphbInd->protocolType))
+   if(nla_put_u32(skb, WLAN_HDD_TM_ATTR_TYPE, lphbInd->protocolType))
    {
       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "WLAN_HDD_TM_ATTR_TYPE put fail");
       goto nla_put_failure;
    }
-   if(!nla_put(skb, WLAN_HDD_TM_ATTR_DATA,
+   if(nla_put(skb, WLAN_HDD_TM_ATTR_DATA,
            sizeof(tSirLPHBInd), lphbInd))
    {
       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
