@@ -1,0 +1,85 @@
+From b958e5ee1eda87548c8ead322f4111c2eefd72af Mon Sep 17 00:00:00 2001
+From: Tushnim Bhattacharyya <tushnimb@codeaurora.org>
+Date: Wed, 23 Oct 2013 18:55:38 -0700
+Subject: [PATCH 09/18] wlan: update country code for 11d
+
+Update the country code while new 11d information found, only if
+we are not connected to an AP which is already advertising some
+country code
+
+CRs-Fixed: 564552
+Change-Id: I88217b90a106c62fc0ff63e9ef115ee49e475ccb
+
+diff --git a/CORE/SME/src/csr/csrApiRoam.c b/CORE/SME/src/csr/csrApiRoam.c
+index 8399c95..b6e3f3d 100644
+--- a/CORE/SME/src/csr/csrApiRoam.c
++++ b/CORE/SME/src/csr/csrApiRoam.c
+@@ -3792,6 +3792,10 @@ eHalStatus csrRoamSetBssConfigCfg(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrR
+             {
+                 csrApplyCountryInformation(pMac, TRUE);
+             }
++            //Let's also update the below to make sure we don't update CC while
++            //connected to an AP which is advertising some CC
++            palCopyMemory(pMac->hHdd, pMac->scan.currentCountryBssid,
++                            pBssDesc->bssId, sizeof(tSirMacAddr));
+         }
+         if ((csrIs11dSupported (pMac)) && pIes)
+         {
+diff --git a/CORE/SME/src/csr/csrApiScan.c b/CORE/SME/src/csr/csrApiScan.c
+index 6194710..d745012 100644
+--- a/CORE/SME/src/csr/csrApiScan.c
++++ b/CORE/SME/src/csr/csrApiScan.c
+@@ -2989,6 +2989,31 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
+         }
+     }
+ 
++    //we don't need to update CC while connected to an AP which is advertising CC already
++    if (csrIs11dSupported(pMac))
++    {
++        tANI_U32 i;
++        tCsrRoamSession *pSession;
++
++        for (i = 0; i < CSR_ROAM_SESSION_MAX; i++ )
++        {
++            if (CSR_IS_SESSION_VALID( pMac, i ) )
++            {
++                pSession = CSR_GET_SESSION( pMac, i );
++                if (csrIsConnStateConnected(pMac, i))
++                {
++                    if (csrIsBssidMatch(pMac, (tCsrBssid *)&pMac->scan.currentCountryBssid,
++                                        &pSession->connectedProfile.bssid))
++                    {
++                        smsLog(pMac, LOGW, FL("No need for updating CC, we will"
++                                              "continue with current AP's CC"));
++                        goto end;
++                    }
++                }
++            }
++        }
++    }
++
+     // Calculating 30% of current rssi is an idea for not to change
+     // country code so freq.
+     if (rssi_of_current_country != -128)
+@@ -3015,7 +3040,7 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
+                                 bssid_temp, sizeof(tSirMacAddr));
+                 // Best AP should be passed to update reg domain.
+                  csrLearnCountryInformation( pMac, &pBssDescription->Result.BssDescriptor,
+-                              pIesLocal, eANI_BOOLEAN_FALSE );
++                              pIesLocal, eANI_BOOLEAN_TRUE );
+                  break;
+             }
+             pEntryTemp = pNext;
+@@ -3024,7 +3049,8 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
+     }
+ 
+ 
+-    //Tush: If we can find the current 11d info in any of the scan results, or
++end:
++    //If we can find the current 11d info in any of the scan results, or
+     // a good enough AP with the 11d info from the scan results then no need to
+     // get into ambiguous state
+     if(pMac->scan.fAmbiguous11dInfoFound) 
+-- 
+1.8.2.1
+

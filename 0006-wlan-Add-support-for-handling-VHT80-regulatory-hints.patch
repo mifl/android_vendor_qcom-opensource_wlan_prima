@@ -1,0 +1,352 @@
+From 11cae5194d2068e72a5c5588acb0ab920b26e72c Mon Sep 17 00:00:00 2001
+From: Tushnim Bhattacharyya <tushnimb@codeaurora.org>
+Date: Mon, 14 Oct 2013 16:22:56 -0700
+Subject: [PATCH 06/18] wlan: Add support for handling VHT80 regulatory hints
+
+Add support for VHT80 while handling regulatory hint callback from
+kernel
+
+Change-Id: Ie76c671cc55d88e4a9004c15e0857a0e69745b3a
+CRs-Fixed: 557666
+
+diff --git a/CORE/HDD/inc/wlan_hdd_main.h b/CORE/HDD/inc/wlan_hdd_main.h
+index 1cab14e..5800206 100644
+--- a/CORE/HDD/inc/wlan_hdd_main.h
++++ b/CORE/HDD/inc/wlan_hdd_main.h
+@@ -1097,6 +1097,10 @@ struct hdd_context_s
+     vos_timer_t    tx_rx_trafficTmr;
+     v_U8_t         drvr_miracast;
+     v_U8_t         issplitscan_enabled;
++
++    /* VHT80 allowed*/
++    v_BOOL_t isVHT80Allowed;
++
+ };
+ 
+ 
+@@ -1178,4 +1182,7 @@ VOS_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx);
+ #ifdef WLAN_FEATURE_PACKET_FILTERING
+ int wlan_hdd_setIPv6Filter(hdd_context_t *pHddCtx, tANI_U8 filterType, tANI_U8 sessionId);
+ #endif
++#ifdef CONFIG_ENABLE_LINUX_REG
++void hdd_checkandupdate_phymode( hdd_context_t *pHddCtx);
++#endif
+ #endif    // end #if !defined( WLAN_HDD_MAIN_H )
+diff --git a/CORE/HDD/src/wlan_hdd_main.c b/CORE/HDD/src/wlan_hdd_main.c
+index 2676cfb..fbcb942 100644
+--- a/CORE/HDD/src/wlan_hdd_main.c
++++ b/CORE/HDD/src/wlan_hdd_main.c
+@@ -465,7 +465,85 @@ int wlan_hdd_validate_context(hdd_context_t *pHddCtx)
+     }
+     return 0;
+ }
++#ifdef CONFIG_ENABLE_LINUX_REG
++void hdd_checkandupdate_phymode( hdd_context_t *pHddCtx)
++{
++   hdd_adapter_t *pAdapter = NULL;
++   hdd_station_ctx_t *pHddStaCtx = NULL;
++   eCsrPhyMode phyMode;
++   hdd_config_t *cfg_param = NULL;
++
++   if (NULL == pHddCtx)
++   {
++       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
++               "HDD Context is null !!");
++       return ;
++   }
++
++   pAdapter = hdd_get_adapter(pHddCtx, WLAN_HDD_INFRA_STATION);
++   if (NULL == pAdapter)
++   {
++       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
++               "pAdapter is null !!");
++       return ;
++   }
++
++   pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
++   if (NULL == pHddStaCtx)
++   {
++       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
++               "pHddStaCtx is null !!");
++       return ;
++   }
++
++   cfg_param = pHddCtx->cfg_ini;
++   if (NULL == cfg_param)
++   {
++       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
++               "cfg_params not available !!");
++       return ;
++   }
++
++   phyMode = sme_GetPhyMode(WLAN_HDD_GET_HAL_CTX(pAdapter));
++
++   if (!pHddCtx->isVHT80Allowed)
++   {
++       if ((eCSR_DOT11_MODE_AUTO == phyMode) ||
++           (eCSR_DOT11_MODE_11ac == phyMode) ||
++           (eCSR_DOT11_MODE_11ac_ONLY == phyMode))
++       {
++            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
++                    "Setting phymode to 11n!!");
++           sme_SetPhyMode(WLAN_HDD_GET_HAL_CTX(pAdapter), eCSR_DOT11_MODE_11n);
++       }
++   }
++   else
++   {
++       /*New country Supports 11ac as well resetting value back from .ini*/
++       sme_SetPhyMode(WLAN_HDD_GET_HAL_CTX(pAdapter),
++             hdd_cfg_xlate_to_csr_phy_mode(cfg_param->dot11Mode));
++       return ;
++   }
++
++   if ((eConnectionState_Associated == pHddStaCtx->conn_info.connState) &&
++       ((eCSR_CFG_DOT11_MODE_11AC_ONLY == pHddStaCtx->conn_info.dot11Mode) ||
++        (eCSR_CFG_DOT11_MODE_11AC == pHddStaCtx->conn_info.dot11Mode)))
++   {
++       VOS_STATUS vosStatus;
++
++       // need to issue a disconnect to CSR.
++       INIT_COMPLETION(pAdapter->disconnect_comp_var);
++       vosStatus = sme_RoamDisconnect(WLAN_HDD_GET_HAL_CTX(pAdapter),
++                          pAdapter->sessionId,
++                          eCSR_DISCONNECT_REASON_UNSPECIFIED );
++
++       if (VOS_STATUS_SUCCESS == vosStatus)
++           wait_for_completion_interruptible_timeout(&pAdapter->disconnect_comp_var,
++                 msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+ 
++   }
++}
++#else
+ void hdd_checkandupdate_phymode( hdd_adapter_t *pAdapter, char *country_code)
+ {
+     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+@@ -528,6 +606,7 @@ void hdd_checkandupdate_phymode( hdd_adapter_t *pAdapter, char *country_code)
+ 
+     }
+ }
++#endif //CONFIG_ENABLE_LINUX_REG
+ 
+ void hdd_checkandupdate_dfssetting( hdd_adapter_t *pAdapter, char *country_code)
+ {
+@@ -651,10 +730,25 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+            country_code = command + 8;
+ 
+            hdd_checkandupdate_dfssetting(pAdapter, country_code);
++#ifndef CONFIG_ENABLE_LINUX_REG
+            hdd_checkandupdate_phymode(pAdapter, country_code);
+-           ret = (int)sme_ChangeCountryCode(pHddCtx->hHal, NULL, country_code,
+-                    pAdapter, pHddCtx->pvosContext, eSIR_TRUE);
+-           if( 0 != ret )
++#endif
++           ret = (int)sme_ChangeCountryCode(pHddCtx->hHal,
++                  (void *)(tSmeChangeCountryCallback)
++                    wlan_hdd_change_country_code_callback,
++                     country_code, pAdapter, pHddCtx->pvosContext, eSIR_TRUE);
++           if (eHAL_STATUS_SUCCESS == ret)
++           {
++               ret = wait_for_completion_interruptible_timeout(
++                       &pAdapter->change_country_code,
++                            msecs_to_jiffies(WLAN_WAIT_TIME_COUNTRY));
++               if (0 >= ret)
++               {
++                   hddLog(VOS_TRACE_LEVEL_ERROR, "%s: SME while setting country code timed out",
++                   __func__);
++               }
++           }
++           else
+            {
+                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
+                        "%s: SME Change Country code fail ret=%d\n",__func__, ret);
+diff --git a/CORE/VOSS/src/vos_nvitem.c b/CORE/VOSS/src/vos_nvitem.c
+index 5ca6b54..716243f 100644
+--- a/CORE/VOSS/src/vos_nvitem.c
++++ b/CORE/VOSS/src/vos_nvitem.c
+@@ -2735,12 +2735,34 @@ static int create_linux_regulatory_entry_from_regd(struct wiphy *wiphy,
+     int i, j, n, domain_id;
+     int bw20_start_channel_index, bw20_end_channel_index;
+     int bw40_start_channel_index, bw40_end_channel_index;
++    v_CONTEXT_t pVosContext = NULL;
++    hdd_context_t *pHddCtx = NULL;
+ 
+     if (wiphy->regd == NULL)
+     {
+         wiphy_dbg(wiphy, "error: wiphy->regd is NULL\n");
+         return -1;
+     }
++    pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
++
++    if (NULL != pVosContext)
++    {
++        pHddCtx = vos_get_context(VOS_MODULE_ID_HDD, pVosContext);
++        if (NULL == pHddCtx)
++        {
++           VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
++                       ("Invalid pHddCtx pointer") );
++        }
++        else
++        {
++           pHddCtx->isVHT80Allowed = 0;
++        }
++    }
++    else
++    {
++       VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
++                  ("Invalid pVosContext pointer") );
++    }
+ 
+     domain_id = temp_reg_domain;
+ 
+@@ -2798,9 +2820,27 @@ static int create_linux_regulatory_entry_from_regd(struct wiphy *wiphy,
+ 
+        /* ignore CRDA max_antenna_gain typical is 3dBi, nv.bin antennaGain is
+           real gain which should be provided by the real design */
+-       if (wiphy->regd->reg_rules[i].freq_range.max_bandwidth_khz == 40000)
++       if (wiphy->regd->reg_rules[i].freq_range.max_bandwidth_khz >= 40000)
+        {
+-           wiphy_dbg(wiphy, "info: 40MHz (channel bonding) is allowed\n");
++           if (wiphy->regd->reg_rules[i].freq_range.max_bandwidth_khz >= 80000)
++           {
++              wiphy_dbg(wiphy, "info: 80MHz (channel bonding) is allowed\n");
++              if (NULL == pHddCtx)
++              {
++                  VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
++                             ("Invalid pHddCtx pointer") );
++              }
++              else
++              {
++                 pHddCtx->isVHT80Allowed = 1;
++              }
++
++
++           }
++           else
++           {
++              wiphy_dbg(wiphy, "info: ONLY 40MHz (channel bonding) is allowed\n");
++           }
+            bw40_start_channel_index =
+                bw40_start_freq_to_channel_index(wiphy->regd->reg_rules[i].freq_range.start_freq_khz);
+            bw40_end_channel_index =
+@@ -2848,6 +2888,33 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
+ {
+     int i, j, m;
+     int k = 0, n = 0;
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0))
++    int err;
++#endif
++    const struct ieee80211_reg_rule *reg_rule;
++    v_CONTEXT_t pVosContext = NULL;
++    hdd_context_t *pHddCtx = NULL;
++
++    pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
++
++    if (NULL != pVosContext)
++    {
++        pHddCtx = vos_get_context(VOS_MODULE_ID_HDD, pVosContext);
++        if (NULL == pHddCtx)
++        {
++           VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
++                       ("Invalid pHddCtx pointer") );
++        }
++        else
++        {
++           pHddCtx->isVHT80Allowed = 0;
++        }
++    }
++    else
++    {
++       VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
++                  ("Invalid pVosContext pointer") );
++    }
+ 
+     /* 20MHz channels */
+     if (nBandCapability == eCSR_BAND_24)
+@@ -2921,6 +2988,18 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
+                     pnvEFSTable->halnv.tables.regDomains[temp_reg_domain].channels[n].pwrLimit =
+                         (tANI_S8) (((wiphy->bands[i]->channels[j].max_power)/100)-3);
+                 }
++                if ((wiphy->bands[i]->channels[j].flags & IEEE80211_CHAN_NO_80MHZ) == 0)
++                {
++                   if (NULL == pHddCtx)
++                   {
++                      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
++                                  ("Invalid pHddCtx pointer") );
++                   }
++                   else
++                   {
++                      pHddCtx->isVHT80Allowed = 1;
++                   }
++                }
+             }
+             else /* Enable is only last flag we support */
+             {
+@@ -2938,6 +3017,19 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
+                     pnvEFSTable->halnv.tables.regDomains[temp_reg_domain].channels[n].pwrLimit =
+                         (tANI_S8) (((wiphy->bands[i]->channels[j].max_power)/100)-3);
+                 }
++                if ((wiphy->bands[i]->channels[j].flags & IEEE80211_CHAN_NO_80MHZ) == 0)
++                {
++                   if (NULL == pHddCtx)
++                   {
++                      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
++                                  ("Invalid pHddCtx pointer") );
++                   }
++                   else
++                   {
++                      pHddCtx->isVHT80Allowed = 1;
++                   }
++                }
++
+             }
+ 
+             /* ignore CRDA max_antenna_gain typical is 3dBi, nv.bin antennaGain
+@@ -2971,6 +3063,7 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
+     tANI_U8 nBandCapability;
+     v_COUNTRYCODE_t country_code;
+     int i;
++    v_BOOL_t isVHT80Allowed;
+ 
+     VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+                ("cfg80211 reg notifier callback for country"));
+@@ -2991,13 +3084,17 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
+     {
+ 
+         nBandCapability = pHddCtx->cfg_ini->nBandCapability;
+-
++        isVHT80Allowed = pHddCtx->isVHT80Allowed;
+         if (create_linux_regulatory_entry(wiphy, request, pHddCtx->cfg_ini->nBandCapability) == 0)
+         {
+ 
+             VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+                        (" regulatory entry created"));
+         }
++        if (pHddCtx->isVHT80Allowed != isVHT80Allowed)
++        {
++           hdd_checkandupdate_phymode( pHddCtx);
++        }
+ 
+         complete(&pHddCtx->linux_reg_req);
+     }
+@@ -3028,6 +3125,7 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
+             temp_reg_domain = REGDOMAIN_WORLD;
+ 
+         nBandCapability = pHddCtx->cfg_ini->nBandCapability;
++        isVHT80Allowed = pHddCtx->isVHT80Allowed;
+         if (create_linux_regulatory_entry(wiphy, request,
+                                           pHddCtx->cfg_ini->nBandCapability) == 0)
+         {
+@@ -3035,6 +3133,10 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
+                       (" regulatory entry created"));
+ 
+         }
++        if (pHddCtx->isVHT80Allowed != isVHT80Allowed)
++        {
++           hdd_checkandupdate_phymode( pHddCtx);
++        }
+ 
+         cur_reg_domain = temp_reg_domain;
+         linux_reg_cc[0] = country_code[0];
+-- 
+1.8.2.1
+

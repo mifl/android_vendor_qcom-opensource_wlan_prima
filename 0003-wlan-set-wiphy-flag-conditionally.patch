@@ -1,0 +1,285 @@
+From 6af914f8da3dae2b40460a2a199a5466eea50360 Mon Sep 17 00:00:00 2001
+From: Kiet Lam <kietl@codeaurora.org>
+Date: Fri, 11 Oct 2013 20:57:16 -0700
+Subject: [PATCH 03/18] wlan: set wiphy flag conditionally
+
+In case CONFIG_ENABLE_LINUX_REG is defined, lookup NV.bin table to see
+if the device is world roaming. If that is the case, set the wiphy custom
+regulatory flag. Custom regulatory flag ensures the base for the channel
+information set by the kernel remains as world roaming.
+
+Change-Id: I4bdadea9b0a35e22f1057321403552210ca7fdac
+CRs-Fixed: 538940
+
+diff --git a/CORE/HDD/src/wlan_hdd_cfg80211.c b/CORE/HDD/src/wlan_hdd_cfg80211.c
+index 994e681..311683e 100644
+--- a/CORE/HDD/src/wlan_hdd_cfg80211.c
++++ b/CORE/HDD/src/wlan_hdd_cfg80211.c
+@@ -640,8 +640,12 @@ int wlan_hdd_cfg80211_init(struct device *dev,
+ 
+     wiphy->mgmt_stypes = wlan_hdd_txrx_stypes;
+ 
+-    wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
++    #ifndef CONFIG_ENABLE_LINUX_REG
++    /* the flag for the other case would be initialzed in
++       vos_init_wiphy_from_nv_bin */
+ 
++    wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
++    #endif
+ 
+     /* This will disable updating of NL channels from passive to
+      * active if a beacon is received on passive channel. */
+diff --git a/CORE/HDD/src/wlan_hdd_main.c b/CORE/HDD/src/wlan_hdd_main.c
+index 1323f70..2676cfb 100644
+--- a/CORE/HDD/src/wlan_hdd_main.c
++++ b/CORE/HDD/src/wlan_hdd_main.c
+@@ -206,6 +206,7 @@ void hdd_wlan_initial_scan(hdd_adapter_t *pAdapter);
+ int isWDresetInProgress(void);
+ 
+ extern int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr);
++
+ #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+ void hdd_getBand_helper(hdd_context_t *pHddCtx, int *pBand);
+ static VOS_STATUS hdd_parse_channellist(tANI_U8 *pValue, tANI_U8 *pChannelList, tANI_U8 *pNumChannels);
+@@ -6102,11 +6103,34 @@ int hdd_wlan_startup(struct device *dev )
+    }
+ 
+ #ifdef CONFIG_ENABLE_LINUX_REG
++   /* initialize the NV module. This is required so that
++      we can initialize the channel information in wiphy
++      from the NV.bin data. The channel information in
++      wiphy needs to be initialized before wiphy registration */
++
++   status = vos_nv_open();
++   if (!VOS_IS_STATUS_SUCCESS(status))
++   {
++       /* NV module cannot be initialized */
++       hddLog( VOS_TRACE_LEVEL_FATAL,
++                "%s: vos_nv_open failed", __func__);
++       goto err_clkvote;
++   }
++
++   status = vos_init_wiphy_from_nv_bin();
++   if (!VOS_IS_STATUS_SUCCESS(status))
++   {
++       /* NV module cannot be initialized */
++       hddLog( VOS_TRACE_LEVEL_FATAL,
++               "%s: vos_init_wiphy failed", __func__);
++       goto err_vos_nv_close;
++   }
++
+    /* registration of wiphy dev with cfg80211 */
+    if (0 > wlan_hdd_cfg80211_register(wiphy))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,"%s: wiphy register failed", __func__);
+-       goto err_clkvote;
++       goto err_vos_nv_close;
+    }
+ #endif
+ 
+@@ -6532,6 +6556,10 @@ err_wiphy_unregister:
+ #ifdef CONFIG_ENABLE_LINUX_REG
+    wiphy_unregister(wiphy);
+ 
++err_vos_nv_close:
++
++   vos_nv_close();
++
+ err_clkvote:
+ #endif
+ 
+diff --git a/CORE/VOSS/inc/vos_api.h b/CORE/VOSS/inc/vos_api.h
+index 80d941d..6a48551 100644
+--- a/CORE/VOSS/inc/vos_api.h
++++ b/CORE/VOSS/inc/vos_api.h
+@@ -85,8 +85,8 @@
+ #include <vos_trace.h>
+ #include <vos_event.h>
+ #include <vos_lock.h>
+-#include <vos_mq.h>
+ #include <vos_nvitem.h>
++#include <vos_mq.h>
+ #include <vos_packet.h>
+ #include <vos_threads.h>
+ #include <vos_timer.h>
+diff --git a/CORE/VOSS/inc/vos_nvitem.h b/CORE/VOSS/inc/vos_nvitem.h
+index b0b514c..9a93afb 100644
+--- a/CORE/VOSS/inc/vos_nvitem.h
++++ b/CORE/VOSS/inc/vos_nvitem.h
+@@ -706,4 +706,5 @@ eNVChannelEnabledType vos_nv_getChannelEnabledState
+    v_U32_t    rfChannel
+ );
+ 
++VOS_STATUS vos_init_wiphy_from_nv_bin(void);
+ #endif // __VOS_NVITEM_H
+diff --git a/CORE/VOSS/src/vos_api.c b/CORE/VOSS/src/vos_api.c
+index 61da88b..ca415f2 100644
+--- a/CORE/VOSS/src/vos_api.c
++++ b/CORE/VOSS/src/vos_api.c
+@@ -368,7 +368,7 @@ VOS_STATUS vos_open( v_CONTEXT_t *pVosContext, v_SIZE_t hddContextSize )
+       goto err_packet_close;
+    }
+ 
+-
++#ifndef CONFIG_ENABLE_LINUX_REG
+    /* initialize the NV module */
+    vStatus = vos_nv_open();
+    if (!VOS_IS_STATUS_SUCCESS(vStatus))
+@@ -378,6 +378,7 @@ VOS_STATUS vos_open( v_CONTEXT_t *pVosContext, v_SIZE_t hddContextSize )
+                 "%s: Failed to initialize the NV module", __func__);
+      goto err_sys_close;
+    }
++#endif
+ 
+    /* If we arrive here, both threads dispacthing messages correctly */
+    
+@@ -438,9 +439,13 @@ err_mac_close:
+    macClose(gpVosContext->pMACContext);
+ 
+ err_nv_close:
++
++#ifndef CONFIG_ENABLE_LINUX_REG
+    vos_nv_close();
+-   
+-err_sys_close:   
++
++err_sys_close:
++#endif
++
+    sysClose(gpVosContext);
+ 
+ err_packet_close:
+@@ -449,7 +454,7 @@ err_packet_close:
+ err_wda_close:
+    WDA_close(gpVosContext);
+ 
+-err_sched_close:   
++err_sched_close:
+    vos_sched_close(gpVosContext);
+ 
+ 
+@@ -875,6 +880,7 @@ VOS_STATUS vos_close( v_CONTEXT_t vosContext )
+ 
+   ((pVosContextType)vosContext)->pMACContext = NULL;
+ 
++#ifndef CONFIG_ENABLE_LINUX_REG
+   vosStatus = vos_nv_close();
+   if (!VOS_IS_STATUS_SUCCESS(vosStatus))
+   {
+@@ -882,7 +888,7 @@ VOS_STATUS vos_close( v_CONTEXT_t vosContext )
+          "%s: Failed to close NV", __func__);
+      VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
+   }
+-
++#endif
+ 
+   vosStatus = sysClose( vosContext );
+   if (!VOS_IS_STATUS_SUCCESS(vosStatus))
+diff --git a/CORE/VOSS/src/vos_nvitem.c b/CORE/VOSS/src/vos_nvitem.c
+index 0d81fdd..8492a3c 100644
+--- a/CORE/VOSS/src/vos_nvitem.c
++++ b/CORE/VOSS/src/vos_nvitem.c
+@@ -2965,6 +2965,100 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
+ #endif
+ }
+ 
++/* initialize wiphy from NV.bin */
++VOS_STATUS vos_init_wiphy_from_nv_bin(void)
++{
++    int i, j, m;
++    int k = 0;
++    v_REGDOMAIN_t reg_domain;
++    v_CONTEXT_t pVosContext = NULL;
++    hdd_context_t *pHddCtx = NULL;
++    struct wiphy *wiphy = NULL;
++
++    pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
++
++    if (NULL != pVosContext)
++        pHddCtx = vos_get_context(VOS_MODULE_ID_HDD, pVosContext);
++    else
++        return VOS_STATUS_E_EXISTS;
++
++    if (NULL == pHddCtx)
++    {
++        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
++                   ("Invalid pHddCtx pointer") );
++        return VOS_STATUS_E_FAULT;
++    }
++
++    wiphy = pHddCtx->wiphy;
++
++    if  (('0' == pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[0])
++         &&
++         ('0' == pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[1]))
++    {
++        /* default country is world roaming */
++
++        reg_domain = REGDOMAIN_WORLD;
++        wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
++    }
++    else if (REGDOMAIN_WORLD ==
++	     pnvEFSTable->halnv.tables.defaultCountryTable.regDomain) {
++
++        reg_domain = pnvEFSTable->halnv.tables.defaultCountryTable.regDomain;
++        wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
++    }
++    else {
++
++        reg_domain = pnvEFSTable->halnv.tables.defaultCountryTable.regDomain;
++        wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
++    }
++
++    for (i = 0; i < IEEE80211_NUM_BANDS; i++)
++    {
++
++        if (wiphy->bands[i] == NULL)
++        {
++            pr_info("error: wiphy->bands[i] is NULL, i = %d\n", i);
++            return VOS_STATUS_E_FAULT;
++        }
++
++        /* internal channels[] is one continous array for both 2G and 5G bands
++           m is internal starting channel index for each band */
++        if (i == 0)
++            m = 0;
++        else
++            m = wiphy->bands[i-1]->n_channels + m;
++
++        for (j = 0; j < wiphy->bands[i]->n_channels; j++)
++        {
++            /* k = (m + j) is internal current channel index */
++            k = m + j;
++
++            if (pnvEFSTable->halnv.tables.regDomains[reg_domain].channels[k].enabled ==
++                NV_CHANNEL_DISABLE)
++                wiphy->bands[i]->channels[j].flags |= IEEE80211_CHAN_DISABLED;
++
++            else if (pnvEFSTable->halnv.tables.regDomains[reg_domain].channels[k].enabled ==
++                     NV_CHANNEL_DFS) {
++
++                wiphy->bands[i]->channels[j].flags |= IEEE80211_CHAN_PASSIVE_SCAN;
++
++                wiphy->bands[i]->channels[j].max_power =
++                    (pnvEFSTable->halnv.tables.regDomains[reg_domain].channels[k].pwrLimit)*100;
++            }
++
++            else if (pnvEFSTable->halnv.tables.regDomains[reg_domain].channels[k].enabled ==
++                     NV_CHANNEL_ENABLE) {
++
++                wiphy->bands[i]->channels[j].max_power =
++                    (pnvEFSTable->halnv.tables.regDomains[reg_domain].channels[k].pwrLimit)*100;
++            }
++        }
++    }
++
++    return VOS_STATUS_SUCCESS;
++}
++
++
+ #else
+ 
+ /**------------------------------------------------------------------------
+-- 
+1.8.2.1
+

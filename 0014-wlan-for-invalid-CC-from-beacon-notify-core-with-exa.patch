@@ -1,0 +1,104 @@
+From 46730454cf2eba43f49fdacf1e19c1a3b8bf9f5a Mon Sep 17 00:00:00 2001
+From: Tushnim Bhattacharyya <tushnimb@codeaurora.org>
+Date: Thu, 7 Nov 2013 23:44:09 -0800
+Subject: [PATCH 14/18] wlan: for invalid CC from beacon notify core with exact
+ same CC
+
+When invalid CC received from beacon notify regulatory core with
+exact same CC instead of 00. Also for AU country code take the
+channel list as it is from regulatory core
+
+Change-Id: I0e242cfeab68e6e3b7ec16e7e35c71242cf094dc
+Crs-Fixed: 570698
+
+diff --git a/CORE/SME/src/csr/csrApiScan.c b/CORE/SME/src/csr/csrApiScan.c
+index afd294a..02283ce 100644
+--- a/CORE/SME/src/csr/csrApiScan.c
++++ b/CORE/SME/src/csr/csrApiScan.c
+@@ -129,6 +129,7 @@ typedef struct sCsrIgnoreChannels
+     tANI_U16 channelCount;
+ }tCsrIgnoreChannels;
+ 
++#ifndef CONFIG_ENABLE_LINUX_REG
+ static tCsrIgnoreChannels countryIgnoreList[MAX_COUNTRY_IGNORE] = {
+     { {'U','A'}, { 136, 140}, 2},
+     { {'T','W'}, { 36, 40, 44, 48, 52}, 5},
+@@ -136,6 +137,9 @@ static tCsrIgnoreChannels countryIgnoreList[MAX_COUNTRY_IGNORE] = {
+     { {'A','U'}, { 120, 124, 128}, 3 },
+     { {'A','R'}, { 120, 124, 128}, 3 }
+     };
++#else
++static tCsrIgnoreChannels countryIgnoreList[MAX_COUNTRY_IGNORE] = { };
++#endif //CONFIG_ENABLE_LINUX_REG
+ 
+ //*** This is temporary work around. It need to call CCM api to get to CFG later
+ /// Get string parameter value
+@@ -3650,6 +3654,7 @@ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode
+     tANI_BOOLEAN fCountryStringChanged = FALSE, fUnknownCountryCode = FALSE;
+     tANI_U32 i;
+     v_REGDOMAIN_t regd;
++    tANI_BOOLEAN fCountryNotPresentInDriver = FALSE;
+ 
+     // convert to UPPER here so we are assured the strings are always in upper case.
+     for( i = 0; i < 3; i++ )
+@@ -3674,8 +3679,7 @@ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode
+         }
+         else
+         {
+-            pCountryCode[ 0 ] = '0';
+-            pCountryCode[ 1 ] = '0';
++            fCountryNotPresentInDriver = TRUE;
+         }
+     }
+     //right now, even if we don't find the CC in driver we set to world. Making
+@@ -3683,8 +3687,7 @@ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode
+     //reflect the world CC
+     else if (REGDOMAIN_WORLD == regd)
+     {
+-        pCountryCode[ 0 ] = '0';
+-        pCountryCode[ 1 ] = '0';
++        fCountryNotPresentInDriver = TRUE;
+     }
+ 
+     // We've seen some of the AP's improperly put a 0 for the third character of the country code.
+@@ -3704,8 +3707,18 @@ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode
+         if(( 0 == pMac->scan.countryCode11d[ 0 ] && 0 == pMac->scan.countryCode11d[ 1 ] )
+              || (fForce))
+         {
+-            // this is the first .11d information
+-            palCopyMemory( pMac->hHdd, pMac->scan.countryCode11d, pCountryCode, sizeof( pMac->scan.countryCode11d ) );
++            if (!fCountryNotPresentInDriver)
++            {
++                // this is the first .11d information
++                vos_mem_copy(pMac->scan.countryCode11d, pCountryCode,
++                         sizeof( pMac->scan.countryCode11d ));
++
++            }
++            else
++            {
++                pMac->scan.countryCode11d[0] = '0';
++                pMac->scan.countryCode11d[1] = '0';
++            }
+         }
+     }
+ 
+diff --git a/CORE/SME/src/sme_common/sme_Api.c b/CORE/SME/src/sme_common/sme_Api.c
+index c70b94a..969ce01 100644
+--- a/CORE/SME/src/sme_common/sme_Api.c
++++ b/CORE/SME/src/sme_common/sme_Api.c
+@@ -7078,9 +7078,11 @@ eHalStatus sme_HandleChangeCountryCodeByCore(tpAniSirGlobal pMac, tAniGenericCha
+     //driver but not in kernel database
+     if (('0' == pMsg->countryCode[0]) && ('0' == pMsg->countryCode[1]))
+     {
+-        smsLog( pMac, LOGW, FL("Setting countryCode11d to world CC"));
++        smsLog( pMac, LOGW, FL("Setting countryCode11d & countryCodeCurrent to world CC"));
+         palCopyMemory(pMac->hHdd, pMac->scan.countryCode11d, pMsg->countryCode,
+                       WNI_CFG_COUNTRY_CODE_LEN);
++        palCopyMemory(pMac->hHdd, pMac->scan.countryCodeCurrent, pMsg->countryCode,
++                      WNI_CFG_COUNTRY_CODE_LEN);
+     }
+ 
+     status = WDA_SetRegDomain(pMac, REGDOMAIN_WORLD);
+-- 
+1.8.2.1
+

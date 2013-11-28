@@ -1,0 +1,33 @@
+From c79f0366b70d0ac037495051e39eb16ea5752f1a Mon Sep 17 00:00:00 2001
+From: Tushnim Bhattacharyya <tushnimb@codeaurora.org>
+Date: Tue, 5 Nov 2013 16:31:36 -0800
+Subject: [PATCH 13/18] wlan: Need consistent behavior when userpriority is set
+
+When userpriority is set, & invalid CC set via userspace driver
+to behave consistently
+
+Change-Id: I0ea9756a4fe96e29273f4f35388537ba6a5763cb
+CRs-Fixed: 571165
+
+diff --git a/CORE/SME/src/sme_common/sme_Api.c b/CORE/SME/src/sme_common/sme_Api.c
+index c4d845e..c70b94a 100644
+--- a/CORE/SME/src/sme_common/sme_Api.c
++++ b/CORE/SME/src/sme_common/sme_Api.c
+@@ -6902,6 +6902,14 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
+        smsLog( pMac, LOGE, FL("  fail to get regId %d"), domainIdIoctl );
+        return status;
+    }
++   else if (REGDOMAIN_WORLD == domainIdIoctl)
++   {
++       /* Supplicant country code is invalid, so we are on world mode now. So
++          give 11D chance to update */
++       pMac->roam.configParam.Is11dSupportEnabled = pMac->roam.configParam.Is11dSupportEnabledOriginal;
++       smsLog(pMac, LOG1, FL("Country Code unrecognized by driver"));
++   }
++
+ 
+    status = WDA_SetRegDomain(pMac, domainIdIoctl);
+ 
+-- 
+1.8.2.1
+

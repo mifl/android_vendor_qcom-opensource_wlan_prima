@@ -1,0 +1,30 @@
+From 354d700d9a5602aa5293325a90d5608bacc59c1d Mon Sep 17 00:00:00 2001
+From: Tushnim Bhattacharyya <tushnimb@codeaurora.org>
+Date: Tue, 22 Oct 2013 13:40:56 -0700
+Subject: [PATCH 08/18] wlan:when discovering invalid 11d CC from AP reset to
+ world
+
+If invalid 11d CC from AP is received, reset the country code to
+world mode to conform with the regulatory core logic
+
+Change-Id: I9e4cfd69f910c90b4f1f4412036ffa1d20599db7
+CRs-Fixed: 564489
+
+diff --git a/CORE/SME/src/csr/csrApiScan.c b/CORE/SME/src/csr/csrApiScan.c
+index e2387aa..6194710 100644
+--- a/CORE/SME/src/csr/csrApiScan.c
++++ b/CORE/SME/src/csr/csrApiScan.c
+@@ -3640,8 +3640,8 @@ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode
+         }
+         else
+         {
+-            pCountryCode[ 0 ] = 'U';
+-            pCountryCode[ 1 ] = 'S';
++            pCountryCode[ 0 ] = '0';
++            pCountryCode[ 1 ] = '0';
+         }
+     }
+ 
+-- 
+1.8.2.1
+

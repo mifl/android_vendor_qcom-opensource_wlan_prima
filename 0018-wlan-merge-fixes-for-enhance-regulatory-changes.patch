@@ -1,0 +1,57 @@
+From 62718c24d87a6d0effa104c004fbdf9582d19859 Mon Sep 17 00:00:00 2001
+From: Tushnim Bhattacharyya <tushnimb@codeaurora.org>
+Date: Wed, 27 Nov 2013 14:48:38 -0800
+Subject: [PATCH 18/18] wlan: merge fixes for enhance regulatory changes
+
+The strick regulatory flag shouldn't be set. This is causing
+the channel list to remain same even after Country Code is
+changed
+
+Change-Id: Id451ef2ca0259759f339fe58b99e22bd89c361ac
+CRs-Fixed: 582399
+
+diff --git a/CORE/HDD/src/wlan_hdd_cfg80211.c b/CORE/HDD/src/wlan_hdd_cfg80211.c
+index 4733939..5c37d06 100644
+--- a/CORE/HDD/src/wlan_hdd_cfg80211.c
++++ b/CORE/HDD/src/wlan_hdd_cfg80211.c
+@@ -553,7 +553,6 @@ struct wiphy *wlan_hdd_cfg80211_wiphy_alloc(int priv_size)
+         return NULL;
+     }
+ 
+-    wiphy->country_ie_pref = NL80211_COUNTRY_IE_IGNORE_CORE;
+ 
+     return wiphy;
+ }
+@@ -649,7 +648,6 @@ int wlan_hdd_cfg80211_init(struct device *dev,
+     /* This will disable updating of NL channels from passive to
+      * active if a beacon is received on passive channel. */
+     wiphy->flags |=   WIPHY_FLAG_DISABLE_BEACON_HINTS;
+-    wiphy->flags |=   WIPHY_FLAG_STRICT_REGULATORY;
+ 
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
+diff --git a/CORE/VOSS/src/vos_nvitem.c b/CORE/VOSS/src/vos_nvitem.c
+index b6fd67e..28bcb50 100644
+--- a/CORE/VOSS/src/vos_nvitem.c
++++ b/CORE/VOSS/src/vos_nvitem.c
+@@ -3106,17 +3106,6 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
+     VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+                ("cfg80211 reg notifier callback for country"));
+ 
+-    if (pHddCtx->isLoadUnloadInProgress)
+-    {
+-        wiphy_dbg(wiphy, "info: %s: Unloading/Loading in Progress. Ignore!!!",
+-                  __func__);
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
+-        return;
+-#else
+-       return 0;
+-#endif
+-    }
+-
+     if (NULL == pHddCtx)
+     {
+        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+-- 
+1.8.2.1
+

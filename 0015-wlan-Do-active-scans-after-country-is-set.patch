@@ -1,0 +1,64 @@
+From d60ceecf8e2615f9cd461a3ae615a906288f5798 Mon Sep 17 00:00:00 2001
+From: Tushnim Bhattacharyya <tushnimb@codeaurora.org>
+Date: Mon, 11 Nov 2013 19:01:45 +0530
+Subject: [PATCH 15/18] wlan: Do active scans after country is set
+
+After the country is set by a user or country IE
+hint make sure that all the scans issued by the driver
+are marked to do active scanning on all the frequencies
+allowed by the regulatory rules of the new country.
+
+Change-Id: I8ebfe3528d550fde87e206ee686b16dc42b747d0
+CRs-Fixed: 573383
+
+diff --git a/CORE/SME/src/csr/csrApiScan.c b/CORE/SME/src/csr/csrApiScan.c
+index 02283ce..777a5c2 100644
+--- a/CORE/SME/src/csr/csrApiScan.c
++++ b/CORE/SME/src/csr/csrApiScan.c
+@@ -3417,12 +3417,6 @@ void csrResetCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce, tANI_
+     }
+ #endif //#ifdef FEATURE_WLAN_DIAG_SUPPORT_CSR
+ 
+-        // switch to passive scans only when 11d is enabled
+-        if( csrIs11dSupported( pMac ) )
+-        {
+-            pMac->scan.curScanType = eSIR_PASSIVE_SCAN;
+-        }
+-
+         csrPruneChannelListForMode(pMac, &pMac->scan.baseChannels);
+         csrPruneChannelListForMode(pMac, &pMac->scan.base20MHzChannels);
+ 
+diff --git a/CORE/SME/src/sme_common/sme_Api.c b/CORE/SME/src/sme_common/sme_Api.c
+index 969ce01..659f3c0 100644
+--- a/CORE/SME/src/sme_common/sme_Api.c
++++ b/CORE/SME/src/sme_common/sme_Api.c
+@@ -7024,11 +7024,6 @@ eHalStatus sme_HandleChangeCountryCodeByUser(tpAniSirGlobal pMac,
+         }
+     }
+ 
+-    /* set to default domain ID */
+-    pMac->scan.domainIdCurrent = reg_domain_id;
+-
+-    /* set to default domain ID */
+-    pMac->scan.domainIdDefault = pMac->scan.domainIdCurrent;
+ 
+     /* get the channels based on new cc */
+     status = csrInitGetChannels(pMac);
+@@ -7043,11 +7038,13 @@ eHalStatus sme_HandleChangeCountryCodeByUser(tpAniSirGlobal pMac,
+     csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
+     if (VOS_TRUE == is11dCountry)
+     {
+-        pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
+         pMac->scan.f11dInfoApplied = eANI_BOOLEAN_TRUE;
+         pMac->scan.f11dInfoReset = eANI_BOOLEAN_FALSE;
+     }
+ 
++    // Do active scans after the country is set by User hints or Country IE
++    pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
++
+     smsLog(pMac, LOG1, FL(" returned"));
+     return eHAL_STATUS_SUCCESS;
+ }
+-- 
+1.8.2.1
+

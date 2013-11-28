@@ -1,0 +1,326 @@
+From fe759e65cb39904cf0cd4e131447e63fed3d5ad2 Mon Sep 17 00:00:00 2001
+From: Tushnim Bhattacharyya <tushnimb@codeaurora.org>
+Date: Tue, 29 Oct 2013 17:27:43 -0700
+Subject: [PATCH 11/18] wlan: Update regulatory domain from world mode
+
+If STA able to see AP with valid CC during scan OR STA connects to
+AP which is advertising valid CC, it should update to new CC
+
+Change-Id: Ibd4a1dc00dc6b426d261f12c6185ce64cf506d43
+CRs-Fixed: 566700
+
+diff --git a/CORE/SME/src/csr/csrApiRoam.c b/CORE/SME/src/csr/csrApiRoam.c
+index b6e3f3d..90f7cbc 100644
+--- a/CORE/SME/src/csr/csrApiRoam.c
++++ b/CORE/SME/src/csr/csrApiRoam.c
+@@ -3792,15 +3792,20 @@ eHalStatus csrRoamSetBssConfigCfg(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrR
+             {
+                 csrApplyCountryInformation(pMac, TRUE);
+             }
+-            //Let's also update the below to make sure we don't update CC while
+-            //connected to an AP which is advertising some CC
+-            palCopyMemory(pMac->hHdd, pMac->scan.currentCountryBssid,
+-                            pBssDesc->bssId, sizeof(tSirMacAddr));
+         }
+         if ((csrIs11dSupported (pMac)) && pIes)
+         {
+             if (!pIes->Country.present)
++            {
+                 csrResetCountryInformation(pMac, eANI_BOOLEAN_FALSE, eANI_BOOLEAN_FALSE );
++            }
++            else
++            {
++                //Let's also update the below to make sure we don't update CC while
++                //connected to an AP which is advertising some CC
++                palCopyMemory(pMac->hHdd, pMac->scan.currentCountryBssid,
++                              pBssDesc->bssId, sizeof(tSirMacAddr));
++            }
+         }
+     }
+     //Qos
+diff --git a/CORE/SME/src/csr/csrApiScan.c b/CORE/SME/src/csr/csrApiScan.c
+index ea1e8a4..afd294a 100644
+--- a/CORE/SME/src/csr/csrApiScan.c
++++ b/CORE/SME/src/csr/csrApiScan.c
+@@ -3020,8 +3020,10 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
+             rssi_of_current_country = rssi_of_current_country
+                                          - THIRTY_PERCENT(rssi_of_current_country);
+         }
+-
+-        if ((rssi_of_current_country <= cand_Bss_rssi )  || rssi_of_current_country  == -128)
++        //if new candidate AP has 30% better RSSI or this is the first time or
++        //AP aged out of CSR cache or we are in world CC now
++        if ((rssi_of_current_country <= cand_Bss_rssi )  || (rssi_of_current_country  == -128)
++           ||( '0' == pMac->scan.countryCode11d[ 0 ] && '0' == pMac->scan.countryCode11d[ 1 ] ))
+         {
+             csrLLLock(&pMac->scan.scanResultList);
+             pEntryTemp = csrLLPeekHead(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
+@@ -3035,11 +3037,17 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
+                 if (csrIsMacAddressEqual(pMac, (tCsrBssid *)&bssid_temp,
+                              (tCsrBssid *) pBssDescription->Result.BssDescriptor.bssId))
+                 {
+-                    palCopyMemory(pMac->hHdd, pMac->scan.currentCountryBssid,
+-                                    bssid_temp, sizeof(tSirMacAddr));
+                     // Best AP should be passed to update reg domain.
+                     csrLearnCountryInformation( pMac, &pBssDescription->Result.BssDescriptor,
+                                  pIesLocal, eANI_BOOLEAN_TRUE );
++                     //this check is to avoid the case of invalid CC set via 11d
++                     //In that case we move to world CC & we are open to any new
++                     //valid CC we can get during scan
++                     if(( '0' != pMac->scan.countryCode11d[ 0 ] && '0' != pMac->scan.countryCode11d[ 1 ] ))
++                     {
++                         palCopyMemory(pMac->hHdd, pMac->scan.currentCountryBssid,
++                                         bssid_temp, sizeof(tSirMacAddr));
++                     }
+                     break;
+                 }
+                 pEntryTemp = pNext;
+@@ -3670,6 +3678,14 @@ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode
+             pCountryCode[ 1 ] = '0';
+         }
+     }
++    //right now, even if we don't find the CC in driver we set to world. Making
++    //sure countryCode11d doesn't get updated with the invalid CC, instead
++    //reflect the world CC
++    else if (REGDOMAIN_WORLD == regd)
++    {
++        pCountryCode[ 0 ] = '0';
++        pCountryCode[ 1 ] = '0';
++    }
+ 
+     // We've seen some of the AP's improperly put a 0 for the third character of the country code.
+     // spec says valid charcters are 'O' (for outdoor), 'I' for Indoor, or ' ' (space; for either).
+diff --git a/CORE/SME/src/sme_common/sme_Api.c b/CORE/SME/src/sme_common/sme_Api.c
+index 50dd51d..31a5b51 100644
+--- a/CORE/SME/src/sme_common/sme_Api.c
++++ b/CORE/SME/src/sme_common/sme_Api.c
+@@ -6909,6 +6909,7 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
+        //set again if we find AP with 11d info during scan
+        if (!pMac->roam.configParam.fSupplicantCountryCodeHasPriority)
+        {
++           smsLog( pMac, LOGW, FL("Clearing currentCountryBssid, countryCode11d"));
+            vos_mem_zero(&pMac->scan.currentCountryBssid, sizeof(tCsrBssid));
+            vos_mem_zero( pMac->scan.countryCode11d, sizeof( pMac->scan.countryCode11d ) );
+        }
+@@ -6939,7 +6940,7 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
+ 
+ /* ---------------------------------------------------------------------------
+ 
+-    \fn sme_HandleGenericChangeCountryCode
++    \fn sme_HandleChangeCountryCodeByUser
+ 
+     \brief Change Country code, Reg Domain and channel list
+ 
+@@ -6949,20 +6950,19 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
+     Country code from Supplicant is set as current country code.
+ 
+     \param pMac - The handle returned by macOpen.
+-    \param pMsgBuf - message buffer
++    \param pMsg - Carrying new CC & domain set in kernel by user
+ 
+     \return eHalStatus
+ 
+   -------------------------------------------------------------------------------*/
+-
+-eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
++eHalStatus sme_HandleChangeCountryCodeByUser(tpAniSirGlobal pMac,
++                                             tAniGenericChangeCountryCodeReq *pMsg)
+ {
+     eHalStatus  status = eHAL_STATUS_SUCCESS;
+-    tAniGenericChangeCountryCodeReq *pMsg;
+     v_REGDOMAIN_t reg_domain_id;
+     v_BOOL_t is11dCountry = VOS_FALSE;
+ 
+-    pMsg = (tAniGenericChangeCountryCodeReq *)pMsgBuf;
++    smsLog(pMac, LOG1, FL(" called"));
+     reg_domain_id =  (v_REGDOMAIN_t)pMsg->domain_index;
+ 
+     if (memcmp(pMsg->countryCode, pMac->scan.countryCode11d,
+@@ -7000,8 +7000,10 @@ eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBu
+     {
+         //if 11d has priority, clear currentCountryBssid & countryCode11d to get
+         //set again if we find AP with 11d info during scan
+-        if (!pMac->roam.configParam.fSupplicantCountryCodeHasPriority)
++        if((!pMac->roam.configParam.fSupplicantCountryCodeHasPriority) &&
++           (VOS_FALSE == is11dCountry ))
+         {
++            smsLog( pMac, LOGW, FL("Clearing currentCountryBssid, countryCode11d"));
+             vos_mem_zero(&pMac->scan.currentCountryBssid, sizeof(tCsrBssid));
+             vos_mem_zero( pMac->scan.countryCode11d, sizeof( pMac->scan.countryCode11d ) );
+         }
+@@ -7031,6 +7033,77 @@ eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBu
+         pMac->scan.f11dInfoReset = eANI_BOOLEAN_FALSE;
+     }
+ 
++    smsLog(pMac, LOG1, FL(" returned"));
++    return eHAL_STATUS_SUCCESS;
++}
++
++/* ---------------------------------------------------------------------------
++
++    \fn sme_HandleChangeCountryCodeByDriver
++
++    \brief Update Country code in the driver if set by kernel as world
++
++    If 11D is enabled, we update the country code after every scan & notify kernel.
++    This is to make sure kernel & driver are in sync in case of CC found in
++    driver but not in kernel database
++
++    \param pMac - The handle returned by macOpen.
++    \param pMsg - Carrying new CC set in kernel
++
++    \return eHalStatus
++
++  -------------------------------------------------------------------------------*/
++eHalStatus sme_HandleChangeCountryCodeByDriver(tpAniSirGlobal pMac, tAniGenericChangeCountryCodeReq *pMsg)
++{
++    smsLog(pMac, LOG1, FL(" called"));
++
++    //this is to make sure kernel & driver are in sync in case of CC found in
++    //driver but not in kernel database
++    if (('0' == pMsg->countryCode[0]) && ('0' == pMsg->countryCode[1]))
++    {
++        smsLog( pMac, LOGW, FL("Setting countryCode11d to world CC"));
++        palCopyMemory(pMac->hHdd, pMac->scan.countryCode11d, pMsg->countryCode,
++                      WNI_CFG_COUNTRY_CODE_LEN);
++    }
++    smsLog(pMac, LOG1, FL(" returned"));
++    return eHAL_STATUS_SUCCESS;
++}
++
++/* ---------------------------------------------------------------------------
++
++    \fn sme_HandleGenericChangeCountryCode
++
++    \brief Change Country code, Reg Domain and channel list
++
++    If Supplicant country code is priority than 11d is disabled.
++    If 11D is enabled, we update the country code after every scan.
++    Hence when Supplicant country code is priority, we don't need 11D info.
++    Country code from kernel is set as current country code.
++
++    \param pMac - The handle returned by macOpen.
++    \param pMsgBuf - message buffer
++
++    \return eHalStatus
++
++  -------------------------------------------------------------------------------*/
++eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
++{
++    tAniGenericChangeCountryCodeReq *pMsg;
++    v_REGDOMAIN_t reg_domain_id;
++
++    smsLog(pMac, LOG1, FL(" called"));
++    pMsg = (tAniGenericChangeCountryCodeReq *)pMsgBuf;
++    reg_domain_id =  (v_REGDOMAIN_t)pMsg->domain_index;
++
++    if (REGDOMAIN_COUNT == reg_domain_id)
++    {
++        sme_HandleChangeCountryCodeByDriver(pMac, pMsg);
++    }
++    else
++    {
++        sme_HandleChangeCountryCodeByUser(pMac, pMsg);
++    }
++    smsLog(pMac, LOG1, FL(" returned"));
+     return eHAL_STATUS_SUCCESS;
+ }
+ 
+diff --git a/CORE/VOSS/src/vos_nvitem.c b/CORE/VOSS/src/vos_nvitem.c
+index 94827d0..62b74a6 100644
+--- a/CORE/VOSS/src/vos_nvitem.c
++++ b/CORE/VOSS/src/vos_nvitem.c
+@@ -68,6 +68,9 @@
+ #include "wlan_hdd_main.h"
+ #include <net/cfg80211.h>
+ 
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0))
++#define IEEE80211_CHAN_NO_80MHZ		1<<7
++#endif
+ 
+ #ifdef CONFIG_ENABLE_LINUX_REG
+ 
+@@ -3068,6 +3071,7 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
+             }
+ 
+ 
++
+         }
+     }
+ 
+@@ -3181,6 +3185,39 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
+                                      temp_reg_domain);
+ 
+     }
++    else if (request->initiator ==  NL80211_REGDOM_SET_BY_CORE)
++    {
++        VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
++                   "CC from kernel %c %c", request->alpha2[0], request->alpha2[1]);
++
++        /* now pass the country information to sme to make sure driver is in
++           sync in case we are back to world mode*/
++        if (request->alpha2[0] == '0' && request->alpha2[1] == '0')
++        {
++           nBandCapability = pHddCtx->cfg_ini->nBandCapability;
++           isVHT80Allowed = pHddCtx->isVHT80Allowed;
++           if (create_linux_regulatory_entry(wiphy, request,
++                                             pHddCtx->cfg_ini->nBandCapability) == 0)
++           {
++               VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
++                         (" regulatory entry created"));
++
++           }
++           if (pHddCtx->isVHT80Allowed != isVHT80Allowed)
++           {
++              hdd_checkandupdate_phymode( pHddCtx);
++           }
++
++           cur_reg_domain = REGDOMAIN_WORLD;
++           linux_reg_cc[0] = country_code[0];
++           linux_reg_cc[1] = country_code[1];
++
++           country_code[0] = request->alpha2[0];
++           country_code[1] = request->alpha2[1];
++           sme_GenericChangeCountryCode(pHddCtx->hHal, country_code,
++                                        REGDOMAIN_COUNT);
++        }
++    }
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
+     return;
+@@ -3237,21 +3274,18 @@ VOS_STATUS vos_init_wiphy_from_nv_bin(void)
+         wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
+     }
+ 
++    m = 0;
+     for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+     {
+ 
+         if (wiphy->bands[i] == NULL)
+         {
+             pr_info("error: wiphy->bands[i] is NULL, i = %d\n", i);
+-            return VOS_STATUS_E_FAULT;
++            continue;
+         }
+ 
+         /* internal channels[] is one continous array for both 2G and 5G bands
+            m is internal starting channel index for each band */
+-        if (i == 0)
+-            m = 0;
+-        else
+-            m = wiphy->bands[i-1]->n_channels + m;
+ 
+         for (j = 0; j < wiphy->bands[i]->n_channels; j++)
+         {
+@@ -3278,6 +3312,8 @@ VOS_STATUS vos_init_wiphy_from_nv_bin(void)
+                     (pnvEFSTable->halnv.tables.regDomains[reg_domain].channels[k].pwrLimit)*100;
+             }
+         }
++
++	m += wiphy->bands[i]->n_channels;
+     }
+ 
+     return VOS_STATUS_SUCCESS;
+-- 
+1.8.2.1
+

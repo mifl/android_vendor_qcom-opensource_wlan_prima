@@ -1,0 +1,636 @@
+From 3c8330de206e52ea755680b8b5e5d011d24d06e0 Mon Sep 17 00:00:00 2001
+From: Kiet Lam <kietl@codeaurora.org>
+Date: Mon, 14 Oct 2013 05:37:09 +0530
+Subject: [PATCH 05/18] wlan: use correct regulatory APIs
+
+use regulatory_hint_user() API when
+the hint comes from the country IE or
+userspace
+
+CRs-Fixed: 564372
+Change-Id: I4dd7f77ca572e4ce66377ca9c0b038328a419289
+
+diff --git a/CORE/HDD/src/wlan_hdd_cfg80211.c b/CORE/HDD/src/wlan_hdd_cfg80211.c
+index 311683e..4733939 100644
+--- a/CORE/HDD/src/wlan_hdd_cfg80211.c
++++ b/CORE/HDD/src/wlan_hdd_cfg80211.c
+@@ -640,12 +640,11 @@ int wlan_hdd_cfg80211_init(struct device *dev,
+ 
+     wiphy->mgmt_stypes = wlan_hdd_txrx_stypes;
+ 
+-    #ifndef CONFIG_ENABLE_LINUX_REG
++#ifndef CONFIG_ENABLE_LINUX_REG
+     /* the flag for the other case would be initialzed in
+        vos_init_wiphy_from_nv_bin */
+-
+     wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
+-    #endif
++#endif
+ 
+     /* This will disable updating of NL channels from passive to
+      * active if a beacon is received on passive channel. */
+@@ -658,6 +657,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
+                  |  WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD
+                  |  WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL
+                     | WIPHY_FLAG_OFFCHAN_TX;
++    wiphy->country_ie_pref = NL80211_COUNTRY_IE_IGNORE_CORE;
+ #endif
+ 
+ #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+diff --git a/CORE/MAC/inc/sirApi.h b/CORE/MAC/inc/sirApi.h
+index 8888151..07348d1 100644
+--- a/CORE/MAC/inc/sirApi.h
++++ b/CORE/MAC/inc/sirApi.h
+@@ -2207,7 +2207,6 @@ typedef struct sAniGenericChangeCountryCodeReq
+     tANI_U16                msgLen;     // length of the entire request
+     tANI_U8                 countryCode[WNI_CFG_COUNTRY_CODE_LEN];   //3 char country code
+     tANI_U16                domain_index;
+-
+ } tAniGenericChangeCountryCodeReq, *tpAniGenericChangeCountryCodeReq;
+ 
+ typedef struct sAniDHCPStopInd
+diff --git a/CORE/SME/src/csr/csrApiRoam.c b/CORE/SME/src/csr/csrApiRoam.c
+index 6c25b04..8399c95 100644
+--- a/CORE/SME/src/csr/csrApiRoam.c
++++ b/CORE/SME/src/csr/csrApiRoam.c
+@@ -342,7 +342,17 @@ eHalStatus csrOpen(tpAniSirGlobal pMac)
+             //status = eHAL_STATUS_SUCCESS;
+         }
+         smsLog( pMac, LOG1, FL(" country Code from nvRam %.2s"), pMac->scan.countryCodeDefault );
+-        csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeDefault, &regId);
++
++        if (!('0' == pMac->scan.countryCodeDefault[0] &&
++            '0' == pMac->scan.countryCodeDefault[1]))
++        {
++            csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeDefault,
++                                             &regId, COUNTRY_NV);
++        }
++        else
++        {
++            regId = REGDOMAIN_WORLD;
++        }
+         WDA_SetRegDomain(pMac, regId);
+         pMac->scan.domainIdDefault = regId;
+         pMac->scan.domainIdCurrent = pMac->scan.domainIdDefault;
+@@ -379,7 +389,8 @@ eHalStatus csrSetRegInfo(tHalHandle hHal,  tANI_U8 *apCntryCode)
+        return eHAL_STATUS_FAILURE;
+     }
+ */
+-    status = csrGetRegulatoryDomainForCountry(pMac, apCntryCode, &regId);
++    status = csrGetRegulatoryDomainForCountry(pMac, apCntryCode, &regId,
++                                              COUNTRY_USER);
+     if (status != eHAL_STATUS_SUCCESS)
+     {
+         smsLog( pMac, LOGE, FL("  fail to get regId for country Code %.2s"), apCntryCode );
+diff --git a/CORE/SME/src/csr/csrApiScan.c b/CORE/SME/src/csr/csrApiScan.c
+index a0c306e..e2387aa 100644
+--- a/CORE/SME/src/csr/csrApiScan.c
++++ b/CORE/SME/src/csr/csrApiScan.c
+@@ -3432,7 +3432,7 @@ eHalStatus csrSetCountryCode(tpAniSirGlobal pMac, tANI_U8 *pCountry, tANI_BOOLEA
+ 
+     if(pCountry)
+     {
+-        status = csrGetRegulatoryDomainForCountry(pMac, pCountry, &domainId);
++        status = csrGetRegulatoryDomainForCountry(pMac, pCountry, &domainId, COUNTRY_USER);
+         if(HAL_STATUS_SUCCESS(status))
+         {
+             status = csrSetRegulatoryDomain(pMac, domainId, pfRestartNeeded);
+@@ -3508,7 +3508,9 @@ void csrApplyCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce )
+         {
+             // ambiguous info found
+             //Restore te default domain as well
+-            if(HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry( pMac, pMac->scan.countryCodeCurrent, &domainId )))
++            if(HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry(
++                                         pMac, pMac->scan.countryCodeCurrent,
++                                         &domainId, COUNTRY_QUERY)))
+             {
+                 pMac->scan.domainIdCurrent = domainId;
+             }
+@@ -3521,7 +3523,9 @@ void csrApplyCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce )
+             break;
+         }
+         if ( pMac->scan.f11dInfoApplied && !fForce ) break;
+-        if(HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry( pMac, pMac->scan.countryCode11d, &domainId )))
++        if(HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry(
++                                        pMac, pMac->scan.countryCode11d,
++                                        &domainId, COUNTRY_QUERY)))
+         {
+             //Check whether we need to enforce default domain
+             if( ( !pMac->roam.configParam.fEnforceDefaultDomain ) ||
+@@ -3589,7 +3593,9 @@ void csrApplyCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce )
+                     smsLog( pMac, LOGE, FL("  fail to set regId %d"), domainId );
+                 }
+                 pMac->scan.domainIdCurrent = domainId;
++#ifndef CONFIG_ENABLE_LINUX_REG
+                 csrApplyChannelPowerCountryInfo( pMac, &pMac->scan.channels11d, pMac->scan.countryCode11d, eANI_BOOLEAN_TRUE );
++#endif
+                 // switch to active scans using this new channel list
+                 pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
+                 pMac->scan.f11dInfoApplied = eANI_BOOLEAN_TRUE;
+@@ -3609,6 +3615,7 @@ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode
+ {
+     tANI_BOOLEAN fCountryStringChanged = FALSE, fUnknownCountryCode = FALSE;
+     tANI_U32 i;
++    v_REGDOMAIN_t regd;
+ 
+     // convert to UPPER here so we are assured the strings are always in upper case.
+     for( i = 0; i < 3; i++ )
+@@ -3621,7 +3628,10 @@ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode
+     // country code (which is US).  We've also seen some NETGEAR AP's that have "XX " as the country code
+     // with valid 2.4 GHz US channel information.  If we cannot find the country code advertised in the
+     // 11d information element, let's default to US.
+-    if ( !HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry( pMac, pCountryCode, NULL ) ) )
++    if ( !HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry(pMac,
++                                                      pCountryCode,
++                                                      &regd,
++                                                      COUNTRY_QUERY) ) )
+     {
+         // Check the enforcement first
+         if( pMac->roam.configParam.fEnforceDefaultDomain || pMac->roam.configParam.fEnforceCountryCodeMatch )
+@@ -3814,7 +3824,9 @@ void csrConstructCurrentValidChannelList( tpAniSirGlobal pMac, tDblLinkList *pCh
+ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription *pSirBssDesc,
+                                          tDot11fBeaconIEs *pIes, tANI_BOOLEAN fForce)
+ {
++#ifndef CONFIG_ENABLE_LINUX_REG
+     tANI_U8 Num2GChannels, bMaxNumChn;
++#endif
+     eHalStatus status;
+     tANI_BOOLEAN fRet = eANI_BOOLEAN_FALSE;
+     v_REGDOMAIN_t domainId;
+@@ -3906,13 +3918,18 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
+                 {
+                     VOS_ASSERT( pMac->scan.domainIdCurrent == pMac->scan.domainIdDefault );
+                     if( HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry( 
+-                                pMac, pIesLocal->Country.country, &domainId )) &&
++                                pMac, pIesLocal->Country.country, &domainId,
++                                COUNTRY_QUERY)) &&
+                                 ( domainId == pMac->scan.domainIdCurrent ) )
+                     {
+                         //Two countries in the same domain
+                     }
+                 }
+             }
++#ifdef CONFIG_ENABLE_LINUX_REG
++            csrGetRegulatoryDomainForCountry(pMac, pIesLocal->Country.country,
++                                             &domainId, COUNTRY_IE);
++#endif
+         }
+         else //Tush
+         {
+@@ -3934,10 +3951,13 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
+             }
+         }
+         smsLog(pMac, LOG3, FL("  %d sets each one is %d"), pIesLocal->Country.num_triplets, sizeof(tSirMacChanInfo));
+-        // save the channel/power information from the Channel IE.
+-        //sizeof(tSirMacChanInfo) has to be 3
+-        if (eHAL_STATUS_SUCCESS != csrSaveToChannelPower2G_5G( pMac, pIesLocal->Country.num_triplets * sizeof(tSirMacChanInfo),
+-                    (tSirMacChanInfo *)(&pIesLocal->Country.triplets[0]) ))
++
++        // set the indicator of the channel where the country IE was found...
++        pMac->scan.channelOf11dInfo = pSirBssDesc->channelId;
++#ifndef CONFIG_ENABLE_LINUX_REG
++        status = csrGetRegulatoryDomainForCountry(pMac,
++                       pIesLocal->Country.country, &domainId, COUNTRY_IE);
++        if ( status != eHAL_STATUS_SUCCESS )
+         {
+             fRet = eANI_BOOLEAN_FALSE;
+             break;
+@@ -3979,7 +3999,10 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
+                                                  &pMac->scan.channels11d.numChannels );
+         }
+ 
+-        pMac->scan.channels11d.numChannels += Num2GChannels;
++            /* reset info based on new cc, and we are done */
++            csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
++        }
++#endif
+         fRet = eANI_BOOLEAN_TRUE;
+ 
+     } while( 0 );
+diff --git a/CORE/SME/src/csr/csrInsideApi.h b/CORE/SME/src/csr/csrInsideApi.h
+index 6ae21fa..a10eb5b 100644
+--- a/CORE/SME/src/csr/csrInsideApi.h
++++ b/CORE/SME/src/csr/csrInsideApi.h
+@@ -573,9 +573,13 @@ v_REGDOMAIN_t csrGetCurrentRegulatoryDomain(tpAniSirGlobal pMac);
+     CSR.
+     \param pCountry - Caller allocated buffer with at least 3 bytes specifying the country code
+     \param pDomainId - Caller allocated buffer to get the return domain ID upon success return. Can be NULL.
++    \param source - the source of country information.
+     \return eHalStatus     
+   -------------------------------------------------------------------------------*/
+-eHalStatus csrGetRegulatoryDomainForCountry(tpAniSirGlobal pMac, tANI_U8 *pCountry, v_REGDOMAIN_t *pDomainId);
++eHalStatus csrGetRegulatoryDomainForCountry(tpAniSirGlobal pMac,
++                                            tANI_U8 *pCountry,
++                                            v_REGDOMAIN_t *pDomainId,
++                                            v_CountryInfoSource_t source);
+ 
+ 
+ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode, tANI_BOOLEAN fForce );
+diff --git a/CORE/SME/src/csr/csrUtil.c b/CORE/SME/src/csr/csrUtil.c
+index 06fbea6..4c3a1a8 100644
+--- a/CORE/SME/src/csr/csrUtil.c
++++ b/CORE/SME/src/csr/csrUtil.c
+@@ -6106,7 +6106,13 @@ v_REGDOMAIN_t csrGetCurrentRegulatoryDomain(tpAniSirGlobal pMac)
+ }
+ 
+ 
+-eHalStatus csrGetRegulatoryDomainForCountry(tpAniSirGlobal pMac, tANI_U8 *pCountry, v_REGDOMAIN_t *pDomainId)
++eHalStatus csrGetRegulatoryDomainForCountry
++(
++tpAniSirGlobal pMac,
++tANI_U8 *pCountry,
++v_REGDOMAIN_t *pDomainId,
++v_CountryInfoSource_t source
++)
+ {
+     eHalStatus status = eHAL_STATUS_INVALID_PARAMETER;
+     VOS_STATUS vosStatus;
+@@ -6117,7 +6123,10 @@ eHalStatus csrGetRegulatoryDomainForCountry(tpAniSirGlobal pMac, tANI_U8 *pCount
+     {
+         countryCode[0] = pCountry[0];
+         countryCode[1] = pCountry[1];
+-        vosStatus = vos_nv_getRegDomainFromCountryCode( &domainId, countryCode );
++        vosStatus = vos_nv_getRegDomainFromCountryCode(&domainId,
++                                                       countryCode,
++                                                       source);
++
+         if( VOS_IS_STATUS_SUCCESS(vosStatus) )
+         {
+             if( pDomainId )
+@@ -6165,10 +6174,15 @@ tANI_BOOLEAN csrMatchCountryCode( tpAniSirGlobal pMac, tANI_U8 *pCountry, tDot11
+             //Make sure this country is recognizable
+             if( pIes->Country.present )
+             {
+-                status = csrGetRegulatoryDomainForCountry( pMac, pIes->Country.country, &domainId );
++                status = csrGetRegulatoryDomainForCountry(pMac,
++                                           pIes->Country.country,
++                                           &domainId, COUNTRY_QUERY);
+                 if( !HAL_STATUS_SUCCESS( status ) )
+                 {
+-                     status = csrGetRegulatoryDomainForCountry( pMac, pMac->scan.countryCode11d,(v_REGDOMAIN_t *) &domainId );
++                     status = csrGetRegulatoryDomainForCountry(pMac,
++                                                 pMac->scan.countryCode11d,
++                                                 (v_REGDOMAIN_t *) &domainId,
++                                                 COUNTRY_QUERY);
+                      if( !HAL_STATUS_SUCCESS( status ) )
+                      {
+                            fRet = eANI_BOOLEAN_FALSE;
+diff --git a/CORE/SME/src/sme_common/sme_Api.c b/CORE/SME/src/sme_common/sme_Api.c
+index 9644a7e..4f5c536 100644
+--- a/CORE/SME/src/sme_common/sme_Api.c
++++ b/CORE/SME/src/sme_common/sme_Api.c
+@@ -4564,7 +4564,8 @@ eHalStatus sme_GetRegulatoryDomainForCountry(tHalHandle hHal, tANI_U8 *pCountry,
+ {
+     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+ 
+-    return ( csrGetRegulatoryDomainForCountry( pMac, pCountry, pDomainId ) );
++    return csrGetRegulatoryDomainForCountry(pMac, pCountry, pDomainId,
++                                            COUNTRY_QUERY);
+ }
+ 
+ 
+@@ -6885,7 +6886,10 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
+    palCopyMemory(pMac->hHdd, pMac->scan.countryCodeDefault, pMac->scan.countryCodeCurrent, WNI_CFG_COUNTRY_CODE_LEN);
+ 
+    /* Get Domain ID from country code */
+-   status = csrGetRegulatoryDomainForCountry( pMac, pMac->scan.countryCodeCurrent,(v_REGDOMAIN_t *) &domainIdIoctl );
++   status = csrGetRegulatoryDomainForCountry(pMac,
++                   pMac->scan.countryCodeCurrent,
++                   (v_REGDOMAIN_t *) &domainIdIoctl,
++                   COUNTRY_QUERY);
+    if ( status != eHAL_STATUS_SUCCESS )
+    {
+        smsLog( pMac, LOGE, FL("  fail to get regId %d"), domainIdIoctl );
+@@ -6899,7 +6903,7 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
+        smsLog( pMac, LOGE, FL("  fail to set regId %d"), domainIdIoctl );
+        return status;
+    }
+-
++#ifndef CONFIG_ENABLE_LINUX_REG
+    /* set to default domain ID */
+    pMac->scan.domainIdDefault = pMac->scan.domainIdCurrent;
+ 
+@@ -6914,6 +6918,7 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
+ 
+    /* reset info based on new cc, and we are done */
+    csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
++#endif
+    if( pMsg->changeCCCallback )
+    {
+       ((tSmeChangeCountryCallback)(pMsg->changeCCCallback))((void *)pMsg->pDevContext);
+@@ -6945,14 +6950,19 @@ eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBu
+     eHalStatus  status = eHAL_STATUS_SUCCESS;
+     tAniGenericChangeCountryCodeReq *pMsg;
+     v_REGDOMAIN_t reg_domain_id;
++    v_BOOL_t is11dCountry = VOS_FALSE;
+ 
+     pMsg = (tAniGenericChangeCountryCodeReq *)pMsgBuf;
+     reg_domain_id =  (v_REGDOMAIN_t)pMsg->domain_index;
+ 
++    if (memcmp(pMsg->countryCode, pMac->scan.countryCode11d,
++               VOS_COUNTRY_CODE_LEN) == 0)
++    {
++        is11dCountry = VOS_TRUE;
++    }
+ 
+     /* if Supplicant country code has priority, disable 11d */
+-
+-    if (pMac->roam.configParam.fSupplicantCountryCodeHasPriority)
++    if (!is11dCountry && pMac->roam.configParam.fSupplicantCountryCodeHasPriority)
+     {
+         pMac->roam.configParam.Is11dSupportEnabled = eANI_BOOLEAN_FALSE;
+     }
+@@ -6960,24 +6970,23 @@ eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBu
+     palCopyMemory(pMac->hHdd, pMac->scan.countryCodeCurrent, pMsg->countryCode,
+                   WNI_CFG_COUNTRY_CODE_LEN);
+ 
+-    /* overwrite the default country code */
+-    palCopyMemory(pMac->hHdd, pMac->scan.countryCodeDefault,
+-                  pMac->scan.countryCodeCurrent, WNI_CFG_COUNTRY_CODE_LEN);
+-
+     status = WDA_SetRegDomain(pMac, reg_domain_id);
+ 
++    if (VOS_FALSE == is11dCountry )
++    {
++        /* overwrite the defualt country code */
++        palCopyMemory(pMac->hHdd, pMac->scan.countryCodeDefault,
++                      pMac->scan.countryCodeCurrent, WNI_CFG_COUNTRY_CODE_LEN);
++        /* set to default domain ID */
++        pMac->scan.domainIdDefault = pMac->scan.domainIdCurrent;
++    }
++
+     if ( status != eHAL_STATUS_SUCCESS )
+     {
+         smsLog( pMac, LOGE, FL("  fail to set regId %d"), reg_domain_id );
+-            return status;
++        return status;
+     }
+ 
+-    /* set to default domain ID */
+-    pMac->scan.domainIdCurrent = reg_domain_id;
+-
+-    /* set to default domain ID */
+-    pMac->scan.domainIdDefault = pMac->scan.domainIdCurrent;
+-
+     /* get the channels based on new cc */
+     status = csrInitGetChannels(pMac);
+ 
+@@ -6989,6 +6998,12 @@ eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBu
+ 
+     /* reset info based on new cc, and we are done */
+     csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
++    if (VOS_TRUE == is11dCountry)
++    {
++        pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
++        pMac->scan.f11dInfoApplied = eANI_BOOLEAN_TRUE;
++        pMac->scan.f11dInfoReset = eANI_BOOLEAN_FALSE;
++    }
+ 
+     return eHAL_STATUS_SUCCESS;
+ }
+diff --git a/CORE/VOSS/inc/vos_nvitem.h b/CORE/VOSS/inc/vos_nvitem.h
+index 9a93afb..588fb61 100644
+--- a/CORE/VOSS/inc/vos_nvitem.h
++++ b/CORE/VOSS/inc/vos_nvitem.h
+@@ -184,6 +184,18 @@ typedef enum
+ }
+ v_REGDOMAIN_t;
+ 
++typedef enum
++{
++   COUNTRY_NV,
++   COUNTRY_IE,
++   COUNTRY_USER,
++   COUNTRY_CELL_BASE,
++   //add new sources here
++   COUNTRY_QUERY,
++   COUNTRY_MAX = COUNTRY_QUERY
++}
++v_CountryInfoSource_t;
++
+ // enum of supported NV items in VOSS
+ typedef enum
+ {
+@@ -230,6 +242,8 @@ VOS_STATUS vos_nv_init(void);
+ 
+   \param countryCode - country code
+ 
++  \param source      - source of country code
++
+   \return VOS_STATUS_SUCCESS - regulatory domain is found for the given country
+           VOS_STATUS_E_FAULT - invalid pointer error
+           VOS_STATUS_E_EMPTY - country code table is empty
+@@ -239,7 +253,7 @@ VOS_STATUS vos_nv_init(void);
+ 
+   -------------------------------------------------------------------------*/
+ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
+-      const v_COUNTRYCODE_t countryCode );
++      const v_COUNTRYCODE_t countryCode, v_CountryInfoSource_t source);
+ 
+ /**------------------------------------------------------------------------
+ 
+diff --git a/CORE/VOSS/src/vos_nvitem.c b/CORE/VOSS/src/vos_nvitem.c
+index 0672ef4..5ca6b54 100644
+--- a/CORE/VOSS/src/vos_nvitem.c
++++ b/CORE/VOSS/src/vos_nvitem.c
+@@ -2543,6 +2543,7 @@ VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId)
+   copy of the binary file.
+   \param pRegDomain  - pointer to regulatory domain
+   \param countryCode - country code
++  \param source      - source of the country code
+   \return VOS_STATUS_SUCCESS - regulatory domain is found for the given country
+           VOS_STATUS_E_FAULT - invalid pointer error
+           VOS_STATUS_E_EMPTY - country code table is empty
+@@ -2550,7 +2551,7 @@ VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId)
+   \sa
+   -------------------------------------------------------------------------*/
+ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
+-      const v_COUNTRYCODE_t country_code)
++      const v_COUNTRYCODE_t country_code, v_CountryInfoSource_t source)
+ {
+ 
+     v_CONTEXT_t pVosContext = NULL;
+@@ -2598,6 +2599,38 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
+         return VOS_STATUS_E_FAULT;
+     }
+ 
++    temp_reg_domain = REGDOMAIN_COUNT;
++    /* lookup the country in the local database */
++    for (i = 0; i < countryInfoTable.countryCount &&
++             REGDOMAIN_COUNT == temp_reg_domain; i++)
++    {
++        if (memcmp(country_code, countryInfoTable.countryInfo[i].countryCode,
++                   VOS_COUNTRY_CODE_LEN) == 0)
++        {
++            /* country code is found */
++            /* record the temporary regulatory_domain as well */
++            temp_reg_domain = countryInfoTable.countryInfo[i].regDomain;
++            break;
++        }
++    }
++
++    if (REGDOMAIN_COUNT == temp_reg_domain) {
++
++        /* the country was not found in the driver database */
++        /* so we will return the REGDOMAIN_WORLD to SME/CSR */
++
++        VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
++                   ("Country does not map to any Regulatory domain"));
++
++        temp_reg_domain = REGDOMAIN_WORLD;
++    }
++
++    if (COUNTRY_QUERY == source)
++    {
++        *pRegDomain = temp_reg_domain;
++         return VOS_STATUS_SUCCESS;
++    }
++
+     wiphy = pHddCtx->wiphy;
+ 
+     if (false == wiphy->registered)
+@@ -2631,72 +2664,66 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
+     }
+     else {
+ 
+-        /* first lookup the country in the local database */
+-
+-        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+-                       (" new runtime country code"));
+-
+-        for (i = 0; i < countryInfoTable.countryCount &&
+-                 REGDOMAIN_COUNT == temp_reg_domain; i++)
+-        {
+-            if (memcmp(country_code, countryInfoTable.countryInfo[i].countryCode,
+-                       VOS_COUNTRY_CODE_LEN) == 0)
+-            {
+-                /* country code is found
+-                   record the temporary regulatory_domain as well */
+-                temp_reg_domain = countryInfoTable.countryInfo[i].regDomain;
+-                break;
+-            }
+-        }
+-
+-        if (REGDOMAIN_COUNT == temp_reg_domain) {
+-            temp_reg_domain = REGDOMAIN_WORLD;
+-
+-        }
+-
+         /* get the regulatory information from the kernel
+            database */
+ 
+         VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN,
+                    (" get country information from kernel db"));
+ 
+-        INIT_COMPLETION(pHddCtx->linux_reg_req);
+-        regulatory_hint(wiphy, country_code);
+-        wait_result = wait_for_completion_interruptible_timeout(&pHddCtx->linux_reg_req,
+-                                                                LINUX_REG_WAIT_TIME);
+ 
+-        /* if the country information does not exist with the kernel,
+-           then the driver callback would not be called */
++        if (COUNTRY_NV == source)
++        {
++            INIT_COMPLETION(pHddCtx->linux_reg_req);
++            regulatory_hint(wiphy, country_code);
++            wait_result = wait_for_completion_interruptible_timeout(
++                                                            &pHddCtx->linux_reg_req,
++                                                            LINUX_REG_WAIT_TIME);
+ 
+-        if (wait_result >= 0) {
++            /* if the country information does not exist with the kernel,
++               then the driver callback would not be called */
+ 
+-            /* the driver callback was called. this means the country
+-               regulatory information was found in the kernel database.
+-               The callback would have updated the internal database. Here
+-               update the country and the return value for the regulatory
+-               domain */
++            if (wait_result >= 0) {
+ 
+-            VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+-                       ("runtime country code is found in kernel db"));
++                /* the driver callback was called. this means the country
++                   regulatory information was found in the kernel database.
++                   The callback would have updated the internal database. Here
++                   update the country and the return value for the regulatory
++                   domain */
+ 
+-            *pRegDomain = temp_reg_domain;
+-            cur_reg_domain = temp_reg_domain;
+-            linux_reg_cc[0] = country_code[0];
+-            linux_reg_cc[1] = country_code[1];
++                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
++                           ("runtime country code is found in kernel db"));
+ 
+-            return VOS_STATUS_SUCCESS;
+-        }
+-        else {
++                *pRegDomain = temp_reg_domain;
++                cur_reg_domain = temp_reg_domain;
++                linux_reg_cc[0] = country_code[0];
++                linux_reg_cc[1] = country_code[1];
++
++                return VOS_STATUS_SUCCESS;
++            }
++            else {
+ 
+-            /* the country information has not been found in the kernel
+-               database, return failure */
++                /* the country information has not been found in the kernel
++                   database, return failure */
+ 
+-            VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN,
+-                       ("runtime country code is not found in kernel db"));
++                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN,
++                           ("runtime country code is not found in kernel db"));
+ 
+-            return VOS_STATUS_E_EXISTS;
++                return VOS_STATUS_E_EXISTS;
++            }
+         }
+-    }
++        else if (COUNTRY_IE == source || COUNTRY_USER == source)
++        {
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
++            regulatory_hint_user(country_code,NL80211_USER_REG_HINT_USER);
++#else
++            regulatory_hint_user(country_code);
++#endif
++            *pRegDomain = temp_reg_domain;
++        }
++
++   }
++
++   return VOS_STATUS_SUCCESS;
+ }
+ 
+ 
+@@ -2960,7 +2987,6 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
+ 
+     /* first check if this callback is in response to the driver callback */
+ 
+-
+     if (request->initiator == NL80211_REGDOM_SET_BY_DRIVER)
+     {
+ 
+@@ -3172,6 +3198,7 @@ VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId)
+   copy of the binary file.
+   \param pRegDomain  - pointer to regulatory domain
+   \param countryCode - country code
++  \param source      - source of the country code
+   \return VOS_STATUS_SUCCESS - regulatory domain is found for the given country
+           VOS_STATUS_E_FAULT - invalid pointer error
+           VOS_STATUS_E_EMPTY - country code table is empty
+@@ -3179,7 +3206,7 @@ VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId)
+   \sa
+   -------------------------------------------------------------------------*/
+ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
+-      const v_COUNTRYCODE_t countryCode )
++      const v_COUNTRYCODE_t countryCode, v_CountryInfoSource_t source)
+ {
+    int i;
+    v_CONTEXT_t pVosContext = NULL;
+-- 
+1.8.2.1
+

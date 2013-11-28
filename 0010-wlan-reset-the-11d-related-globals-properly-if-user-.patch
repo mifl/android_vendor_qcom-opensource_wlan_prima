@@ -1,0 +1,135 @@
+From 1b2d24dba9e92415ebc28e8f7c621edab2221f64 Mon Sep 17 00:00:00 2001
+From: Tushnim Bhattacharyya <tushnimb@codeaurora.org>
+Date: Thu, 24 Oct 2013 15:58:56 -0700
+Subject: [PATCH 10/18] wlan: reset the 11d related globals properly if user
+ sets country code
+
+If country code is set from user space, we need to update the 11d
+global variables in the driver correctly in case 11d has priority
+
+Change-Id: I38f1d57d98e1eba38f77692d2901594c7d6f480f
+CRs-Fixed: 563825
+
+diff --git a/CORE/SME/src/csr/csrApiScan.c b/CORE/SME/src/csr/csrApiScan.c
+index d745012..ea1e8a4 100644
+--- a/CORE/SME/src/csr/csrApiScan.c
++++ b/CORE/SME/src/csr/csrApiScan.c
+@@ -3012,40 +3012,40 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
+                 }
+             }
+         }
+-    }
+ 
+-    // Calculating 30% of current rssi is an idea for not to change
+-    // country code so freq.
+-    if (rssi_of_current_country != -128)
+-    {
+-        rssi_of_current_country = rssi_of_current_country
+-                                     - THIRTY_PERCENT(rssi_of_current_country);
+-    }
++        // Calculating 30% of current rssi is an idea for not to change
++        // country code so freq.
++        if (rssi_of_current_country != -128)
++        {
++            rssi_of_current_country = rssi_of_current_country
++                                         - THIRTY_PERCENT(rssi_of_current_country);
++        }
+ 
+-    if ((rssi_of_current_country <= cand_Bss_rssi )  || rssi_of_current_country  == -128)
+-    {
+-        csrLLLock(&pMac->scan.scanResultList);
+-        pEntryTemp = csrLLPeekHead(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
+-        while ( NULL != pEntryTemp)
+-        {
+-            pNext = csrLLNext(&pMac->scan.scanResultList, pEntryTemp,
+-                                          LL_ACCESS_NOLOCK);
+-            pBssDescription = GET_BASE_ADDR( pEntryTemp, tCsrScanResult, Link );
+-            pIesLocal = (tDot11fBeaconIEs *)( pBssDescription->Result.pvIes );
+-            // Need to traverse whole scan list to get description for best 11d AP.
+-            if (csrIsMacAddressEqual(pMac, (tCsrBssid *)&bssid_temp,
+-                         (tCsrBssid *) pBssDescription->Result.BssDescriptor.bssId))
+-            {
+-                palCopyMemory(pMac->hHdd, pMac->scan.currentCountryBssid,
+-                                bssid_temp, sizeof(tSirMacAddr));
+-                // Best AP should be passed to update reg domain.
+-                 csrLearnCountryInformation( pMac, &pBssDescription->Result.BssDescriptor,
+-                              pIesLocal, eANI_BOOLEAN_TRUE );
+-                 break;
+-            }
+-            pEntryTemp = pNext;
++        if ((rssi_of_current_country <= cand_Bss_rssi )  || rssi_of_current_country  == -128)
++        {
++            csrLLLock(&pMac->scan.scanResultList);
++            pEntryTemp = csrLLPeekHead(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
++            while ( NULL != pEntryTemp)
++            {
++                pNext = csrLLNext(&pMac->scan.scanResultList, pEntryTemp,
++                                              LL_ACCESS_NOLOCK);
++                pBssDescription = GET_BASE_ADDR( pEntryTemp, tCsrScanResult, Link );
++                pIesLocal = (tDot11fBeaconIEs *)( pBssDescription->Result.pvIes );
++                // Need to traverse whole scan list to get description for best 11d AP.
++                if (csrIsMacAddressEqual(pMac, (tCsrBssid *)&bssid_temp,
++                             (tCsrBssid *) pBssDescription->Result.BssDescriptor.bssId))
++                {
++                    palCopyMemory(pMac->hHdd, pMac->scan.currentCountryBssid,
++                                    bssid_temp, sizeof(tSirMacAddr));
++                    // Best AP should be passed to update reg domain.
++                    csrLearnCountryInformation( pMac, &pBssDescription->Result.BssDescriptor,
++                                 pIesLocal, eANI_BOOLEAN_TRUE );
++                    break;
++                }
++                pEntryTemp = pNext;
++            }
++            csrLLUnlock(&pMac->scan.scanResultList);
+         }
+-        csrLLUnlock(&pMac->scan.scanResultList);
+     }
+ 
+ 
+diff --git a/CORE/SME/src/sme_common/sme_Api.c b/CORE/SME/src/sme_common/sme_Api.c
+index 4f5c536..50dd51d 100644
+--- a/CORE/SME/src/sme_common/sme_Api.c
++++ b/CORE/SME/src/sme_common/sme_Api.c
+@@ -6903,6 +6903,16 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
+        smsLog( pMac, LOGE, FL("  fail to set regId %d"), domainIdIoctl );
+        return status;
+    }
++   else
++   {
++       //if 11d has priority, clear currentCountryBssid & countryCode11d to get
++       //set again if we find AP with 11d info during scan
++       if (!pMac->roam.configParam.fSupplicantCountryCodeHasPriority)
++       {
++           vos_mem_zero(&pMac->scan.currentCountryBssid, sizeof(tCsrBssid));
++           vos_mem_zero( pMac->scan.countryCode11d, sizeof( pMac->scan.countryCode11d ) );
++       }
++   }
+ #ifndef CONFIG_ENABLE_LINUX_REG
+    /* set to default domain ID */
+    pMac->scan.domainIdDefault = pMac->scan.domainIdCurrent;
+@@ -6986,6 +6996,22 @@ eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBu
+         smsLog( pMac, LOGE, FL("  fail to set regId %d"), reg_domain_id );
+         return status;
+     }
++    else
++    {
++        //if 11d has priority, clear currentCountryBssid & countryCode11d to get
++        //set again if we find AP with 11d info during scan
++        if (!pMac->roam.configParam.fSupplicantCountryCodeHasPriority)
++        {
++            vos_mem_zero(&pMac->scan.currentCountryBssid, sizeof(tCsrBssid));
++            vos_mem_zero( pMac->scan.countryCode11d, sizeof( pMac->scan.countryCode11d ) );
++        }
++    }
++
++    /* set to default domain ID */
++    pMac->scan.domainIdCurrent = reg_domain_id;
++
++    /* set to default domain ID */
++    pMac->scan.domainIdDefault = pMac->scan.domainIdCurrent;
+ 
+     /* get the channels based on new cc */
+     status = csrInitGetChannels(pMac);
+-- 
+1.8.2.1
+

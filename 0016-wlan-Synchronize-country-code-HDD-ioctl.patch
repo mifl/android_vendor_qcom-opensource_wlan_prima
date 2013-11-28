@@ -1,0 +1,74 @@
+From 0d1f712add04708e547781591e9128eb5777c363 Mon Sep 17 00:00:00 2001
+From: Mihir Shete <smihir@codeaurora.org>
+Date: Wed, 25 Sep 2013 11:45:07 -0700
+Subject: [PATCH 16/18] wlan: Synchronize country code HDD ioctl
+
+HDD device ioctl for the country code should only return once it
+updates the wiphy data structure.
+
+Conflicts:
+	CORE/HDD/src/wlan_hdd_main.c
+
+Change-Id: I594b81786d5443444cdfafdb12de79e2080d869a
+CRs-Fixed: 530587
+
+diff --git a/CORE/HDD/inc/wlan_hdd_main.h b/CORE/HDD/inc/wlan_hdd_main.h
+index 5800206..39e5520 100644
+--- a/CORE/HDD/inc/wlan_hdd_main.h
++++ b/CORE/HDD/inc/wlan_hdd_main.h
+@@ -115,6 +115,7 @@
+ #define WLAN_WAIT_TIME_DISCONNECT  500
+ #define WLAN_WAIT_TIME_STATS       800
+ #define WLAN_WAIT_TIME_POWER       800
++#define WLAN_WAIT_TIME_COUNTRY     1000
+ /* Amount of time to wait for sme close session callback.
+    This value should be larger than the timeout used by WDI to wait for
+    a response from WCNSS */
+diff --git a/CORE/HDD/inc/wlan_hdd_wext.h b/CORE/HDD/inc/wlan_hdd_wext.h
+index d388cad..b338a33 100644
+--- a/CORE/HDD/inc/wlan_hdd_wext.h
++++ b/CORE/HDD/inc/wlan_hdd_wext.h
+@@ -428,6 +428,7 @@ VOS_STATUS wlan_hdd_get_roam_rssi(hdd_adapter_t *pAdapter, v_S7_t *rssi_value);
+ #ifdef WLAN_FEATURE_PACKET_FILTERING
+ void wlan_hdd_set_mc_addr_list(hdd_adapter_t *pAdapter, v_U8_t set);
+ #endif
++void* wlan_hdd_change_country_code_callback(void *pAdapter);
+ 
+ #endif // __WEXT_IW_H__
+ 
+diff --git a/CORE/HDD/src/wlan_hdd_main.c b/CORE/HDD/src/wlan_hdd_main.c
+index fbcb942..9446ab6 100644
+--- a/CORE/HDD/src/wlan_hdd_main.c
++++ b/CORE/HDD/src/wlan_hdd_main.c
+@@ -729,6 +729,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+ 
+            country_code = command + 8;
+ 
++           INIT_COMPLETION(pAdapter->change_country_code);
+            hdd_checkandupdate_dfssetting(pAdapter, country_code);
+ #ifndef CONFIG_ENABLE_LINUX_REG
+            hdd_checkandupdate_phymode(pAdapter, country_code);
+@@ -751,9 +752,10 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+            else
+            {
+                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
+-                       "%s: SME Change Country code fail ret=%d\n",__func__, ret);
+-
++                 "%s: SME Change Country code fail ret=%d", __func__, ret);
++               ret = -EINVAL;
+            }
++
+        }
+        /*
+           command should be a string having format
+@@ -3678,6 +3680,7 @@ static hdd_adapter_t* hdd_alloc_station_adapter( hdd_context_t *pHddCtx, tSirMac
+       init_completion(&pHddCtx->tx_sus_event_var);
+       init_completion(&pHddCtx->rx_sus_event_var);
+       init_completion(&pAdapter->ula_complete);
++      init_completion(&pAdapter->change_country_code);
+ 
+       pAdapter->isLinkUpSvcNeeded = FALSE; 
+       pAdapter->higherDtimTransition = eANI_BOOLEAN_TRUE;
+-- 
+1.8.2.1
+
