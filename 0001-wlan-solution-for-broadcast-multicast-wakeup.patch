@@ -1,0 +1,78 @@
+From 7bea977a0301344c70ff0df3673bf012dc0e0395 Mon Sep 17 00:00:00 2001
+From: Amar Singhal <asinghal@codeaurora.org>
+Date: Mon, 2 Dec 2013 17:25:56 -0800
+Subject: [PATCH] wlan: solution for broadcast/multicast wakeup
+
+This issue is happening due to driver load/unload. This is a soln for
+that problem.
+
+Change-Id: I52c547f21fd0cf94553c21eff716611ef3a39e74
+CRs-Fixed: 582346
+
+Conflicts:
+	CORE/HDD/src/wlan_hdd_assoc.c
+	CORE/HDD/src/wlan_hdd_early_suspend.c
+---
+ CORE/HDD/src/wlan_hdd_assoc.c         | 17 +++++++++++++++--
+ CORE/HDD/src/wlan_hdd_early_suspend.c | 13 +++++++++++--
+ 2 files changed, 26 insertions(+), 4 deletions(-)
+
+diff --git a/CORE/HDD/src/wlan_hdd_assoc.c b/CORE/HDD/src/wlan_hdd_assoc.c
+index 06d89fa..3c2b278 100644
+--- a/CORE/HDD/src/wlan_hdd_assoc.c
++++ b/CORE/HDD/src/wlan_hdd_assoc.c
+@@ -1,3 +1,4 @@
++
+ /*
+  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+  *
+@@ -2491,8 +2492,20 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
+                 if (pHddCtx->hdd_mcastbcast_filter_set == TRUE)
+                 {
+                     hdd_conf_mcastbcast_filter(pHddCtx, FALSE);
+-                    pHddCtx->configuredMcastBcastFilter =
+-                        pHddCtx->sus_res_mcastbcast_filter;
++
++
++                    if (VOS_TRUE == pHddCtx->sus_res_mcastbcast_filter_valid) {
++                        pHddCtx->configuredMcastBcastFilter =
++                            pHddCtx->sus_res_mcastbcast_filter;
++                        pHddCtx->sus_res_mcastbcast_filter_valid = VOS_FALSE;
++                    }
++
++                    hddLog(VOS_TRACE_LEVEL_INFO,
++                           "offload: disassociation happening, restoring configuredMcastBcastFilter");
++                    hddLog(VOS_TRACE_LEVEL_INFO,"McastBcastFilter = %d",
++                           pHddCtx->configuredMcastBcastFilter);
++                    hddLog(VOS_TRACE_LEVEL_INFO,
++                           "offload: already called mcastbcast filter");
+ 
+                     (WLAN_HDD_GET_CTX(pAdapter))->hdd_mcastbcast_filter_set = FALSE;
+                 }
+diff --git a/CORE/HDD/src/wlan_hdd_early_suspend.c b/CORE/HDD/src/wlan_hdd_early_suspend.c
+index 57c13b3..92e53af 100644
+--- a/CORE/HDD/src/wlan_hdd_early_suspend.c
++++ b/CORE/HDD/src/wlan_hdd_early_suspend.c
+@@ -922,8 +922,17 @@ static void hdd_conf_resume_ind(hdd_adapter_t *pAdapter)
+         pHddCtx->hdd_mcastbcast_filter_set = FALSE;
+     }
+ 
+-    pHddCtx->configuredMcastBcastFilter =
+-      pHddCtx->sus_res_mcastbcast_filter;
++
++    if (VOS_TRUE == pHddCtx->sus_res_mcastbcast_filter_valid) {
++        pHddCtx->configuredMcastBcastFilter =
++            pHddCtx->sus_res_mcastbcast_filter;
++        pHddCtx->sus_res_mcastbcast_filter_valid = VOS_FALSE;
++    }
++
++    hddLog(VOS_TRACE_LEVEL_INFO,
++           "offload: in hdd_conf_resume_ind, restoring configuredMcastBcastFilter");
++    hddLog(VOS_TRACE_LEVEL_INFO, "configuredMcastBcastFilter = %d",
++                  pHddCtx->configuredMcastBcastFilter);
+ 
+ 
+ #ifdef WLAN_FEATURE_PACKET_FILTERING
+-- 
+1.8.2.1
+
