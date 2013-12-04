@@ -1,0 +1,31 @@
+From c4344616c6882f25f924bbbcd6d43d998b6a83fa Mon Sep 17 00:00:00 2001
+From: Arun Kumar Khandavalli <c_arunku@qti.qualcomm.com>
+Date: Tue, 3 Dec 2013 21:22:07 +0530
+Subject: [PATCH] wlan: Unregistering the wlan Driver in the FTM mode.
+
+Change-Id: I30397d151ce2dabff983d3972cfafd6db1e38978
+---
+ CORE/HDD/src/wlan_hdd_main.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/CORE/HDD/src/wlan_hdd_main.c b/CORE/HDD/src/wlan_hdd_main.c
+index a79cb4d..913c977 100644
+--- a/CORE/HDD/src/wlan_hdd_main.c
++++ b/CORE/HDD/src/wlan_hdd_main.c
+@@ -5099,12 +5099,7 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
+    }
+ 
+ free_hdd_ctx:
+-   /* FTM mode, WIPHY did not registered
+-      If un-register here, system crash will happen */
+-   if (VOS_FTM_MODE != hdd_get_conparam())
+-   {
+-      wiphy_unregister(wiphy) ;
+-   }
++   wiphy_unregister(wiphy) ;
+    wiphy_free(wiphy) ;
+    if (hdd_is_ssr_required())
+    {
+-- 
+1.8.2.1
+
