@@ -2182,6 +2182,9 @@ typedef struct
    /* Flag indicating whether legacy fast roam during concurrency is enabled in cfg.ini or not */
    v_BOOL_t                    bFastRoamInConIniFeatureEnabled;
 #endif
+#ifdef FEATURE_WLAN_SCAN_PNO
+   v_U32_t                     configPNOScanTimerRepeatValue;
+#endif
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
