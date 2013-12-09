@@ -1,0 +1,219 @@
+From f02210afee050b55793a9d86eb9c2afef74c4ff6 Mon Sep 17 00:00:00 2001
+From: Leo Chang <schang@qca.qualcomm.com>
+Date: Mon, 9 Dec 2013 13:00:38 -0800
+Subject: [PATCH 1/1] wlan: DXE master disable problem debug patch
+
+Sometimes when enter IMPS, DXE master disabled.
+To confirm host enabled DXE HW properly, put read back and
+Write procedure on HAL start.
+Pronto specific Master register value also programmed
+
+Change-Id: I468e31831bf9d5087b1e442860a3bdfb96d61aa6
+CRs-fixed: 584739
+---
+ CORE/DXE/src/wlan_qct_dxe.c          |   53 ++++++++++++++++++++++++++++-----
+ CORE/DXE/src/wlan_qct_dxe_i.h        |   39 ++++++++++++++++++++++++-
+ CORE/WDI/WPAL/inc/wlan_qct_pal_api.h |   11 +++++++
+ CORE/WDI/WPAL/src/wlan_qct_pal_api.c |   17 +++++++++++
+ 4 files changed, 111 insertions(+), 9 deletions(-)
+
+diff --git a/CORE/DXE/src/wlan_qct_dxe.c b/CORE/DXE/src/wlan_qct_dxe.c
+index 4d714ab..2ffa2ab 100644
+--- a/CORE/DXE/src/wlan_qct_dxe.c
++++ b/CORE/DXE/src/wlan_qct_dxe.c
+@@ -103,6 +103,13 @@ when           who        what, where, why
+ 
+ #define WLANPAL_RX_INTERRUPT_PRO_MASK      0x20
+ #define WLANDXE_RX_INTERRUPT_PRO_UNMASK    0x5F
++
++/* 1msec busy wait in case CSR is not valid */
++#define WLANDXE_CSR_NEXT_READ_WAIT         1000
++/* CSR max retry count */
++#define WLANDXE_CSR_MAX_READ_COUNT         30
++
++
+ /* This is temporary fot the compile
+  * WDI will release official version
+  * This must be removed */
+@@ -1336,24 +1343,54 @@ static wpt_status dxeEngineCoreStart
+ {
+    wpt_status                 status = eWLAN_PAL_STATUS_SUCCESS;
+    wpt_uint32                 registerData = 0;
++   wpt_uint8                  readRetry;
+ 
+    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
+             "%s Enter", __func__);
+ 
++#ifdef WCN_PRONTO
++   /* Read default */
++   wpalReadRegister(WLANDXE_CCU_SOFT_RESET, &registerData);
++   registerData |= WLANDXE_DMA_CCU_DXE_RESET_MASK;
++
++   /* Make reset */
++   wpalWriteRegister(WLANDXE_CCU_SOFT_RESET, registerData);
++
++   /* Clear reset */
++   registerData &= ~WLANDXE_DMA_CCU_DXE_RESET_MASK;
++   wpalWriteRegister(WLANDXE_CCU_SOFT_RESET, registerData);
++#else
+    /* START This core init is not needed for the integrated system */
+    /* Reset First */
+    registerData = WLANDXE_DMA_CSR_RESET_MASK;
+    wpalWriteRegister(WALNDEX_DMA_CSR_ADDRESS,
+                           registerData);
++#endif /* WCN_PRONTO */
+ 
+-   registerData  = WLANDXE_DMA_CSR_EN_MASK;  
+-   registerData |= WLANDXE_DMA_CSR_ECTR_EN_MASK;
+-   registerData |= WLANDXE_DMA_CSR_TSTMP_EN_MASK;
+-   registerData |= WLANDXE_DMA_CSR_H2H_SYNC_EN_MASK;
+-
+-   registerData = 0x00005c89;
+-   wpalWriteRegister(WALNDEX_DMA_CSR_ADDRESS,
+-                          registerData);
++   for(readRetry = 0; readRetry < WLANDXE_CSR_MAX_READ_COUNT; readRetry++)
++   {
++      wpalWriteRegister(WALNDEX_DMA_CSR_ADDRESS,
++                        WLANDXE_CSR_DEFAULT_ENABLE);
++      wpalReadRegister(WALNDEX_DMA_CSR_ADDRESS, &registerData);
++      if(!(registerData & WLANDXE_DMA_CSR_EN_MASK))
++      {
++         HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
++                  "%s CSR 0x%x, count %d",
++                  __func__, registerData, readRetry);
++         /* CSR is not valid value, re-try to write */
++         wpalBusyWait(WLANDXE_CSR_NEXT_READ_WAIT);
++      }
++      else
++      {
++         break;
++      }
++   }
++   if(WLANDXE_CSR_MAX_READ_COUNT == readRetry)
++   {
++      /* MAX wait, still cannot write correct value
++       * Panic device */
++      wpalDevicePanic();
++   }
+ 
+    /* Is This needed?
+     * Not sure, revisit with integrated system */
+diff --git a/CORE/DXE/src/wlan_qct_dxe_i.h b/CORE/DXE/src/wlan_qct_dxe_i.h
+index 6d5980c..7dfe1e0 100644
+--- a/CORE/DXE/src/wlan_qct_dxe_i.h
++++ b/CORE/DXE/src/wlan_qct_dxe_i.h
+@@ -101,6 +101,7 @@ when           who        what, where, why
+ #define WLANDXE_CCU_DXE_INT_SELECT       0xfb2050dc
+ #define WLANDXE_CCU_DXE_INT_SELECT_STAT  0xfb2050e0
+ #define WLANDXE_CCU_ASIC_INT_ENABLE      0xfb2050e4
++#define WLANDXE_CCU_SOFT_RESET           0xfb204010
+ #else
+ #define WLANDXE_CCU_DXE_INT_SELECT       0x03200b10
+ #define WLANDXE_CCU_DXE_INT_SELECT_STAT  0x03200b14
+@@ -184,6 +185,37 @@ when           who        what, where, why
+ #define WLANDXE_DMA_CH_TSTMP_REG         0x003C
+ 
+ /* Common CSR Register Contorol mask and offset */
++#ifdef WCN_PRONTO
++#define WLANDXE_DMA_CSR_RESERVED_MASK         0xFFFF0000
++#define WLANDXE_DMA_CSR_RESERVED_OFFSET       0x10
++#define WLANDXE_DMA_CSR_RESERVED_DEFAULT      0x0
++
++#define WLANDXE_DMA_CSR_H2H_SYNC_EN_MASK      0x8000
++#define WLANDXE_DMA_CSR_H2H_SYNC_EN_OFFSET    0x0F
++#define WLANDXE_DMA_CSR_H2H_SYNC_EN_DEFAULT   0x0
++
++#define WLANDXE_DMA_CSR_PAUSED_MASK           0x4000
++#define WLANDXE_DMA_CSR_PAUSED_OFFSET         0x0E
++#define WLANDXE_DMA_CSR_PAUSED_DEFAULT        0x0
++
++#define WLANDXE_DMA_CSR_ECTR_EN_MASK          0x2000
++#define WLANDXE_DMA_CSR_ECTR_EN_OFFSET        0x0D
++#define WLANDXE_DMA_CSR_ECTR_EN_DEFAULT       0x2000
++
++#define WLANDXE_DMA_CSR_B2H_TSTMP_OFF_MASK    0x1F00
++#define WLANDXE_DMA_CSR_B2H_TSTMP_OFF_OFFSET  0x08
++#define WLANDXE_DMA_CSR_B2H_TSTMP_OFF_DEFAULT 0x0F00
++
++#define WLANDXE_DMA_CSR_H2B_TSTMP_OFF_MASK    0xF8
++#define WLANDXE_DMA_CSR_H2B_TSTMP_OFF_OFFSET  0x03
++#define WLANDXE_DMA_CSR_H2B_TSTMP_OFF_DEFAULT 0x28
++
++#define WLANDXE_DMA_CSR_TSTMP_EN_MASK         0x04
++#define WLANDXE_DMA_CSR_TSTMP_EN_OFFSET       0x02
++#define WLANDXE_DMA_CSR_TSTMP_EN_DEFAULT      0x0
++
++#define WLANDXE_DMA_CCU_DXE_RESET_MASK        0x4
++#else
+ #define WLANDXE_DMA_CSR_RESERVED_MASK         0xFFFE0000
+ #define WLANDXE_DMA_CSR_RESERVED_OFFSET       0x11
+ #define WLANDXE_DMA_CSR_RESERVED_DEFAULT      0x0
+@@ -215,6 +247,7 @@ when           who        what, where, why
+ #define WLANDXE_DMA_CSR_RESET_MASK            0x4
+ #define WLANDXE_DMA_CSR_RESET_OFFSET          0x2
+ #define WLANDXE_DMA_CSR_RESET_DEFAULT         0x0
++#endif /* WCN_PRONTO */
+ 
+ #define WLANDXE_DMA_CSR_PAUSE_MASK            0x2
+ #define WLANDXE_DMA_CSR_PAUSE_OFFSET          0x1
+@@ -223,7 +256,11 @@ when           who        what, where, why
+ #define WLANDXE_DMA_CSR_EN_MASK               0x1
+ #define WLANDXE_DMA_CSR_EN_OFFSET             0x0
+ #define WLANDXE_DMA_CSR_EN_DEFAULT            0x0
+-#define WLANDXE_DMA_CSR_DEFAULT               0x4E50
++
++/* DXE CSR Master enable register value */
++#define WLANDXE_CSR_DEFAULT_ENABLE            (WLANDXE_DMA_CSR_H2H_SYNC_EN_MASK | \
++                                               WLANDXE_DMA_CSR_ECTR_EN_MASK | \
++                                               WLANDXE_DMA_CSR_EN_MASK)
+ 
+ /* Channel CTRL Register Control mask and offset */
+ #define WLANDXE_CH_CTRL_RSVD_MASK             0x80000000
+diff --git a/CORE/WDI/WPAL/inc/wlan_qct_pal_api.h b/CORE/WDI/WPAL/inc/wlan_qct_pal_api.h
+index a565939..ef09f5e 100644
+--- a/CORE/WDI/WPAL/inc/wlan_qct_pal_api.h
++++ b/CORE/WDI/WPAL/inc/wlan_qct_pal_api.h
+@@ -350,4 +350,15 @@ void wpalWcnssResetIntr(void);
+ void wpalFwDumpReq(wpt_uint32 cmd, wpt_uint32 arg1, wpt_uint32 arg2,
+                     wpt_uint32 arg3, wpt_uint32 arg4);
+ 
++/*---------------------------------------------------------------------------
++    wpalDevicePanic -  Trigger Device Panic
++       Trigger device panic to help debug
++
++    Param:
++       NONE
++
++    Return:
++       NONE
++---------------------------------------------------------------------------*/
++void wpalDevicePanic(void);
+ #endif // __WLAN_QCT_PAL_API_H
+diff --git a/CORE/WDI/WPAL/src/wlan_qct_pal_api.c b/CORE/WDI/WPAL/src/wlan_qct_pal_api.c
+index 868df10..4677b86 100644
+--- a/CORE/WDI/WPAL/src/wlan_qct_pal_api.c
++++ b/CORE/WDI/WPAL/src/wlan_qct_pal_api.c
+@@ -446,3 +446,20 @@ void wpalFwDumpReq(wpt_uint32 cmd, wpt_uint32 arg1, wpt_uint32 arg2,
+    vos_fwDumpReq(cmd, arg1, arg2, arg3, arg4);
+    return;
+ }
++
++/*---------------------------------------------------------------------------
++    wpalDevicePanic -  Trigger Device Panic
++       Trigger device panic to help debug
++
++    Param:
++       NONE
++
++    Return:
++       NONE
++---------------------------------------------------------------------------*/
++void wpalDevicePanic(void)
++{
++   BUG_ON(0);
++   return;
++}
++
+-- 
+1.7.8.3
+
