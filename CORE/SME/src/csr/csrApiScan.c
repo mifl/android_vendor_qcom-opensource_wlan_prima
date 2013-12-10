@@ -3088,6 +3088,31 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
         }
     }
 
+    //we don't need to update CC while connected to an AP which is advertising CC already
+    if (csrIs11dSupported(pMac))
+    {
+        tANI_U32 i;
+        tCsrRoamSession *pSession;
+
+        for (i = 0; i < CSR_ROAM_SESSION_MAX; i++ )
+        {
+            if (CSR_IS_SESSION_VALID( pMac, i ) )
+            {
+                pSession = CSR_GET_SESSION( pMac, i );
+                if (csrIsConnStateConnected(pMac, i))
+                {
+                    if (csrIsBssidMatch(pMac, (tCsrBssid *)&pMac->scan.currentCountryBssid,
+                                        &pSession->connectedProfile.bssid))
+                    {
+                        smsLog(pMac, LOGW, FL("No need for updating CC, we will"
+                                              "continue with current AP's CC"));
+                        goto end;
+                    }
+                }
+            }
+        }
+    }
+
     // Calculating 30% of current rssi is an idea for not to change
     // country code so freq.
     if (rssi_of_current_country != -128)
@@ -3114,7 +3139,7 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
                                 bssid_temp, sizeof(tSirMacAddr));
                 // Best AP should be passed to update reg domain.
                  csrLearnCountryInformation( pMac, &pBssDescription->Result.BssDescriptor,
-                              pIesLocal, eANI_BOOLEAN_FALSE );
+                              pIesLocal, eANI_BOOLEAN_TRUE );
                  break;
             }
             pEntryTemp = pNext;
@@ -3123,7 +3148,8 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
     }
 
 
-    //Tush: If we can find the current 11d info in any of the scan results, or
+end:
+    //If we can find the current 11d info in any of the scan results, or
     // a good enough AP with the 11d info from the scan results then no need to
     // get into ambiguous state
     if(pMac->scan.fAmbiguous11dInfoFound) 
@@ -3530,7 +3556,7 @@ eHalStatus csrSetCountryCode(tpAniSirGlobal pMac, tANI_U8 *pCountry, tANI_BOOLEA
 
     if(pCountry)
     {
-        status = csrGetRegulatoryDomainForCountry(pMac, pCountry, &domainId);
+        status = csrGetRegulatoryDomainForCountry(pMac, pCountry, &domainId, COUNTRY_USER);
         if(HAL_STATUS_SUCCESS(status))
         {
             status = csrSetRegulatoryDomain(pMac, domainId, pfRestartNeeded);
@@ -3606,7 +3632,9 @@ void csrApplyCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce )
         {
             // ambiguous info found
             //Restore te default domain as well
-            if(HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry( pMac, pMac->scan.countryCodeCurrent, &domainId )))
+            if(HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry(
+                                         pMac, pMac->scan.countryCodeCurrent,
+                                         &domainId, COUNTRY_QUERY)))
             {
                 pMac->scan.domainIdCurrent = domainId;
             }
@@ -3619,7 +3647,9 @@ void csrApplyCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce )
             break;
         }
         if ( pMac->scan.f11dInfoApplied && !fForce ) break;
-        if(HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry( pMac, pMac->scan.countryCode11d, &domainId )))
+        if(HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry(
+                                        pMac, pMac->scan.countryCode11d,
+                                        &domainId, COUNTRY_QUERY)))
         {
             //Check whether we need to enforce default domain
             if( ( !pMac->roam.configParam.fEnforceDefaultDomain ) ||
@@ -3688,7 +3718,9 @@ void csrApplyCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce )
                     smsLog( pMac, LOGE, FL("  fail to set regId %d"), domainId );
                 }
                 pMac->scan.domainIdCurrent = domainId;
+#ifndef CONFIG_ENABLE_LINUX_REG
                 csrApplyChannelPowerCountryInfo( pMac, &pMac->scan.channels11d, pMac->scan.countryCode11d, eANI_BOOLEAN_TRUE );
+#endif
                 // switch to active scans using this new channel list
                 pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
                 pMac->scan.f11dInfoApplied = eANI_BOOLEAN_TRUE;
@@ -3708,6 +3740,7 @@ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode
 {
     tANI_BOOLEAN fCountryStringChanged = FALSE, fUnknownCountryCode = FALSE;
     tANI_U32 i;
+    v_REGDOMAIN_t regd;
 
     // convert to UPPER here so we are assured the strings are always in upper case.
     for( i = 0; i < 3; i++ )
@@ -3720,7 +3753,10 @@ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode
     // country code (which is US).  We've also seen some NETGEAR AP's that have "XX " as the country code
     // with valid 2.4 GHz US channel information.  If we cannot find the country code advertised in the
     // 11d information element, let's default to US.
-    if ( !HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry( pMac, pCountryCode, NULL ) ) )
+    if ( !HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry(pMac,
+                                                      pCountryCode,
+                                                      &regd,
+                                                      COUNTRY_QUERY) ) )
     {
         // Check the enforcement first
         if( pMac->roam.configParam.fEnforceDefaultDomain || pMac->roam.configParam.fEnforceCountryCodeMatch )
@@ -3729,8 +3765,8 @@ tANI_BOOLEAN csrSave11dCountryString( tpAniSirGlobal pMac, tANI_U8 *pCountryCode
         }
         else
         {
-            pCountryCode[ 0 ] = 'U';
-            pCountryCode[ 1 ] = 'S';
+            pCountryCode[ 0 ] = '0';
+            pCountryCode[ 1 ] = '0';
         }
     }
 
@@ -4007,13 +4043,18 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
                 {
                     VOS_ASSERT( pMac->scan.domainIdCurrent == pMac->scan.domainIdDefault );
                     if( HAL_STATUS_SUCCESS(csrGetRegulatoryDomainForCountry( 
-                                pMac, pIesLocal->Country.country, &domainId )) &&
+                                pMac, pIesLocal->Country.country, &domainId,
+                                COUNTRY_QUERY)) &&
                                 ( domainId == pMac->scan.domainIdCurrent ) )
                     {
                         //Two countries in the same domain
                     }
                 }
             }
+#ifdef CONFIG_ENABLE_LINUX_REG
+            csrGetRegulatoryDomainForCountry(pMac, pIesLocal->Country.country,
+                                             &domainId, COUNTRY_IE);
+#endif
         }
         else //Tush
         {
@@ -4038,8 +4079,9 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
 
         // set the indicator of the channel where the country IE was found...
         pMac->scan.channelOf11dInfo = pSirBssDesc->channelId;
+#ifndef CONFIG_ENABLE_LINUX_REG
         status = csrGetRegulatoryDomainForCountry(pMac,
-                       pIesLocal->Country.country, &domainId );
+                       pIesLocal->Country.country, &domainId, COUNTRY_IE);
         if ( status != eHAL_STATUS_SUCCESS )
         {
             smsLog( pMac, LOGE, FL("  fail to get regId %d"), domainId );
@@ -4092,9 +4134,10 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
 
             /* reset info based on new cc, and we are done */
             csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
-            fRet = eANI_BOOLEAN_TRUE;
-
         }
+#endif
+        fRet = eANI_BOOLEAN_TRUE;
+
     } while( 0 );
     
     if( !pIes && pIesLocal )
