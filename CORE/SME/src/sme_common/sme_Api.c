@@ -4748,6 +4748,13 @@ eHalStatus sme_GenericChangeCountryCode( tHalHandle hHal,
     vos_msg_t                 msg;
     tAniGenericChangeCountryCodeReq *pMsg;
 
+    if (NULL == pMac)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL,
+            "%s: pMac is null", __func__);
+        return status;
+    }
+
     status = sme_AcquireGlobalLock( &pMac->sme );
     if ( HAL_STATUS_SUCCESS( status ) )
     {
@@ -6921,6 +6928,14 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
        smsLog( pMac, LOGE, FL("  fail to get regId %d"), domainIdIoctl );
        return status;
    }
+   else if (REGDOMAIN_WORLD == domainIdIoctl)
+   {
+       /* Supplicant country code is invalid, so we are on world mode now. So
+          give 11D chance to update */
+       pMac->roam.configParam.Is11dSupportEnabled = pMac->roam.configParam.Is11dSupportEnabledOriginal;
+       smsLog(pMac, LOG1, FL("Country Code unrecognized by driver"));
+   }
+
 
    status = WDA_SetRegDomain(pMac, domainIdIoctl);
 
@@ -6928,6 +6943,17 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
    {
        smsLog( pMac, LOGE, FL("  fail to set regId %d"), domainIdIoctl );
        return status;
+   }
+   else
+   {
+       //if 11d has priority, clear currentCountryBssid & countryCode11d to get
+       //set again if we find AP with 11d info during scan
+       if (!pMac->roam.configParam.fSupplicantCountryCodeHasPriority)
+       {
+           smsLog( pMac, LOGW, FL("Clearing currentCountryBssid, countryCode11d"));
+           vos_mem_zero(&pMac->scan.currentCountryBssid, sizeof(tCsrBssid));
+           vos_mem_zero( pMac->scan.countryCode11d, sizeof( pMac->scan.countryCode11d ) );
+       }
    }
 #ifndef CONFIG_ENABLE_LINUX_REG
    /* set to default domain ID */
@@ -6955,7 +6981,7 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
 
 /* ---------------------------------------------------------------------------
 
-    \fn sme_HandleGenericChangeCountryCode
+    \fn sme_HandleChangeCountryCodeByUser
 
     \brief Change Country code, Reg Domain and channel list
 
@@ -6965,20 +6991,19 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
     Country code from Supplicant is set as current country code.
 
     \param pMac - The handle returned by macOpen.
-    \param pMsgBuf - message buffer
+    \param pMsg - Carrying new CC & domain set in kernel by user
 
     \return eHalStatus
 
   -------------------------------------------------------------------------------*/
-
-eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
+eHalStatus sme_HandleChangeCountryCodeByUser(tpAniSirGlobal pMac,
+                                             tAniGenericChangeCountryCodeReq *pMsg)
 {
     eHalStatus  status = eHAL_STATUS_SUCCESS;
-    tAniGenericChangeCountryCodeReq *pMsg;
     v_REGDOMAIN_t reg_domain_id;
     v_BOOL_t is11dCountry = VOS_FALSE;
 
-    pMsg = (tAniGenericChangeCountryCodeReq *)pMsgBuf;
+    smsLog(pMac, LOG1, FL(" called"));
     reg_domain_id =  (v_REGDOMAIN_t)pMsg->domain_index;
 
     if (memcmp(pMsg->countryCode, pMac->scan.countryCode11d,
@@ -7012,6 +7037,18 @@ eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBu
         smsLog( pMac, LOGE, FL("  fail to set regId %d"), reg_domain_id );
         return status;
     }
+    else
+    {
+        //if 11d has priority, clear currentCountryBssid & countryCode11d to get
+        //set again if we find AP with 11d info during scan
+        if((!pMac->roam.configParam.fSupplicantCountryCodeHasPriority) &&
+           (VOS_FALSE == is11dCountry ))
+        {
+            smsLog( pMac, LOGW, FL("Clearing currentCountryBssid, countryCode11d"));
+            vos_mem_zero(&pMac->scan.currentCountryBssid, sizeof(tCsrBssid));
+            vos_mem_zero( pMac->scan.countryCode11d, sizeof( pMac->scan.countryCode11d ) );
+        }
+    }
 
     /* get the channels based on new cc */
     status = csrInitGetChannels(pMac);
@@ -7026,11 +7063,108 @@ eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBu
     csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
     if (VOS_TRUE == is11dCountry)
     {
-        pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
         pMac->scan.f11dInfoApplied = eANI_BOOLEAN_TRUE;
         pMac->scan.f11dInfoReset = eANI_BOOLEAN_FALSE;
     }
 
+    // Do active scans after the country is set by User hints or Country IE
+    pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
+
+    smsLog(pMac, LOG1, FL(" returned"));
+    return eHAL_STATUS_SUCCESS;
+}
+
+/* ---------------------------------------------------------------------------
+
+    \fn sme_HandleChangeCountryCodeByCore
+
+    \brief Update Country code in the driver if set by kernel as world
+
+    If 11D is enabled, we update the country code after every scan & notify kernel.
+    This is to make sure kernel & driver are in sync in case of CC found in
+    driver but not in kernel database
+
+    \param pMac - The handle returned by macOpen.
+    \param pMsg - Carrying new CC set in kernel
+
+    \return eHalStatus
+
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_HandleChangeCountryCodeByCore(tpAniSirGlobal pMac, tAniGenericChangeCountryCodeReq *pMsg)
+{
+    eHalStatus  status;
+
+    smsLog(pMac, LOG1, FL(" called"));
+
+    //this is to make sure kernel & driver are in sync in case of CC found in
+    //driver but not in kernel database
+    if (('0' == pMsg->countryCode[0]) && ('0' == pMsg->countryCode[1]))
+    {
+        smsLog( pMac, LOGW, FL("Setting countryCode11d & countryCodeCurrent to world CC"));
+        palCopyMemory(pMac->hHdd, pMac->scan.countryCode11d, pMsg->countryCode,
+                      WNI_CFG_COUNTRY_CODE_LEN);
+        palCopyMemory(pMac->hHdd, pMac->scan.countryCodeCurrent, pMsg->countryCode,
+                      WNI_CFG_COUNTRY_CODE_LEN);
+    }
+
+    status = WDA_SetRegDomain(pMac, REGDOMAIN_WORLD);
+
+    if ( status != eHAL_STATUS_SUCCESS )
+    {
+        smsLog( pMac, LOGE, FL("  fail to set regId") );
+        return status;
+    }
+    else
+    {
+        status = csrInitGetChannels(pMac);
+        if ( status != eHAL_STATUS_SUCCESS )
+        {
+            smsLog( pMac, LOGE, FL("  fail to get Channels "));
+        }
+        else
+        {
+            csrInitChannelList(pMac);
+        }
+    }
+    smsLog(pMac, LOG1, FL(" returned"));
+    return eHAL_STATUS_SUCCESS;
+}
+
+/* ---------------------------------------------------------------------------
+
+    \fn sme_HandleGenericChangeCountryCode
+
+    \brief Change Country code, Reg Domain and channel list
+
+    If Supplicant country code is priority than 11d is disabled.
+    If 11D is enabled, we update the country code after every scan.
+    Hence when Supplicant country code is priority, we don't need 11D info.
+    Country code from kernel is set as current country code.
+
+    \param pMac - The handle returned by macOpen.
+    \param pMsgBuf - message buffer
+
+    \return eHalStatus
+
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_HandleGenericChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
+{
+    tAniGenericChangeCountryCodeReq *pMsg;
+    v_REGDOMAIN_t reg_domain_id;
+
+    smsLog(pMac, LOG1, FL(" called"));
+    pMsg = (tAniGenericChangeCountryCodeReq *)pMsgBuf;
+    reg_domain_id =  (v_REGDOMAIN_t)pMsg->domain_index;
+
+    if (REGDOMAIN_COUNT == reg_domain_id)
+    {
+        sme_HandleChangeCountryCodeByCore(pMac, pMsg);
+    }
+    else
+    {
+        sme_HandleChangeCountryCodeByUser(pMac, pMsg);
+    }
+    smsLog(pMac, LOG1, FL(" returned"));
     return eHAL_STATUS_SUCCESS;
 }
 
@@ -9515,8 +9649,8 @@ void smeGetCommandQStatus( tHalHandle hHal )
 
     if (NULL == pMac)
     {
-        VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
-                       "smeGetCommandQStatus: pMac is NULL");
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL,
+            "%s: pMac is null", __func__);
         return;
     }
 

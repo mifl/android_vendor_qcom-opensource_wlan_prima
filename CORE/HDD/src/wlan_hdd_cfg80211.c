@@ -2778,14 +2778,8 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                     ndev->dev_addr[3] |= 0xF0;
                     memcpy(pAdapter->macAddressCurrent.bytes, ndev->dev_addr,
                            VOS_MAC_ADDR_SIZE);
-                    pr_info("wlan: Generated HotSpot BSSID "
-                            "%02x:%02x:%02x:%02x:%02x:%02x\n",
-                            ndev->dev_addr[0],
-                            ndev->dev_addr[1],
-                            ndev->dev_addr[2],
-                            ndev->dev_addr[3],
-                            ndev->dev_addr[4],
-                            ndev->dev_addr[5]);
+                    pr_info("wlan: Generated HotSpot BSSID " MAC_ADDRESS_STR"\n",
+                            MAC_ADDR_ARRAY(ndev->dev_addr));
                 }
 
                 hdd_set_ap_ops( pAdapter->dev );
@@ -4709,10 +4703,9 @@ v_BOOL_t hdd_isScanAllowed( hdd_context_t *pHddCtx )
                 {
                     staMac = (v_U8_t *) &(pAdapter->macAddressCurrent.bytes[0]);
                     hddLog(VOS_TRACE_LEVEL_ERROR,
-                            "%s: client %02x:%02x:%02x:%02x:%02x:%02x is in the "
-                            "middle of WPS/EAPOL exchange.", __func__,
-                            staMac[0], staMac[1], staMac[2],
-                            staMac[3], staMac[4], staMac[5]);
+                           "%s: client " MAC_ADDRESS_STR
+                           " is in the middle of WPS/EAPOL exchange.", __func__,
+                            MAC_ADDR_ARRAY(staMac));
                     return VOS_FALSE;
                 }
             }
@@ -4727,10 +4720,9 @@ v_BOOL_t hdd_isScanAllowed( hdd_context_t *pHddCtx )
                         staMac = (v_U8_t *) &(pAdapter->aStaInfo[staId].macAddrSTA.bytes[0]);
 
                         hddLog(VOS_TRACE_LEVEL_ERROR,
-                                "%s: client %02x:%02x:%02x:%02x:%02x:%02x of SoftAP/P2P-GO is in the "
-                                "middle of WPS/EAPOL exchange.", __func__,
-                                staMac[0], staMac[1], staMac[2],
-                                staMac[3], staMac[4], staMac[5]);
+                               "%s: client " MAC_ADDRESS_STR " of SoftAP/P2P-GO is in the "
+                               "middle of WPS/EAPOL exchange.", __func__,
+                                MAC_ADDR_ARRAY(staMac));
                         return VOS_FALSE;
                     }
                 }
@@ -6984,10 +6976,12 @@ static int wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_device 
             /* Update MAX rate */
             maxRate = (currentRate > maxRate)?currentRate:maxRate;
         }
-        /* Get MCS Rate Set -- but only if we are connected at MCS
-           rates or if we are always reporting max speed or if we have
-           good rssi */
-        if ((0 == rssidx) && !(rate_flags & eHAL_TX_RATE_LEGACY))
+        /* Get MCS Rate Set --
+           only if we are connected at MCS rates (or)
+           if we are always reporting max speed  (or)
+           if we have good rssi */
+         if (((0 == rssidx) && !(rate_flags & eHAL_TX_RATE_LEGACY)) ||
+              (eHDD_LINK_SPEED_REPORT_MAX == pCfg->reportMaxLinkSpeed))
         {
             if (0 != ccmCfgGetStr(WLAN_HDD_GET_HAL_CTX(pAdapter), WNI_CFG_CURRENT_MCS_SET,
                                  MCSRates, &MCSLeng))
@@ -7353,11 +7347,9 @@ static int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
                 {
                     u8 *macAddr = pAdapter->aStaInfo[i].macAddrSTA.bytes;
                     hddLog(VOS_TRACE_LEVEL_INFO,
-                                        "%s: Delete STA with MAC::"
-                                        "%02x:%02x:%02x:%02x:%02x:%02x",
-                                        __func__,
-                                        macAddr[0], macAddr[1], macAddr[2],
-                                        macAddr[3], macAddr[4], macAddr[5]);
+                           "%s: Delete STA with MAC::"
+                            MAC_ADDRESS_STR,
+                            __func__, MAC_ADDR_ARRAY(macAddr));
                     vos_status = hdd_softap_sta_deauth(pAdapter, macAddr);
                     if (VOS_IS_STATUS_SUCCESS(vos_status))
                         pAdapter->aStaInfo[i].isDeauthInProgress = TRUE;
@@ -7371,22 +7363,18 @@ static int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
             if (!VOS_IS_STATUS_SUCCESS(vos_status))
             {
                 hddLog(VOS_TRACE_LEVEL_INFO,
-                                "%s: Skip this DEL STA as this is not used::"
-                                "%02x:%02x:%02x:%02x:%02x:%02x",
-                                __func__,
-                                mac[0], mac[1], mac[2],
-                                mac[3], mac[4], mac[5]);
+                       "%s: Skip this DEL STA as this is not used::"
+                       MAC_ADDRESS_STR,
+                       __func__, MAC_ADDR_ARRAY(mac));
                 return -ENOENT;
             }
 
             if( pAdapter->aStaInfo[staId].isDeauthInProgress == TRUE)
             {
                 hddLog(VOS_TRACE_LEVEL_INFO,
-                                "%s: Skip this DEL STA as deauth is in progress::"
-                                "%02x:%02x:%02x:%02x:%02x:%02x",
-                                __func__,
-                                mac[0], mac[1], mac[2],
-                                mac[3], mac[4], mac[5]);
+                       "%s: Skip this DEL STA as deauth is in progress::"
+                       MAC_ADDRESS_STR,
+                       __func__, MAC_ADDR_ARRAY(mac));
                 return -ENOENT;
             }
 
@@ -7394,10 +7382,9 @@ static int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 
             hddLog(VOS_TRACE_LEVEL_INFO,
                                 "%s: Delete STA with MAC::"
-                                "%02x:%02x:%02x:%02x:%02x:%02x",
+                                MAC_ADDRESS_STR,
                                 __func__,
-                                mac[0], mac[1], mac[2],
-                                mac[3], mac[4], mac[5]);
+                                MAC_ADDR_ARRAY(mac));
 
             vos_status = hdd_softap_sta_deauth(pAdapter, mac);
             if (!VOS_IS_STATUS_SUCCESS(vos_status))
@@ -7405,10 +7392,9 @@ static int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
                 pAdapter->aStaInfo[staId].isDeauthInProgress = FALSE;
                 hddLog(VOS_TRACE_LEVEL_INFO,
                                 "%s: STA removal failed for ::"
-                                "%02x:%02x:%02x:%02x:%02x:%02x",
+                                MAC_ADDRESS_STR,
                                 __func__,
-                                mac[0], mac[1], mac[2],
-                                mac[3], mac[4], mac[5]);
+                                MAC_ADDR_ARRAY(mac));
                 return -ENOENT;
             }
 
