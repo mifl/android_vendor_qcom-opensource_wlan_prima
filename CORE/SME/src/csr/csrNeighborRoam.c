@@ -3480,6 +3480,10 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
         else
         {
             numOfChannels = pMac->scan.occupiedChannels.numChannels;
+            if (numOfChannels > WNI_CFG_VALID_CHANNEL_LIST_LEN)
+            {
+                numOfChannels = WNI_CFG_VALID_CHANNEL_LIST_LEN;
+            }
             if (numOfChannels
 #ifdef FEATURE_WLAN_LFR
                 && ((pNeighborRoamInfo->uScanMode == SPLIT_SCAN_OCCUPIED_LIST) ||
@@ -3510,10 +3514,6 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
                 }
                 else
                 {
-                    if (numOfChannels > WNI_CFG_VALID_CHANNEL_LIST_LEN)
-                    {
-                        numOfChannels = WNI_CFG_VALID_CHANNEL_LIST_LEN;
-                    }
                     vos_mem_copy(channelList,
                             pMac->scan.occupiedChannels.channelList,
                             numOfChannels * sizeof(tANI_U8));
@@ -3526,10 +3526,6 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
                 {
                     smsLog(pMac, LOGE, FL("Memory allocation for Channel list failed"));
                     return VOS_STATUS_E_RESOURCES;
-                }
-                if (numOfChannels > WNI_CFG_VALID_CHANNEL_LIST_LEN)
-                {
-                    numOfChannels = WNI_CFG_VALID_CHANNEL_LIST_LEN;
                 }
                 vos_mem_copy(currChannelListInfo->ChannelList,
                         channelList,
@@ -4522,6 +4518,7 @@ void csrNeighborRoamRequestHandoff(tpAniSirGlobal pMac)
     tCsrNeighborRoamBSSInfo     handoffNode;
     extern void csrRoamRoamingStateDisassocRspProcessor( tpAniSirGlobal pMac, tSirSmeDisassocRsp *pSmeDisassocRsp );
     tANI_U32 roamId = 0;
+    eHalStatus status;
 
 #ifdef FEATURE_WLAN_LFR_METRICS
     tCsrRoamInfo *roamInfoMetrics;
@@ -4568,7 +4565,16 @@ void csrNeighborRoamRequestHandoff(tpAniSirGlobal pMac)
     csrReleaseProfile(pMac, &pNeighborRoamInfo->csrNeighborRoamProfile);
     /* Create the Handoff AP profile. Copy the currently connected profile and update only the BSSID and channel number
         This should happen before issuing disconnect */
-    csrRoamCopyConnectedProfile(pMac, pNeighborRoamInfo->csrSessionId, &pNeighborRoamInfo->csrNeighborRoamProfile);
+    status = csrRoamCopyConnectedProfile(pMac,
+                                  pNeighborRoamInfo->csrSessionId,
+                                 &pNeighborRoamInfo->csrNeighborRoamProfile);
+    if(eHAL_STATUS_SUCCESS != status)
+    {
+        VOS_TRACE (VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                          FL("csrRoamCopyConnectedProfile returned failed %d"), status);
+        return;
+    }
+
     vos_mem_copy(pNeighborRoamInfo->csrNeighborRoamProfile.BSSIDs.bssid, handoffNode.pBssDescription->bssId, sizeof(tSirMacAddr));
     pNeighborRoamInfo->csrNeighborRoamProfile.ChannelInfo.ChannelList[0] = handoffNode.pBssDescription->channelId;
     

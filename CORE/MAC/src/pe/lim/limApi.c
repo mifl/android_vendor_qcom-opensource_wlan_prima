@@ -1680,7 +1680,9 @@ limHandleIBSScoalescing(
     tSirRetStatus   retCode;
 
     pHdr = WDA_GET_RX_MAC_HEADER(pRxPacketInfo);
-    if ( (!pBeacon->capabilityInfo.ibss) || (limCmpSSid(pMac, &pBeacon->ssId,psessionEntry) != true) )
+    if ( (!pBeacon->capabilityInfo.ibss) ||
+         (limCmpSSid(pMac, &pBeacon->ssId,psessionEntry) != true) ||
+         (psessionEntry->currentOperChannel != pBeacon->channelNumber) )
         /* Received SSID does not match => Ignore received Beacon frame. */
         retCode =  eSIR_LIM_IGNORE_BEACON;
     else
@@ -1740,7 +1742,9 @@ limDetectChangeInApCapabilities(tpAniSirGlobal pMac,
             (SIR_MAC_GET_PRIVACY(apNewCaps.capabilityInfo) !=
              SIR_MAC_GET_PRIVACY(psessionEntry->limCurrentBssCaps))) ||
             (SIR_MAC_GET_SHORT_PREAMBLE(apNewCaps.capabilityInfo) !=
-             SIR_MAC_GET_SHORT_PREAMBLE(psessionEntry->limCurrentBssCaps))
+             SIR_MAC_GET_SHORT_PREAMBLE(psessionEntry->limCurrentBssCaps)) ||
+            (SIR_MAC_GET_QOS(apNewCaps.capabilityInfo) !=
+             SIR_MAC_GET_QOS(psessionEntry->limCurrentBssCaps))
        )
     {
         /* If Hidden SSID and privacy bit is not matching with the current capability,
@@ -1777,7 +1781,9 @@ limDetectChangeInApCapabilities(tpAniSirGlobal pMac,
                     (SIR_MAC_GET_PRIVACY(apNewCaps.capabilityInfo) ==
                      SIR_MAC_GET_PRIVACY(psessionEntry->limCurrentBssCaps))) &&
                     (SIR_MAC_GET_SHORT_PREAMBLE(apNewCaps.capabilityInfo) ==
-                     SIR_MAC_GET_SHORT_PREAMBLE(psessionEntry->limCurrentBssCaps))
+                     SIR_MAC_GET_SHORT_PREAMBLE(psessionEntry->limCurrentBssCaps)) &&
+                    (SIR_MAC_GET_QOS(apNewCaps.capabilityInfo) ==
+                     SIR_MAC_GET_QOS(psessionEntry->limCurrentBssCaps))
                )
             {
                 /* Only for probe response frames the control will come here */

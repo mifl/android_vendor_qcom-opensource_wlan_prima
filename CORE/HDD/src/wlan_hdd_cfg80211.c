@@ -678,10 +678,13 @@ int wlan_hdd_cfg80211_init(struct device *dev,
                  |  WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
 #endif
 #ifdef FEATURE_WLAN_SCAN_PNO
-    wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
-    wiphy->max_sched_scan_ssids = SIR_PNO_MAX_SUPP_NETWORKS;
-    wiphy->max_match_sets       = SIR_PNO_MAX_SUPP_NETWORKS;
-    wiphy->max_sched_scan_ie_len = SIR_MAC_MAX_IE_LENGTH;
+    if (pCfg->configPNOScanSupport)
+    {
+        wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
+        wiphy->max_sched_scan_ssids = SIR_PNO_MAX_SUPP_NETWORKS;
+        wiphy->max_match_sets       = SIR_PNO_MAX_SUPP_NETWORKS;
+        wiphy->max_sched_scan_ie_len = SIR_MAC_MAX_IE_LENGTH;
+    }
 #endif/*FEATURE_WLAN_SCAN_PNO*/
 
 #ifdef CONFIG_ENABLE_LINUX_REG
@@ -1017,9 +1020,6 @@ int wlan_hdd_cfg80211_alloc_new_beacon(hdd_adapter_t *pAdapter,
     old = pAdapter->sessionCtx.ap.beacon;
 
     if (!params->head && !old)
-        return -EINVAL;
-
-    if (params->tail && !params->tail_len)
         return -EINVAL;
 
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,38))
@@ -1796,7 +1796,15 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
     {
         pIe = wlan_hdd_cfg80211_get_ie_ptr(pBeacon->tail, pBeacon->tail_len,
                                        WLAN_EID_COUNTRY);
-        if(pIe)
+        if(memcmp(pHddCtx->cfg_ini->apCntryCode, CFG_AP_COUNTRY_CODE_DEFAULT, 3) != 0)
+        {
+           tANI_BOOLEAN restartNeeded;
+           pConfig->ieee80211d = 1;
+           vos_mem_copy(pConfig->countryCode, pHddCtx->cfg_ini->apCntryCode, 3);
+           sme_setRegInfo(hHal, pConfig->countryCode);
+           sme_ResetCountryCodeInformation(hHal, &restartNeeded);
+        }
+        else if(pIe)
         {
             tANI_BOOLEAN restartNeeded;
             pConfig->ieee80211d = 1;
@@ -2042,13 +2050,16 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 
 #ifdef WLAN_FEATURE_11AC
     /* Overwrite the hostapd setting for HW mode only for 11ac.
-     * This is valid only if mode is set to 11n in hostapd and either AUTO or 11ac in .ini .
-     * Otherwise, leave whatever is set in hostapd (a OR b OR g OR n mode) */
+     * This is valid only if mode is set to 11n in hostapd, either AUTO or
+     * 11ac in .ini and 11ac is supported by both host and firmware.
+     * Otherwise, leave whatever is set in hostapd (a OR b OR g OR n mode)
+     */
     if( ((pConfig->SapHw_mode == eSAP_DOT11_MODE_11n) ||
          (pConfig->SapHw_mode == eSAP_DOT11_MODE_11n_ONLY)) &&
         (((WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->dot11Mode == eHDD_DOT11_MODE_AUTO) ||
          ((WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->dot11Mode == eHDD_DOT11_MODE_11ac) ||
-         ((WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->dot11Mode == eHDD_DOT11_MODE_11ac_ONLY)) )
+         ((WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->dot11Mode == eHDD_DOT11_MODE_11ac_ONLY)) &&
+         (sme_IsFeatureSupportedByDriver(DOT11AC)) && (sme_IsFeatureSupportedByFW(DOT11AC)) )
     {
         pConfig->SapHw_mode = eSAP_DOT11_MODE_11ac;
 
@@ -2800,7 +2811,8 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                                       wlan_hdd_change_country_code_cb,
                                       pConfig->apCntryCode, pAdapter,
                                       pHddCtx->pvosContext,
-                                      VOS_FALSE);
+                                      eSIR_FALSE,
+                                      eSIR_TRUE);
                     if (eHAL_STATUS_SUCCESS == status)
                     {
                         /* Wait for completion */
@@ -4356,9 +4368,7 @@ void
 hddPrintMacAddr(tCsrBssid macAddr, tANI_U8 logLevel)
 {
     VOS_TRACE(VOS_MODULE_ID_HDD, logLevel,
-              "%02X:%02X:%02X:%02X:%02X:%02X\n",
-              macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4],
-              macAddr[5]);
+              MAC_ADDRESS_STR, MAC_ADDR_ARRAY(macAddr));
 } /****** end hddPrintMacAddr() ******/
 
 void
@@ -5618,9 +5628,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     pWextState->roamProfile.nWPAReqIELength = eLen + 2;//ie_len;
                 }
                 else if ( (0 == memcmp(&genie[0], P2P_OUI_TYPE,
-                                                         P2P_OUI_TYPE_SIZE))
-                        /*Consider P2P IE, only for P2P Client */
-                         && (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode) )
+                                                         P2P_OUI_TYPE_SIZE)))
                 {
                     v_U16_t curAddIELen = pWextState->assocAddIE.length;
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set P2P IE(len %d)",
@@ -6331,6 +6339,7 @@ static int wlan_hdd_cfg80211_set_privacy_ibss(
     ENTER();
 
     pWextState->wpaVersion = IW_AUTH_WPA_VERSION_DISABLED;
+    vos_mem_zero(&pHddStaCtx->ibss_enc_key, sizeof(tCsrRoamSetKey));
 
     if (params->ie_len && ( NULL != params->ie) )
     {
@@ -6412,6 +6421,7 @@ static int wlan_hdd_cfg80211_join_ibss( struct wiphy *wiphy,
     hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
     tCsrRoamProfile          *pRoamProfile;
     int status;
+    bool alloc_bssid = VOS_FALSE;
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 
@@ -6443,6 +6453,37 @@ static int wlan_hdd_cfg80211_join_ibss( struct wiphy *wiphy,
         hddLog (VOS_TRACE_LEVEL_ERROR,
                 "%s Interface type is not set to IBSS \n", __func__);
         return -EINVAL;
+    }
+
+    /* BSSID is provided by upper layers hence no need to AUTO generate */
+    if (NULL != params->bssid) {
+       if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_IBSS_AUTO_BSSID, 0,
+                        NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE) {
+           hddLog (VOS_TRACE_LEVEL_ERROR,
+                  "%s:ccmCfgStInt faild for WNI_CFG_IBSS_AUTO_BSSID", __func__);
+           return -EIO;
+       }
+    }
+    else if(pHddCtx->cfg_ini->isCoalesingInIBSSAllowed == 0)
+    {
+        if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_IBSS_AUTO_BSSID, 0,
+                         NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
+        {
+            hddLog (VOS_TRACE_LEVEL_ERROR,
+                    "%s:ccmCfgStInt faild for WNI_CFG_IBSS_AUTO_BSSID", __func__);
+            return -EIO;
+        }
+        params->bssid = vos_mem_malloc(sizeof(VOS_MAC_ADDR_SIZE));
+        if (!params->bssid)
+        {
+            hddLog (VOS_TRACE_LEVEL_ERROR,
+                    "%s:Failed memory allocation", __func__);
+            return -EIO;
+        }
+        vos_mem_copy((v_U8_t *)params->bssid,
+                     (v_U8_t *)&pHddCtx->cfg_ini->IbssBssid.bytes[0],
+                     VOS_MAC_ADDR_SIZE);
+        alloc_bssid = VOS_TRUE;
     }
 
     /* Set Channel */
@@ -6518,6 +6559,12 @@ static int wlan_hdd_cfg80211_join_ibss( struct wiphy *wiphy,
         return status;
     }
 
+    if (NULL != params->bssid &&
+        pHddCtx->cfg_ini->isCoalesingInIBSSAllowed == 0 &&
+        alloc_bssid == VOS_TRUE)
+    {
+        vos_mem_free(params->bssid);
+    }
     return 0;
 }
 
@@ -7713,13 +7760,13 @@ static int wlan_hdd_cfg80211_update_ft_ies(struct wiphy *wiphy,
     // Added for debug on reception of Re-assoc Req.
     if (eConnectionState_Associated != pHddStaCtx->conn_info.connState)
     {
-        hddLog(LOGE, FL("Called with Ie of length = %d when not associated\n"),
+        hddLog(LOGE, FL("Called with Ie of length = %zu when not associated\n"),
                ftie->ie_len);
         hddLog(LOGE, FL("Should be Re-assoc Req IEs\n"));
     }
 
 #ifdef WLAN_FEATURE_VOWIFI_11R_DEBUG
-    hddLog(LOGE, FL("%s called with Ie of length = %d\n"), __func__,
+    hddLog(LOGE, FL("%s called with Ie of length = %zu\n"), __func__,
            ftie->ie_len);
 #endif
 
@@ -7777,6 +7824,40 @@ void hdd_cfg80211_sched_scan_done_callback(void *callbackContext,
 }
 
 /*
+ * FUNCTION: wlan_hdd_is_pno_allowed
+ * To check is there any P2P GO/SAP or P2P Client/STA
+ * session is active
+ */
+static eHalStatus wlan_hdd_is_pno_allowed(hdd_adapter_t *pAdapter)
+{
+   hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
+   hdd_adapter_t *pTempAdapter = NULL;
+   hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   int status = 0;
+   status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
+
+   while ((NULL != pAdapterNode) && (VOS_STATUS_SUCCESS == status))
+   {
+        pTempAdapter = pAdapterNode->pAdapter;
+
+        if (pTempAdapter != pAdapter)
+        {
+            if (((WLAN_HDD_INFRA_STATION == pTempAdapter->device_mode) &&
+                 (eConnectionState_NotConnected != (WLAN_HDD_GET_STATION_CTX_PTR(pTempAdapter))->conn_info.connState)) ||
+                 (WLAN_HDD_P2P_CLIENT == pTempAdapter->device_mode) ||
+                 (WLAN_HDD_P2P_GO == pTempAdapter->device_mode) ||
+                 (WLAN_HDD_SOFTAP == pTempAdapter->device_mode))
+            {
+                return eHAL_STATUS_SUCCESS;
+            }
+        }
+        status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
+        pAdapterNode = pNext;
+   }
+   return eHAL_STATUS_FAILURE;
+}
+
+/*
  * FUNCTION: wlan_hdd_cfg80211_sched_scan_start
  * NL interface to enable PNO
  */
@@ -7817,6 +7898,17 @@ static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: HAL context  is Null!!!", __func__);
         return -EINVAL;
+    }
+    /* The current firmware design for PNO does not consider concurrent
+     * active sessions.Hence , determine the concurrent active sessions
+     * and return a failure to the framework on a request for schedule
+     * scan.
+     */
+    if (eHAL_STATUS_SUCCESS == wlan_hdd_is_pno_allowed(pAdapter))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: Cannot handle sched_scan as p2p session is active", __func__);
+        return -EBUSY;
     }
 
     pPnoRequest = (tpSirPNOScanReq) vos_mem_malloc(sizeof (tSirPNOScanReq));
@@ -7903,7 +7995,7 @@ static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
     }
 
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-              "request->ie_len = %d", request->ie_len);
+              "request->ie_len = %zu", request->ie_len);
     if ((0 < request->ie_len) && (NULL != request->ie))
     {
         pPnoRequest->us24GProbeTemplateLen = request->ie_len;
@@ -8472,8 +8564,9 @@ static int wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *d
 int wlan_hdd_cfg80211_send_tdls_discover_req(struct wiphy *wiphy,
                             struct net_device *dev, u8 *peer)
 {
-    hddLog(VOS_TRACE_LEVEL_INFO, "tdls send discover req: %x %x %x %x %x %x",
-            peer[0], peer[1], peer[2], peer[3], peer[4], peer[5]);
+    hddLog(VOS_TRACE_LEVEL_INFO,
+           "tdls send discover req: "MAC_ADDRESS_STR,
+           MAC_ADDR_ARRAY(peer));
 
     return wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer,
                             WLAN_TDLS_DISCOVERY_REQUEST, 1, 0, NULL, 0);

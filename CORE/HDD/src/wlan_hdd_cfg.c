@@ -2778,6 +2778,13 @@ REG_VARIABLE( CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD, WLAN_PARAM_Integer,
                  CFG_ENABLE_SNR_MONITORING_MAX),
 
 #ifdef FEATURE_WLAN_SCAN_PNO
+   REG_VARIABLE( CFG_PNO_SCAN_SUPPORT, WLAN_PARAM_Integer,
+                 hdd_config_t, configPNOScanSupport,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_PNO_SCAN_SUPPORT_DEFAULT,
+                 CFG_PNO_SCAN_SUPPORT_DISABLE,
+                 CFG_PNO_SCAN_SUPPORT_ENABLE),
+
    REG_VARIABLE( CFG_PNO_SCAN_TIMER_REPEAT_VALUE, WLAN_PARAM_Integer,
                  hdd_config_t, configPNOScanTimerRepeatValue,
                  VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -2799,6 +2806,46 @@ REG_VARIABLE( CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD, WLAN_PARAM_Integer,
                  CFG_STRICT_5GHZ_PREF_BY_MARGIN_MIN,
                  CFG_STRICT_5GHZ_PREF_BY_MARGIN_MAX ),
 
+   REG_VARIABLE( CFG_COALESING_IN_IBSS_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, isCoalesingInIBSSAllowed,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_COALESING_IN_IBSS_DEFAULT,
+                 CFG_COALESING_IN_IBSS_MIN,
+                 CFG_COALESING_IN_IBSS_MAX ),
+
+   REG_VARIABLE( CFG_DISABLE_ATH_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, cfgAthDisable,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DISABLE_ATH_DEFAULT,
+                 CFG_DISABLE_ATH_MIN,
+                 CFG_DISABLE_ATH_MAX ),
+   REG_VARIABLE(CFG_BTC_ACTIVE_WLAN_LEN_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, cfgBtcActiveWlanLen,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_BTC_ACTIVE_WLAN_LEN_DEFAULT,
+                CFG_BTC_ACTIVE_WLAN_LEN_MIN,
+                CFG_BTC_ACTIVE_WLAN_LEN_MAX ),
+
+   REG_VARIABLE(CFG_BTC_ACTIVE_BT_LEN_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, cfgBtcActiveBtLen,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_BTC_ACTIVE_BT_LEN_DEFAULT,
+                CFG_BTC_ACTIVE_BT_LEN_MIN,
+                CFG_BTC_ACTIVE_BT_LEN_MAX ),
+
+   REG_VARIABLE(CFG_BTC_SAP_ACTIVE_WLAN_LEN_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, cfgBtcSapActiveWlanLen,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_BTC_SAP_ACTIVE_WLAN_LEN_DEFAULT,
+                CFG_BTC_SAP_ACTIVE_WLAN_LEN_MIN,
+                CFG_BTC_SAP_ACTIVE_WLAN_LEN_MAX ),
+
+   REG_VARIABLE(CFG_BTC_SAP_ACTIVE_BT_LEN_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, cfgBtcSapActiveBtLen,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_BTC_SAP_ACTIVE_BT_LEN_DEFAULT,
+                CFG_BTC_SAP_ACTIVE_BT_LEN_MIN,
+                CFG_BTC_SAP_ACTIVE_BT_LEN_MAX ),
 };
 
 /*
@@ -2927,7 +2974,7 @@ VOS_STATUS hdd_parse_config_ini(hdd_context_t* pHddCtx)
       goto config_exit;
    }
 
-   hddLog(LOG1, "%s: qcom_cfg.ini Size %d\n",__func__, fw->size);
+   hddLog(LOG1, "%s: qcom_cfg.ini Size %zu", __func__, fw->size);
 
    buffer = (char*)vos_mem_malloc(fw->size);
 
@@ -3004,48 +3051,25 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [AutoBmpsTimerEnabled] Value = [%u]",pHddCtx->cfg_ini->fIsAutoBmpsTimerEnabled);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [nAutoBmpsTimerValue] Value = [%u]",pHddCtx->cfg_ini->nAutoBmpsTimerValue);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [nVccRssiTrigger] Value = [%u]",pHddCtx->cfg_ini->nVccRssiTrigger);
-  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gIbssBssid] Value =[0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]",
-      pHddCtx->cfg_ini->IbssBssid.bytes[0],pHddCtx->cfg_ini->IbssBssid.bytes[1],
-      pHddCtx->cfg_ini->IbssBssid.bytes[2],pHddCtx->cfg_ini->IbssBssid.bytes[3],
-      pHddCtx->cfg_ini->IbssBssid.bytes[4],pHddCtx->cfg_ini->IbssBssid.bytes[5]);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+            "Name = [gIbssBssid] Value =["MAC_ADDRESS_STR"]",
+            MAC_ADDR_ARRAY(pHddCtx->cfg_ini->IbssBssid.bytes));
 
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
-          "Name = [Intf0MacAddress] Value =[0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]",
-                                  pHddCtx->cfg_ini->intfMacAddr[0].bytes[0],
-                                  pHddCtx->cfg_ini->intfMacAddr[0].bytes[1],
-                                  pHddCtx->cfg_ini->intfMacAddr[0].bytes[2],
-                                  pHddCtx->cfg_ini->intfMacAddr[0].bytes[3],
-                                  pHddCtx->cfg_ini->intfMacAddr[0].bytes[4],
-                                  pHddCtx->cfg_ini->intfMacAddr[0].bytes[5]);
-
+            "Name = [Intf0MacAddress] Value =["MAC_ADDRESS_STR"]",
+            MAC_ADDR_ARRAY(pHddCtx->cfg_ini->intfMacAddr[0].bytes));
 
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
-          "Name = [Intf1MacAddress] Value =[0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]",
-                                  pHddCtx->cfg_ini->intfMacAddr[1].bytes[0],
-                                  pHddCtx->cfg_ini->intfMacAddr[1].bytes[1],
-                                  pHddCtx->cfg_ini->intfMacAddr[1].bytes[2],
-                                  pHddCtx->cfg_ini->intfMacAddr[1].bytes[3],
-                                  pHddCtx->cfg_ini->intfMacAddr[1].bytes[4],
-                                  pHddCtx->cfg_ini->intfMacAddr[1].bytes[5]);
+            "Name = [Intf1MacAddress] Value =["MAC_ADDRESS_STR"]",
+            MAC_ADDR_ARRAY(pHddCtx->cfg_ini->intfMacAddr[1].bytes));
 
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
-          "Name = [Intf2MacAddress] Value =[0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]",
-                                  pHddCtx->cfg_ini->intfMacAddr[2].bytes[0],
-                                  pHddCtx->cfg_ini->intfMacAddr[2].bytes[1],
-                                  pHddCtx->cfg_ini->intfMacAddr[2].bytes[2],
-                                  pHddCtx->cfg_ini->intfMacAddr[2].bytes[3],
-                                  pHddCtx->cfg_ini->intfMacAddr[2].bytes[4],
-                                  pHddCtx->cfg_ini->intfMacAddr[2].bytes[5]);
+            "Name = [Intf2MacAddress] Value =["MAC_ADDRESS_STR"]",
+            MAC_ADDR_ARRAY(pHddCtx->cfg_ini->intfMacAddr[2].bytes));
 
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
-          "Name = [Intf3MacAddress] Value =[0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]",
-                                  pHddCtx->cfg_ini->intfMacAddr[3].bytes[0],
-                                  pHddCtx->cfg_ini->intfMacAddr[3].bytes[1],
-                                  pHddCtx->cfg_ini->intfMacAddr[3].bytes[2],
-                                  pHddCtx->cfg_ini->intfMacAddr[3].bytes[3],
-                                  pHddCtx->cfg_ini->intfMacAddr[3].bytes[4],
-                                  pHddCtx->cfg_ini->intfMacAddr[3].bytes[5]);
-
+            "Name = [Intf3MacAddress] Value =["MAC_ADDRESS_STR"]",
+            MAC_ADDR_ARRAY(pHddCtx->cfg_ini->intfMacAddr[3].bytes));
 
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gApEnableUapsd] value = [%u]\n",pHddCtx->cfg_ini->apUapsdEnabled);
 
@@ -3191,6 +3215,7 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gApKeepAlivePeriod]Value = [%u]",pHddCtx->cfg_ini->apKeepAlivePeriod);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gAmsduSupportInAMPDU] Value = [%u] ",pHddCtx->cfg_ini->isAmsduSupportInAMPDU);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [nSelect5GHzMargin] Value = [%u] ",pHddCtx->cfg_ini->nSelect5GHzMargin);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gCoalesingInIBSS] Value = [%u] ",pHddCtx->cfg_ini->isCoalesingInIBSSAllowed);
 
 }
 
@@ -4374,6 +4399,49 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
       hddLog(LOGE, "Could not pass on WNI_CFG_ANTENNA_DIVESITY to CCM");
    }
 
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_ATH_DISABLE,
+                    pConfig->cfgAthDisable, NULL,
+                    eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
+   {
+      fStatus = FALSE;
+      hddLog(LOGE, "Could not pass on WNI_CFG_ATH_DISABLE to CCM");
+   }
+
+  if (ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_BTC_ACTIVE_WLAN_LEN,
+                    pConfig->cfgBtcActiveWlanLen,
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_BTC_ACTIVE_WLAN_LEN to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_BTC_ACTIVE_BT_LEN,
+                    pConfig->cfgBtcActiveBtLen,
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_BTC_ACTIVE_BT_LEN to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_BTC_SAP_ACTIVE_WLAN_LEN,
+                    pConfig->cfgBtcSapActiveWlanLen,
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_BTC_ACTIVE_WLAN_LEN to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_BTC_SAP_ACTIVE_BT_LEN,
+                    pConfig->cfgBtcSapActiveBtLen,
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_BTC_ACTIVE_BT_LEN to CCM");
+   }
    return fStatus;
 }
 
@@ -4415,8 +4483,20 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 
    smeConfig.csrConfig.phyMode                  = hdd_cfg_xlate_to_csr_phy_mode ( pConfig->dot11Mode );
 
-   smeConfig.csrConfig.channelBondingMode24GHz  = pConfig->nChannelBondingMode24GHz;
-   smeConfig.csrConfig.channelBondingMode5GHz   = pConfig->nChannelBondingMode5GHz;
+   if( (pConfig->dot11Mode == eHDD_DOT11_MODE_abg) ||
+       (pConfig->dot11Mode == eHDD_DOT11_MODE_11b) ||
+       (pConfig->dot11Mode == eHDD_DOT11_MODE_11g) ||
+       (pConfig->dot11Mode == eHDD_DOT11_MODE_11b_ONLY) ||
+       (pConfig->dot11Mode == eHDD_DOT11_MODE_11g_ONLY))
+   {
+       smeConfig.csrConfig.channelBondingMode24GHz  = 0;
+       smeConfig.csrConfig.channelBondingMode5GHz  = 0;
+   }
+   else
+   {
+       smeConfig.csrConfig.channelBondingMode24GHz   = pConfig->nChannelBondingMode24GHz;
+       smeConfig.csrConfig.channelBondingMode5GHz   = pConfig->nChannelBondingMode5GHz;
+   }
    smeConfig.csrConfig.TxRate                   = pConfig->TxRate;
    smeConfig.csrConfig.nScanResultAgeCount      = pConfig->ScanResultAgeCount;
    smeConfig.csrConfig.scanAgeTimeNCNPS         = pConfig->nScanAgeTimeNCNPS;
@@ -4585,6 +4665,10 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 
    smeConfig.csrConfig.isAmsduSupportInAMPDU = pConfig->isAmsduSupportInAMPDU;
    smeConfig.csrConfig.nSelect5GHzMargin = pConfig->nSelect5GHzMargin;
+
+   smeConfig.csrConfig.isCoalesingInIBSSAllowed =
+                       pHddCtx->cfg_ini->isCoalesingInIBSSAllowed;
+
 
    /* update SSR config */
    sme_UpdateEnableSSR((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->enableSSR);
@@ -4793,7 +4877,7 @@ VOS_STATUS hdd_execute_config_command(hdd_context_t *pHddCtx, char *command)
          // too big
          hddLog(LOGE,
                 "%s: invalid command, string [%s] length "
-                "%u exceeds maximum length %u",
+                "%zu exceeds maximum length %u",
                 __func__, value_str,
                 len_value_str, (pRegEntry->VarSize - 1));
          goto done;
@@ -4809,7 +4893,7 @@ VOS_STATUS hdd_execute_config_command(hdd_context_t *pHddCtx, char *command)
          // out of range
          hddLog(LOGE,
                 "%s: invalid command, MAC address [%s] length "
-                "%u is not expected length %u",
+                "%zu is not expected length %u",
                 __func__, value_str,
                 len_value_str, (VOS_MAC_ADDR_SIZE * 2));
          goto done;

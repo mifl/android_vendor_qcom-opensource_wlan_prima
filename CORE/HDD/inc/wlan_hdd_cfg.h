@@ -1416,6 +1416,26 @@ typedef enum
 #define CFG_ENABLE_SSR_MAX                  ( 1 )
 #define CFG_ENABLE_SSR_DEFAULT              ( 1 )
 
+#define CFG_BTC_ACTIVE_WLAN_LEN_NAME           "btcActiveWlanLen"
+#define CFG_BTC_ACTIVE_WLAN_LEN_MIN            ( 0 )
+#define CFG_BTC_ACTIVE_WLAN_LEN_MAX            ( 250000 )
+#define CFG_BTC_ACTIVE_WLAN_LEN_DEFAULT        ( 60000 )
+
+#define CFG_BTC_ACTIVE_BT_LEN_NAME             "btcActiveBtLen"
+#define CFG_BTC_ACTIVE_BT_LEN_MIN              ( 0 )
+#define CFG_BTC_ACTIVE_BT_LEN_MAX              ( 250000 )
+#define CFG_BTC_ACTIVE_BT_LEN_DEFAULT          ( 90000 )
+
+#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_NAME       "btcSapActiveWlanLen"
+#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_MIN        ( 0 )
+#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_MAX        ( 250000 )
+#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_DEFAULT    ( 60000 )
+
+#define CFG_BTC_SAP_ACTIVE_BT_LEN_NAME         "btcSapActiveBtLen"
+#define CFG_BTC_SAP_ACTIVE_BT_LEN_MIN          ( 0 )
+#define CFG_BTC_SAP_ACTIVE_BT_LEN_MAX          ( 250000 )
+#define CFG_BTC_SAP_ACTIVE_BT_LEN_DEFAULT      ( 90000 )
+
 /*
  * VOS Trace Enable Control
  * Notes:
@@ -1914,6 +1934,11 @@ typedef enum
 #define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_DEFAULT   ( 5000 )
 
 #ifdef FEATURE_WLAN_SCAN_PNO
+#define CFG_PNO_SCAN_SUPPORT                         "gPNOScanSupport"
+#define CFG_PNO_SCAN_SUPPORT_ENABLE                  ( 1 )
+#define CFG_PNO_SCAN_SUPPORT_DISABLE                 ( 0 )
+#define CFG_PNO_SCAN_SUPPORT_DEFAULT                 ( 1 )
+
 #define CFG_PNO_SCAN_TIMER_REPEAT_VALUE              "gPNOScanTimerRepeatValue"
 #define CFG_PNO_SCAN_TIMER_REPEAT_VALUE_DEFAULT      ( 6 )
 #define CFG_PNO_SCAN_TIMER_REPEAT_VALUE_MIN          ( 0 )
@@ -1932,6 +1957,16 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_STRICT_5GHZ_PREF_BY_MARGIN_MIN             (0)
 #define CFG_STRICT_5GHZ_PREF_BY_MARGIN_MAX             (60)
 #define CFG_STRICT_5GHZ_PREF_BY_MARGIN_DEFAULT         (0) //set 0 to disable
+
+#define CFG_COALESING_IN_IBSS_NAME                "gCoalesingInIBSS"
+#define CFG_COALESING_IN_IBSS_MIN                 (0)
+#define CFG_COALESING_IN_IBSS_MAX                 (1)
+#define CFG_COALESING_IN_IBSS_DEFAULT             (0) //disabled
+
+#define CFG_DISABLE_ATH_NAME                       "gAthDisable"
+#define CFG_DISABLE_ATH_MIN                        (0)
+#define CFG_DISABLE_ATH_MAX                        (1)
+#define CFG_DISABLE_ATH_DEFAULT                    (0)
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -2331,10 +2366,17 @@ typedef struct
    v_BOOL_t                    fEnableSNRMonitoring;
    /*PNO related parameters */
 #ifdef FEATURE_WLAN_SCAN_PNO
+   v_BOOL_t                    configPNOScanSupport;
    v_U32_t                     configPNOScanTimerRepeatValue;
 #endif
    v_U8_t                      isAmsduSupportInAMPDU;
    v_U8_t                      nSelect5GHzMargin;
+   v_U8_t                      isCoalesingInIBSSAllowed;
+   v_BOOL_t                    cfgAthDisable;
+   v_U32_t                     cfgBtcActiveWlanLen;
+   v_U32_t                     cfgBtcActiveBtLen;
+   v_U32_t                     cfgBtcSapActiveWlanLen;
+   v_U32_t                     cfgBtcSapActiveBtLen;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
@@ -2347,9 +2389,8 @@ eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode( eHddDot11Mode dot11Mode );
 VOS_STATUS hdd_execute_config_command(hdd_context_t *pHddCtx, char *command);
 tANI_BOOLEAN hdd_is_okc_mode_enabled(hdd_context_t *pHddCtx);
 
-#define FIELD_OFFSET(__type, __field) ((unsigned int)(&((__type *)0)->__field))
-#define VAR_OFFSET( _Struct, _Var ) ( (unsigned int) FIELD_OFFSET(_Struct, _Var ) )
-#define VAR_SIZE( _Struct, _Var ) sizeof( ((_Struct *)0)->_Var )
+#define VAR_OFFSET( _Struct, _Var ) (offsetof(_Struct, _Var))
+#define VAR_SIZE( _Struct, _Var ) (sizeof(((_Struct *)0)->_Var))
 
 #define VAR_FLAGS_NONE         (      0 )
 #define VAR_FLAGS_REQUIRED     ( 1 << 0 )   // bit 0 is Required or Optional

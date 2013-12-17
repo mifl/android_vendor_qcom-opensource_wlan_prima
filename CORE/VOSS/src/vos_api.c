@@ -547,7 +547,7 @@ VOS_STATUS vos_preStart( v_CONTEXT_t vosContext )
       if ( vStatus == VOS_STATUS_E_TIMEOUT )
       {
          VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-          "%s: Timeout occurred before WDA complete\n", __func__);
+          "%s: Timeout occurred before WDA complete", __func__);
       }
       else
       {
@@ -736,7 +736,7 @@ VOS_STATUS vos_start( v_CONTEXT_t vosContext )
 
 
 err_sme_stop:
-  sme_Stop(pVosContext->pMACContext, TRUE);
+  sme_Stop(pVosContext->pMACContext, HAL_STOP_TYPE_SYS_RESET);
     
 err_mac_stop:
   macStop( pVosContext->pMACContext, HAL_STOP_TYPE_SYS_RESET );
@@ -2195,7 +2195,7 @@ v_VOID_t vos_fwDumpReq(tANI_U32 cmd, tANI_U32 arg1, tANI_U32 arg2,
       if (vStatus == VOS_STATUS_E_TIMEOUT)
       {
          VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-          "%s: Timeout occurred before WDA HAL DUMP complete\n", __func__);
+          "%s: Timeout occurred before WDA HAL DUMP complete", __func__);
       }
       else
       {
