@@ -124,6 +124,8 @@ RSSI *cannot* be more than 0xFF or less than 0 for meaningful WLAN operation
 
 #define THIRTY_PERCENT(x)  (x*30/100);
 
+#define MANDATORY_BG_CHANNEL 11
+
 /*struct to hold the ignored channel list based on country */
 typedef struct sCsrIgnoreChannels
 {
@@ -259,11 +261,11 @@ int csrCheckValidateLists(void * dest, const void *src, v_SIZE_t num, int idx)
                 }
                 else
                 {
-                    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL, 
-                         " %d Detect 1 list(0x%X) error Head(0x%X) next(0x%X) Count %d, dest(0x%X) src(0x%X) numBytes(%d)",
-                         idx, (unsigned int)g_pchannelPowerInfoList24, (unsigned int)pHead, 
-                        (unsigned int)(pHead->next), (int)g_pchannelPowerInfoList24->Count, 
-                        (unsigned int)dest, (unsigned int)src, (int)num);
+                    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL,
+                         " %d Detect 1 list(%p) error Head(%p) next(%p) Count %d, dest(%p) src(%p) numBytes(%d)",
+                         idx, g_pchannelPowerInfoList24, pHead,
+                        (pHead->next), (int)g_pchannelPowerInfoList24->Count,
+                        dest, src, (int)num);
                     VOS_ASSERT(0);
                     ii = 0;
                     break;
@@ -273,10 +275,10 @@ int csrCheckValidateLists(void * dest, const void *src, v_SIZE_t num, int idx)
         else
         {
             //Bad list
-            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL, " %d Detect list(0x%X) error Head(0x%X) next(0x%X) Count %d, dest(0x%X) src(0x%X) numBytes(%d)", 
-                idx, (unsigned int)g_pchannelPowerInfoList24, (unsigned int)pHead, 
-                (unsigned int)(pHead->next), (int)g_pchannelPowerInfoList24->Count, 
-                (unsigned int)dest, (unsigned int)src, (int)num);
+            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL, " %d Detect list(%p) error Head(%p) next(%p) Count %d, dest(%p) src(%p) numBytes(%d)",
+                idx, g_pchannelPowerInfoList24, pHead,
+                (pHead->next), (int)g_pchannelPowerInfoList24->Count,
+                dest, src, (int)num);
             VOS_ASSERT(0);
             ii = 0;
         }
@@ -911,6 +913,8 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
 
                         if (HAL_STATUS_SUCCESS(status))
                         {
+                             pMac->scan.scanProfile.numOfChannels =
+                               p11dScanCmd->u.scanCmd.u.scanRequest.ChannelInfo.numOfChannels;
                             //Start process the command
 #ifdef WLAN_AP_STA_CONCURRENCY
                             if (!pMac->fScanOffload)
@@ -951,6 +955,9 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                 status = csrScanCopyRequest(pMac, &pScanCmd->u.scanCmd.u.scanRequest, pScanRequest);
                 if(HAL_STATUS_SUCCESS(status))
                 {
+                    pMac->scan.scanProfile.numOfChannels =
+                      pScanCmd->u.scanCmd.u.scanRequest.ChannelInfo.numOfChannels;
+
                     //Start process the command
 #ifdef WLAN_AP_STA_CONCURRENCY
                     if (!pMac->fScanOffload)
@@ -1947,13 +1954,9 @@ eHalStatus csrScanHandleCapChangeScanComplete(tpAniSirGlobal pMac, tANI_U32 sess
             }//Have scan result
             else
             {
-                smsLog(pMac, LOGW, FL("cannot find matching BSS of %02X-%02X-%02X-%02X-%02X-%02X"),
-                        pSession->connectedProfile.bssid[0],
-                        pSession->connectedProfile.bssid[1],
-                        pSession->connectedProfile.bssid[2],
-                        pSession->connectedProfile.bssid[3],
-                        pSession->connectedProfile.bssid[4],
-                        pSession->connectedProfile.bssid[5]);
+                smsLog(pMac, LOGW, FL("cannot find matching BSS of "
+                       MAC_ADDRESS_STR),
+                       MAC_ADDR_ARRAY(pSession->connectedProfile.bssid));
                 //Disconnect
                 csrRoamDisconnectInternal(pMac, sessionId, eCSR_DISCONNECT_REASON_UNSPECIFIED);
             }
@@ -2179,7 +2182,7 @@ eHalStatus csrScanGetResult(tpAniSirGlobal pMac, tCsrScanResultFilter *pFilter, 
                     fMatch = csrIsSecurityMatch( pMac, &pFilter->authType, &pFilter->EncryptionType, &pFilter->mcEncryptionType,
                                  &pBssDesc->Result.BssDescriptor, pIes, NULL, NULL, NULL );
                     if ((pBssDesc->Result.pvIes == NULL) && pIes)
-                        palFreeMemory(pMac->hHdd, pIes);
+                        vos_mem_free(pIes);
 
                     if (fMatch)
                         smsLog(pMac, LOG1, FL(" Security Matched"));
@@ -2209,17 +2212,13 @@ eHalStatus csrScanGetResult(tpAniSirGlobal pMac, tCsrScanResultFilter *pFilter, 
                 /* re-assign preference value based on modified rssi bucket */
                 pBssDesc->preferValue = csrGetBssPreferValue(pMac, (int)pBssDesc->Result.BssDescriptor.rssi);
 
-                smsLog(pMac, LOG2, FL("BSSID(%02X:%02X:%02X:%02X:%02X:%02X) Rssi(%d) Chnl(%d) PrefVal(%lu) SSID=%.*s"),
-                 pBssDesc->Result.BssDescriptor.bssId[0],
-                 pBssDesc->Result.BssDescriptor.bssId[1],
-                 pBssDesc->Result.BssDescriptor.bssId[2],
-                 pBssDesc->Result.BssDescriptor.bssId[3],
-                 pBssDesc->Result.BssDescriptor.bssId[4],
-                 pBssDesc->Result.BssDescriptor.bssId[5],
-                 pBssDesc->Result.BssDescriptor.rssi,
-                 pBssDesc->Result.BssDescriptor.channelId,
-                 pBssDesc->preferValue,
-                 pBssDesc->Result.ssId.length, pBssDesc->Result.ssId.ssId);
+                smsLog(pMac, LOG2, FL("BSSID("MAC_ADDRESS_STR
+                       ") Rssi(%d) Chnl(%d) PrefVal(%u) SSID=%.*s"),
+                       MAC_ADDR_ARRAY(pBssDesc->Result.BssDescriptor.bssId),
+                       pBssDesc->Result.BssDescriptor.rssi,
+                       pBssDesc->Result.BssDescriptor.channelId,
+                       pBssDesc->preferValue,
+                       pBssDesc->Result.ssId.length, pBssDesc->Result.ssId.ssId);
 
                 pEntry = csrLLNext(&pMac->scan.scanResultList, pEntry, LL_ACCESS_NOLOCK);
             }
@@ -3108,7 +3107,7 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
                                     pBssDescription->Result.BssDescriptor.rssi * (-1),
                                     pIesLocal->Country.country[0],pIesLocal->Country.country[1] );
                    //Getting BSSID for best AP in scan result.
-                    palCopyMemory(pMac->hHdd, bssid_temp,
+                    vos_mem_copy(bssid_temp,
                             pBssDescription->Result.BssDescriptor.bssId, sizeof(tSirMacAddr));
 
                 }
@@ -3173,8 +3172,12 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
         }
         //if new candidate AP has 30% better RSSI or this is the first time or
         //AP aged out of CSR cache or we are in world CC now
-        if ((rssi_of_current_country <= cand_Bss_rssi )  || (rssi_of_current_country  == -128)
-           ||( '0' == pMac->scan.countryCode11d[ 0 ] && '0' == pMac->scan.countryCode11d[ 1 ] ))
+        if ((rssi_of_current_country <= cand_Bss_rssi &&
+             rssi_of_current_country  != -128) ||
+            (rssi_of_current_country  == -128 &&
+             pMac->scan.scanProfile.numOfChannels >= MANDATORY_BG_CHANNEL) ||
+            ('0' == pMac->scan.countryCode11d[ 0 ] &&
+             '0' == pMac->scan.countryCode11d[ 1 ]))
         {
             csrLLLock(&pMac->scan.scanResultList);
             pEntryTemp = csrLLPeekHead(&pMac->scan.scanResultList, LL_ACCESS_NOLOCK);
@@ -3196,7 +3199,7 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
                      //valid CC we can get during scan
                      if(( '0' != pMac->scan.countryCode11d[ 0 ] && '0' != pMac->scan.countryCode11d[ 1 ] ))
                      {
-                         palCopyMemory(pMac->hHdd, pMac->scan.currentCountryBssid,
+                         vos_mem_copy(pMac->scan.currentCountryBssid,
                                          bssid_temp, sizeof(tSirMacAddr));
                      }
                     break;
@@ -3765,7 +3768,7 @@ void csrApplyCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce )
                 {
                    smsLog(pMac, LOGW, FL("Domain Changed Old %d, new %d"),
                                       pMac->scan.domainIdCurrent, domainId);
-                   status = WDA_SetRegDomain(pMac, domainId);
+                   status = WDA_SetRegDomain(pMac, domainId, eSIR_TRUE);
                 }
                 if (status != eHAL_STATUS_SUCCESS)
                 {
@@ -3773,7 +3776,8 @@ void csrApplyCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce )
                 }
                 pMac->scan.domainIdCurrent = domainId;
 #ifndef CONFIG_ENABLE_LINUX_REG
-                csrApplyChannelPowerCountryInfo( pMac, &pMac->scan.channels11d, pMac->scan.countryCode11d, eANI_BOOLEAN_TRUE );
+                csrApplyChannelPowerCountryInfo( pMac, &pMac->scan.base20MHzChannels,
+                                  pMac->scan.countryCodeCurrent, eANI_BOOLEAN_TRUE );
 #endif
                 // switch to active scans using this new channel list
                 pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
@@ -4071,9 +4075,10 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
                             csrFreeScanFilter( pMac, &filter );
                             if(fMatch)
                             {
-                                smsLog(pMac, LOGW, "   Matching roam profile BSSID %02X-%02X-%02X-%02X-%02X-%02X causing ambiguous domain info",
-                                    pSirBssDesc->bssId[0], pSirBssDesc->bssId[1], pSirBssDesc->bssId[2], 
-                                    pSirBssDesc->bssId[3], pSirBssDesc->bssId[4], pSirBssDesc->bssId[5]);
+                                smsLog(pMac, LOGW, "Matching roam profile "
+                                       "BSSID " MAC_ADDRESS_STR
+                                       " causing ambiguous domain info",
+                                       MAC_ADDR_ARRAY(pSirBssDesc->bssId));
                                 pMac->scan.fAmbiguous11dInfoFound = eANI_BOOLEAN_TRUE;
                                 break;
                             }
@@ -4085,9 +4090,10 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
                         //User doesn't give profile and just connect to anything.
                         if(csrMatchBSSToConnectProfile(pMac, &pSession->connectedProfile, pSirBssDesc, pIesLocal))
                         {
-                            smsLog(pMac, LOGW, "   Matching connect profile BSSID %02X-%02X-%02X-%02X-%02X-%02X causing ambiguous domain info",
-                                pSirBssDesc->bssId[0], pSirBssDesc->bssId[1], pSirBssDesc->bssId[2],
-                                pSirBssDesc->bssId[3], pSirBssDesc->bssId[4], pSirBssDesc->bssId[5]);
+                            smsLog(pMac, LOGW, "Matching connect profile BSSID "
+                                   MAC_ADDRESS_STR
+                                   " causing ambiguous domain info",
+                                   MAC_ADDR_ARRAY(pSirBssDesc->bssId));
                             //Tush
                             pMac->scan.fAmbiguous11dInfoFound = eANI_BOOLEAN_TRUE;
                             if(csrIsBssidMatch(pMac, (tCsrBssid *)&pSirBssDesc->bssId, 
@@ -4145,7 +4151,7 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
                 }
             }
         }
-        smsLog(pMac, LOG3, FL("  %d sets each one is %d"), pIesLocal->Country.num_triplets, sizeof(tSirMacChanInfo));
+        smsLog(pMac, LOG3, FL("  %d sets each one is %zu"), pIesLocal->Country.num_triplets, sizeof(tSirMacChanInfo));
 
         // set the indicator of the channel where the country IE was found...
         pMac->scan.channelOf11dInfo = pSirBssDesc->channelId;
@@ -4183,7 +4189,7 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
                                       pMac->scan.countryCodeCurrent,
                                       WNI_CFG_COUNTRY_CODE_LEN);
             /* Set Current RegDomain */
-            status = WDA_SetRegDomain(pMac, domainId);
+            status = WDA_SetRegDomain(pMac, domainId, eSIR_TRUE);
             if ( status != eHAL_STATUS_SUCCESS )
             {
                 smsLog( pMac, LOGE, FL("  fail to Set regId %d"), domainId );
@@ -4233,13 +4239,6 @@ static void csrSaveScanResults( tpAniSirGlobal pMac, tANI_U8 reason )
     pMac->scan.fCurrent11dInfoMatch = eANI_BOOLEAN_FALSE;
     // move the scan results from interim list to the main scan list
     csrMoveTempScanResultsToMainList( pMac, reason );
-
-    // Now check if we gathered any domain/country specific information
-    // If so, we should update channel list and apply Tx power settings
-    if( csrIs11dSupported(pMac) )
-    {
-        csrApplyCountryInformation( pMac, FALSE );
-    }
 }
 
 
@@ -5293,14 +5292,9 @@ tANI_BOOLEAN csrScanAgeOutBss(tpAniSirGlobal pMac, tCsrScanResult *pResult)
                                              pSession->pConnectBssDesc, NULL, FALSE))
               )
             {
-                smsLog(pMac, LOGW, "Aging out BSS %02X-%02X-%02X-%02X-%02X-%02X Channel %d",
-                                          pResult->Result.BssDescriptor.bssId[0],
-                                          pResult->Result.BssDescriptor.bssId[1],
-                                          pResult->Result.BssDescriptor.bssId[2],
-                                          pResult->Result.BssDescriptor.bssId[3],
-                                          pResult->Result.BssDescriptor.bssId[4],
-                                          pResult->Result.BssDescriptor.bssId[5],
-                                          pResult->Result.BssDescriptor.channelId);
+                smsLog(pMac, LOGW, "Aging out BSS "MAC_ADDRESS_STR" Channel %d",
+                       MAC_ADDR_ARRAY(pResult->Result.BssDescriptor.bssId),
+                       pResult->Result.BssDescriptor.channelId);
                 //No need to hold the spin lock because caller should hold the lock for pMac->scan.scanResultList
                 if( csrLLRemoveEntry(&pMac->scan.scanResultList, &pResult->Link, LL_ACCESS_NOLOCK) )
                 {

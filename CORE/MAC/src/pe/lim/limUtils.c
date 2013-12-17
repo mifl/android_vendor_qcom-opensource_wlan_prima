@@ -185,7 +185,7 @@ limSearchAndDeleteDialogueToken(tpAniSirGlobal pMac, tANI_U8 token, tANI_U16 ass
         //if the node being deleted is the last one then we also need to move the tail pointer to the prevNode.
         if(NULL == pCurrNode->next)
               pMac->lim.pDialogueTokenTail = pPrevNode;
-        palFreeMemory(pMac->hHdd, (void *) pCurrNode);
+        vos_mem_free(pCurrNode);
         return eSIR_SUCCESS;
     }
 
@@ -1273,9 +1273,7 @@ void
 limPrintMacAddr(tpAniSirGlobal pMac, tSirMacAddr macAddr, tANI_U8 logLevel)
 {
     limLog(pMac, logLevel,
-           FL("%X:%X:%X:%X:%X:%X"),
-           macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4],
-           macAddr[5]);
+           FL(MAC_ADDRESS_STR), MAC_ADDR_ARRAY(macAddr));
 } /****** end limPrintMacAddr() ******/
 
 
@@ -5816,9 +5814,9 @@ if((psessionEntry = peFindSessionByBssid(pMac,pDelTsParam->bssId,&sessionId))== 
     PELOGE(limLog(pMac, LOGE, FL("limValidateDeltsReq failed"));)
     goto error2;
   }
- PELOG1(limLog(pMac, LOG1, "Sent DELTS request to station with assocId = %d MacAddr = %x:%x:%x:%x:%x:%x",
-            pDelTsReq->aid, peerMacAddr[0], peerMacAddr[1], peerMacAddr[2],
-            peerMacAddr[3], peerMacAddr[4], peerMacAddr[5]);)
+  PELOG1(limLog(pMac, LOG1, "Sent DELTS request to station with "
+         "assocId = %d MacAddr = "MAC_ADDRESS_STR,
+         pDelTsReq->aid, MAC_ADDR_ARRAY(peerMacAddr));)
 
   limSendDeltsReqActionFrame(pMac, peerMacAddr, pDelTsReq->req.wmeTspecPresent, &pDelTsReq->req.tsinfo, &pDelTsReq->req.tspec,
           psessionEntry);
@@ -7708,6 +7706,7 @@ tANI_U8 limGetShortSlotFromPhyMode(tpAniSirGlobal pMac, tpPESession psessionEntr
     else if (phyMode == WNI_CFG_PHY_MODE_11G)
     {
         if ((psessionEntry->pePersona == VOS_STA_SAP_MODE) ||
+            (psessionEntry->pePersona == VOS_IBSS_MODE) ||
             (psessionEntry->pePersona == VOS_P2P_GO_MODE))
         {
             val = true;

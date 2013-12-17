@@ -987,13 +987,6 @@ typedef struct sMacOpenParameters
     tDriverType  driverType;
 } tMacOpenParameters;
 
-typedef enum
-{
-    HAL_STOP_TYPE_SYS_RESET,
-    HAL_STOP_TYPE_SYS_DEEP_SLEEP,
-    HAL_STOP_TYPE_RF_KILL   
-}tHalStopType;
-
 typedef struct sHalMacStartParameters
 {
     // parametes for the Firmware
@@ -1071,6 +1064,7 @@ typedef struct sAniSirGlobal
     v_BOOL_t isTdlsPowerSaveProhibited;
 #endif
     tANI_U8 fScanOffload;
+    tANI_U8 isCoalesingInIBSSAllowed;
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS

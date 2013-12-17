@@ -78,13 +78,17 @@ static v_REGDOMAIN_t cur_reg_domain = REGDOMAIN_COUNT;
 static char linux_reg_cc[2] = {0, 0};
 static v_REGDOMAIN_t temp_reg_domain = REGDOMAIN_COUNT;
 
+#else
+
+/* Cant access pAdapter in this file so defining a new variable to wait when changing country*/
+static struct completion change_country_code;
+
 #endif
 
 static char crda_alpha2[2] = {0, 0}; /* country code from initial crda req */
 static char run_time_alpha2[2] = {0, 0}; /* country code from none-default country req */
 static v_BOOL_t crda_regulatory_entry_valid = VOS_FALSE;
 static v_BOOL_t crda_regulatory_run_time_entry_valid = VOS_FALSE;
-
 
 
 /*----------------------------------------------------------------------------
@@ -834,7 +838,7 @@ VOS_STATUS vos_nv_open(void)
     }
 
     VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-           "INFO: NV binary file version=%d Driver default NV version=%d, continue...\n",
+           "INFO: NV binary file version=%d Driver default NV version=%d, continue...",
            gnvEFSTable->halnv.fields.nvVersion, WLAN_NV_VERSION);
 
      /* Copying the read nv data to the globa NV EFS table */
@@ -869,13 +873,13 @@ VOS_STATUS vos_nv_open(void)
            {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                      "!!!WARNING: Using Coupler Type field instead of Fw Config table,\n"
-                     "Make sure that this is intented or may impact performance!!!\n");
+                     "Make sure that this is intended or may impact performance!!!");
            }
            else
            {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                      "!!!WARNING: NV binary file version doesn't match with Driver default NV version\n"
-                     "Driver NV defaults will be used, may impact performance!!!\n");
+                     "Driver NV defaults will be used, may impact performance!!!");
 
                return VOS_STATUS_SUCCESS;
            }
@@ -1064,7 +1068,7 @@ VOS_STATUS vos_nv_close(void)
     if ( !VOS_IS_STATUS_SUCCESS( status ))
     {
         VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                         "%s : vos_open failed\n",__func__);
+                         "%s : vos_open failed",__func__);
         return VOS_STATUS_E_FAILURE;
     }
     vos_mem_free(pnvEFSTable);
@@ -1102,7 +1106,7 @@ VOS_STATUS vos_nv_getSupportedCountryCode( v_BYTE_t *pBuffer, v_SIZE_t *pBufferS
    if ( NULL == pBuffer || providedBufferSize < *pBufferSize )
    {
       VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
-            ("Insufficient memory for country code list\n"));
+            ("Insufficient memory for country code list"));
       return VOS_STATUS_E_NOMEM;
    }
    for (i = 0; i < countryInfoTable.countryCount; i++)
@@ -1170,9 +1174,9 @@ VOS_STATUS vos_nv_readMacAddress( v_MAC_ADDRESS_t pMacAddress )
       //This part of the code can be removed when NV is programmed
       const v_U8_t macAddr[VOS_MAC_ADDRESS_LEN] = VOS_HARD_CODED_MAC;
       memcpy( pMacAddress, macAddr, VOS_MAC_ADDRESS_LEN );
-      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN,
-          " fail to get MAC address from NV, hardcoded to %02X-%02X-%02X-%02X-%02X%02X",
-          macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]);
+      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN,
+                "fail to get MAC address from NV, hardcoded to "MAC_ADDRESS_STR,
+                MAC_ADDR_ARRAY(macAddr));
       status = VOS_STATUS_SUCCESS;
    }
    return status;
@@ -1274,7 +1278,7 @@ VOS_STATUS vos_nv_setValidity( VNV_TYPE type, v_BOOL_t itemIsValid )
            gnvEFSTable->nvValidityBitmap = newNvValidityBitmap;
            status = wlan_write_to_efs((v_U8_t*)gnvEFSTable,sizeof(nvEFSTable_t));
            if (! VOS_IS_STATUS_SUCCESS(status)) {
-               VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, ("vos_nv_write_to_efs failed!!!\r\n"));
+               VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, ("vos_nv_write_to_efs failed!!!"));
                status = VOS_STATUS_E_FAULT;
            }
        }
@@ -1345,13 +1349,13 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
     if (NULL == outputVoidBuffer)
     {
        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-             ("Buffer provided is NULL\r\n") );
+             ("Buffer provided is NULL") );
        return VOS_STATUS_E_FAULT;
     }
     if (0 == bufferSize)
     {
        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-             ("NV type=%d is invalid\r\n"), type );
+             ("NV type=%d is invalid"), type );
        return VOS_STATUS_E_INVAL;
     }
     // check if the NV item has valid data
@@ -1359,7 +1363,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
    if (!itemIsValid)
    {
        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN,
-            "NV type=%d does not have valid data\r\n", type );
+            "NV type=%d does not have valid data", type );
        return VOS_STATUS_E_EMPTY;
    }
    switch(type)
@@ -1368,7 +1372,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            itemSize = sizeof(gnvEFSTable->halnv.fields);
            if(bufferSize != itemSize) {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1380,7 +1384,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            itemSize = sizeof(gnvEFSTable->halnv.tables.pwrOptimum);
            if(bufferSize != itemSize) {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1392,7 +1396,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            itemSize = sizeof(gnvEFSTable->halnv.tables.regDomains);
            if(bufferSize != itemSize) {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1404,7 +1408,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            itemSize = sizeof(gnvEFSTable->halnv.tables.defaultCountryTable);
            if(bufferSize != itemSize) {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1416,7 +1420,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            itemSize = sizeof(gnvEFSTable->halnv.tables.plutCharacterized);
            if(bufferSize != itemSize) {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1428,7 +1432,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            itemSize = sizeof(gnvEFSTable->halnv.tables.plutPdadcOffset);
            if(bufferSize != itemSize) {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1443,7 +1447,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            if(bufferSize != itemSize) {
 
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1458,7 +1462,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            if(bufferSize != itemSize) {
 
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1473,7 +1477,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            if(bufferSize != itemSize) {
 
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1485,7 +1489,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            itemSize = sizeof(gnvEFSTable->halnv.tables.antennaPathLoss);
            if(bufferSize != itemSize) {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1497,7 +1501,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            itemSize = sizeof(gnvEFSTable->halnv.tables.pktTypePwrLimits);
            if(bufferSize != itemSize) {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1509,7 +1513,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            itemSize = sizeof(gnvEFSTable->halnv.tables.ofdmCmdPwrOffset);
            if(bufferSize != itemSize) {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1521,7 +1525,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            itemSize = sizeof(gnvEFSTable->halnv.tables.txbbFilterMode);
            if(bufferSize != itemSize) {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1535,7 +1539,7 @@ VOS_STATUS vos_nv_read( VNV_TYPE type, v_VOID_t *outputVoidBuffer,
            itemSize = sizeof(gnvEFSTable->halnv.tables.pwrOptimum_virtualRate);
            if(bufferSize != itemSize) {
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1580,13 +1584,13 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
     if (NULL == inputVoidBuffer)
     {
        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-             ("Buffer provided is NULL\r\n") );
+             ("Buffer provided is NULL") );
        return VOS_STATUS_E_FAULT;
     }
     if (0 == bufferSize)
     {
        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-             ("NV type=%d is invalid\r\n"), type );
+             ("NV type=%d is invalid"), type );
        return VOS_STATUS_E_INVAL;
     }
     switch(type)
@@ -1595,7 +1599,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             itemSize = sizeof(gnvEFSTable->halnv.fields);
             if(bufferSize != itemSize) {
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1607,7 +1611,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             itemSize = sizeof(gnvEFSTable->halnv.tables.pwrOptimum);
             if(bufferSize != itemSize) {
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1619,7 +1623,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             itemSize = sizeof(gnvEFSTable->halnv.tables.regDomains);
             if(bufferSize != itemSize) {
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1631,7 +1635,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             itemSize = sizeof(gnvEFSTable->halnv.tables.defaultCountryTable);
             if(bufferSize != itemSize) {
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1643,7 +1647,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             itemSize = sizeof(gnvEFSTable->halnv.tables.plutCharacterized);
             if(bufferSize != itemSize) {
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1655,7 +1659,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             itemSize = sizeof(gnvEFSTable->halnv.tables.plutPdadcOffset);
             if(bufferSize != itemSize) {
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1670,7 +1674,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             if(bufferSize != itemSize) {
 
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1685,7 +1689,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             if(bufferSize != itemSize) {
 
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1700,7 +1704,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
            if(bufferSize != itemSize) {
 
                VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                  itemSize);
                status = VOS_STATUS_E_INVAL;
            }
@@ -1712,7 +1716,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             itemSize = sizeof(gnvEFSTable->halnv.tables.antennaPathLoss);
             if(bufferSize != itemSize) {
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1725,7 +1729,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             itemSize = sizeof(gnvEFSTable->halnv.tables.pktTypePwrLimits);
             if(bufferSize != itemSize) {
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1738,7 +1742,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             itemSize = sizeof(gnvEFSTable->halnv.tables.ofdmCmdPwrOffset);
             if(bufferSize != itemSize) {
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1751,7 +1755,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             itemSize = sizeof(gnvEFSTable->halnv.tables.txbbFilterMode);
             if(bufferSize != itemSize) {
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1765,7 +1769,7 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
             itemSize = sizeof(gnvEFSTable->halnv.tables.pwrOptimum_virtualRate);
             if(bufferSize != itemSize) {
                 VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                 ("type = %d buffer size=%d is less than data size=%d\r\n"),type, bufferSize,
+                 ("type = %d buffer size=%d is less than data size=%d"),type, bufferSize,
                   itemSize);
                 status = VOS_STATUS_E_INVAL;
             }
@@ -1782,13 +1786,13 @@ VOS_STATUS vos_nv_write( VNV_TYPE type, v_VOID_t *inputVoidBuffer,
       // set NV item to have valid data
       status = vos_nv_setValidity( type, VOS_TRUE );
       if (! VOS_IS_STATUS_SUCCESS(status)) {
-          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, ("vos_nv_setValidity failed!!!\r\n"));
+          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, ("vos_nv_setValidity failed!!!"));
           status = VOS_STATUS_E_FAULT;
       }
       status = wlan_write_to_efs((v_U8_t*)gnvEFSTable,sizeof(nvEFSTable_t));
 
       if (! VOS_IS_STATUS_SUCCESS(status)) {
-          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, ("vos_nv_write_to_efs failed!!!\r\n"));
+          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR, ("vos_nv_write_to_efs failed!!!"));
           status = VOS_STATUS_E_FAULT;
       }
    }
@@ -2525,10 +2529,12 @@ static int create_crda_regulatory_entry_from_regd(struct wiphy *wiphy,
   \brief vos_nv_setRegDomain -
   \param clientCtxt  - Client Context, Not used for PRIMA
               regId  - Regulatory Domain ID
+              sendRegHint - send hint to nl80211
   \return status set REG domain operation
   \sa
   -------------------------------------------------------------------------*/
-VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId)
+VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
+                                                v_BOOL_t sendRegHint)
 {
 
     if (regId >= REGDOMAIN_COUNT)
@@ -2927,7 +2933,7 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
     /* 20MHz channels */
     if (nBandCapability == eCSR_BAND_24)
         VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
-                  "BandCapability is set to 2G only\n");
+                  "BandCapability is set to 2G only");
 
     for (i = 0, m = 0; i<IEEE80211_NUM_BANDS; i++)
     {
@@ -2943,7 +2949,7 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
         {
 
             VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                      "error: wiphy->bands is NULL, i = %d\n", i);
+                      "error: wiphy->bands is NULL, i = %d", i);
             return -1;
         }
 
@@ -2999,7 +3005,7 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
                 if (pnvEFSTable == NULL)
                 {
                     VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                              "error: pnvEFSTable is NULL, probably not parsed nv.bin yet\n");
+                              "error: pnvEFSTable is NULL, probably not parsed nv.bin yet");
                     return -1;
                 }
                 pnvEFSTable->halnv.tables.regDomains[temp_reg_domain].channels[k].enabled =
@@ -3311,10 +3317,12 @@ VOS_STATUS vos_init_wiphy_from_nv_bin(void)
   \brief vos_nv_setRegDomain -
   \param clientCtxt  - Client Context, Not used for PRIMA
               regId  - Regulatory Domain ID
+              sendRegHint - send hint to nl80211
   \return status set REG domain operation
   \sa
   -------------------------------------------------------------------------*/
-VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId)
+VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
+                                                  v_BOOL_t sendRegHint)
 {
     v_CONTEXT_t pVosContext = NULL;
     hdd_context_t *pHddCtx = NULL;
@@ -3338,7 +3346,7 @@ VOS_STATUS vos_nv_setRegDomain(void * clientCtxt, v_REGDOMAIN_t regId)
    /* when CRDA is not running then we are world roaming.
       In this case if 11d is enabled, then country code should
       be update on basis of world roaming */
-   if (NULL != pHddCtx)
+   if (NULL != pHddCtx && sendRegHint)
    {
       wiphy = pHddCtx->wiphy;
       regulatory_hint(wiphy, "00");
@@ -3375,7 +3383,7 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
    if (NULL == pRegDomain)
    {
       VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-            ("Invalid reg domain pointer\n") );
+            ("Invalid reg domain pointer") );
       return VOS_STATUS_E_FAULT;
    }
    *pRegDomain = REGDOMAIN_COUNT;
@@ -3383,13 +3391,13 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
    if (NULL == countryCode)
    {
       VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-            ("Country code array is NULL\r\n") );
+            ("Country code array is NULL") );
       return VOS_STATUS_E_FAULT;
    }
    if (0 == countryInfoTable.countryCount)
    {
       VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-            ("Reg domain table is empty\r\n") );
+            ("Reg domain table is empty") );
       return VOS_STATUS_E_EMPTY;
    }
    /* If CRDA regulatory settings is valid, i.e. crda is enabled
@@ -3398,7 +3406,7 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
       entry if country code is crda's country.
       last one NUM_REG_DOMAINS-1 is reserved for crda */
    VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO_HIGH,
-          "vos_nv_getRegDomainFromCountryCode %c%c\n",
+          "vos_nv_getRegDomainFromCountryCode %c%c",
           countryCode[0], countryCode[1]);
 
    if (crda_regulatory_entry_valid == VOS_TRUE)
@@ -3407,7 +3415,7 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
        {
           *pRegDomain = NUM_REG_DOMAINS-1;
               VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO_HIGH,
-              "vos_nv_getRegDomainFromCountryCode return crda init entry\n");
+              "vos_nv_getRegDomainFromCountryCode return crda init entry");
           return VOS_STATUS_SUCCESS;
        }
        if (run_time_alpha2[0]==countryCode[0] &&
@@ -3416,7 +3424,7 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
        {
           *pRegDomain = NUM_REG_DOMAINS-2;
               VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO_HIGH,
-              "vos_nv_getRegDomainFromCountryCode return crda none-default country entry\n");
+              "vos_nv_getRegDomainFromCountryCode return crda none-default country entry");
            return VOS_STATUS_SUCCESS;
        }
        else
@@ -3430,7 +3438,7 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
            if (NULL == pHddCtx)
            {
               VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                    ("Invalid pHddCtx pointer\r\n") );
+                    ("Invalid pHddCtx pointer") );
               return VOS_STATUS_E_FAULT;
            }
 
@@ -3450,11 +3458,11 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
            if (crda_regulatory_run_time_entry_valid == VOS_TRUE)
            {
               VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO_HIGH,
-                 "vos_nv_getRegDomainFromCountryCode return crda new none-default country entry\n");
+                 "vos_nv_getRegDomainFromCountryCode return crda new none-default country entry");
                return VOS_STATUS_SUCCESS;
            }
            VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-              "vos_nv_getRegDomainFromCountryCode failed to get crda new none-default country entry\n");
+              "vos_nv_getRegDomainFromCountryCode failed to get crda new none-default country entry");
            return VOS_STATUS_E_EXISTS;
        }
    }
@@ -3478,11 +3486,19 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
    else
    {
       VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN,
-            ("country code is not found\r\n"));
+            ("country code is not found"));
       return VOS_STATUS_E_EXISTS;
    }
 }
-
+/* FUNCTION: vos_nv_change_country_code_cb
+*  to wait for contry code completion
+*/
+void* vos_nv_change_country_code_cb(void *pAdapter)
+{
+   struct completion *change_code_cng = pAdapter;
+   complete(change_code_cng);
+   return NULL;
+}
 
 /*
  * Function: wlan_hdd_crda_reg_notifier
@@ -3510,13 +3526,47 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
                      " %c%c\n", request->alpha2[0], request->alpha2[1]);
     if (request->initiator == NL80211_REGDOM_SET_BY_USER)
     {
+       int status;
        wiphy_dbg(wiphy, "info: set by user\n");
-       if (create_crda_regulatory_entry(wiphy, request, pHddCtx->cfg_ini->nBandCapability) != 0)
+       init_completion(&change_country_code);
+       /* We will process hints by user from nl80211 in driver.
+       * sme_ChangeCountryCode will set the country to driver
+       * and update the regdomain.
+       * when we return back to nl80211 from this callback, the nl80211 will
+       * send NL80211_CMD_REG_CHANGE event to the hostapd waking it up to
+       * query channel list from nl80211. Thus we need to update the channels
+       * according to reg domain set by user before returning to nl80211 so
+       * that hostapd will gets the updated channels.
+       * The argument sendRegHint in sme_ChangeCountryCode is
+       * set to eSIR_FALSE (hint is from nl80211 and thus
+       * no need to notify nl80211 back)*/
+       status = sme_ChangeCountryCode(pHddCtx->hHal,
+                                   (void *)(tSmeChangeCountryCallback)
+                                   vos_nv_change_country_code_cb,
+                                   request->alpha2,
+                                   &change_country_code,
+                                   pHddCtx->pvosContext,
+                                   eSIR_FALSE,
+                                   eSIR_FALSE);
+       if (eHAL_STATUS_SUCCESS == status)
+       {
+          status = wait_for_completion_interruptible_timeout(
+                                       &change_country_code,
+                                       msecs_to_jiffies(WLAN_WAIT_TIME_COUNTRY));
+          if(status <= 0)
+          {
+             wiphy_dbg(wiphy, "info: set country timed out\n");
+          }
+       }
+       else
+       {
+          wiphy_dbg(wiphy, "info: unable to set country by user\n");
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
           return;
 #else
           return 0;
 #endif
+       }
        // ToDo
        /* Don't change default country code to CRDA country code by user req */
        /* Shouldcall sme_ChangeCountryCode to send a message to trigger read
@@ -3524,7 +3574,8 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
        //sme_ChangeCountryCode(pHddCtx->hHal, NULL,
        //    &country_code[0], pAdapter, pHddCtx->pvosContext);
     }
-    else if (request->initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE)
+
+    if (request->initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE)
     {
        wiphy_dbg(wiphy, "info: set by country IE\n");
        if (create_crda_regulatory_entry(wiphy, request, pHddCtx->cfg_ini->nBandCapability) != 0)
@@ -3543,7 +3594,8 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
        //    &country_code[0], pAdapter, pHddCtx->pvosContext);
     }
     else if (request->initiator == NL80211_REGDOM_SET_BY_DRIVER ||
-             (request->initiator == NL80211_REGDOM_SET_BY_CORE))
+             (request->initiator == NL80211_REGDOM_SET_BY_CORE)||
+                (request->initiator == NL80211_REGDOM_SET_BY_USER))
     {
          if ( eHAL_STATUS_SUCCESS !=  sme_GetCountryCode(pHddCtx->hHal, ccode, &uBufLen))
          {

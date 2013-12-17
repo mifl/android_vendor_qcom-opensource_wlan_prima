@@ -688,6 +688,11 @@ __limHandleSmeStartBssRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                  break;
             case eSIR_IBSS_MODE:
                  psessionEntry->limSystemRole = eLIM_STA_IN_IBSS_ROLE;
+                 psessionEntry->shortSlotTimeSupported =
+                        limGetShortSlotFromPhyMode(pMac, psessionEntry,
+                                                   psessionEntry->gLimPhyMode);
+                 psessionEntry->isCoalesingInIBSSAllowed =
+                                pSmeStartBssReq->isCoalesingInIBSSAllowed;
                  break;
 
             case eSIR_BTAMP_AP_MODE:
@@ -1102,7 +1107,7 @@ static eHalStatus limSendHalStartScanOffloadReq(tpAniSirGlobal pMac,
     {
         limLog(pMac, LOGE,
                 FL("Invalid value (%d) for numSsid"), SIR_SCAN_MAX_NUM_SSID);
-        palFreeMemory(pMac->hHdd, (void *)pScanOffloadReq);
+        vos_mem_free (pScanOffloadReq);
         return eHAL_STATUS_FAILURE;
     }
 
@@ -1905,14 +1910,9 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                psessionEntry->ssId.ssId[3],
                psessionEntry->ssId.ssId[4],
                psessionEntry->ssId.ssId[5]);
-        limLog(pMac, LOG1, FL("Channel %d, BSSID %x:%x:%x:%x:%x:%x"),
+        limLog(pMac, LOG1, FL("Channel %d, BSSID "MAC_ADDRESS_STR),
                psessionEntry->currentOperChannel,
-               psessionEntry->bssId[0],
-               psessionEntry->bssId[1],
-               psessionEntry->bssId[2],
-               psessionEntry->bssId[3],
-               psessionEntry->bssId[4],
-               psessionEntry->bssId[5]);)
+               MAC_ADDR_ARRAY(psessionEntry->bssId));)
 
         /* Indicate whether spectrum management is enabled*/
         psessionEntry->spectrumMgtEnabled = 
@@ -3229,7 +3229,7 @@ void limProcessSmeGetAssocSTAsInfo(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
             pAssocStasTemp->assocId = (v_U8_t)pStaDs->assocId;         // Association Id
             pAssocStasTemp->staId   = (v_U8_t)pStaDs->staIndex;        // Station Id
 
-            palCopyMemory(pMac->hHdd, (tANI_U8 *)&pAssocStasTemp->supportedRates,
+            vos_mem_copy((tANI_U8 *)&pAssocStasTemp->supportedRates,
                                       (tANI_U8 *)&pStaDs->supportedRates,
                                       sizeof(tSirSupportedRates));
             pAssocStasTemp->ShortGI40Mhz = pStaDs->htShortGI40Mhz;
@@ -3539,9 +3539,9 @@ void limProcessSmeDelBssRsp(
     (void) body;
     SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
     //TBD: get the sessionEntry
+    limIbssDelete(pMac,psessionEntry);
     dphHashTableClassInit(pMac, &psessionEntry->dph.dphHashTable);
     limDeletePreAuthList(pMac);
-    limIbssDelete(pMac,psessionEntry);
     limSendSmeRsp(pMac, eWNI_SME_STOP_BSS_RSP, eSIR_SME_SUCCESS,psessionEntry->smeSessionId,psessionEntry->transactionId);
     return;
 }
@@ -3895,9 +3895,9 @@ __limProcessSmeDeltsReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         return;
     }
 
-    PELOG1(limLog(pMac, LOG1, FL("Sent DELTS request to station with assocId = %d MacAddr = %x:%x:%x:%x:%x:%x"),
-              pDeltsReq->aid, peerMacAddr[0], peerMacAddr[1], peerMacAddr[2],
-              peerMacAddr[3], peerMacAddr[4], peerMacAddr[5]);)
+    PELOG1(limLog(pMac, LOG1, FL("Sent DELTS request to station with "
+           "assocId = %d MacAddr = "MAC_ADDRESS_STR),
+           pDeltsReq->aid, MAC_ADDR_ARRAY(peerMacAddr));)
 
     limSendDeltsReqActionFrame(pMac, peerMacAddr, pDeltsReq->req.wmeTspecPresent, &pDeltsReq->req.tsinfo, &pDeltsReq->req.tspec,
               psessionEntry);

@@ -1337,10 +1337,11 @@ limIbssDelBssRsp(
         goto end;
     }
 
+    limIbssDelete(pMac,psessionEntry);
+
     dphHashTableClassInit(pMac, &psessionEntry->dph.dphHashTable);
     limDeletePreAuthList(pMac);
 
-    limIbssDelete(pMac,psessionEntry);
     psessionEntry->limMlmState = eLIM_MLM_IDLE_STATE;
 
     MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId, psessionEntry->limMlmState));
@@ -1386,7 +1387,7 @@ __limIbssSearchAndDeletePeer(tpAniSirGlobal    pMac,
       pTempNextNode = pTempNode->next;
 
       /* Delete the STA with MAC address */
-      if (palEqualMemory( pMac->hHdd, (tANI_U8 *) macAddr,
+      if (vos_mem_compare( (tANI_U8 *) macAddr,
                (tANI_U8 *) &pTempNode->peerMacAddr,
                sizeof(tSirMacAddr)) )
       {
@@ -1415,7 +1416,7 @@ __limIbssSearchAndDeletePeer(tpAniSirGlobal    pMac,
             else
                pPrevNode->next = pTempNode->next;
 
-            palFreeMemory(pMac->hHdd, pTempNode);
+            vos_mem_free(pTempNode);
             pMac->lim.gLimNumIbssPeers--;
 
             pTempNode = pTempNextNode;
@@ -1424,6 +1425,16 @@ __limIbssSearchAndDeletePeer(tpAniSirGlobal    pMac,
       }
       pPrevNode = pTempNode;
       pTempNode = pTempNextNode;
+   }
+   /*
+    * if it is the last peer walking out, we better
+    * we set IBSS state to inactive.
+    */
+   if (0 == pMac->lim.gLimNumIbssPeers)
+   {
+       VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,
+            "Last STA from IBSS walked out");
+       psessionEntry->limIbssActive = false;
    }
 }
 
@@ -1471,7 +1482,8 @@ limIbssCoalesce(
                                   MAC_ADDR_ARRAY(currentBssId), MAC_ADDR_ARRAY(pHdr->bssId));
 
     /* Check for IBSS Coalescing only if Beacon is from different BSS */
-    if ( !vos_mem_compare(currentBssId, pHdr->bssId, sizeof( tSirMacAddr )))
+    if ( !vos_mem_compare(currentBssId, pHdr->bssId, sizeof( tSirMacAddr ))
+          && psessionEntry->isCoalesingInIBSSAllowed)
     {
        /*
         * If STA entry is already available in the LIM hash table, then it is
@@ -1510,6 +1522,12 @@ limIbssCoalesce(
        ibss_bss_delete(pMac,psessionEntry);
        return eSIR_SUCCESS;
     }
+    else
+    {
+       if (!vos_mem_compare(currentBssId, pHdr->bssId, sizeof( tSirMacAddr )))
+           return eSIR_LIM_IGNORE_BEACON;
+    }
+
 
     // STA in IBSS mode and SSID matches with ours
     pPeerNode = ibss_peer_find(pMac, pHdr->sa);
