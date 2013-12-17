@@ -2754,7 +2754,8 @@ static int iw_set_priv(struct net_device *dev,
                                             (void *)(tSmeChangeCountryCallback)wlan_hdd_change_country_code_callback,
                                             country_code,
                                             pAdapter,
-                                            pHddCtx->pvosContext);
+                                            pHddCtx->pvosContext,
+                                            eSIR_TRUE);
 
         /* Wait for completion */
         lrc = wait_for_completion_interruptible_timeout(&pAdapter->change_country_code,
@@ -2779,9 +2780,25 @@ static int iw_set_priv(struct net_device *dev,
     }
     else if( strncasecmp(cmd, "powermode", 9) == 0 ) {
         int mode;
-        char *ptr = (char*)(cmd + 9);
+        char *ptr;
 
-        sscanf(ptr,"%d",&mode);
+        if (9 < cmd_len)
+        {
+            ptr = (char*)(cmd + 9);
+
+        }else{
+              VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                        "CMD LENGTH %d is not correct",cmd_len);
+              return VOS_STATUS_E_FAILURE;
+        }
+
+        if (1 != sscanf(ptr,"%d",&mode))
+        {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "powermode input %s is not correct",ptr);
+            return VOS_STATUS_E_FAILURE;
+        }
+
         wlan_hdd_enter_bmps(pAdapter, mode);
         /*TODO:Set the power mode*/
     }
@@ -2863,9 +2880,27 @@ static int iw_set_priv(struct net_device *dev,
     }
     else if( 0 == strncasecmp(cmd, "CONFIG-TX-TRACKING", 18) ) {
         tSirTxPerTrackingParam tTxPerTrackingParam;
-        char *ptr = (char*)(cmd + 18);
-        sscanf(ptr,"%hhu %hhu %hhu %lu",&(tTxPerTrackingParam.ucTxPerTrackingEnable), &(tTxPerTrackingParam.ucTxPerTrackingPeriod),
-               &(tTxPerTrackingParam.ucTxPerTrackingRatio), &(tTxPerTrackingParam.uTxPerTrackingWatermark));
+        char *ptr;
+
+        if (18 < cmd_len)
+        {
+           ptr = (char*)(cmd + 18);
+        }else{
+               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                         "CMD LENGTH %d is not correct",cmd_len);
+               return VOS_STATUS_E_FAILURE;
+        }
+
+        if (4 != sscanf(ptr,"%hhu %hhu %hhu %lu",
+                        &(tTxPerTrackingParam.ucTxPerTrackingEnable),
+                        &(tTxPerTrackingParam.ucTxPerTrackingPeriod),
+                        &(tTxPerTrackingParam.ucTxPerTrackingRatio),
+                        &(tTxPerTrackingParam.uTxPerTrackingWatermark)))
+        {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "CONFIG-TX-TRACKING %s input is not correct",ptr);
+                      return VOS_STATUS_E_FAILURE;
+        }
 
         // parameters checking
         // period has to be larger than 0
@@ -4766,6 +4801,11 @@ static int iw_add_tspec(struct net_device *dev, struct iw_request_info *info,
       return 0;
    }
    tSpec.ts_info.up = params[HDD_WLAN_WMM_PARAM_USER_PRIORITY];
+   if(0 > tSpec.ts_info.up || SME_QOS_WMM_UP_MAX < tSpec.ts_info.up)
+   {
+   hddLog(VOS_TRACE_LEVEL_ERROR,"***ts_info.up out of bounds***");
+   return 0;
+   }
 
    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
              "%s:TS_INFO PSB %d UP %d !!!", __func__,
@@ -6386,7 +6426,7 @@ int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr)
          (band == eCSR_BAND_5G && pHddCtx->cfg_ini->nBandCapability==1) || 
          (band == eCSR_BAND_ALL && pHddCtx->cfg_ini->nBandCapability!=0)) 
     {       
-         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
              "%s: band value %u violate INI settings %u", __func__,
              band, pHddCtx->cfg_ini->nBandCapability);
          return -EIO;
