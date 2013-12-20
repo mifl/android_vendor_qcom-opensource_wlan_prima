@@ -335,4 +335,15 @@ void wpalWlanReload(void);
 ---------------------------------------------------------------------------*/
 void wpalWcnssResetIntr(void);
 
+/*---------------------------------------------------------------------------
+    wpalDevicePanic -  Trigger Device Panic
+       Trigger device panic to help debug
+
+    Param:
+       NONE
+
+    Return:
+       NONE
+---------------------------------------------------------------------------*/
+void wpalDevicePanic(void);
 #endif // __WLAN_QCT_PAL_API_H

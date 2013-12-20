@@ -427,3 +427,19 @@ void wpalWcnssResetIntr(void)
 #endif
    return;
 }
+
+/*---------------------------------------------------------------------------
+    wpalDevicePanic -  Trigger Device Panic
+       Trigger device panic to help debug
+
+    Param:
+       NONE
+
+    Return:
+       NONE
+---------------------------------------------------------------------------*/
+void wpalDevicePanic(void)
+{
+   BUG_ON(0);
+   return;
+}
