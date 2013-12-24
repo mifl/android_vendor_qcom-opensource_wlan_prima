@@ -3950,7 +3950,11 @@ WLANTL_GetFrames
       WDA_TLI_PROCESS_FRAME_LEN( pTLCb->tlMgmtFrmClient.vosPendingDataBuff,
                           usPktLen, uResLen, uTotalPktLen);
 
-      VOS_ASSERT(usPktLen <= WLANTL_MAX_ALLOWED_LEN);
+      if (usPktLen > WLANTL_MAX_ALLOWED_LEN)
+      {
+          usPktLen = WLANTL_MAX_ALLOWED_LEN;
+          VOS_ASSERT(0);
+      }
 
       if ( ( pTLCb->uResCount > uResLen ) &&
            ( uRemaining > uTotalPktLen ) &&
@@ -3988,7 +3992,11 @@ WLANTL_GetFrames
       WDA_TLI_PROCESS_FRAME_LEN( pTLCb->tlBAPClient.vosPendingDataBuff,
                           usPktLen, uResLen, uTotalPktLen);
 
-      VOS_ASSERT(usPktLen <= WLANTL_MAX_ALLOWED_LEN);
+      if (usPktLen > WLANTL_MAX_ALLOWED_LEN)
+      {
+          usPktLen = WLANTL_MAX_ALLOWED_LEN;
+          VOS_ASSERT(0);
+      }
 
       if ( ( pTLCb->uResCount > (uResLen + WDA_TLI_MIN_RES_MF ) ) &&
            ( uRemaining > uTotalPktLen ))
@@ -4088,7 +4096,11 @@ WLANTL_GetFrames
         {
             WDA_TLI_PROCESS_FRAME_LEN( vosTempBuf, usPktLen, uResLen, uTotalPktLen);
 
-            VOS_ASSERT( usPktLen <= WLANTL_MAX_ALLOWED_LEN);
+            if (usPktLen > WLANTL_MAX_ALLOWED_LEN)
+            {
+                usPktLen = WLANTL_MAX_ALLOWED_LEN;
+                VOS_ASSERT(0);
+            }
 
             TLLOG4(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_LOW,
                       "WLAN TL:Resources needed by frame: %d", uResLen));
@@ -4236,7 +4248,11 @@ WLANTL_GetFrames
       {
         WDA_TLI_PROCESS_FRAME_LEN( vosTempBuf, usPktLen, uResLen, uTotalPktLen);
 
-        VOS_ASSERT( usPktLen <= WLANTL_MAX_ALLOWED_LEN);
+        if (usPktLen > WLANTL_MAX_ALLOWED_LEN)
+        {
+            usPktLen = WLANTL_MAX_ALLOWED_LEN;
+            VOS_ASSERT(0);
+        }
 
         TLLOG4(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_LOW,
                   "WLAN TL:Resources needed by frame: %d", uResLen));
@@ -4330,8 +4346,14 @@ WLANTL_GetFrames
   vos_pkt_walk_packet_chain( vosRoot, &vosDataBuff, 1/*true*/ );
 
   *pvosDataBuff = vosDataBuff;
-  VOS_ASSERT( pbUrgent );
-  *pbUrgent     = pTLCb->bUrgent;
+  if (pbUrgent)
+  {
+      *pbUrgent     = pTLCb->bUrgent;
+  }
+  else
+  {
+      VOS_ASSERT( pbUrgent );
+  }
   return ucResult;
 }/* WLANTL_GetFrames */
 
@@ -5010,9 +5032,6 @@ WLANTL_ProcessBAPFrame
     }
 
     /* Send packet to BAP client*/
-
-    VOS_ASSERT(pTLCb->tlBAPClient.pfnTlBAPRx != NULL);
-
     if ( VOS_STATUS_SUCCESS != WDA_DS_TrimRxPacketInfo( vosTempBuff ) )
     {
       TLLOGW(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_WARN,
@@ -5042,6 +5061,10 @@ WLANTL_ProcessBAPFrame
         pTLCb->tlBAPClient.pfnTlBAPRx( vos_get_global_context(VOS_MODULE_ID_TL,pTLCb),
                                        vosTempBuff,
                                        (WLANTL_BAPFrameEnumType)usType );
+    else
+    {
+        VOS_ASSERT(0);
+    }
 
     return VOS_TRUE;
   }
