@@ -3305,8 +3305,7 @@ eHalStatus csrSetQosToCfg( tpAniSirGlobal pMac, tANI_U32 sessionId, eCsrMediaAcc
     }
     //save the WMM setting for later use
     pMac->roam.roamSession[sessionId].fWMMConnection = (tANI_BOOLEAN)WmeEnabled;
-    status = ccmCfgSetInt(pMac, WNI_CFG_QOS_ENABLED, QoSEnabled, NULL, eANI_BOOLEAN_FALSE);
-    status = ccmCfgSetInt(pMac, WNI_CFG_WME_ENABLED, WmeEnabled, NULL, eANI_BOOLEAN_FALSE);
+    pMac->roam.roamSession[sessionId].fQOSConnection = (tANI_BOOLEAN)QoSEnabled;
     return (status);
 }
 static eHalStatus csrGetRateSet( tpAniSirGlobal pMac,  tCsrRoamProfile *pProfile, eCsrPhyMode phyMode, tSirBssDescription *pBssDesc,
@@ -8903,6 +8902,7 @@ void csrRoamRssiRspProcessor(tpAniSirGlobal pMac, void* pMsg)
             ((tCsrRssiCallback)(reqBkp->rssiCallback))(rssi, pRoamRssiRsp->staId, reqBkp->pDevContext);
             reqBkp->rssiCallback = NULL;
             vos_mem_free(reqBkp);
+            pRoamRssiRsp->rssiReq = NULL;
         }
         else
         {
@@ -8910,6 +8910,7 @@ void csrRoamRssiRspProcessor(tpAniSirGlobal pMac, void* pMsg)
             if (NULL != reqBkp)
             {
                 vos_mem_free(reqBkp);
+                pRoamRssiRsp->rssiReq = NULL;
             }
         }
     }
@@ -8942,6 +8943,7 @@ void csrTsmStatsRspProcessor(tpAniSirGlobal pMac, void* pMsg)
                 reqBkp->tsmStatsCallback = NULL;
             }
             vos_mem_free(reqBkp);
+            pTsmStatsRsp->tsmStatsReq = NULL;
         }
         else
         {
@@ -8949,6 +8951,7 @@ void csrTsmStatsRspProcessor(tpAniSirGlobal pMac, void* pMsg)
             if (NULL != reqBkp)
             {
                 vos_mem_free(reqBkp);
+                pTsmStatsRsp->tsmStatsReq = NULL;
             }
         }
     }
@@ -12870,6 +12873,35 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
         *pBuf = (tANI_U8)pMac->roam.configParam.isAmsduSupportInAMPDU;
         pBuf++;
 
+        // WME
+        if(pMac->roam.roamSession[sessionId].fWMMConnection)
+        {
+           //WME  enabled
+            dwTmp = pal_cpu_to_be32(TRUE);
+            vos_mem_copy(pBuf, &dwTmp, sizeof(tAniBool));
+            pBuf += sizeof(tAniBool);
+        }
+        else
+        {
+            dwTmp = pal_cpu_to_be32(FALSE);
+            vos_mem_copy(pBuf, &dwTmp, sizeof(tAniBool));
+            pBuf += sizeof(tAniBool);
+        }
+
+        // QOS
+        if(pMac->roam.roamSession[sessionId].fQOSConnection)
+        {
+            //QOS  enabled
+            dwTmp = pal_cpu_to_be32(TRUE);
+            vos_mem_copy(pBuf, &dwTmp, sizeof(tAniBool));
+            pBuf += sizeof(tAniBool);
+        }
+        else
+        {
+            dwTmp = pal_cpu_to_be32(FALSE);
+            vos_mem_copy(pBuf, &dwTmp, sizeof(tAniBool));
+            pBuf += sizeof(tAniBool);
+        }
         //BssDesc
         csrPrepareJoinReassocReqBuffer( pMac, pBssDescription, pBuf,
                 (tANI_U8)pProfile->uapsd_mask);

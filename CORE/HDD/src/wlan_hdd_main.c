@@ -1461,6 +1461,7 @@ tANI_U32 hdd_populate_user_batch_scan_rsp
          pAdapter->pBatchScanRsp  = pHead;
          pAdapter->prev_batch_id = pPrev->ApInfo.batchId;
          vos_mem_free(pPrev);
+         pPrev = NULL;
    }
 
    return cur_len;
@@ -2357,6 +2358,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s:STA is not associated to this AP!",__func__);
                ret = -EINVAL;
                vos_mem_free(buf);
+               buf = NULL;
                goto exit;
            }
 
@@ -2369,6 +2371,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                          __func__, channel, pHddStaCtx->conn_info.operationChannel);
                ret = -EINVAL;
                vos_mem_free(buf);
+               buf = NULL;
                goto exit;
            }
            chan.center_freq = sme_ChnToFreq(channel);
@@ -2380,6 +2383,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, "%s:memory allocation failed",__func__);
                ret = -ENOMEM;
                vos_mem_free(buf);
+               buf = NULL;
                goto exit;
            }
            vos_mem_zero(finalBuf, finalLen);
@@ -2406,6 +2410,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
            /* done with the parsed buffer */
            vos_mem_free(buf);
+           buf = NULL;
 
            wlan_hdd_action( NULL,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
@@ -3640,18 +3645,14 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: CCKM Ie input length is more than max[%d]", __func__,
                   DOT11F_IE_RSN_MAX_LEN);
-               if (NULL != cckmIe)
-               {
-                   vos_mem_free(cckmIe);
-               }
+               vos_mem_free(cckmIe);
+               cckmIe = NULL;
                ret = -EINVAL;
                goto exit;
            }
            sme_SetCCKMIe((tHalHandle)(pHddCtx->hHal), pAdapter->sessionId, cckmIe, cckmIeLen);
-           if (NULL != cckmIe)
-           {
-               vos_mem_free(cckmIe);
-           }
+           vos_mem_free(cckmIe);
+           cckmIe = NULL;
        }
        else if (strncmp(command, "CCXBEACONREQ", 12) == 0)
        {
@@ -3790,7 +3791,7 @@ static VOS_STATUS hdd_parse_ccx_beacon_req(tANI_U8 *pValue,
                 break;
 
                 case 2:  /* Scan mode */
-                if ((tempInt < 0) || (tempInt > 2))
+                if ((tempInt < eSIR_PASSIVE_SCAN) || (tempInt > eSIR_BEACON_TABLE))
                 {
                    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                              "Invalid Scan Mode(%d) Expected{0|1|2}", tempInt);
@@ -3800,7 +3801,8 @@ static VOS_STATUS hdd_parse_ccx_beacon_req(tANI_U8 *pValue,
                 break;
 
                 case 3:  /* Measurement duration */
-                if (tempInt <= 0)
+                if (((tempInt <= 0) && (pCcxBcnReq->bcnReq[j].scanMode != eSIR_BEACON_TABLE)) ||
+                    ((tempInt < 0) && (pCcxBcnReq->bcnReq[j].scanMode == eSIR_BEACON_TABLE)))
                 {
                    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                              "Invalid Measurement Duration(%d)", tempInt);
@@ -5469,16 +5471,15 @@ void hdd_cleanup_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter, tANI_
       tHddBatchScanRsp *pPrev;
       if (pAdapter)
       {
-          mutex_lock(&pAdapter->hdd_batch_scan_lock);
           pNode = pAdapter->pBatchScanRsp;
           while (pNode)
           {
               pPrev = pNode;
               pNode = pNode->pNext;
               vos_mem_free((v_VOID_t * )pPrev);
+              pPrev = NULL;
           }
           pAdapter->pBatchScanRsp = NULL;
-          mutex_unlock(&pAdapter->hdd_batch_scan_lock);
       }
 #endif
 
@@ -5764,11 +5765,11 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
                                   NL80211_IFTYPE_STATION;
 
          pAdapter->device_mode = session_type;
-
-         status = hdd_init_station_mode( pAdapter );
 #ifdef FEATURE_WLAN_TDLS
          mutex_unlock(&pHddCtx->tdls_lock);
 #endif
+
+         status = hdd_init_station_mode( pAdapter );
          if( VOS_STATUS_SUCCESS != status )
             goto err_free_netdev;
 
@@ -5983,6 +5984,7 @@ VOS_STATUS hdd_close_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
 
       hdd_remove_adapter( pHddCtx, pAdapterNode );
       vos_mem_free( pAdapterNode );
+      pAdapterNode = NULL;
 
 #ifdef FEATURE_WLAN_TDLS
        mutex_unlock(&pHddCtx->tdls_lock);
@@ -6021,6 +6023,7 @@ VOS_STATUS hdd_close_all_adapters( hdd_context_t *pHddCtx )
       {
          hdd_cleanup_adapter( pHddCtx, pHddAdapterNode->pAdapter, FALSE );
          vos_mem_free( pHddAdapterNode );
+         pHddAdapterNode = NULL;
       }
    }while( NULL != pHddAdapterNode && VOS_STATUS_E_EMPTY != status );
    
@@ -6827,12 +6830,14 @@ void hdd_wlan_initial_scan(hdd_adapter_t *pAdapter)
          {
             hddLog(VOS_TRACE_LEVEL_ERROR, "%s kmalloc failed", __func__);
             vos_mem_free(channelInfo.ChannelList);
+            channelInfo.ChannelList = NULL;
             return;
          }
          vos_mem_copy(scanReq.ChannelInfo.ChannelList, channelInfo.ChannelList,
             channelInfo.numOfChannels);
          scanReq.ChannelInfo.numOfChannels = channelInfo.numOfChannels;
          vos_mem_free(channelInfo.ChannelList);
+         channelInfo.ChannelList = NULL;
       }
 
       scanReq.scanType = eSIR_PASSIVE_SCAN;
@@ -7613,6 +7618,13 @@ int hdd_wlan_startup(struct device *dev )
              __func__, WLAN_INI_FILE);
       goto err_config;
    }
+#ifdef MEMORY_DEBUG
+   if (pHddCtx->cfg_ini->IsMemoryDebugSupportEnabled)
+      vos_mem_init();
+
+   hddLog(VOS_TRACE_LEVEL_INFO, "%s: gEnableMemoryDebug=%d",
+          __func__, pHddCtx->cfg_ini->IsMemoryDebugSupportEnabled);
+#endif
 
    /* INI has been read, initialise the configuredMcastBcastFilter with
     * INI value as this will serve as the default value
@@ -8344,10 +8356,6 @@ static int hdd_driver_init( void)
          ret_status = -1;
          break;
    }
-
-#ifdef MEMORY_DEBUG
-      vos_mem_init();
-#endif
 
 #ifdef TIMER_MANAGER
       vos_timer_manager_init();
