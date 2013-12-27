@@ -2295,6 +2295,7 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
 
     // Free up buffer allocated for mlmAssocReq
     palFreeMemory( pMac->hHdd, ( tANI_U8* ) pMlmAssocReq );
+    pMlmAssocReq = NULL;
     palFreeMemory(pMac->hHdd, pFrm);
     return;
 } // End limSendAssocReqMgmtFrame
