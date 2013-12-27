@@ -7912,7 +7912,7 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
                            "%s: " MAC_ADDRESS_STR
                            " TDLS Max peer already connected. action %d declined.",
                            __func__, MAC_ADDR_ARRAY(peer), action_code);
-                goto error;
+                return -EINVAL;
             }
             else
             {
@@ -8007,7 +8007,7 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
                 "%s: sme_SendTdlsMgmtFrame failed!", __func__);
         pAdapter->mgmtTxCompletionStatus = FALSE;
         wlan_hdd_tdls_check_bmps(pAdapter);
-        goto error;
+        return -EINVAL;
     }
 
     rc = wait_for_completion_interruptible_timeout(&pAdapter->tdls_mgmt_comp,
@@ -8020,7 +8020,7 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
                   __func__, rc, pAdapter->mgmtTxCompletionStatus);
         pAdapter->mgmtTxCompletionStatus = FALSE;
         wlan_hdd_tdls_check_bmps(pAdapter);
-        goto error;
+        return -EINVAL;
     }
 
     if (max_sta_failed)
@@ -8039,16 +8039,6 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
     }
 
     return 0;
-error:
-    /* max_sta_failed ; we didn't set to CONNECTING for this case,
-       because we already know that this transaction will be failed,
-       but we weren't sure if supplicant call DISABLE_LINK or not. So,
-       to be safe, do not change the state mahine.
-    */
-    if(max_sta_failed == 0 &&
-           (WLAN_IS_TDLS_SETUP_ACTION(action_code)))
-            wlan_hdd_tdls_set_link_status(pAdapter, peerMac, eTDLS_LINK_IDLE);
-    return -EPERM;
 }
 
 static int wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
