@@ -665,10 +665,14 @@ int wlan_hdd_cfg80211_register(struct device *dev,
     wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS
                  |  WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
 #endif
+
 #ifdef FEATURE_WLAN_SCAN_PNO
-    wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
-    wiphy->max_sched_scan_ssids = SIR_PNO_MAX_SUPP_NETWORKS;
-    wiphy->max_match_sets       = SIR_PNO_MAX_SUPP_NETWORKS;
+    if (pCfg->configPNOScanSupport)
+    {
+        wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
+        wiphy->max_sched_scan_ssids = SIR_PNO_MAX_SUPP_NETWORKS;
+        wiphy->max_match_sets       = SIR_PNO_MAX_SUPP_NETWORKS;
+    }
 #endif/*FEATURE_WLAN_SCAN_PNO*/
 
     /* even with WIPHY_FLAG_CUSTOM_REGULATORY,
