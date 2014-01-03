@@ -1619,7 +1619,8 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         {
             /// Received invalid eWNI_SME_JOIN_REQ
             // Log the event
-            limLog(pMac, LOGW, FL("received SME_JOIN_REQ with invalid data"));
+            limLog(pMac, LOGW, FL("SessionId:%d Received SME_JOIN_REQ with"
+                   "invalid data"),pSmeJoinReq->sessionId);
             retCode = eSIR_SME_INVALID_PARAMETERS;
             goto end;
         }
@@ -1632,8 +1633,9 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         {
             if(peValidateBtJoinRequest(pMac)!= TRUE)
             {
-                limLog(pMac, LOGW, FL("Start Bss session not present::"
-                                  "SME_JOIN_REQ in unexpected state"));
+                limLog(pMac, LOGW, FL("SessionId:%d Start Bss session"
+                      "not present::SME_JOIN_REQ in unexpected state"),
+                      pSmeJoinReq->sessionId);
                 retCode = eSIR_SME_UNEXPECTED_REQ_RESULT_CODE;
                 psessionEntry = NULL;
                 goto end;   
@@ -1655,8 +1657,8 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                 // Received eWNI_SME_JOIN_REQ for same
                 // BSS as currently associated.
                 // Log the event and send success
-                PELOGW(limLog(pMac, LOGW, FL("Received SME_JOIN_REQ for "
-                                                "currently joined BSS"));)
+                PELOGW(limLog(pMac, LOGW, FL("SessionId:%d Received"
+                "SME_JOIN_REQ for currently joined BSS"),sessionId);)
                 /// Send Join success response to host
                 retCode = eSIR_SME_ALREADY_JOINED_A_BSS;
                 psessionEntry = NULL;
@@ -1680,6 +1682,9 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                 retCode = eSIR_SME_RESOURCES_UNAVAILABLE;
                 goto end;
             }
+            else
+                limLog(pMac,LOG1,FL("SessionId:%d New session created"),
+                       sessionId);
         }   
         handleHTCapabilityandHTInfo(pMac, psessionEntry);
         psessionEntry->isAmsduSupportInAMPDU = pSmeJoinReq->isAmsduSupportInAMPDU;
@@ -1953,6 +1958,8 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         /* Indicate whether spectrum management is enabled*/
         psessionEntry->spectrumMgtEnabled = 
            pSmeJoinReq->spectrumMgtIndicator;
+        PELOG1(limLog(pMac,LOG1,FL("SessionId:%d MLM_JOIN_REQ is posted to MLM"
+                      "SM"),pMlmJoinReq->sessionId));
         /* Issue LIM_MLM_JOIN_REQ to MLM */
         limPostMlmMessage(pMac, LIM_MLM_JOIN_REQ, (tANI_U32 *) pMlmJoinReq);
         return;
