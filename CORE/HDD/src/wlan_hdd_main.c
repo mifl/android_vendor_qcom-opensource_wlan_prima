@@ -2113,6 +2113,25 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            pHddCtx->drvr_miracast = filterType;
            hdd_tx_rx_pkt_cnt_stat_timer_handler(pHddCtx);
         }
+        else if (strncmp(command, "BTCOEXMODE", 10) == 0 )
+        {
+            char *dhcpPhase;
+            dhcpPhase = command + 11;
+            if ('1' == *dhcpPhase)
+            {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                         FL("BTCOEXMODE %d"), *dhcpPhase);
+
+               pHddCtx->btCoexModeSet = TRUE;
+            }
+            else if ('2' == *dhcpPhase)
+            {
+                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                         FL("BTCOEXMODE %d"), *dhcpPhase);
+
+               pHddCtx->btCoexModeSet = FALSE;
+            }
+       }
        else {
            hddLog( VOS_TRACE_LEVEL_WARN, "%s: Unsupported GUI command %s",
                    __func__, command);
