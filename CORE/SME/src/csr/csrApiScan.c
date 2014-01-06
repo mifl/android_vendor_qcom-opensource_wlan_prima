@@ -3969,6 +3969,14 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
             }
         }
         smsLog(pMac, LOG3, FL("  %d sets each one is %d"), pIesLocal->Country.num_triplets, sizeof(tSirMacChanInfo));
+        // save the channel/power information from the Channel IE.
+        //sizeof(tSirMacChanInfo) has to be 3
+        if (eHAL_STATUS_SUCCESS != csrSaveToChannelPower2G_5G( pMac, pIesLocal->Country.num_triplets * sizeof(tSirMacChanInfo),
+                    (tSirMacChanInfo *)(&pIesLocal->Country.triplets[0]) ))
+        {
+            fRet = eANI_BOOLEAN_FALSE;
+            break;
+        }
 
         // set the indicator of the channel where the country IE was found...
         pMac->scan.channelOf11dInfo = pSirBssDesc->channelId;
