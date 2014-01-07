@@ -993,6 +993,7 @@ struct hdd_context_s
 #endif
 
     hdd_traffic_monitor_t traffic_monitor;
+    v_BOOL_t btCoexModeSet;
 };
 
 
