@@ -97,6 +97,7 @@ when           who        what, where, why
 #define T_WLANDXE_TX_INT_ENABLE_FCOUNT     1
 #define T_WLANDXE_MEMDUMP_BYTE_PER_LINE    16
 #define T_WLANDXE_MAX_RX_PACKET_WAIT       6000
+#define T_WLANDXE_SSR_TIMEOUT              5000
 #define T_WLANDXE_PERIODIC_HEALTH_M_TIME   2500
 #define T_WLANDXE_MAX_HW_ACCESS_WAIT       2000
 #define WLANDXE_MAX_REAPED_RX_FRAMES       512
@@ -146,6 +147,11 @@ static wpt_status dxeNotifySmsm
 (
   wpt_boolean kickDxe,
   wpt_boolean ringEmpty
+);
+
+static void dxeStartSSRTimer
+(
+  WLANDXE_CtrlBlkType     *dxeCtxt
 );
 
 /*-------------------------------------------------------------------------
@@ -1825,6 +1831,69 @@ void dxeRXResourceAvailableTimerExpHandler
             T_WLANDXE_MAX_RX_PACKET_WAIT);
    wpalWlanReload();
 
+   if (NULL != usrData)
+      dxeStartSSRTimer((WLANDXE_CtrlBlkType *)usrData);
+
+   return;
+}
+
+/*==========================================================================
+  @  Function Name
+     dxeStartSSRTimer
+
+  @  Description
+      Start the dxeSSRTimer after issuing the FIQ to restart the WCN chip,
+      this makes sure that if the chip does not respond to the FIQ within
+      the timeout period the dxeSSRTimer expiration handler will take the
+      appropriate action.
+
+  @  Parameters
+      NONE
+
+  @  Return
+      NONE
+
+===========================================================================*/
+static void dxeStartSSRTimer
+(
+  WLANDXE_CtrlBlkType     *dxeCtxt
+)
+{
+   if(VOS_TIMER_STATE_RUNNING !=
+      wpalTimerGetCurStatus(&dxeCtxt->dxeSSRTimer))
+   {
+      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
+               "%s: Starting SSR Timer",__func__);
+      wpalTimerStart(&dxeCtxt->dxeSSRTimer,
+                     T_WLANDXE_SSR_TIMEOUT);
+   }
+}
+
+/*==========================================================================
+  @  Function Name
+     dxeSSRTimerExpHandler
+
+  @  Description
+      Issue an explicit subsystem restart of the wcnss subsystem if the
+      WCN chip does not respond to the FIQ within the timeout period
+
+  @  Parameters
+   v_VOID_t     *usrData
+
+  @  Return
+      NONE
+
+===========================================================================*/
+void dxeSSRTimerExpHandler
+(
+   void    *usrData
+)
+{
+   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_FATAL,
+            "DXE not shutdown %d ms after FIQ!! Issue SSR",
+            T_WLANDXE_SSR_TIMEOUT);
+   wpalRivaSubystemRestart();
+
    return;
 }
 
@@ -2389,6 +2458,7 @@ static wpt_status dxeRXFrameReady
                      "RX successive empty interrupt, Could not find invalidated DESC reload driver");
             dxeCtxt->driverReloadInProcessing = eWLAN_PAL_TRUE;
             wpalWlanReload();
+            dxeStartSSRTimer(dxeCtxt);
          }
       }
    }
@@ -2646,6 +2716,7 @@ void dxeRXEventHandler
 
          dxeCtxt->driverReloadInProcessing = eWLAN_PAL_TRUE;
          wpalWlanReload();
+         dxeStartSSRTimer(dxeCtxt);
       }
       else if((WLANDXE_CH_STAT_INT_DONE_MASK & chHighStat) ||
               (WLANDXE_CH_STAT_INT_ED_MASK & chHighStat))
@@ -2698,6 +2769,7 @@ void dxeRXEventHandler
 
          dxeCtxt->driverReloadInProcessing = eWLAN_PAL_TRUE;
          wpalWlanReload();
+         dxeStartSSRTimer(dxeCtxt);
       }
       else if(WLANDXE_CH_STAT_INT_ED_MASK & chStat)
       {
@@ -2745,6 +2817,7 @@ void dxeRXEventHandler
 
          dxeCtxt->driverReloadInProcessing = eWLAN_PAL_TRUE;
          wpalWlanReload();
+         dxeStartSSRTimer(dxeCtxt);
       }
       else if(WLANDXE_CH_STAT_INT_ED_MASK & chLowStat)
       {
@@ -3652,6 +3725,7 @@ void dxeTXEventHandler
 
          dxeCtxt->driverReloadInProcessing = eWLAN_PAL_TRUE;
          wpalWlanReload();
+         dxeStartSSRTimer(dxeCtxt);
       }
       else if(WLANDXE_CH_STAT_INT_DONE_MASK & chStat)
       {
@@ -3705,6 +3779,7 @@ void dxeTXEventHandler
 
          dxeCtxt->driverReloadInProcessing = eWLAN_PAL_TRUE;
          wpalWlanReload();
+         dxeStartSSRTimer(dxeCtxt);
       }
       else if(WLANDXE_CH_STAT_INT_DONE_MASK & chStat)
       {
@@ -3760,6 +3835,7 @@ void dxeTXEventHandler
 
          dxeCtxt->driverReloadInProcessing = eWLAN_PAL_TRUE;
          wpalWlanReload();
+         dxeStartSSRTimer(dxeCtxt);
       }
       else if(WLANDXE_CH_STAT_INT_DONE_MASK & chStat)
       {
@@ -4345,6 +4421,9 @@ void *WLANDXE_Open
                  dxeRXResourceAvailableTimerExpHandler,
                  tempDxeCtrlBlk);
 
+   wpalTimerInit(&tempDxeCtrlBlk->dxeSSRTimer,
+                 dxeSSRTimerExpHandler, tempDxeCtrlBlk);
+
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
             "WLANDXE_Open Success");
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
@@ -4912,6 +4991,7 @@ wpt_status WLANDXE_Close
    dxeCtxt = (WLANDXE_CtrlBlkType *)pDXEContext;
 
    wpalTimerDelete(&dxeCtxt->rxResourceAvailableTimer);
+   wpalTimerDelete(&dxeCtxt->dxeSSRTimer);
 
    for(idx = 0; idx < WDTS_CHANNEL_MAX; idx++)
    {
