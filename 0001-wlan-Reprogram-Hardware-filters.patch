@@ -1,0 +1,57 @@
+From c755ad8b11a4bf84a708b4324b0927218fd4a693 Mon Sep 17 00:00:00 2001
+From: Mihir Shete <smihir@qti.qualcomm.com>
+Date: Mon, 6 Jan 2014 11:01:12 +0530
+Subject: [PATCH] wlan: Reprogram Hardware filters
+
+In one case if WCN chip come out of IMPS and host is still
+not suspened; Reprogramming of Hardware filter is needed.
+Host resumes comes when Riva is in IMPS. The RXP setting
+made by host resume are lost when Riva exits IMPS.
+In this case; host should do exit IMPS and then host should
+send resume.
+
+Change-Id: I24db291221392de26a60160e34151bd31b094e59
+CRs-Fixed: 594494
+
+Conflicts:
+	prima/CORE/HDD/src/wlan_hdd_early_suspend.c
+---
+ CORE/HDD/src/wlan_hdd_early_suspend.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+ mode change 100644 => 100755 CORE/HDD/src/wlan_hdd_early_suspend.c
+
+diff --git a/CORE/HDD/src/wlan_hdd_early_suspend.c b/CORE/HDD/src/wlan_hdd_early_suspend.c
+old mode 100644
+new mode 100755
+index b0ba3b9..018e70e
+--- a/CORE/HDD/src/wlan_hdd_early_suspend.c
++++ b/CORE/HDD/src/wlan_hdd_early_suspend.c
+@@ -1307,7 +1307,25 @@ static void hdd_PowerStateChangedCB
+          hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Not able to set mcast/bcast filter ", __func__);
+    }
+    else
++   {
++       /* Android framework can send resume request when the WCN chip is	1237
++       * in IMPS mode. When the chip exits IMPS mode the firmware will	1238
++       * restore all the registers to the state they were before the chip	1239
++       * entered IMPS and so our hardware filter settings confgured by the	1240
++       * resume request will be lost. So reconfigure the filters on detecting	1241
++       * a change in the power state of the WCN chip.	1242
++       */	
++      if (IMPS != newState)	
++      {	
++           if (FALSE == pHddCtx->hdd_wlan_suspended)	
++           {	
++                hddLog(VOS_TRACE_LEVEL_INFO,	
++                          "Not in IMPS/BMPS and suspended state");	
++                hdd_conf_mcastbcast_filter(pHddCtx, FALSE);	
++           }	
++      }
+       spin_unlock(&pHddCtx->filter_lock);
++   }
+ }
+ 
+ 
+-- 
+1.8.2.1
+
