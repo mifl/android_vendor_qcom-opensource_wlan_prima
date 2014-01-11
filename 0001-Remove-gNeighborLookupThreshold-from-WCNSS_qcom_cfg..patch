@@ -1,0 +1,30 @@
+From e2b0b18d9a80a7ce0b84ee69ba0df95623358415 Mon Sep 17 00:00:00 2001
+From: Srinivas Girigowda <sgirigow@codeaurora.org>
+Date: Fri, 10 Jan 2014 18:10:30 -0800
+Subject: [PATCH] Remove gNeighborLookupThreshold from WCNSS_qcom_cfg.ini
+
+The Lookup threshold is calculated dynamically based
+on minimum data rates.
+
+Change-Id: I66b7b02d156a1d58d858267f5b74af675564857b
+CRs-Fixed: 598958
+---
+ WCNSS_qcom_cfg.ini | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/WCNSS_qcom_cfg.ini b/WCNSS_qcom_cfg.ini
+index ed9c637..c6f964f 100644
+--- a/WCNSS_qcom_cfg.ini
++++ b/WCNSS_qcom_cfg.ini
+@@ -150,8 +150,6 @@ FastTransitionEnabled=1
+ ImplicitQosIsEnabled=1
+ gNeighborScanTimerPeriod=200
+ 
+-gNeighborLookupThreshold=78
+-
+ gNeighborScanChannelMinTime=20
+ gNeighborScanChannelMaxTime=30
+ 
+-- 
+1.8.2.1
+

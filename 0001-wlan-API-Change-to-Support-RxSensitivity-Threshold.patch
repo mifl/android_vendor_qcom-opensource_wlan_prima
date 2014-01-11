@@ -1,0 +1,47 @@
+From 48538b22d3d0267a95c86cb36651a37c431dd2e1 Mon Sep 17 00:00:00 2001
+From: Varun Reddy Yeturu <vyeturu@qca.qualcomm.com>
+Date: Thu, 9 Jan 2014 15:21:31 -0800
+Subject: [PATCH] wlan: API Change to Support RxSensitivity Threshold
+
+Rx Sensitivity Threshold would be calculated based
+on the minimum data rate and provided to the firmware.
+One of the reserved bytes is being used to pass on
+this value. So, the structure size would eventually
+remain same.
+
+Change-Id: I4247068f27a4bc925b94c4549da31add6a90adfa
+CRs-Fixed: 598265
+
+Conflicts:
+	prima/riva/inc/wlan_hal_msg.h
+---
+ riva/inc/wlan_hal_msg.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+ mode change 100644 => 100755 riva/inc/wlan_hal_msg.h
+
+diff --git a/riva/inc/wlan_hal_msg.h b/riva/inc/wlan_hal_msg.h
+old mode 100644
+new mode 100755
+index 72f387c..0357731
+--- a/riva/inc/wlan_hal_msg.h
++++ b/riva/inc/wlan_hal_msg.h
+@@ -114,7 +114,7 @@ typedef tANI_U8 tHalIpv4Addr[4];
+ 
+ #define WLAN_HAL_ROAM_SCAN_MAX_PROBE_SIZE     450
+ #define WLAN_HAL_ROAM_SCAN_MAX_CHANNELS       NUM_RF_CHANNELS
+-#define WLAN_HAL_ROAM_SCAN_RESERVED_BYTES     57
++#define WLAN_HAL_ROAM_SCAN_RESERVED_BYTES     56
+ 
+ /* Message types for messages exchanged between WDI and HAL */
+ typedef enum 
+@@ -5603,6 +5603,7 @@ typedef PACKED_PRE struct PACKED_POST {
+    tANI_U8           nProbes;
+    tANI_U16          HomeAwayTime;
+    eAniBoolean       MAWCEnabled;
++   tANI_S8           RxSensitivityThreshold;
+    tANI_U8           ReservedBytes[WLAN_HAL_ROAM_SCAN_RESERVED_BYTES];
+    tRoamNetworkType  ConnectedNetwork;
+    tMobilityDomainInfo MDID;
+-- 
+1.8.2.1
+

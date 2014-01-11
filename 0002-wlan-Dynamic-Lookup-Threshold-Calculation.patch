@@ -1,0 +1,385 @@
+From 9a0d897a68706cbd569bd8c5dd2918631d9962e7 Mon Sep 17 00:00:00 2001
+From: Varun Reddy Yeturu <vyeturu@qca.qualcomm.com>
+Date: Thu, 9 Jan 2014 21:55:37 -0800
+Subject: [PATCH 2/2] wlan: Dynamic Lookup Threshold Calculation
+
+The Lookup threshold is programmed based on the
+minimum data rate that is supported by the
+connected AP and also it's Receive Sensitivity
+Threshold.The LFR background scans would be
+performed starting from the Lookup Threshold
+until it reaches the Rx Sensitivity threshold
+stepping down 3dB at a time.Once done with the
+occupied channels scan, a full scan on all the
+valid channels is performed.
+
+Change-Id: I85dfac0960490eb91cdccc38dd9901f195d010c6
+CRs-Fixed: 593673
+
+Conflicts:
+	prima/CORE/HDD/inc/wlan_hdd_cfg.h
+	prima/CORE/MAC/inc/sirApi.h
+	prima/CORE/SME/src/csr/csrApiRoam.c
+	prima/CORE/WDA/src/wlan_qct_wda.c
+	prima/CORE/WDI/CP/inc/wlan_qct_wdi.h
+	prima/CORE/WDI/CP/src/wlan_qct_wdi.c
+	pronto/firmware_bin/WCNSS_qcom_cfg.ini
+---
+ CORE/HDD/inc/wlan_hdd_cfg.h    |   6 +-
+ CORE/MAC/inc/sirApi.h          |  36 +++++++---
+ CORE/SME/src/csr/csrApiRoam.c  | 153 ++++++++++++++++++++++++++++++++++++++++-
+ CORE/WDA/src/wlan_qct_wda.c    |   2 +
+ CORE/WDI/CP/inc/wlan_qct_wdi.h |   3 +-
+ CORE/WDI/CP/src/wlan_qct_wdi.c |   1 +
+ 6 files changed, 186 insertions(+), 15 deletions(-)
+ mode change 100644 => 100755 CORE/HDD/inc/wlan_hdd_cfg.h
+ mode change 100644 => 100755 CORE/MAC/inc/sirApi.h
+ mode change 100644 => 100755 CORE/SME/src/csr/csrApiRoam.c
+ mode change 100644 => 100755 CORE/WDA/src/wlan_qct_wda.c
+ mode change 100644 => 100755 CORE/WDI/CP/inc/wlan_qct_wdi.h
+ mode change 100644 => 100755 CORE/WDI/CP/src/wlan_qct_wdi.c
+
+diff --git a/CORE/HDD/inc/wlan_hdd_cfg.h b/CORE/HDD/inc/wlan_hdd_cfg.h
+old mode 100644
+new mode 100755
+index 9100201..d7536ec
+--- a/CORE/HDD/inc/wlan_hdd_cfg.h
++++ b/CORE/HDD/inc/wlan_hdd_cfg.h
+@@ -1222,9 +1222,11 @@ typedef enum
+ #define CFG_NEIGHBOR_REASSOC_RSSI_THRESHOLD_DEFAULT           (83)
+ 
+ #define CFG_NEIGHBOR_LOOKUP_RSSI_THRESHOLD_NAME      "gNeighborLookupThreshold"
+-#define CFG_NEIGHBOR_LOOKUP_RSSI_THRESHOLD_MIN       (10)
++#define CFG_NEIGHBOR_LOOKUP_RSSI_THRESHOLD_MIN       (0)
+ #define CFG_NEIGHBOR_LOOKUP_RSSI_THRESHOLD_MAX       (120)
+-#define CFG_NEIGHBOR_LOOKUP_RSSI_THRESHOLD_DEFAULT   (78)
++#define CFG_NEIGHBOR_LOOKUP_RSSI_THRESHOLD_DEFAULT   (0) /*A Zero value indicates the host to calculate
++                                                           Adaptive thresold based on the minimum
++                                                           supported data rate.*/
+ 
+ #define CFG_NEIGHBOR_SCAN_CHAN_LIST_NAME                      "gNeighborScanChannelList"
+ #define CFG_NEIGHBOR_SCAN_CHAN_LIST_DEFAULT                   ""
+diff --git a/CORE/MAC/inc/sirApi.h b/CORE/MAC/inc/sirApi.h
+old mode 100644
+new mode 100755
+index 1908612..ffb3c92
+--- a/CORE/MAC/inc/sirApi.h
++++ b/CORE/MAC/inc/sirApi.h
+@@ -3421,6 +3421,31 @@ typedef struct sSirUpdateAPWPARSNIEsReq
+     tSirRSNie      APWPARSNIEs;
+ } tSirUpdateAPWPARSNIEsReq, *tpSirUpdateAPWPARSNIEsReq;
+ 
++#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
++/*Adaptive Thresholds to be used for FW based scanning*/
++#define LFR_SENSITIVITY_THR_1MBPS             -89
++#define LFR_LOOKUP_THR_1MBPS                  -78
++#define LFR_SENSITIVITY_THR_2MBPS             -87
++#define LFR_LOOKUP_THR_2MBPS                  -78
++#define LFR_SENSITIVITY_THR_5_5MBPS           -86
++#define LFR_LOOKUP_THR_5_5MBPS                -77
++#define LFR_SENSITIVITY_THR_11MBPS            -85
++#define LFR_LOOKUP_THR_11MBPS                 -76
++#define LFR_SENSITIVITY_THR_6MBPS_2G          -83
++#define LFR_LOOKUP_THR_6MBPS_2G               -78
++#define LFR_SENSITIVITY_THR_6MBPS_5G          -83
++#define LFR_LOOKUP_THR_6MBPS_5G               -78
++#define LFR_SENSITIVITY_THR_12MBPS_2G         -83
++#define LFR_LOOKUP_THR_12MBPS_2G              -78
++#define LFR_SENSITIVITY_THR_12MBPS_5G         -81
++#define LFR_LOOKUP_THR_12MBPS_5G              -76
++#define LFR_SENSITIVITY_THR_24MBPS_2G         -81
++#define LFR_LOOKUP_THR_24MBPS_2G              -76
++#define LFR_SENSITIVITY_THR_24MBPS_5G         -79
++#define LFR_LOOKUP_THR_24MBPS_5G              -74
++#define LFR_SENSITIVITY_THR_DEFAULT             0
++#define LFR_LOOKUP_THR_DEFAULT                -78
++#endif //WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+ 
+ // SME -> HAL - This is the host offload request. 
+ #define SIR_IPV4_ARP_REPLY_OFFLOAD                  0
+@@ -3688,6 +3713,7 @@ typedef struct sSirRoamOffloadScanReq
+   eAniBoolean RoamScanOffloadEnabled;
+   eAniBoolean MAWCEnabled;
+   tANI_S8     LookupThreshold;
++  tANI_S8     RxSensitivityThreshold;
+   tANI_U8     RoamRssiDiff;
+   tANI_U8     ChannelCacheType;
+   tANI_U8     Command;
+@@ -3704,16 +3730,6 @@ typedef struct sSirRoamOffloadScanReq
+   tANI_U8   p24GProbeTemplate[SIR_ROAM_SCAN_MAX_PB_REQ_SIZE];
+   tANI_U16  us5GProbeTemplateLen;
+   tANI_U8   p5GProbeTemplate[SIR_ROAM_SCAN_MAX_PB_REQ_SIZE];
+-  tANI_U8     ReservedBytes[SIR_ROAM_SCAN_RESERVED_BYTES];
+-  /*ReservedBytes is to add any further params in future
+-    without changing the interface params on Host
+-    and firmware.The firmware right now checks
+-    if the size of this structure matches and then
+-    proceeds with the processing of the command.
+-    So, in future, if there is any need to add
+-    more params, pick the memory from reserved
+-    bytes and keep deducting the reserved bytes
+-    by the amount of bytes picked.*/
+   tANI_U8   nProbes;
+   tANI_U16  HomeAwayTime;
+   tSirRoamNetworkType ConnectedNetwork;
+diff --git a/CORE/SME/src/csr/csrApiRoam.c b/CORE/SME/src/csr/csrApiRoam.c
+old mode 100644
+new mode 100755
+index 90f7cbc..bec0f4b
+--- a/CORE/SME/src/csr/csrApiRoam.c
++++ b/CORE/SME/src/csr/csrApiRoam.c
+@@ -15267,6 +15267,10 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tpCsrChannelInfo    currChannelListInfo;
+    tANI_U32 host_channels = 0;
++   tSirBssDescription *pBssDesc = NULL;
++   tDot11fBeaconIEs *pIes = NULL;
++   tANI_U8 minRate = 0, dataRate;
++   tANI_U8 operationChannel;
+    currChannelListInfo = &pNeighborRoamInfo->roamChannelInfo.currentChannelListInfo;
+ 
+    if (0 == csrRoamIsRoamOffloadScanEnabled(pMac))
+@@ -15303,6 +15307,12 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
+       return eHAL_STATUS_FAILURE;
+    }
+    pSession = CSR_GET_SESSION( pMac, sessionId );
++   pBssDesc = pSession->pConnectBssDesc;
++   if (pBssDesc == NULL)
++   {
++      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: pBssDesc not found for current session", __func__);
++      return eHAL_STATUS_FAILURE;
++   }
+    pRequestBuf = vos_mem_malloc(sizeof(tSirRoamOffloadScanReq));
+    if (NULL == pRequestBuf)
+    {
+@@ -15314,10 +15324,17 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
+     /* If command is STOP, then pass down ScanOffloadEnabled as Zero.This will handle the case of
+      * host driver reloads, but Riva still up and running*/
+     if(command == ROAM_SCAN_OFFLOAD_STOP)
++    {
+        pRequestBuf->RoamScanOffloadEnabled = 0;
++       /*For a STOP Command, there is no need to
++        * go through filling up all the below parameters
++        * since they are not required for the STOP command*/
++       goto send_roam_scan_offload_cmd;
++    }
+     else
+        pRequestBuf->RoamScanOffloadEnabled = pMac->roam.configParam.isRoamOffloadScanEnabled;
+-    vos_mem_copy(pRequestBuf->ConnectedNetwork.currAPbssid, pNeighborRoamInfo->currAPbssid,
++    vos_mem_copy(pRequestBuf->ConnectedNetwork.currAPbssid,
++                 pNeighborRoamInfo->currAPbssid,
+                  sizeof(tCsrBssid));
+     pRequestBuf->ConnectedNetwork.ssId.length =
+             pMac->roam.roamSession[sessionId].connectedProfile.SSID.length;
+@@ -15330,8 +15347,141 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
+             pMac->roam.roamSession[sessionId].connectedProfile.EncryptionType;
+     pRequestBuf->ConnectedNetwork.mcencryption =
+             pMac->roam.roamSession[sessionId].connectedProfile.mcEncryptionType;
++    if (pNeighborRoamInfo->cfgParams.neighborLookupThreshold)
++    {
+     pRequestBuf->LookupThreshold =
+             (v_S7_t)pNeighborRoamInfo->cfgParams.neighborLookupThreshold * (-1);
++       pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_DEFAULT;
++    }
++    else
++    {
++       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "Calculate Adaptive Threshold");
++       operationChannel = pSession->connectedProfile.operationChannel;
++
++       if (!HAL_STATUS_SUCCESS(csrGetParsedBssDescriptionIEs(pMac, pBssDesc, &pIes)))
++       {
++          VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
++          "%s: csrGetParsedBssDescriptionIEs failed", __func__);
++          vos_mem_free(pRequestBuf);
++          return eHAL_STATUS_FAILURE;
++       }
++       if (pIes->SuppRates.present)
++       {
++          VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "Number \t  Rate");
++          /*Check for both basic rates and extended rates.*/
++          for (i = 0; i < pIes->SuppRates.num_rates; i++)
++          {
++              /*Check if the Rate is Mandatory or Not*/
++              if (csrRatesIsDot11RateSupported(pMac, pIes->SuppRates.rates[i])
++                  && (pIes->SuppRates.rates[i] & 0x80))
++              {
++                  /*Retrieve the actual data rate*/
++                  dataRate = (pIes->SuppRates.rates[i] & 0x7F)/2;
++                  VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "%d \t\t %d", i, dataRate);
++                  if (minRate == 0)
++                    minRate = dataRate;
++                  else
++                    minRate = (minRate < dataRate) ? minRate:dataRate;
++              }
++          }
++
++          if (pIes->ExtSuppRates.present)
++          {
++             for (i = 0; i < pIes->ExtSuppRates.num_rates; i++)
++             {
++                 /*Check if the Rate is Mandatory or Not*/
++                 if (csrRatesIsDot11RateSupported(pMac, pIes->ExtSuppRates.rates[i])
++                      && (pIes->ExtSuppRates.rates[i] & 0x80))
++                 {
++                    /*Retrieve the actual data rate*/
++                    dataRate = (pIes->ExtSuppRates.rates[i] & 0x7F)/2;
++                    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "%d \t\t %d", i, dataRate);
++                    if (minRate == 0)
++                      minRate = dataRate;
++                    else
++                      minRate = (minRate < dataRate) ? minRate:dataRate;
++                 }
++             }
++          }
++           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_DEBUG, "MinRate = %d", minRate);
++       }
++       else
++       {
++          VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
++          "%s: Supp Rates not present in pIes", __func__);
++          vos_mem_free(pRequestBuf);
++          return eHAL_STATUS_FAILURE;
++       }
++       if (NULL != pIes)
++       {
++          vos_mem_free(pIes);
++          pIes = NULL;
++       }
++       switch (minRate)
++       {
++          case 1:
++            pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_1MBPS;
++            pRequestBuf->LookupThreshold = LFR_LOOKUP_THR_1MBPS;
++            break;
++          case 2:
++            pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_2MBPS;
++            pRequestBuf->LookupThreshold = LFR_LOOKUP_THR_2MBPS;
++            break;
++          case 5:
++            pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_5_5MBPS;
++            pRequestBuf->LookupThreshold = LFR_LOOKUP_THR_5_5MBPS;
++            break;
++          case 6:
++            if (CSR_IS_CHANNEL_24GHZ(operationChannel))
++            {
++               pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_6MBPS_2G;
++               pRequestBuf->LookupThreshold = LFR_LOOKUP_THR_6MBPS_2G;
++            }
++            else
++            {
++               pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_6MBPS_5G;
++               pRequestBuf->LookupThreshold = LFR_LOOKUP_THR_6MBPS_5G;
++            }
++            break;
++          case 11:
++            pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_11MBPS;
++            pRequestBuf->LookupThreshold = LFR_LOOKUP_THR_11MBPS;
++            break;
++          case 12:
++            if (CSR_IS_CHANNEL_24GHZ(operationChannel))
++            {
++               pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_12MBPS_2G;
++               pRequestBuf->LookupThreshold = LFR_LOOKUP_THR_12MBPS_2G;
++            }
++            else
++            {
++               pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_12MBPS_5G;
++               pRequestBuf->LookupThreshold = LFR_LOOKUP_THR_12MBPS_5G;
++            }
++            break;
++          case 24:
++            if (CSR_IS_CHANNEL_24GHZ(operationChannel))
++            {
++               pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_24MBPS_2G;
++               pRequestBuf->LookupThreshold = LFR_LOOKUP_THR_24MBPS_2G;
++            }
++            else
++            {
++               pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_24MBPS_5G;
++               pRequestBuf->LookupThreshold = LFR_LOOKUP_THR_24MBPS_5G;
++            }
++            break;
++          default:
++            pRequestBuf->LookupThreshold = LFR_LOOKUP_THR_DEFAULT;
++            pRequestBuf->RxSensitivityThreshold = LFR_SENSITIVITY_THR_DEFAULT;
++            break;
++       }
++    }
++    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_DEBUG,
++                "Chnl=%d,MinRate=%d,RxSenThr=%d,LookupThr=%d",
++                operationChannel, minRate,
++                pRequestBuf->RxSensitivityThreshold,
++                pRequestBuf->LookupThreshold);
+     pRequestBuf->RoamRssiDiff =
+             pMac->roam.configParam.RoamRssiDiff;
+     pRequestBuf->Command = command;
+@@ -15466,6 +15616,7 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
+ 
+    csrRoamScanOffloadPrepareProbeReqTemplate(pMac,SIR_ROAM_SCAN_5G_DEFAULT_CH, ucDot11Mode, pSession->selfMacAddr,
+                                              pRequestBuf->p5GProbeTemplate, &pRequestBuf->us5GProbeTemplateLen);
++send_roam_scan_offload_cmd:
+    msg.type     = WDA_ROAM_SCAN_OFFLOAD_REQ;
+    msg.reserved = 0;
+    msg.bodyptr  = pRequestBuf;
+diff --git a/CORE/WDA/src/wlan_qct_wda.c b/CORE/WDA/src/wlan_qct_wda.c
+old mode 100644
+new mode 100755
+index ed8c53c..9217ba1
+--- a/CORE/WDA/src/wlan_qct_wda.c
++++ b/CORE/WDA/src/wlan_qct_wda.c
+@@ -13292,6 +13292,8 @@ VOS_STATUS WDA_ProcessRoamScanOffloadReq(tWDA_CbContext *pWDA,
+        pRoamOffloadScanReqParams->ConnectedNetwork.mcencryption);
+    pwdiRoamOffloadScanInfo->LookupThreshold =
+            pRoamOffloadScanReqParams->LookupThreshold ;
++   pwdiRoamOffloadScanInfo->RxSensitivityThreshold =
++           pRoamOffloadScanReqParams->RxSensitivityThreshold;
+    pwdiRoamOffloadScanInfo->RoamRssiDiff =
+            pRoamOffloadScanReqParams->RoamRssiDiff ;
+    pwdiRoamOffloadScanInfo->MAWCEnabled =
+diff --git a/CORE/WDI/CP/inc/wlan_qct_wdi.h b/CORE/WDI/CP/inc/wlan_qct_wdi.h
+old mode 100644
+new mode 100755
+index cd2731b..2861cc5
+--- a/CORE/WDI/CP/inc/wlan_qct_wdi.h
++++ b/CORE/WDI/CP/inc/wlan_qct_wdi.h
+@@ -4547,7 +4547,6 @@ typedef struct
+ #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+ #define WDI_ROAM_SCAN_MAX_CHANNELS       80 /* NUM_RF_CHANNELS */
+ #define WDI_ROAM_SCAN_MAX_PROBE_SIZE     450
+-#define WDI_ROAM_SCAN_RESERVED_BYTES     61
+ #endif
+ 
+ /*---------------------------------------------------------------------------
+@@ -4756,6 +4755,7 @@ typedef struct
+   wpt_boolean RoamScanOffloadEnabled;
+   wpt_boolean MAWCEnabled;
+   wpt_uint8   LookupThreshold;
++  wpt_uint8   RxSensitivityThreshold;
+   wpt_uint8   RoamRssiDiff;
+   wpt_uint8   ChannelCacheType;
+   wpt_uint8   Command;
+@@ -4781,7 +4781,6 @@ typedef struct
+   WDI_MobilityDomainInfo  MDID;
+   wpt_uint8               nProbes;
+   wpt_uint16              HomeAwayTime;
+-  wpt_uint8               ReservedBytes[WDI_ROAM_SCAN_RESERVED_BYTES];
+ } WDI_RoamOffloadScanInfo;
+ 
+ typedef struct
+diff --git a/CORE/WDI/CP/src/wlan_qct_wdi.c b/CORE/WDI/CP/src/wlan_qct_wdi.c
+old mode 100644
+new mode 100755
+index 4ab2d9a..c0cb9c0
+--- a/CORE/WDI/CP/src/wlan_qct_wdi.c
++++ b/CORE/WDI/CP/src/wlan_qct_wdi.c
+@@ -24730,6 +24730,7 @@ WDI_PackRoamScanOffloadParams
+    pRoamCandidateListParams->ConnectedNetwork.ChannelCount = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.ConnectedNetwork.ChannelCount;
+    pRoamCandidateListParams->ChannelCacheType = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.ChannelCacheType ;
+    pRoamCandidateListParams->LookupThreshold = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.LookupThreshold;
++   pRoamCandidateListParams->RxSensitivityThreshold = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.RxSensitivityThreshold;
+    pRoamCandidateListParams->RoamRssiDiff = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.RoamRssiDiff ;
+    pRoamCandidateListParams->MAWCEnabled = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.MAWCEnabled ;
+    pRoamCandidateListParams->Command = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.Command ;
+-- 
+1.8.2.1
+
