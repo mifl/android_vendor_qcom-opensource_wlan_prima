@@ -2107,6 +2107,9 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ROAMING_DFS_CHANNEL_MAX                 (1)
 #define CFG_ROAMING_DFS_CHANNEL_DEFAULT             (0)
 
+#define CFG_OVERRIDE_COUNTRY_CODE                "gStaCountryCode"
+#define CFG_OVERRIDE_COUNTRY_CODE_DEFAULT        "000"
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2538,6 +2541,7 @@ typedef struct
    v_U32_t                     defaultRateIndex24Ghz;
    v_U8_t                      allowDFSChannelRoam;
    v_U32_t                     gEnableDebugLog;
+   char                        overrideCountryCode[4];
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
