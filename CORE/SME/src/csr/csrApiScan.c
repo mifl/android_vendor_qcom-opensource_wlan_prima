@@ -735,13 +735,16 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
      */
     if(pScanRequest->p2pSearch)
     {
-        //If the scan request is for specific SSId the length of SSID will be
-        //greater than 7 as SSID for p2p search contains "DIRECT-")
-        if(pScanRequest->SSIDs.SSIDList->SSID.length > DIRECT_SSID_LEN)
+        if(pScanRequest->SSIDs.numOfSSIDs)
         {
-            smsLog( pMac, LOG1, FL(" Increase the Dwell time to 100ms."));
-            pScanRequest->maxChnTime = MAX_CHN_TIME_TO_FIND_GO;
-            pScanRequest->minChnTime = MIN_CHN_TIME_TO_FIND_GO;
+            //If the scan request is for specific SSId the length of SSID will be
+            //greater than 7 as SSID for p2p search contains "DIRECT-")
+            if(pScanRequest->SSIDs.SSIDList->SSID.length > DIRECT_SSID_LEN)
+            {
+                smsLog( pMac, LOG1, FL(" Increase the Dwell time to 100ms."));
+                pScanRequest->maxChnTime = MAX_CHN_TIME_TO_FIND_GO;
+                pScanRequest->minChnTime = MIN_CHN_TIME_TO_FIND_GO;
+            }
         }
     }
 
@@ -3615,7 +3618,7 @@ void csrApplyCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce )
                 {
                    smsLog(pMac, LOGW, FL("Domain Changed Old %d, new %d"),
                                       pMac->scan.domainIdCurrent, domainId);
-                   status = WDA_SetRegDomain(pMac, domainId);
+                   status = WDA_SetRegDomain(pMac, domainId, eSIR_TRUE);
                 }
                 if (status != eHAL_STATUS_SUCCESS)
                 {
@@ -4005,7 +4008,7 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
                                       pMac->scan.countryCodeCurrent,
                                       WNI_CFG_COUNTRY_CODE_LEN);
             /* Set Current RegDomain */
-            status = WDA_SetRegDomain(pMac, domainId);
+            status = WDA_SetRegDomain(pMac, domainId, eSIR_TRUE);
             if ( status != eHAL_STATUS_SUCCESS )
             {
                 smsLog( pMac, LOGE, FL("  fail to Set regId %d"), domainId );
