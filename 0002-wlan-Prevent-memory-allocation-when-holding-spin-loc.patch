@@ -1,0 +1,72 @@
+From d18469ad98488f7aeaecc8b2b3467851ca640b9a Mon Sep 17 00:00:00 2001
+From: Agarwal Ashish <ashishka@qti.qualcomm.com>
+Date: Fri, 17 Jan 2014 09:13:10 +0530
+Subject: [PATCH 2/2] wlan: Prevent memory allocation when holding spin lock.
+
+During APss(CPU3) power-collapse, WLAN Host Driver enter/exits
+from IMPS. After entering/exiting from IMPS
+hdd_conf_mcastbcast_filter() allocates memory
+for wlanRxpFilterParam without unlocking spin lock.
+
+CRs-Fixed: 601498
+Change-Id: Ife3b3fe11b866e585ed6bbe562e49d38308e2176
+
+Conflicts:
+	prima/CORE/HDD/src/wlan_hdd_early_suspend.c
+---
+ CORE/HDD/src/wlan_hdd_early_suspend.c | 30 ++++++++++++++++++++++++++++--
+ 1 file changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/CORE/HDD/src/wlan_hdd_early_suspend.c b/CORE/HDD/src/wlan_hdd_early_suspend.c
+index 73e3444..40c05b9 100644
+--- a/CORE/HDD/src/wlan_hdd_early_suspend.c
++++ b/CORE/HDD/src/wlan_hdd_early_suspend.c
+@@ -1124,9 +1124,11 @@ static void hdd_PowerStateChangedCB
+        pHddCtx->hdd_ignore_dtim_enabled = TRUE;
+    }
+    spin_lock(&pHddCtx->filter_lock);
+-   if((newState == BMPS) &&  pHddCtx->hdd_wlan_suspended) {
++   if ((newState == BMPS) &&  pHddCtx->hdd_wlan_suspended)
++   {
+       spin_unlock(&pHddCtx->filter_lock);
+-      if (VOS_FALSE == pHddCtx->sus_res_mcastbcast_filter_valid) {
++      if (VOS_FALSE == pHddCtx->sus_res_mcastbcast_filter_valid)
++      {
+           pHddCtx->sus_res_mcastbcast_filter =
+               pHddCtx->configuredMcastBcastFilter;
+           pHddCtx->sus_res_mcastbcast_filter_valid = VOS_TRUE;
+@@ -1144,7 +1146,31 @@ static void hdd_PowerStateChangedCB
+          hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Not able to set mcast/bcast filter ", __func__);
+    }
+    else
++   {
++      /* Android framework can send resume request when the WCN chip is
++       * in IMPS mode. When the chip exits IMPS mode the firmware will
++       * restore all the registers to the state they were before the chip
++       * entered IMPS and so our hardware filter settings confgured by the
++       * resume request will be lost. So reconfigure the filters on detecting
++       * a change in the power state of the WCN chip.
++       */
+       spin_unlock(&pHddCtx->filter_lock);
++      if (IMPS != newState)
++      {
++           spin_lock(&pHddCtx->filter_lock);
++           if (FALSE == pHddCtx->hdd_wlan_suspended)
++           {
++                spin_unlock(&pHddCtx->filter_lock);
++                hddLog(VOS_TRACE_LEVEL_INFO,
++                          "Not in IMPS/BMPS and suspended state");
++                hdd_conf_mcastbcast_filter(pHddCtx, FALSE);
++           }
++           else
++           {
++               spin_unlock(&pHddCtx->filter_lock);
++           }
++      }
++   }
+ }
+ 
+ 
+-- 
+1.8.2.1
+
