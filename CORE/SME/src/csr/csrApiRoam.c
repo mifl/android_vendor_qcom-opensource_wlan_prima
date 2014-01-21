@@ -343,7 +343,7 @@ eHalStatus csrOpen(tpAniSirGlobal pMac)
         }
         smsLog( pMac, LOG1, FL(" country Code from nvRam %.2s"), pMac->scan.countryCodeDefault );
         csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeDefault, &regId);
-        WDA_SetRegDomain(pMac, regId);
+        WDA_SetRegDomain(pMac, regId, eSIR_TRUE);
         pMac->scan.domainIdDefault = regId;
         pMac->scan.domainIdCurrent = pMac->scan.domainIdDefault;
         status = palCopyMemory(pMac->hHdd, pMac->scan.countryCodeCurrent, 
@@ -385,7 +385,7 @@ eHalStatus csrSetRegInfo(tHalHandle hHal,  tANI_U8 *apCntryCode)
         smsLog( pMac, LOGE, FL("  fail to get regId for country Code %.2s"), apCntryCode );
         return status;
     }
-    status = WDA_SetRegDomain(hHal, regId);
+    status = WDA_SetRegDomain(hHal, regId, eSIR_TRUE);
     if (status != eHAL_STATUS_SUCCESS)
     {
         smsLog( pMac, LOGE, FL("  fail to get regId for country Code %.2s"), apCntryCode );
@@ -9951,6 +9951,7 @@ void csrRoamWaitForKeyTimeOutHandler(void *pv)
     tCsrTimerInfo *pInfo = (tCsrTimerInfo *)pv;
     tpAniSirGlobal pMac = pInfo->pMac;
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, pInfo->sessionId );
+    eHalStatus status = eHAL_STATUS_FAILURE;
 
     smsLog(pMac, LOGW, "WaitForKey timer expired in state=%d sub-state=%d",
             pMac->roam.neighborRoamInfo.neighborRoamState,
@@ -9988,6 +9989,21 @@ void csrRoamWaitForKeyTimeOutHandler(void *pv)
             {
                 csrRoamLinkUp(pMac, pSession->connectedProfile.bssid);
                 smeProcessPendingQueue(pMac);
+                if( (pSession->connectedProfile.AuthType ==
+                                           eCSR_AUTH_TYPE_SHARED_KEY) &&
+                    ( (pSession->connectedProfile.EncryptionType ==
+                                           eCSR_ENCRYPT_TYPE_WEP40) ||
+                      (pSession->connectedProfile.EncryptionType ==
+                                           eCSR_ENCRYPT_TYPE_WEP104) ))
+                {
+                    status = sme_AcquireGlobalLock( &pMac->sme );
+                    if ( HAL_STATUS_SUCCESS( status ) )
+                    {
+                        csrRoamDisconnect( pMac, pInfo->sessionId,
+                                      eCSR_DISCONNECT_REASON_UNSPECIFIED );
+                        sme_ReleaseGlobalLock( &pMac->sme );
+                    }
+                }
             }
             else
             {
