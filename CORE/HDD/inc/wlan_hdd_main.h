@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -199,6 +199,8 @@
 /* value should not be greater than PNO_MAX_SCAN_TIMERS */
 #define HDD_PNO_SCAN_TIMERS_SET_MULTIPLE 6
 #endif
+
+#define MAX_USER_COMMAND_SIZE 4096
 
 #define HDD_MAC_ADDR_LEN    6
 typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
@@ -1103,6 +1105,8 @@ struct hdd_context_s
     vos_timer_t    tx_rx_trafficTmr;
     v_U8_t         drvr_miracast;
     v_U8_t         issplitscan_enabled;
+
+    v_BOOL_t btCoexModeSet;
 };
 
 
