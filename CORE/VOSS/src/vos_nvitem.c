@@ -1095,6 +1095,7 @@ VOS_STATUS vos_nv_open(void)
     v_BOOL_t itemIsValid = VOS_FALSE;
     v_U32_t dataOffset;
     sHalNv *pnvData = NULL;
+    hdd_context_t *pHddCtx = NULL;
 
     /*Get the global context */
     pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
@@ -1348,6 +1349,22 @@ VOS_STATUS vos_nv_open(void)
                 (v_VOID_t *)&pnvEFSTable->halnv.tables.defaultCountryTable,
                 NULL, sizeof(sDefaultCountry) ) !=  VOS_STATUS_SUCCESS)
                     goto error;
+            }
+            pHddCtx = vos_get_context(VOS_MODULE_ID_HDD, pVosContext);
+            if (NULL != pHddCtx)
+            {
+               if (!vos_mem_compare(pHddCtx->cfg_ini->overrideCountryCode,
+                     CFG_OVERRIDE_COUNTRY_CODE_DEFAULT, 3))
+               {
+                   vos_mem_copy(pnvEFSTable->halnv.tables.defaultCountryTable.countryCode,
+                       pHddCtx->cfg_ini->overrideCountryCode,
+                       3);
+               }
+            }
+            else
+            {
+                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                           ("Invalid pHddCtx pointer") );
             }
         }
 
@@ -2461,21 +2478,8 @@ VOS_STATUS vos_nv_getNVBuffer(v_VOID_t **pNvBuffer,v_SIZE_t *pSize)
 VOS_STATUS vos_nv_getNVEncodedBuffer(v_VOID_t **pNvBuffer,v_SIZE_t *pSize)
 {
    /* Send the NV structure and size */
-   VOS_STATUS status;
-
-   status = vos_nv_isEmbeddedNV();
-
-   if (VOS_STATUS_SUCCESS == status)
-   {
-      *pNvBuffer = (v_VOID_t *)(pEncodedBuf);
-      *pSize = nvReadEncodeBufSize;
-   }
-   else
-   {
-      *pNvBuffer = (v_VOID_t *)(&pnvEFSTable->halnv);
-      *pSize = sizeof(sHalNv);
-   }
-
+   *pNvBuffer = (v_VOID_t *)(pEncodedBuf);
+   *pSize = nvReadEncodeBufSize;
    return VOS_STATUS_SUCCESS;
 }
 
