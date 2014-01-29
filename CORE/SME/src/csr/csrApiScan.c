@@ -4014,7 +4014,7 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
 
         // set the indicator of the channel where the country IE was found...
         pMac->scan.channelOf11dInfo = pSirBssDesc->channelId;
-        csrGetRegulatoryDomainForCountry(pMac, pIesLocal->Country.country, &domainId );
+        csrGetRegulatoryDomainForCountry(pMac, pIesLocal->Country.country, &domainId, COUNTRY_IE );
         // Checking for Domain Id change
         if ( domainId != pMac->scan.domainIdCurrent )
         {
@@ -4052,7 +4052,7 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
 
             /* reset info based on new cc, and we are done */
             csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
-        }
+
 #endif
         fRet = eANI_BOOLEAN_TRUE;
 
