@@ -108,6 +108,10 @@ typedef enum {
 #ifdef FEATURE_WLAN_BATCH_SCAN
    BATCH_SCAN = 30,
 #endif
+   EXTENDED_NSOFFLOAD_SLOT = 32,
+   CH_SWITCH_V1           = 33,
+   HT40_OBSS_SCAN         = 34,
+   UPDATE_CHANNEL_LIST    = 35,
 
    //MAX_FEATURE_SUPPORTED = 128
 } placeHolderInCapBitmap;

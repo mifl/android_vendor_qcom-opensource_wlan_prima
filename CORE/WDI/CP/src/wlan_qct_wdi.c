@@ -173,6 +173,12 @@ static placeHolderInCapBitmap supportEnabledFeatures[] =
 #else
     ,FEATURE_NOT_SUPPORTED          //29
 #endif
+    ,FEATURE_NOT_SUPPORTED          //30
+    ,FEATURE_NOT_SUPPORTED          //31
+    ,EXTENDED_NSOFFLOAD_SLOT        //32
+    ,CH_SWITCH_V1                   //33
+    ,HT40_OBSS_SCAN                 //34
+    ,UPDATE_CHANNEL_LIST            //35
    };
 
 /*-------------------------------------------------------------------------- 
@@ -1179,6 +1185,11 @@ void WDI_TraceHostFWCapabilities(tANI_U32 *capabilityBitmap)
                           break;
                      case WLAN_ROAM_SCAN_OFFLOAD: snprintf(pCapStr, sizeof("WLAN_ROAM_SCAN_OFFLOAD"), "%s", "WLAN_ROAM_SCAN_OFFLOAD");
                           pCapStr += strlen("WLAN_ROAM_SCAN_OFFLOAD");
+                          break;
+                     case HT40_OBSS_SCAN:
+                          snprintf(pCapStr, sizeof("HT40_OBSS_SCAN"),
+                                   "%s", "HT40_OBSS_SCAN");
+                          pCapStr += strlen("HT40_OBSS_SCAN");
                           break;
               }
               *pCapStr++ = ',';
