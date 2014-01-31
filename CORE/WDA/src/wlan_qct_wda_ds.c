@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -54,9 +54,6 @@
   Are listed for each API below.
 
 
-  Copyright (c) 2010-2011 QUALCOMM Incorporated.
-  All Rights Reserved.
-  Qualcomm Confidential and Proprietary
 ===========================================================================*/
 
 /*===========================================================================
@@ -370,9 +367,9 @@ WDA_DS_FinishULA
              "Serializing WDA_DS_FinishULA event" );
 
   vos_mem_zero( &sMessage, sizeof(vos_msg_t) );
-
-  sMessage.bodyval  = (v_U32_t)callbackContext;
-  sMessage.bodyptr  = callbackRoutine;
+  sMessage.bodyptr  = callbackContext;
+  sMessage.callback = callbackRoutine;
+  sMessage.bodyval  = 0;
   sMessage.type     = WDA_DS_FINISH_ULA;
 
   return vos_tx_mq_serialize(VOS_MQ_ID_TL, &sMessage);
@@ -432,7 +429,7 @@ WDA_DS_BuildTxPacketInfo
   v_U8_t          typeSubtype,
   v_PVOID_t       pAddr2,
   v_U8_t          uTid,
-  v_U8_t          txFlag,
+  v_U32_t          txFlag,
   v_U32_t         timeStamp,
   v_U8_t          ucIsEapol,
   v_U8_t          ucUP

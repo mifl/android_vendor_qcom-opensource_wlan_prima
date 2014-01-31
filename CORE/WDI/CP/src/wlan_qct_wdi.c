@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -56,9 +56,6 @@
   Are listed for each API below.
 
 
-  Copyright (c) 2008 QUALCOMM Incorporated.
-  All Rights Reserved.
-  Qualcomm Confidential and Proprietary
 ===========================================================================*/
 
 /*===========================================================================
@@ -173,7 +170,9 @@ static placeHolderInCapBitmap supportEnabledFeatures[] =
 #else
     ,FEATURE_NOT_SUPPORTED          //29
 #endif
-   };
+    ,FEATURE_NOT_SUPPORTED          //30
+    ,FW_IN_TX_PATH                  //31
+};
 
 /*-------------------------------------------------------------------------- 
    WLAN DAL  State Machine
@@ -1182,6 +1181,9 @@ void WDI_TraceHostFWCapabilities(tANI_U32 *capabilityBitmap)
                           break;
                      case WLAN_ROAM_SCAN_OFFLOAD: snprintf(pCapStr, sizeof("WLAN_ROAM_SCAN_OFFLOAD"), "%s", "WLAN_ROAM_SCAN_OFFLOAD");
                           pCapStr += strlen("WLAN_ROAM_SCAN_OFFLOAD");
+                          break;
+                     case FW_IN_TX_PATH: snprintf(pCapStr, sizeof("FW_IN_TX_PATH"), "%s", "FW_IN_TX_PATH");
+                          pCapStr += strlen("FW_IN_TX_PATH");
                           break;
               }
               *pCapStr++ = ',';
@@ -24918,6 +24920,7 @@ WDI_PackRoamScanOffloadParams
    pRoamCandidateListParams->ConnectedNetwork.ChannelCount = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.ConnectedNetwork.ChannelCount;
    pRoamCandidateListParams->ChannelCacheType = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.ChannelCacheType ;
    pRoamCandidateListParams->LookupThreshold = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.LookupThreshold;
+   pRoamCandidateListParams->RxSensitivityThreshold = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.RxSensitivityThreshold;
    pRoamCandidateListParams->RoamRssiDiff = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.RoamRssiDiff ;
    pRoamCandidateListParams->MAWCEnabled = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.MAWCEnabled ;
    pRoamCandidateListParams->Command = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.Command ;

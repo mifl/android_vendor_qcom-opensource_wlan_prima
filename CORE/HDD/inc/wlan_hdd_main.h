@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -209,6 +209,8 @@
 #define HDD_PNO_SCAN_TIMERS_SET_MULTIPLE 6
 #endif
 
+#define MAX_USER_COMMAND_SIZE 4096
+
 #define HDD_MAC_ADDR_LEN    6
 typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
 
@@ -298,6 +300,9 @@ typedef struct hdd_tx_rx_stats_s
    // flush stats
    __u32    txFlushed;
    __u32    txFlushedAC[NUM_TX_QUEUES];
+   // Deque depressure stats
+   __u32    txDequeDePressured;
+   __u32    txDequeDePressuredAC[NUM_TX_QUEUES];
    // rx stats
    __u32    rxChains;
    __u32    rxPackets;
@@ -830,11 +835,13 @@ struct hdd_adapter_s
 #ifdef WLAN_NS_OFFLOAD
    /** IPv6 notifier callback for handling NS offload on change in IP */
    struct notifier_block ipv6_notifier;
+   bool ipv6_notifier_registered;
    struct work_struct  ipv6NotifierWorkQueue;
 #endif
     
    /** IPv4 notifier callback for handling ARP offload on change in IP */
    struct notifier_block ipv4_notifier;
+   bool ipv4_notifier_registered;
    struct work_struct  ipv4NotifierWorkQueue;
 
    //TODO Move this to sta Ctx
@@ -1311,7 +1318,7 @@ void wlan_hdd_clear_concurrency_mode(hdd_context_t *pHddCtx, tVOS_CON_MODE mode)
 void wlan_hdd_reset_prob_rspies(hdd_adapter_t* pHostapdAdapter);
 void hdd_prevent_suspend(void);
 void hdd_allow_suspend(void);
-void hdd_allow_suspend_timeout(v_U32_t timeout);
+void hdd_prevent_suspend_timeout(v_U32_t timeout);
 bool hdd_is_ssr_required(void);
 void hdd_set_ssr_required(e_hdd_ssr_required value);
 
@@ -1339,4 +1346,45 @@ void hdd_ipv6_notifier_work_queue(struct work_struct *work);
 void hdd_checkandupdate_phymode( hdd_context_t *pHddCtx);
 #endif
 int hdd_wmmps_helper(hdd_adapter_t *pAdapter, tANI_U8 *ptr);
+
+#ifdef FEATURE_WLAN_BATCH_SCAN
+/**---------------------------------------------------------------------------
+
+  \brief hdd_handle_batch_scan_ioctl () - This function handles WLS_BATCHING
+     IOCTLs from user space. Following BATCH SCAN DEV IOCTs are handled:
+     WLS_BATCHING VERSION
+     WLS_BATCHING SET
+     WLS_BATCHING GET
+     WLS_BATCHING STOP
+
+  \param  - pAdapter Pointer to HDD adapter
+  \param  - pPrivdata Pointer to priv_data
+  \param  - command Pointer to command
+
+  \return - 0 for success -EFAULT for failure
+
+  --------------------------------------------------------------------------*/
+
+int hdd_handle_batch_scan_ioctl
+(
+    hdd_adapter_t *pAdapter,
+    hdd_priv_data_t *pPrivdata,
+    tANI_U8 *command
+);
+
+/**---------------------------------------------------------------------------
+
+  \brief hdd_deinit_batch_scan () - This function cleans up batch scan data
+   structures
+
+  \param  - pAdapter Pointer to HDD adapter
+
+  \return - None
+
+  --------------------------------------------------------------------------*/
+
+void hdd_deinit_batch_scan(hdd_adapter_t *pAdapter);
+
+#endif /*End of FEATURE_WLAN_BATCH_SCAN*/
+
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )
