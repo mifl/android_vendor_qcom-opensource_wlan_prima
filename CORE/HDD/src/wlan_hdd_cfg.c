@@ -88,25 +88,6 @@ static void cbNotifySetImmediateRoamRssiDiff(hdd_context_t *pHddCtx, unsigned lo
 
 static void cbNotifySetRoamRssiDiff(hdd_context_t *pHddCtx, unsigned long NotifyId)
 {
-    if (pHddCtx->cfg_ini->nSelect5GHzMargin)
-    {
-        /*
-           LFR2.0 firmware posts roam candidates whose RSSI is above the
-           look down threshold and RoamRssiDiff better than current AP Rssi.
-           if gSelect5GHzMargin is non-zero; then the expectation is firmware
-           should post all the roam candidates whose RSSI is above lookdown
-           threshold and don't ignore the APs in RoamRssiDiff zone.
-
-           For ex: RoamRssiDiff=5, Lookdown threshold=-78 and
-           gSelect5GHzMargin=30 then firmware selects APs
-           with Rssi -73 or better as roam candidates.
-           if the 5G AP Rssi is -75 it will be ignored.
-           if 2.4G AP Rssi is -45 and 5G AP with -75 is available,
-           STA should connect to 5G AP, hence RoamRssiDiff is set to 0.
-        */
-        pHddCtx->cfg_ini->RoamRssiDiff = 0;
-    }
-
     sme_UpdateRoamRssiDiff((tHalHandle)(pHddCtx->hHal),
                                     pHddCtx->cfg_ini->RoamRssiDiff);
 }
@@ -1336,6 +1317,34 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_TL_DELAYED_TRGR_FRM_INT_DEFAULT,
                  CFG_TL_DELAYED_TRGR_FRM_INT_MIN,
                  CFG_TL_DELAYED_TRGR_FRM_INT_MAX ),
+
+   REG_VARIABLE( CFG_REORDER_TIME_BK_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, BkReorderAgingTime,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_REORDER_TIME_BK_DEFAULT,
+                 CFG_REORDER_TIME_BK_MIN,
+                 CFG_REORDER_TIME_BK_MAX ),
+
+   REG_VARIABLE( CFG_REORDER_TIME_BE_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, BeReorderAgingTime,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_REORDER_TIME_BE_DEFAULT,
+                 CFG_REORDER_TIME_BE_MIN,
+                 CFG_REORDER_TIME_BE_MAX ),
+
+   REG_VARIABLE( CFG_REORDER_TIME_VI_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, ViReorderAgingTime,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_REORDER_TIME_VI_DEFAULT,
+                 CFG_REORDER_TIME_VI_MIN,
+                 CFG_REORDER_TIME_VI_MAX ),
+
+   REG_VARIABLE( CFG_REORDER_TIME_VO_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, VoReorderAgingTime,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_REORDER_TIME_VO_DEFAULT,
+                 CFG_REORDER_TIME_VO_MIN,
+                 CFG_REORDER_TIME_VO_MAX ),
 
    REG_VARIABLE_STRING( CFG_WOWL_PATTERN_NAME, WLAN_PARAM_String,
                         hdd_config_t, wowlPattern,
@@ -2835,6 +2844,41 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                 hdd_config_t, overrideCountryCode,
                 VAR_FLAGS_OPTIONAL,
                (void *)CFG_OVERRIDE_COUNTRY_CODE_DEFAULT),
+
+   REG_VARIABLE( CFG_ASD_PROBE_INTERVAL_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, gAsdProbeInterval,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_ASD_PROBE_INTERVAL_DEFAULT,
+                 CFG_ASD_PROBE_INTERVAL_MIN,
+                 CFG_ASD_PROBE_INTERVAL_MAX),
+
+   REG_VARIABLE( CFG_ASD_TRIGGER_THRESHOLD_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, gAsdTriggerThreshold,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_ASD_TRIGGER_THRESHOLD_DEFAULT,
+                 CFG_ASD_TRIGGER_THRESHOLD_MIN,
+                 CFG_ASD_TRIGGER_THRESHOLD_MAX),
+
+   REG_VARIABLE( CFG_ASD_RTT_RSSI_HYST_THRESHOLD_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, gAsdRTTRssiHystThreshold,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_ASD_RTT_RSSI_HYST_THRESHOLD_DEFAULT,
+                 CFG_ASD_RTT_RSSI_HYST_THRESHOLD_MIN,
+                 CFG_ASD_RTT_RSSI_HYST_THRESHOLD_MAX),
+
+   REG_VARIABLE( CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, debugP2pRemainOnChannel,
+                 VAR_FLAGS_OPTIONAL,
+                 CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_DEFAULT,
+                 CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MIN,
+                 CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MAX ),
+
+   REG_VARIABLE(CFG_CTS2S_DURING_BTC_SCO_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, cfgBtcCTS2SduringSCO,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_CTS2S_DURING_BTC_SCO_DEFAULT,
+                CFG_CTS2S_DURING_BTC_SCO_MIN,
+                CFG_CTS2S_DURING_BTC_SCO_MAX ),
 };
 
 
@@ -3140,6 +3184,10 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [WfqViWeight] Value = [%u] ",pHddCtx->cfg_ini->WfqViWeight);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [WfqVoWeight] Value = [%u] ",pHddCtx->cfg_ini->WfqVoWeight);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [DelayedTriggerFrmInt] Value = [%u] ",pHddCtx->cfg_ini->DelayedTriggerFrmInt);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [BkReorderAgingTime] Value = [%u] ",pHddCtx->cfg_ini->BkReorderAgingTime);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [BeReorderAgingTime] Value = [%u] ",pHddCtx->cfg_ini->BeReorderAgingTime);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [ViReorderAgingTime] Value = [%u] ",pHddCtx->cfg_ini->ViReorderAgingTime);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [VoReorderAgingTime] Value = [%u] ",pHddCtx->cfg_ini->VoReorderAgingTime);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [mcastBcastFilterSetting] Value = [%u] ",pHddCtx->cfg_ini->mcastBcastFilterSetting);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [fhostArpOffload] Value = [%u] ",pHddCtx->cfg_ini->fhostArpOffload);
 #ifdef WLAN_FEATURE_VOWIFI_11R
@@ -3208,6 +3256,10 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gCoalesingInIBSS] Value = [%u] ",pHddCtx->cfg_ini->isCoalesingInIBSSAllowed);
 
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [overrideCountryCode] Value = [%s] ",pHddCtx->cfg_ini->overrideCountryCode);
+
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gAsdProbeInterval] Value = [%u]",pHddCtx->cfg_ini->gAsdProbeInterval);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gAsdTriggerThreshold] Value = [%u]",pHddCtx->cfg_ini->gAsdTriggerThreshold);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gAsdRTTRssiHystThreshold]Value = [%u]",pHddCtx->cfg_ini->gAsdRTTRssiHystThreshold);
 }
 
 
@@ -4459,6 +4511,49 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
        fStatus = FALSE;
        hddLog(LOGE, "Could not pass on WNI_BTC_ACTIVE_BT_LEN to CCM");
    }
+
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_ASD_PROBE_INTERVAL,
+                    pConfig->gAsdProbeInterval, NULL,
+                    eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
+   {
+      fStatus = FALSE;
+      hddLog(LOGE, "Could not pass on WNI_CFG_ASD_PROBE_INTERVAL to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_ASD_TRIGGER_THRESHOLD,
+                    pConfig->gAsdTriggerThreshold, NULL,
+                    eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
+   {
+      fStatus = FALSE;
+      hddLog(LOGE, "Could not pass on WNI_CFG_ASD_TRIGGER_THRESHOLD to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_ASD_RTT_RSSI_HYST_THRESHOLD,
+                    pConfig->gAsdRTTRssiHystThreshold, NULL,
+                    eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
+   {
+      fStatus = FALSE;
+      hddLog(LOGE, "Could not pass on WNI_CFG_ASD_RSSI_HYST_THRESHOLD to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_DEBUG_P2P_REMAIN_ON_CHANNEL,
+                    pConfig->debugP2pRemainOnChannel,
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+       fStatus = FALSE;
+       hddLog(LOGE,
+              "Could not pass on WNI_CFG_DEBUG_P2P_REMAIN_ON_CHANNEL to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_BTC_CTS2S_DURING_SCO,
+                    pConfig->cfgBtcCTS2SduringSCO,
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_CFG_BTC_CTS2S_DURING_SCO to CCM");
+   }
    return fStatus;
 }
 
@@ -4625,10 +4720,6 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 #endif
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
    smeConfig.csrConfig.isFastTransitionEnabled = pConfig->isFastTransitionEnabled;
-   if (pConfig->nSelect5GHzMargin)
-   {
-       pConfig->RoamRssiDiff = 0;
-   }
    smeConfig.csrConfig.RoamRssiDiff = pConfig->RoamRssiDiff;
    smeConfig.csrConfig.nImmediateRoamRssiDiff = pConfig->nImmediateRoamRssiDiff;
    smeConfig.csrConfig.isWESModeEnabled = pConfig->isWESModeEnabled;
