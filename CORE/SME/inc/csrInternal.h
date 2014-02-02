@@ -780,6 +780,8 @@ typedef struct tagCsrScanStruct
 #endif
     tCsrChannel occupiedChannels;   //This includes all channels on which candidate APs are found
     tANI_S8     inScanResultBestAPRssi;
+
+    csrScanCompleteCallback callback11dScanDone;
 }tCsrScanStruct;
 
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
@@ -1302,6 +1304,14 @@ eHalStatus csrMsgProcessor( tpAniSirGlobal pMac,  void *pMsgBuf );
     \return eHalStatus
   -------------------------------------------------------------------------------*/
 eHalStatus csrOpen(tpAniSirGlobal pMac);
+
+/* ---------------------------------------------------------------------------
+    \fn csrInitChannels
+    \brief This function must be called to initialize CSR channel lists
+    \return eHalStatus
+  -------------------------------------------------------------------------------*/
+eHalStatus csrInitChannels(tpAniSirGlobal pMac);
+
 /* ---------------------------------------------------------------------------
     \fn csrClose
     \brief To close down CSR module. There should not be any API call into CSR after calling this function.

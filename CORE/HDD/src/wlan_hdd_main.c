@@ -221,7 +221,6 @@ static void hdd_set_multicast_list(struct net_device *dev);
 #endif
 
 void hdd_wlan_initial_scan(hdd_adapter_t *pAdapter);
-int isWDresetInProgress(void);
 
 extern int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr);
 
@@ -239,6 +238,8 @@ static VOS_STATUS hdd_parse_reassoc_command_data(tANI_U8 *pValue,
 VOS_STATUS hdd_parse_get_cckm_ie(tANI_U8 *pValue, tANI_U8 **pCckmIe, tANI_U8 *pCckmIeLen);
 #endif /* FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
 
+static VOS_STATUS wlan_hdd_init_channels(hdd_context_t *pHddCtx);
+
 static int hdd_netdev_notifier_call(struct notifier_block * nb,
                                          unsigned long state,
                                          void *ndev)
@@ -253,9 +254,6 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
    //Make sure that this callback corresponds to our device.
    if ((strncmp(dev->name, "wlan", 4)) &&
       (strncmp(dev->name, "p2p", 3)))
-      return NOTIFY_DONE;
-
-   if (isWDresetInProgress())
       return NOTIFY_DONE;
 
    if (!dev->ieee80211_ptr)
@@ -275,6 +273,9 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
       VOS_ASSERT(0);
       return NOTIFY_DONE;
    }
+   if (pHddCtx->isLogpInProgress)
+      return NOTIFY_DONE;
+
 
    hddLog(VOS_TRACE_LEVEL_INFO, "%s: %s New Net Device State = %lu",
           __func__, dev->name, state);
@@ -7748,6 +7749,33 @@ static int hdd_generate_iface_mac_addr_auto(hdd_context_t *pHddCtx,
 
 /**---------------------------------------------------------------------------
 
+  \brief hdd_11d_scan_done - callback to be executed when 11d scan is
+                             completed to flush out the scan results
+
+  11d scan is done during driver load and is a passive scan on all
+  channels supported by the device, 11d scans may find some APs on
+  frequencies which are forbidden to be used in the regulatory domain
+  the device is operating in. If these APs are notified to the supplicant
+  it may try to connect to these APs, thus flush out all the scan results
+  which are present in SME after 11d scan is done.
+
+  \return -  eHalStatus
+
+  --------------------------------------------------------------------------*/
+static eHalStatus hdd_11d_scan_done(tHalHandle halHandle, void *pContext,
+                         tANI_U32 scanId, eCsrScanStatus status)
+{
+    ENTER();
+
+    sme_ScanFlushResult(halHandle, 0);
+
+    EXIT();
+
+    return eHAL_STATUS_SUCCESS;
+}
+
+/**---------------------------------------------------------------------------
+
   \brief hdd_wlan_startup() - HDD init function
 
   This is the driver startup code executed once a WLAN device has been detected
@@ -8005,19 +8033,13 @@ int hdd_wlan_startup(struct device *dev )
        goto err_vos_nv_close;
    }
 
-   /* registration of wiphy dev with cfg80211 */
-   if (0 > wlan_hdd_cfg80211_register(wiphy))
-   {
-       hddLog(VOS_TRACE_LEVEL_ERROR,"%s: wiphy register failed", __func__);
-       goto err_vos_nv_close;
-   }
 #endif
 
    status = vos_open( &pVosContext, 0);
    if ( !VOS_IS_STATUS_SUCCESS( status ))
    {
       hddLog(VOS_TRACE_LEVEL_FATAL, "%s: vos_open failed", __func__);
-      goto err_wiphy_unregister;
+      goto err_vos_nv_close;
    }
 
    pHddCtx->hHal = (tHalHandle)vos_get_context( VOS_MODULE_ID_SME, pVosContext );
@@ -8028,11 +8050,28 @@ int hdd_wlan_startup(struct device *dev )
       goto err_vosclose;
    }
 
+#ifdef CONFIG_ENABLE_LINUX_REG
+   /* registration of wiphy dev with cfg80211 */
+   if (0 > wlan_hdd_cfg80211_register(wiphy))
+   {
+       hddLog(VOS_TRACE_LEVEL_ERROR,"%s: wiphy register failed", __func__);
+       goto err_vosclose;
+   }
+
+    status = wlan_hdd_init_channels(pHddCtx);
+   if ( !VOS_IS_STATUS_SUCCESS( status ) )
+   {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: wlan_hdd_init_channels failed",
+             __func__);
+      goto err_wiphy_unregister;
+   }
+#endif
+
    status = vos_preStart( pHddCtx->pvosContext );
    if ( !VOS_IS_STATUS_SUCCESS( status ) )
    {
       hddLog(VOS_TRACE_LEVEL_FATAL, "%s: vos_preStart failed", __func__);
-      goto err_vosclose;
+      goto err_wiphy_unregister;
    }
 
    if (0 == enable_dfs_chan_scan || 1 == enable_dfs_chan_scan)
@@ -8056,7 +8095,7 @@ int hdd_wlan_startup(struct device *dev )
    if ( VOS_STATUS_SUCCESS != status )
    {
       hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Failed hdd_set_sme_config", __func__);
-      goto err_vosclose;
+      goto err_wiphy_unregister;
    }
 
    //Initialize the WMM module
@@ -8064,7 +8103,7 @@ int hdd_wlan_startup(struct device *dev )
    if (!VOS_IS_STATUS_SUCCESS(status))
    {
       hddLog(VOS_TRACE_LEVEL_FATAL, "%s: hdd_wmm_init failed", __func__);
-      goto err_vosclose;
+      goto err_wiphy_unregister;
    }
 
    /* In the integrated architecture we update the configuration from
@@ -8075,7 +8114,7 @@ int hdd_wlan_startup(struct device *dev )
    if (FALSE == hdd_update_config_dat(pHddCtx))
    {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: config update failed",__func__ );
-      goto err_vosclose;
+      goto err_wiphy_unregister;
    }
 
    // Get mac addr from platform driver
@@ -8157,7 +8196,7 @@ int hdd_wlan_startup(struct device *dev )
       {
          hddLog(VOS_TRACE_LEVEL_ERROR,"%s: Failed to set MAC Address. "
                 "HALStatus is %08d [x%08x]",__func__, halStatus, halStatus );
-         goto err_vosclose;
+         goto err_wiphy_unregister;
       }
    }
 
@@ -8167,7 +8206,7 @@ int hdd_wlan_startup(struct device *dev )
    if ( !VOS_IS_STATUS_SUCCESS( status ) )
    {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: vos_start failed",__func__);
-      goto err_vosclose;
+      goto err_wiphy_unregister;
    }
 
 #ifdef FEATURE_WLAN_CH_AVOID
@@ -8335,6 +8374,8 @@ int hdd_wlan_startup(struct device *dev )
    sme_UpdateChannelConfig(pHddCtx->hHal); 
 #endif
 
+   sme_Register11dScanDoneCallback(pHddCtx->hHal, hdd_11d_scan_done);
+
    /* Register with platform driver as client for Suspend/Resume */
    status = hddRegisterPmOps(pHddCtx);
    if ( !VOS_IS_STATUS_SUCCESS( status ) )
@@ -8495,6 +8536,11 @@ err_close_adapter:
 err_vosstop:
    vos_stop(pVosContext);
 
+err_wiphy_unregister:
+#ifdef CONFIG_ENABLE_LINUX_REG
+   wiphy_unregister(wiphy);
+#endif
+
 err_vosclose:
    status = vos_sched_close( pVosContext );
    if (!VOS_IS_STATUS_SUCCESS(status))    {
@@ -8504,11 +8550,7 @@ err_vosclose:
    }
    vos_close(pVosContext );
 
-err_wiphy_unregister:
-
 #ifdef CONFIG_ENABLE_LINUX_REG
-   wiphy_unregister(wiphy);
-
 err_vos_nv_close:
 
    vos_nv_close();
@@ -8767,7 +8809,7 @@ static void hdd_driver_exit(void)
    }
    else
    {
-      while(isWDresetInProgress()) {
+      while (pHddCtx->isLogpInProgress) {
          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
               "%s:SSR in Progress; block rmmod for 1 second!!!", __func__);
          msleep(1000);
@@ -9327,6 +9369,37 @@ VOS_STATUS wlan_hdd_restart_driver(hdd_context_t *pHddCtx)
 #endif
  
    return status;
+}
+
+/**---------------------------------------------------------------------------
+ *
+ *   \brief wlan_hdd_init_channels
+ *
+ *   This function is used to initialize the channel list in CSR
+ *
+ *   This function is called from hdd_wlan_startup
+ *
+ *   \param  - pHddCtx: HDD context
+ *
+ *   \return - VOS_STATUS_SUCCESS: Success
+ *             VOS_STATUS_E_FAULT: Failure reported by SME
+
+ * --------------------------------------------------------------------------*/
+static VOS_STATUS wlan_hdd_init_channels(hdd_context_t *pHddCtx)
+{
+   eHalStatus status;
+
+   status = sme_InitChannels(pHddCtx->hHal);
+   if (HAL_STATUS_SUCCESS(status))
+   {
+      return VOS_STATUS_SUCCESS;
+   }
+   else
+   {
+      hddLog(VOS_TRACE_LEVEL_FATAL,"%s: Channel initialization failed(%d)",
+             __func__, status);
+      return VOS_STATUS_E_FAULT;
+   }
 }
 
 /*

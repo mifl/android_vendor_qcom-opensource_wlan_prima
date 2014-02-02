@@ -4038,7 +4038,7 @@ typedef PACKED_PRE struct PACKED_POST
 typedef PACKED_PRE struct PACKED_POST
 {
     tANI_U8   bssid[6];     /* BSSID */
-    tANI_U8   ssid[32];     /* SSID */
+    tANI_U8   ssid[33];     /* SSID */
     tANI_U8   ch;           /* Channel */
     tANI_U8   rssi;         /* RSSI or Level */
     /* Timestamp when Network was found. Used to calculate age based on timestamp in GET_RSP msg header */
@@ -6109,6 +6109,7 @@ typedef enum {
     ADVANCE_TDLS           = 29,
     BATCH_SCAN             = 30,
     FW_IN_TX_PATH          = 31,
+    EXTENDED_NSOFFLOAD_SLOT = 32,
     MAX_FEATURE_SUPPORTED  = 128,
 } placeHolderInCapBitmap;
 
