@@ -744,10 +744,6 @@ typedef struct hdd_scaninfo_s
    /* The scan pending  */
    v_U32_t mScanPending;
 
-  /* Counter for mScanPending so that the scan pending
-     error log is not printed for more than 5 times    */
-   v_U32_t mScanPendingCounter;
-
    /* Client Wait Scan Result */
    v_U32_t waitScanResult;
 
@@ -1255,6 +1251,8 @@ struct hdd_context_s
    v_U16_t unsafeChannelList[NUM_20MHZ_RF_CHANNELS];
    v_U16_t safeChannelList[NUM_20MHZ_RF_CHANNELS];
 #endif /* FEATURE_WLAN_CH_AVOID */
+
+   v_BOOL_t btCoexModeSet;
 };
 
 
