@@ -954,9 +954,11 @@ static void hdd_conf_resume_ind(hdd_adapter_t *pAdapter)
 
     pHddCtx->hdd_mcastbcast_filter_set = FALSE;
 
-    pHddCtx->configuredMcastBcastFilter =
-      pHddCtx->sus_res_mcastbcast_filter;
-    pHddCtx->sus_res_mcastbcast_filter_valid = VOS_FALSE;
+    if (VOS_TRUE == pHddCtx->sus_res_mcastbcast_filter_valid) {
+        pHddCtx->configuredMcastBcastFilter =
+            pHddCtx->sus_res_mcastbcast_filter;
+        pHddCtx->sus_res_mcastbcast_filter_valid = VOS_FALSE;
+    }
 
     hddLog(VOS_TRACE_LEVEL_INFO,
            "offload: in hdd_conf_resume_ind, restoring configuredMcastBcastFilter");
@@ -1525,6 +1527,14 @@ VOS_STATUS hdd_wlan_shutdown(void)
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: HDD context is Null",__func__);
       return VOS_STATUS_E_FAILURE;
    }
+
+   //Stop the traffic monitor timer
+   if ( VOS_TIMER_STATE_RUNNING ==
+                        vos_timer_getCurrentState(&pHddCtx->tx_rx_trafficTmr))
+   {
+        vos_timer_stop(&pHddCtx->tx_rx_trafficTmr);
+   }
+
    hdd_reset_all_adapters(pHddCtx);
    /* DeRegister with platform driver as client for Suspend/Resume */
    vosStatus = hddDeregisterPmOps(pHddCtx);
@@ -1573,21 +1583,21 @@ VOS_STATUS hdd_wlan_shutdown(void)
    set_bit(MC_SHUTDOWN_EVENT_MASK, &vosSchedContext->mcEventFlag);
    set_bit(MC_POST_EVENT_MASK, &vosSchedContext->mcEventFlag);
    wake_up_interruptible(&vosSchedContext->mcWaitQueue);
-   wait_for_completion_interruptible(&vosSchedContext->McShutdown);
+   wait_for_completion(&vosSchedContext->McShutdown);
 
    /* Wait for TX to exit */
    hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Shutting down TX thread",__func__);
    set_bit(TX_SHUTDOWN_EVENT_MASK, &vosSchedContext->txEventFlag);
    set_bit(TX_POST_EVENT_MASK, &vosSchedContext->txEventFlag);
    wake_up_interruptible(&vosSchedContext->txWaitQueue);
-   wait_for_completion_interruptible(&vosSchedContext->TxShutdown);
+   wait_for_completion(&vosSchedContext->TxShutdown);
 
    /* Wait for RX to exit */
    hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Shutting down RX thread",__func__);
    set_bit(RX_SHUTDOWN_EVENT_MASK, &vosSchedContext->rxEventFlag);
    set_bit(RX_POST_EVENT_MASK, &vosSchedContext->rxEventFlag);
    wake_up_interruptible(&vosSchedContext->rxWaitQueue);
-   wait_for_completion_interruptible(&vosSchedContext->RxShutdown);
+   wait_for_completion(&vosSchedContext->RxShutdown);
 
 #ifdef WLAN_BTAMP_FEATURE
    vosStatus = WLANBAP_Stop(pVosContext);
@@ -1604,7 +1614,7 @@ VOS_STATUS hdd_wlan_shutdown(void)
    /* Stop SME - Cannot invoke vos_stop as vos_stop relies
     * on threads being running to process the SYS Stop
     */
-   vosStatus = sme_Stop(pHddCtx->hHal, TRUE);
+   vosStatus = sme_Stop(pHddCtx->hHal, HAL_STOP_TYPE_SYS_RESET);
    VOS_ASSERT(VOS_IS_STATUS_SUCCESS(vosStatus));
 
    hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Doing MAC STOP",__func__);
@@ -1677,6 +1687,8 @@ VOS_STATUS hdd_wlan_re_init(void)
       goto err_re_init;
    }
 #endif
+
+   vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, TRUE);
 
    /* The driver should always be initialized in STA mode after SSR */
    hdd_set_conparam(0);
@@ -1800,6 +1812,7 @@ VOS_STATUS hdd_wlan_re_init(void)
     /* Restart all adapters */
    hdd_start_all_adapters(pHddCtx);
    pHddCtx->isLogpInProgress = FALSE;
+   vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    pHddCtx->hdd_mcastbcast_filter_set = FALSE;
    hdd_register_mcast_bcast_filter(pHddCtx);
 
@@ -1819,6 +1832,7 @@ VOS_STATUS hdd_wlan_re_init(void)
                                         __func__);
       goto err_unregister_pmops;
    }
+   vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    goto success;
 
 err_unregister_pmops:
@@ -1871,6 +1885,7 @@ err_vosclose:
 err_re_init:
    /* Allow the phone to go to sleep */
    hdd_allow_suspend();
+   vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    VOS_BUG(0);
    return -EPERM;
 

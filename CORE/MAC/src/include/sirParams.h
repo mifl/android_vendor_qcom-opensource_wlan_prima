@@ -63,6 +63,7 @@
 #define SIR_MAX_NUM_CHANNELS    64
 #define SIR_MAX_NUM_STA_IN_IBSS 16
 #define SIR_MAX_NUM_STA_IN_BSS  256
+#define SIR_CCX_MAX_MEAS_IE_REQS   8
 
 typedef enum
 {
@@ -100,6 +101,9 @@ typedef enum {
 #endif
    IBSS_HEARTBEAT_OFFLOAD = 26,
    WLAN_PERIODIC_TX_PTRN = 28,
+#ifdef FEATURE_WLAN_TDLS
+   ADVANCE_TDLS = 29,
+#endif
 
 #ifdef FEATURE_WLAN_BATCH_SCAN
    BATCH_SCAN = 30,

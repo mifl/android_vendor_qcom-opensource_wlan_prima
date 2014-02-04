@@ -924,6 +924,7 @@ tLimMlmOemDataRsp       *gpLimMlmOemDataRsp;
     tANI_U8 deferredMsgCnt;
     tSirDFSChannelList    dfschannelList;
     tANI_U8 deauthMsgCnt;
+    tANI_U8 gLimIbssStaLimit;
 } tAniSirLim, *tpAniSirLim;
 
 typedef struct sLimMgmtFrameRegistration
@@ -985,13 +986,6 @@ typedef struct sMacOpenParameters
     tANI_U32 frameTransRequired;
     tDriverType  driverType;
 } tMacOpenParameters;
-
-typedef enum
-{
-    HAL_STOP_TYPE_SYS_RESET,
-    HAL_STOP_TYPE_SYS_DEEP_SLEEP,
-    HAL_STOP_TYPE_RF_KILL   
-}tHalStopType;
 
 typedef struct sHalMacStartParameters
 {

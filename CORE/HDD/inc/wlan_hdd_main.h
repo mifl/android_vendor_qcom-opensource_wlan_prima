@@ -116,6 +116,7 @@
 #define WLAN_WAIT_TIME_STATS       800
 #define WLAN_WAIT_TIME_POWER       800
 #define WLAN_WAIT_TIME_COUNTRY     1000
+#define WLAN_WAIT_TIME_CHANNEL_UPDATE   600
 /* Amount of time to wait for sme close session callback.
    This value should be larger than the timeout used by WDI to wait for
    a response from WCNSS */
@@ -154,6 +155,7 @@
 #define MAC_ADDR_ARRAY(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 /** Mac Address string **/
 #define MAC_ADDRESS_STR "%02x:%02x:%02x:%02x:%02x:%02x"
+#define MAC_ADDRESS_STR_LEN 18 /* Including null terminator */
 #define MAX_GENIE_LEN 255
 
 #define WLAN_CHIP_VERSION   "WCNSS"
@@ -209,9 +211,39 @@
 #endif
 
 #define HDD_MAC_ADDR_LEN    6
-#define HDD_ROAM_SCAN_CHANNEL_SWITCH_TIME 3
 typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
 
+/*
+ * Generic asynchronous request/response support
+ *
+ * Many of the APIs supported by HDD require a call to SME to
+ * perform an action or to retrieve some data.  In most cases SME
+ * performs the operation asynchronously, and will execute a provided
+ * callback function when the request has completed.  In order to
+ * synchronize this the HDD API allocates a context which is then
+ * passed to SME, and which is then, in turn, passed back to the
+ * callback function when the operation completes.  The callback
+ * function then sets a completion variable inside the context which
+ * the HDD API is waiting on.  In an ideal world the HDD API would
+ * wait forever (or at least for a long time) for the response to be
+ * received and for the completion variable to be set.  However in
+ * most cases these HDD APIs are being invoked in the context of a
+ * userspace thread which has invoked either a cfg80211 API or a
+ * wireless extensions ioctl and which has taken the kernel rtnl_lock.
+ * Since this lock is used to synchronize many of the kernel tasks, we
+ * do not want to hold it for a long time.  In addition we do not want
+ * to block userspace threads (such as the wpa supplicant's main
+ * thread) for an extended time.  Therefore we only block for a short
+ * time waiting for the response before we timeout.  This means that
+ * it is possible for the HDD API to timeout, and for the callback to
+ * be invoked afterwards.  In order for the callback function to
+ * determine if the HDD API is still waiting, a magic value is also
+ * stored in the shared context.  Only if the context has a valid
+ * magic will the callback routine do any work.  In order to further
+ * synchronize these activities a spinlock is used so that if any HDD
+ * API timeout coincides with its callback, the operations of the two
+ * threads will be serialized.
+ */
 struct statsContext
 {
    struct completion completion;
@@ -219,7 +251,12 @@ struct statsContext
    unsigned int magic;
 };
 
+extern spinlock_t hdd_context_lock;
+
 #define STATS_CONTEXT_MAGIC 0x53544154   //STAT
+#define RSSI_CONTEXT_MAGIC  0x52535349   //RSSI
+#define POWER_CONTEXT_MAGIC 0x504F5752   //POWR
+#define SNR_CONTEXT_MAGIC   0x534E5200   //SNR
 
 #ifdef FEATURE_WLAN_BATCH_SCAN
 #define HDD_BATCH_SCAN_VERSION (17)
@@ -962,7 +999,10 @@ struct hdd_adapter_s
    /*Batch scan state*/
    eHDD_BATCH_SCAN_STATE batchScanState;
 #endif
-
+   /* Flag to ensure PSB is configured through framework */
+   v_U8_t psbChanged;
+   /* UAPSD psb value configured through framework */
+   v_U8_t configuredPsb;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
@@ -1070,6 +1110,11 @@ struct hdd_context_s
 #else
    struct completion driver_crda_req;
 #endif
+
+   /* Completion variable to indicate updation of channel */
+   struct completion wiphy_channel_update_event;
+
+   v_BOOL_t nEnableStrictRegulatoryForFCC;
 
    v_BOOL_t isWlanSuspended;
 
@@ -1201,6 +1246,11 @@ struct hdd_context_s
     /* VHT80 allowed*/
     v_BOOL_t isVHT80Allowed;
 
+#ifdef FEATURE_WLAN_CH_AVOID
+   v_U16_t unsafeChannelCount;
+   v_U16_t unsafeChannelList[NUM_20MHZ_RF_CHANNELS];
+   v_U16_t safeChannelList[NUM_20MHZ_RF_CHANNELS];
+#endif /* FEATURE_WLAN_CH_AVOID */
 };
 
 
@@ -1279,10 +1329,12 @@ void hdd_set_pwrparams(hdd_context_t *pHddCtx);
 void hdd_reset_pwrparams(hdd_context_t *pHddCtx);
 int wlan_hdd_validate_context(hdd_context_t *pHddCtx);
 VOS_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx);
+v_BOOL_t hdd_is_valid_mac_address(const tANI_U8* pMacAddr);
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 int wlan_hdd_setIPv6Filter(hdd_context_t *pHddCtx, tANI_U8 filterType, tANI_U8 sessionId);
 #endif
 #ifdef CONFIG_ENABLE_LINUX_REG
 void hdd_checkandupdate_phymode( hdd_context_t *pHddCtx);
 #endif
+int hdd_wmmps_helper(hdd_adapter_t *pAdapter, tANI_U8 *ptr);
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )
