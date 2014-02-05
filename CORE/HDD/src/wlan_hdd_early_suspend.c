@@ -627,9 +627,16 @@ void hdd_ipv6_notifier_work_queue(struct work_struct *work)
         return;
     }
 
+    if ( VOS_FALSE == pHddCtx->sus_res_mcastbcast_filter_valid)
+    {
+        pHddCtx->sus_res_mcastbcast_filter =
+            pHddCtx->configuredMcastBcastFilter;
+        pHddCtx->sus_res_mcastbcast_filter_valid = VOS_TRUE;
+    }
+
     if ((eConnectionState_Associated ==
                 (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState)
-         && (VOS_TRUE == pHddCtx->sus_res_mcastbcast_filter_valid))
+        && (pHddCtx->hdd_wlan_suspended))
     {
         // This invocation being part of the IPv6 registration callback,
         // we are passing second parameter as 2 to avoid registration
@@ -873,9 +880,16 @@ void hdd_ipv4_notifier_work_queue(struct work_struct *work)
         return;
     }
 
+    if ( VOS_FALSE == pHddCtx->sus_res_mcastbcast_filter_valid)
+    {
+        pHddCtx->sus_res_mcastbcast_filter =
+            pHddCtx->configuredMcastBcastFilter;
+        pHddCtx->sus_res_mcastbcast_filter_valid = VOS_TRUE;
+    }
+
     if ((eConnectionState_Associated ==
                 (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState)
-        && (VOS_TRUE == pHddCtx->sus_res_mcastbcast_filter_valid))
+        && (pHddCtx->hdd_wlan_suspended))
     {
         // This invocation being part of the IPv4 registration callback,
         // we are passing second parameter as 2 to avoid registration
@@ -1011,7 +1025,8 @@ VOS_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, int fenable)
        }
        else
        {
-           hddLog(VOS_TRACE_LEVEL_INFO, FL("IP Address is not assigned\n"));
+           hddLog(VOS_TRACE_LEVEL_ERROR, FL("IP Address is not assigned"));
+           return VOS_STATUS_E_AGAIN;
        }
 
        if (fenable == 1 && !pAdapter->ipv4_notifier_registered)
@@ -1557,7 +1572,8 @@ void hdd_resume_wlan(void)
       return;
    }
    
-   if (pHddCtx->isLogpInProgress) {
+   if (pHddCtx->isLogpInProgress)
+   {
       hddLog(VOS_TRACE_LEVEL_INFO,
              "%s: Ignore resume wlan, LOGP in progress!", __func__);
       return;
