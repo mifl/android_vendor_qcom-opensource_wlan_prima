@@ -1776,7 +1776,7 @@ static int iw_get_genie(struct net_device *dev,
         hddLog(LOG1, "%s: failed to copy data to user buffer", __func__);
         return -EFAULT;
     }
-    vos_mem_copy( extra, (v_VOID_t*)genIeBytes, wrqu->data.length);
+    vos_mem_copy( extra, (v_VOID_t*)genIeBytes, length);
     wrqu->data.length = length;
 
     hddLog(LOG1,"%s: RSN IE of %d bytes returned\n", __func__, wrqu->data.length );
@@ -2923,6 +2923,7 @@ static int iw_set_priv(struct net_device *dev,
             VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                        "%s: SME Change Country code fail", __func__);
             kfree(cmd);
+            return -EINVAL;
         }
     }
     else if( strncasecmp(cmd, "rssi", 4) == 0 )
