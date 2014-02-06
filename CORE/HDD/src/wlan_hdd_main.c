@@ -109,6 +109,7 @@
 int wlan_hdd_ftm_start(hdd_context_t *pAdapter);
 #include "sapApi.h"
 #include <linux/semaphore.h>
+#include <linux/ctype.h>
 #include <mach/subsystem_restart.h>
 #include <wlan_hdd_hostapd.h>
 #include <wlan_hdd_softap_tx_rx.h>
@@ -155,6 +156,12 @@ static int wlan_hdd_inited;
 #endif
 
 /*
+ * spinlock for synchronizing asynchronous request/response
+ * (full description of use in wlan_hdd_main.h)
+ */
+DEFINE_SPINLOCK(hdd_context_lock);
+
+/*
  * The rate at which the driver sends RESTART event to supplicant
  * once the function 'vos_wlanRestart()' is called
  *
@@ -173,6 +180,8 @@ static int wlan_hdd_inited;
 #define TID_MAX_VALUE 15
 static VOS_STATUS  hdd_get_tsm_stats(hdd_adapter_t *pAdapter, const tANI_U8 tid,
                                          tAniTrafStrmMetrics* pTsmMetrics);
+static VOS_STATUS hdd_parse_ccx_beacon_req(tANI_U8 *pValue,
+                                     tCsrCcxBeaconReq *pCcxBcnReq);
 #endif /* FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
 
 /*
@@ -699,6 +708,10 @@ hdd_extract_assigned_int_from_str
     {
         return NULL;
     }
+    if (tempInt < 0)
+    {
+        tempInt = 0;
+    }
     *pOutPtr = tempInt;
 
     pInPtr = strnchr(pInPtr, strlen(pInPtr), SPACE_ASCII_VALUE);
@@ -1115,7 +1128,7 @@ static void hdd_batch_scan_result_ind_callback
 
     pAdapter = (hdd_adapter_t *)callbackContext;
     /*sanity check*/
-    if ((NULL != pAdapter) && (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic))
+    if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic))
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: Invalid pAdapter magic", __func__);
@@ -1198,13 +1211,11 @@ static void hdd_batch_scan_result_ind_callback
                 pBatchScanRsp->timestamp - pApMetaInfo->timestamp;
 
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
-               "%s: bssId 0x%x:0x%x:0x%x:0x%x:0x%x:0x%x "
-               "ch %d rssi %d timestamp %d", __func__,
-               pApMetaInfo->bssid[0],pApMetaInfo->bssid[1],
-               pApMetaInfo->bssid[2],pApMetaInfo->bssid[3],
-               pApMetaInfo->bssid[4],pApMetaInfo->bssid[5],
-               pApMetaInfo->ch, pApMetaInfo->rssi,
-               pApMetaInfo->timestamp);
+                      "%s: bssId "MAC_ADDRESS_STR
+                      " ch %d rssi %d timestamp %d", __func__,
+                      MAC_ADDR_ARRAY(pApMetaInfo->bssid),
+                      pApMetaInfo->ch, pApMetaInfo->rssi,
+                      pApMetaInfo->timestamp);
 
             /*mark last AP in batch scan response*/
             if ((TRUE == pBatchScanRsp->isLastResult) &&
@@ -1452,6 +1463,7 @@ tANI_U32 hdd_populate_user_batch_scan_rsp
          pAdapter->pBatchScanRsp  = pHead;
          pAdapter->prev_batch_id = pPrev->ApInfo.batchId;
          vos_mem_free(pPrev);
+         pPrev = NULL;
    }
 
    return cur_len;
@@ -1642,7 +1654,17 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        goto exit;
    }
 
-   command = kmalloc(priv_data.total_len, GFP_KERNEL);
+   if (priv_data.total_len <= 0)
+   {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                 "%s:invalid priv_data.total_len(%d)!!!", __func__,
+                 priv_data.total_len);
+       ret = -EINVAL;
+       goto exit;
+   }
+
+   /* Allocate +1 for '\0' */
+   command = kmalloc(priv_data.total_len + 1, GFP_KERNEL);
    if (!command)
    {
        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
@@ -1656,6 +1678,9 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        ret = -EFAULT;
        goto exit;
    }
+
+   /* Making sure the command is NUL-terminated */
+   command[priv_data.total_len] = '\0';
 
    if ((SIOCDEVPRIVATE + 1) == cmd)
    {
@@ -1688,6 +1713,11 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            /* Change band request received */
            ret = hdd_setBand_helper(dev, ptr);
        }
+       else if(strncmp(command, "SETWMMPS", 8) == 0)
+       {
+           tANI_U8 *ptr = command;
+           ret = hdd_wmmps_helper(pAdapter, ptr);
+       }
        else if ( strncasecmp(command, "COUNTRY", 7) == 0 )
        {
            char *country_code;
@@ -1702,7 +1732,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            ret = (int)sme_ChangeCountryCode(pHddCtx->hHal,
                   (void *)(tSmeChangeCountryCallback)
                     wlan_hdd_change_country_code_callback,
-                     country_code, pAdapter, pHddCtx->pvosContext, eSIR_TRUE);
+                     country_code, pAdapter, pHddCtx->pvosContext, eSIR_TRUE, eSIR_TRUE);
            if (eHAL_STATUS_SUCCESS == ret)
            {
                ret = wait_for_completion_interruptible_timeout(
@@ -1806,7 +1836,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "%s %d", command, rssi);
+           len = scnprintf(extra, sizeof(extra), "%s %d", command, rssi);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -1865,7 +1895,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "%s %d", "GETROAMSCANPERIOD", (nEmptyScanRefreshPeriod/1000));
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   "GETROAMSCANPERIOD", (nEmptyScanRefreshPeriod/1000));
            /* Returned value is in units of seconds */
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
@@ -1926,7 +1957,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "%s %d", "GETROAMSCANREFRESHPERIOD", (value/1000));
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   "GETROAMSCANREFRESHPERIOD", (value/1000));
            /* Returned value is in units of seconds */
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
@@ -2003,7 +2035,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            else
 	       roamMode = CFG_LFR_FEATURE_ENABLED_MIN;
 
-	   len = snprintf(extra, sizeof(extra), "%s %d", command, roamMode);
+	   len = scnprintf(extra, sizeof(extra), "%s %d", command, roamMode);
 	   if (copy_to_user(priv_data.buf, &extra, len + 1))
 	   {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2060,7 +2092,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "%s %d", command, roamRssiDiff);
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   command, roamRssiDiff);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2078,7 +2111,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            tANI_U8 len = 0;
            hdd_getBand_helper(pHddCtx, &band);
 
-           len = snprintf(extra, sizeof(extra), "%s %d", command, band);
+           len = scnprintf(extra, sizeof(extra), "%s %d", command, band);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2140,10 +2173,11 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            /* output channel list is of the format
            [Number of roam scan channels][Channel1][Channel2]... */
            /* copy the number of channels in the 0th index */
-           len = snprintf(extra, sizeof(extra), "%s %d", command, numChannels);
+           len = scnprintf(extra, sizeof(extra), "%s %d", command, numChannels);
            for (j = 0; (j < numChannels); j++)
            {
-               len += snprintf(extra + len, sizeof(extra) - len, " %d", ChannelList[j]);
+               len += scnprintf(extra + len, sizeof(extra) - len, " %d",
+                       ChannelList[j]);
            }
 
            if (copy_to_user(priv_data.buf, &extra, len + 1))
@@ -2173,7 +2207,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                goto exit;
            }
 
-           len = snprintf(extra, sizeof(extra), "%s %d", "GETCCXMODE", ccxMode);
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   "GETCCXMODE", ccxMode);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2201,7 +2236,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                goto exit;
            }
 
-           len = snprintf(extra, sizeof(extra), "%s %d", "GETOKCMODE", okcMode);
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   "GETOKCMODE", okcMode);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2216,7 +2252,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "%s %d", "GETFASTROAM", lfrMode);
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   "GETFASTROAM", lfrMode);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2231,7 +2268,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "%s %d", "GETFASTTRANSITION", ft);
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   "GETFASTTRANSITION", ft);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2321,6 +2359,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s:STA is not associated to this AP!",__func__);
                ret = -EINVAL;
                vos_mem_free(buf);
+               buf = NULL;
                goto exit;
            }
 
@@ -2333,6 +2372,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                          __func__, channel, pHddStaCtx->conn_info.operationChannel);
                ret = -EINVAL;
                vos_mem_free(buf);
+               buf = NULL;
                goto exit;
            }
            chan.center_freq = sme_ChnToFreq(channel);
@@ -2344,6 +2384,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, "%s:memory allocation failed",__func__);
                ret = -ENOMEM;
                vos_mem_free(buf);
+               buf = NULL;
                goto exit;
            }
            vos_mem_zero(finalBuf, finalLen);
@@ -2370,6 +2411,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
            /* done with the parsed buffer */
            vos_mem_free(buf);
+           buf = NULL;
 
            wlan_hdd_action( NULL,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
@@ -2392,7 +2434,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            tANI_U8 len = 0;
 
            /* value is interms of msec */
-           len = snprintf(extra, sizeof(extra), "%s %d", "GETROAMSCANCHANNELMINTIME", val);
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   "GETROAMSCANCHANNELMINTIME", val);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2405,7 +2448,6 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        {
            tANI_U8 *value = command;
            tANI_U16 maxTime = CFG_NEIGHBOR_SCAN_MAX_CHAN_TIME_DEFAULT;
-           tANI_U16 homeAwayTime = 0;
 
            /* Move pointer to ahead of SETSCANCHANNELTIME<delimiter> */
            value = value + 19;
@@ -2439,21 +2481,6 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                       "%s: Received Command to change channel max time = %d", __func__, maxTime);
 
            pHddCtx->cfg_ini->nNeighborScanMaxChanTime = maxTime;
-
-           /* Home Away Time should be atleast equal to (MaxDwell time + (2*RFS)),
-           *  where RFS is the RF Switching time. It is twice RFS to consider the
-           *  time to go off channel and return to the home channel. */
-           homeAwayTime = sme_getRoamScanHomeAwayTime((tHalHandle)(pHddCtx->hHal));
-           if (homeAwayTime < (maxTime + (2 * HDD_ROAM_SCAN_CHANNEL_SWITCH_TIME)))
-           {
-               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
-                      "%s: Invalid config, Home away time(%d) is less than (twice RF switching time + channel max time)(%d)",
-                      " Hence enforcing home away time to disable (0)",
-                      __func__, homeAwayTime, (maxTime + (2 * HDD_ROAM_SCAN_CHANNEL_SWITCH_TIME)));
-               homeAwayTime = 0;
-               pHddCtx->cfg_ini->nRoamScanHomeAwayTime = homeAwayTime;
-               sme_UpdateRoamScanHomeAwayTime((tHalHandle)(pHddCtx->hHal), homeAwayTime, eANI_BOOLEAN_FALSE);
-           }
            sme_setNeighborScanMaxChanTime((tHalHandle)(pHddCtx->hHal), maxTime);
        }
        else if (strncmp(command, "GETSCANCHANNELTIME", 18) == 0)
@@ -2463,7 +2490,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            tANI_U8 len = 0;
 
            /* value is interms of msec */
-           len = snprintf(extra, sizeof(extra), "%s %d", "GETSCANCHANNELTIME", val);
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   "GETSCANCHANNELTIME", val);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2518,7 +2546,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            tANI_U8 len = 0;
 
            /* value is interms of msec */
-           len = snprintf(extra, sizeof(extra), "%s %d", "GETSCANHOMETIME", val);
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   "GETSCANHOMETIME", val);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2572,7 +2601,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            tANI_U8 len = 0;
 
            /* value is interms of msec */
-           len = snprintf(extra, sizeof(extra), "%s %d", "GETROAMINTRABAND", val);
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   "GETROAMINTRABAND", val);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2626,7 +2656,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "%s %d", command, val);
+           len = scnprintf(extra, sizeof(extra), "%s %d", command, val);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2639,7 +2669,6 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        {
            tANI_U8 *value = command;
            tANI_U16 homeAwayTime = CFG_ROAM_SCAN_HOME_AWAY_TIME_DEFAULT;
-           tANI_U16 scanChannelMaxTime = 0;
 
            /* Move pointer to ahead of SETSCANHOMEAWAYTIME<delimiter> */
            /* input value is in units of msec */
@@ -2672,20 +2701,6 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                       "%s: Received Command to Set scan away time = %d", __func__, homeAwayTime);
-
-           /* Home Away Time should be atleast equal to (MaxDwell time + (2*RFS)),
-           *  where RFS is the RF Switching time. It is twice RFS to consider the
-           *  time to go off channel and return to the home channel. */
-           scanChannelMaxTime = sme_getNeighborScanMaxChanTime((tHalHandle)(pHddCtx->hHal));
-           if (homeAwayTime < (scanChannelMaxTime + (2 * HDD_ROAM_SCAN_CHANNEL_SWITCH_TIME)))
-           {
-               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
-                      "%s: Invalid config, Home away time(%d) is less than (twice RF switching time + channel max time)(%d)",
-                      " Hence enforcing home away time to disable (0)",
-                      __func__, homeAwayTime, (scanChannelMaxTime + (2 * HDD_ROAM_SCAN_CHANNEL_SWITCH_TIME)));
-               homeAwayTime = 0;
-           }
-
            if (pHddCtx->cfg_ini->nRoamScanHomeAwayTime != homeAwayTime)
            {
                pHddCtx->cfg_ini->nRoamScanHomeAwayTime = homeAwayTime;
@@ -2698,7 +2713,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "%s %d", command, val);
+           len = scnprintf(extra, sizeof(extra), "%s %d", command, val);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -2806,7 +2821,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "%s %d", command, wesMode);
+           len = scnprintf(extra, sizeof(extra), "%s %d", command, wesMode);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -3085,7 +3100,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "%s %d", command, roamScanControl);
+           len = scnprintf(extra, sizeof(extra), "%s %d",
+                   command, roamScanControl);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -3156,7 +3172,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            char extra[32];
            tANI_U8 len = 0;
 
-           len = snprintf(extra, sizeof(extra), "GETDWELLTIME %u\n",
+           len = scnprintf(extra, sizeof(extra), "GETDWELLTIME %u\n",
                   (int)pCfg->nActiveMaxChnTime);
            if (copy_to_user(priv_data.buf, &extra, len + 1))
            {
@@ -3395,17 +3411,36 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: CCKM Ie input length is more than max[%d]", __func__,
                   DOT11F_IE_RSN_MAX_LEN);
-               if (NULL != cckmIe)
-               {
-                   vos_mem_free(cckmIe);
-               }
+               vos_mem_free(cckmIe);
+               cckmIe = NULL;
                ret = -EINVAL;
                goto exit;
            }
            sme_SetCCKMIe((tHalHandle)(pHddCtx->hHal), pAdapter->sessionId, cckmIe, cckmIeLen);
-           if (NULL != cckmIe)
+           vos_mem_free(cckmIe);
+           cckmIe = NULL;
+       }
+       else if (strncmp(command, "CCXBEACONREQ", 12) == 0)
+       {
+           tANI_U8 *value = command;
+           tCsrCcxBeaconReq ccxBcnReq;
+           eHalStatus status = eHAL_STATUS_SUCCESS;
+           status = hdd_parse_ccx_beacon_req(value, &ccxBcnReq);
+           if (eHAL_STATUS_SUCCESS != status)
            {
-               vos_mem_free(cckmIe);
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: Failed to parse ccx beacon req", __func__);
+               ret = -EINVAL;
+               goto exit;
+           }
+
+           status = sme_SetCcxBeaconRequest((tHalHandle)(pHddCtx->hHal), pAdapter->sessionId, &ccxBcnReq);
+           if (eHAL_STATUS_SUCCESS != status)
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: sme_SetCcxBeaconRequest failed (%d)", __func__, status);
+               ret = -EINVAL;
+               goto exit;
            }
        }
 #endif /* FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
@@ -3425,11 +3460,12 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
               goto exit;
            }
 
-           if ((WLAN_HDD_INFRA_STATION != pAdapter->device_mode) &&
-              (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode))
+          if ((WLAN_HDD_INFRA_STATION != pAdapter->device_mode) &&
+              (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode) &&
+              (WLAN_HDD_P2P_DEVICE != pAdapter->device_mode))
            {
               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                "Received WLS_BATCHING_VERSION command in invalid mode %d "
+                "Received WLS_BATCHING VERSION command in invalid mode %d "
                 "WLS_BATCHING_VERSION is only allowed in infra STA/P2P client"
                 " mode",
                 pAdapter->device_mode);
@@ -3467,7 +3503,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 
           if ((WLAN_HDD_INFRA_STATION != pAdapter->device_mode) &&
-              (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode))
+              (WLAN_HDD_P2P_CLIENT != pAdapter->device_mode) &&
+              (WLAN_HDD_P2P_DEVICE != pAdapter->device_mode))
           {
              VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "Received WLS_BATCHING SET command in invalid mode %d "
@@ -3641,6 +3678,146 @@ exit:
 
 
 #if defined(FEATURE_WLAN_CCX) && defined(FEATURE_WLAN_CCX_UPLOAD)
+/**---------------------------------------------------------------------------
+
+  \brief hdd_parse_ccx_beacon_req() - Parse ccx beacon request
+
+  This function parses the ccx beacon request passed in the format
+  CCXBEACONREQ<space><Number of fields><space><Measurement token>
+  <space>Channel 1<space>Scan Mode <space>Meas Duration<space>Channel N
+  <space>Scan Mode N<space>Meas Duration N
+  if the Number of bcn req fields (N) does not match with the actual number of fields passed
+  then take N.
+  <Meas Token><Channel><Scan Mode> and <Meas Duration> are treated as one pair
+  For example, CCXBEACONREQ 2 1 1 1 30 2 44 0 40.
+  This function does not take care of removing duplicate channels from the list
+
+  \param  - pValue Pointer to data
+  \param  - pCcxBcnReq output pointer to store parsed ie information
+
+  \return - 0 for success non-zero for failure
+
+  --------------------------------------------------------------------------*/
+static VOS_STATUS hdd_parse_ccx_beacon_req(tANI_U8 *pValue,
+                                     tCsrCcxBeaconReq *pCcxBcnReq)
+{
+    tANI_U8 *inPtr = pValue;
+    int tempInt = 0;
+    int j = 0, i = 0, v = 0;
+    char buf[32];
+
+    inPtr = strnchr(pValue, strlen(pValue), SPACE_ASCII_VALUE);
+    /*no argument after the command*/
+    if (NULL == inPtr)
+    {
+        return -EINVAL;
+    }
+    /*no space after the command*/
+    else if (SPACE_ASCII_VALUE != *inPtr)
+    {
+        return -EINVAL;
+    }
+
+    /*removing empty spaces*/
+    while ((SPACE_ASCII_VALUE  == *inPtr) && ('\0' !=  *inPtr)) inPtr++;
+
+    /*no argument followed by spaces*/
+    if ('\0' == *inPtr) return -EINVAL;
+
+    /*getting the first argument ie number of fields*/
+    v = sscanf(inPtr, "%32s ", buf);
+    if (1 != v) return -EINVAL;
+
+    v = kstrtos32(buf, 10, &tempInt);
+    if ( v < 0) return -EINVAL;
+
+    pCcxBcnReq->numBcnReqIe = tempInt;
+
+    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+               "Number of Bcn Req Ie fields(%d)", pCcxBcnReq->numBcnReqIe);
+
+    for (j = 0; j < (pCcxBcnReq->numBcnReqIe); j++)
+    {
+        for (i = 0; i < 4; i++)
+        {
+            /*inPtr pointing to the beginning of first space after number of ie fields*/
+            inPtr = strpbrk( inPtr, " " );
+            /*no ie data after the number of ie fields argument*/
+            if (NULL == inPtr) return -EINVAL;
+
+            /*removing empty space*/
+            while ((SPACE_ASCII_VALUE == *inPtr) && ('\0' != *inPtr)) inPtr++;
+
+            /*no ie data after the number of ie fields argument and spaces*/
+            if ( '\0' == *inPtr ) return -EINVAL;
+
+            v = sscanf(inPtr, "%32s ", buf);
+            if (1 != v) return -EINVAL;
+
+            v = kstrtos32(buf, 10, &tempInt);
+            if (v < 0) return -EINVAL;
+
+            switch (i)
+            {
+                case 0:  /* Measurement token */
+                if (tempInt <= 0)
+                {
+                   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                             "Invalid Measurement Token(%d)", tempInt);
+                   return -EINVAL;
+                }
+                pCcxBcnReq->bcnReq[j].measurementToken = tempInt;
+                break;
+
+                case 1:  /* Channel number */
+                if ((tempInt <= 0) ||
+                    (tempInt > WNI_CFG_CURRENT_CHANNEL_STAMAX))
+                {
+                   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                             "Invalid Channel Number(%d)", tempInt);
+                   return -EINVAL;
+                }
+                pCcxBcnReq->bcnReq[j].channel = tempInt;
+                break;
+
+                case 2:  /* Scan mode */
+                if ((tempInt < eSIR_PASSIVE_SCAN) || (tempInt > eSIR_BEACON_TABLE))
+                {
+                   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                             "Invalid Scan Mode(%d) Expected{0|1|2}", tempInt);
+                   return -EINVAL;
+                }
+                pCcxBcnReq->bcnReq[j].scanMode= tempInt;
+                break;
+
+                case 3:  /* Measurement duration */
+                if (((tempInt <= 0) && (pCcxBcnReq->bcnReq[j].scanMode != eSIR_BEACON_TABLE)) ||
+                    ((tempInt < 0) && (pCcxBcnReq->bcnReq[j].scanMode == eSIR_BEACON_TABLE)))
+                {
+                   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                             "Invalid Measurement Duration(%d)", tempInt);
+                   return -EINVAL;
+                }
+                pCcxBcnReq->bcnReq[j].measurementDuration = tempInt;
+                break;
+            }
+        }
+    }
+
+    for (j = 0; j < pCcxBcnReq->numBcnReqIe; j++)
+    {
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                   "Index(%d) Measurement Token(%lu)Channel(%lu) Scan Mode(%lu) Measurement Duration(%lu)\n",
+                   j,
+                   pCcxBcnReq->bcnReq[j].measurementToken,
+                   pCcxBcnReq->bcnReq[j].channel,
+                   pCcxBcnReq->bcnReq[j].scanMode,
+                   pCcxBcnReq->bcnReq[j].measurementDuration);
+    }
+
+    return VOS_STATUS_SUCCESS;
+}
+
 static void hdd_GetTsmStatsCB( tAniTrafStrmMetrics tsmMetrics, const tANI_U32 staId, void *pContext )
 {
    struct statsContext *pStatsContext = NULL;
@@ -3654,25 +3831,30 @@ static void hdd_GetTsmStatsCB( tAniTrafStrmMetrics tsmMetrics, const tANI_U32 st
       return;
    }
 
-   /* there is a race condition that exists between this callback function
-      and the caller since the caller could time out either before or
-      while this code is executing.  we'll assume the timeout hasn't
-      occurred, but we'll verify that right before we save our work */
+   /* there is a race condition that exists between this callback
+      function and the caller since the caller could time out either
+      before or while this code is executing.  we use a spinlock to
+      serialize these actions */
+   spin_lock(&hdd_context_lock);
 
    pStatsContext = pContext;
    pAdapter      = pStatsContext->pAdapter;
    if ((NULL == pAdapter) || (STATS_CONTEXT_MAGIC != pStatsContext->magic))
    {
       /* the caller presumably timed out so there is nothing we can do */
+      spin_unlock(&hdd_context_lock);
       hddLog(VOS_TRACE_LEVEL_WARN,
              "%s: Invalid context, pAdapter [%p] magic [%08x]",
               __func__, pAdapter, pStatsContext->magic);
       return;
    }
 
-   /* the race is on.  caller could have timed out immediately after
-      we verified the magic, but if so, caller will wait a short time
-      for us to copy over the tsm stats */
+   /* context is valid so caller is still waiting */
+
+   /* paranoia: invalidate the magic */
+   pStatsContext->magic = 0;
+
+   /* copy over the tsm stats */
    pAdapter->tsmStats.UplinkPktQueueDly = tsmMetrics.UplinkPktQueueDly;
    vos_mem_copy(pAdapter->tsmStats.UplinkPktQueueDlyHist,
                  tsmMetrics.UplinkPktQueueDlyHist,
@@ -3684,8 +3866,11 @@ static void hdd_GetTsmStatsCB( tAniTrafStrmMetrics tsmMetrics, const tANI_U32 st
    pAdapter->tsmStats.RoamingCount = tsmMetrics.RoamingCount;
    pAdapter->tsmStats.RoamingDly = tsmMetrics.RoamingDly;
 
-   /* and notify the caller */
+   /* notify the caller */
    complete(&pStatsContext->completion);
+
+   /* serialization is complete */
+   spin_unlock(&hdd_context_lock);
 }
 
 
@@ -3695,6 +3880,7 @@ static VOS_STATUS  hdd_get_tsm_stats(hdd_adapter_t *pAdapter, const tANI_U8 tid,
 {
    hdd_station_ctx_t *pHddStaCtx = NULL;
    eHalStatus         hstatus;
+   VOS_STATUS         vstatus = VOS_STATUS_SUCCESS;
    long               lrc;
    struct statsContext context;
    hdd_context_t     *pHddCtx = NULL;
@@ -3721,45 +3907,53 @@ static VOS_STATUS  hdd_get_tsm_stats(hdd_adapter_t *pAdapter, const tANI_U8 tid,
 
    if (eHAL_STATUS_SUCCESS != hstatus)
    {
-      hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Unable to retrieve statistics", __func__);
-      return hstatus;
+      hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Unable to retrieve statistics",
+             __func__);
+      vstatus = VOS_STATUS_E_FAULT;
    }
    else
    {
       /* request was sent -- wait for the response */
       lrc = wait_for_completion_interruptible_timeout(&context.completion,
                                     msecs_to_jiffies(WLAN_WAIT_TIME_STATS));
-      /* either we have a response or we timed out
-         either way, first invalidate our magic */
-      context.magic = 0;
       if (lrc <= 0)
       {
          hddLog(VOS_TRACE_LEVEL_ERROR,
                 "%s: SME %s while retrieving statistics",
                 __func__, (0 == lrc) ? "timeout" : "interrupt");
-         /* there is a race condition such that the callback
-            function could be executing at the same time we are. of
-            primary concern is if the callback function had already
-            verified the "magic" but hasn't yet set the completion
-            variable.  Since the completion variable is on our
-            stack, we'll delay just a bit to make sure the data is
-            still valid if that is the case */
-         msleep(50);
-         return (VOS_STATUS_E_TIMEOUT);
+         vstatus = VOS_STATUS_E_TIMEOUT;
       }
    }
-   pTsmMetrics->UplinkPktQueueDly = pAdapter->tsmStats.UplinkPktQueueDly;
-   vos_mem_copy(pTsmMetrics->UplinkPktQueueDlyHist,
-                 pAdapter->tsmStats.UplinkPktQueueDlyHist,
-                 sizeof(pAdapter->tsmStats.UplinkPktQueueDlyHist)/
-                 sizeof(pAdapter->tsmStats.UplinkPktQueueDlyHist[0]));
-   pTsmMetrics->UplinkPktTxDly = pAdapter->tsmStats.UplinkPktTxDly;
-   pTsmMetrics->UplinkPktLoss = pAdapter->tsmStats.UplinkPktLoss;
-   pTsmMetrics->UplinkPktCount = pAdapter->tsmStats.UplinkPktCount;
-   pTsmMetrics->RoamingCount = pAdapter->tsmStats.RoamingCount;
-   pTsmMetrics->RoamingDly = pAdapter->tsmStats.RoamingDly;
 
-   return VOS_STATUS_SUCCESS;
+   /* either we never sent a request, we sent a request and received a
+      response or we sent a request and timed out.  if we never sent a
+      request or if we sent a request and got a response, we want to
+      clear the magic out of paranoia.  if we timed out there is a
+      race condition such that the callback function could be
+      executing at the same time we are. of primary concern is if the
+      callback function had already verified the "magic" but had not
+      yet set the completion variable when a timeout occurred. we
+      serialize these activities by invalidating the magic while
+      holding a shared spinlock which will cause us to block if the
+      callback is currently executing */
+   spin_lock(&hdd_context_lock);
+   context.magic = 0;
+   spin_unlock(&hdd_context_lock);
+
+   if (VOS_STATUS_SUCCESS == vstatus)
+   {
+      pTsmMetrics->UplinkPktQueueDly = pAdapter->tsmStats.UplinkPktQueueDly;
+      vos_mem_copy(pTsmMetrics->UplinkPktQueueDlyHist,
+                   pAdapter->tsmStats.UplinkPktQueueDlyHist,
+                   sizeof(pAdapter->tsmStats.UplinkPktQueueDlyHist)/
+                   sizeof(pAdapter->tsmStats.UplinkPktQueueDlyHist[0]));
+      pTsmMetrics->UplinkPktTxDly = pAdapter->tsmStats.UplinkPktTxDly;
+      pTsmMetrics->UplinkPktLoss = pAdapter->tsmStats.UplinkPktLoss;
+      pTsmMetrics->UplinkPktCount = pAdapter->tsmStats.UplinkPktCount;
+      pTsmMetrics->RoamingCount = pAdapter->tsmStats.RoamingCount;
+      pTsmMetrics->RoamingDly = pAdapter->tsmStats.RoamingDly;
+   }
+   return vstatus;
 }
 #endif /*FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
 
@@ -3817,6 +4011,8 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
     int v = 0;
     tANI_U8 tempBuf[32];
     tANI_U8 tempByte = 0;
+    /* 12 hexa decimal digits and 5 ':' */
+    tANI_U8 macAddress[17];
 
     inPtr = strnchr(pValue, strlen(pValue), SPACE_ASCII_VALUE);
     /*no argument after the command*/
@@ -3840,14 +4036,20 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
         return -EINVAL;
     }
 
-    /*getting the first argument ie the target AP bssid */
-    if (inPtr[2] != ':' || inPtr[5] != ':' || inPtr[8] != ':' || inPtr[11] != ':' || inPtr[14] != ':')
+    v = sscanf(inPtr, "%17s", macAddress);
+    if (!((1 == v) && hdd_is_valid_mac_address(macAddress)))
     {
-       return -EINVAL;
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+             "Invalid MAC address or All hex inputs are not read (%d)", v);
+        return -EINVAL;
     }
-    j = sscanf(inPtr, "%2x:%2x:%2x:%2x:%2x:%2x", (unsigned int *)&pTargetApBssid[0], (unsigned int *)&pTargetApBssid[1],
-                  (unsigned int *)&pTargetApBssid[2], (unsigned int *)&pTargetApBssid[3],
-                  (unsigned int *)&pTargetApBssid[4], (unsigned int *)&pTargetApBssid[5]);
+
+    pTargetApBssid[0] = hdd_parse_hex(macAddress[0]) << 4 | hdd_parse_hex(macAddress[1]);
+    pTargetApBssid[1] = hdd_parse_hex(macAddress[3]) << 4 | hdd_parse_hex(macAddress[4]);
+    pTargetApBssid[2] = hdd_parse_hex(macAddress[6]) << 4 | hdd_parse_hex(macAddress[7]);
+    pTargetApBssid[3] = hdd_parse_hex(macAddress[9]) << 4 | hdd_parse_hex(macAddress[10]);
+    pTargetApBssid[4] = hdd_parse_hex(macAddress[12]) << 4 | hdd_parse_hex(macAddress[13]);
+    pTargetApBssid[5] = hdd_parse_hex(macAddress[15]) << 4 | hdd_parse_hex(macAddress[16]);
 
     /* point to the next argument */
     inPtr = strnchr(inPtr, strlen(inPtr), SPACE_ASCII_VALUE);
@@ -3864,9 +4066,12 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
     }
 
     /*getting the next argument ie the channel number */
-    j = sscanf(inPtr, "%32s ", tempBuf);
+    v = sscanf(inPtr, "%32s ", tempBuf);
+    if (1 != v) return -EINVAL;
+
     v = kstrtos32(tempBuf, 10, &tempInt);
-    if ( v < 0) return -EINVAL;
+    if ( v < 0 || tempInt <= 0 || tempInt > WNI_CFG_CURRENT_CHANNEL_STAMAX )
+     return -EINVAL;
 
     *pChannel = tempInt;
 
@@ -3884,9 +4089,11 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
     }
 
     /*getting the next argument ie the dwell time */
-    j = sscanf(inPtr, "%32s ", tempBuf);
+    v = sscanf(inPtr, "%32s ", tempBuf);
+    if (1 != v) return -EINVAL;
+
     v = kstrtos32(tempBuf, 10, &tempInt);
-    if ( v < 0) return -EINVAL;
+    if ( v < 0 || tempInt <= 0) return -EINVAL;
 
     *pDwellTime = tempInt;
 
@@ -3908,8 +4115,8 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
     while(('\0' !=  *dataEnd) )
     {
         dataEnd++;
-        ++(*pBufLen);
     }
+    *pBufLen = dataEnd - inPtr ;
     if ( *pBufLen <= 0)  return -EINVAL;
 
     /* Allocate the number of bytes based on the number of input characters
@@ -3933,7 +4140,14 @@ VOS_STATUS hdd_parse_send_action_frame_data(tANI_U8 *pValue, tANI_U8 *pTargetApB
        and f0 in 3rd location */
     for (i = 0, j = 0; j < *pBufLen; j += 2)
     {
-        tempByte = (hdd_parse_hex(inPtr[j]) << 4) | (hdd_parse_hex(inPtr[j + 1]));
+        if( j+1 == *pBufLen)
+        {
+             tempByte = hdd_parse_hex(inPtr[j]);
+        }
+        else
+        {
+              tempByte = (hdd_parse_hex(inPtr[j]) << 4) | (hdd_parse_hex(inPtr[j + 1]));
+        }
         (*pBuf)[i++] = tempByte;
     }
     *pBufLen = i;
@@ -3990,7 +4204,9 @@ VOS_STATUS hdd_parse_channellist(tANI_U8 *pValue, tANI_U8 *pChannelList, tANI_U8
     }
 
     /*getting the first argument ie the number of channels*/
-    sscanf(inPtr, "%32s ", buf);
+    v = sscanf(inPtr, "%32s ", buf);
+    if (1 != v) return -EINVAL;
+
     v = kstrtos32(buf, 10, &tempInt);
     if ((v < 0) ||
         (tempInt <= 0) ||
@@ -4039,7 +4255,9 @@ VOS_STATUS hdd_parse_channellist(tANI_U8 *pValue, tANI_U8 *pChannelList, tANI_U8
             }
         }
 
-        sscanf(inPtr, "%32s ", buf);
+        v = sscanf(inPtr, "%32s ", buf);
+        if (1 != v) return -EINVAL;
+
         v = kstrtos32(buf, 10, &tempInt);
         if ((v < 0) ||
             (tempInt <= 0) ||
@@ -4065,7 +4283,7 @@ VOS_STATUS hdd_parse_channellist(tANI_U8 *pValue, tANI_U8 *pChannelList, tANI_U8
   This function parses the reasoc command data passed in the format
   REASSOC<space><bssid><space><channel>
 
-  \param  - pValue Pointer to input data
+  \param  - pValue Pointer to input data (its a NUL terminated string)
   \param  - pTargetApBssid Pointer to target Ap bssid
   \param  - pChannel Pointer to the Target AP channel
 
@@ -4078,6 +4296,8 @@ VOS_STATUS hdd_parse_reassoc_command_data(tANI_U8 *pValue, tANI_U8 *pTargetApBss
     int tempInt;
     int v = 0;
     tANI_U8 tempBuf[32];
+    /* 12 hexa decimal digits and 5 ':' */
+    tANI_U8 macAddress[17];
 
     inPtr = strnchr(pValue, strlen(pValue), SPACE_ASCII_VALUE);
     /*no argument after the command*/
@@ -4101,14 +4321,20 @@ VOS_STATUS hdd_parse_reassoc_command_data(tANI_U8 *pValue, tANI_U8 *pTargetApBss
         return -EINVAL;
     }
 
-    /*getting the first argument ie the target AP bssid */
-    if (inPtr[2] != ':' || inPtr[5] != ':' || inPtr[8] != ':' || inPtr[11] != ':' || inPtr[14] != ':')
+    v = sscanf(inPtr, "%17s", macAddress);
+    if (!((1 == v) && hdd_is_valid_mac_address(macAddress)))
     {
-       return -EINVAL;
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+             "Invalid MAC address or All hex inputs are not read (%d)", v);
+        return -EINVAL;
     }
-    sscanf(inPtr, "%2x:%2x:%2x:%2x:%2x:%2x", (unsigned int *)&pTargetApBssid[0], (unsigned int *)&pTargetApBssid[1],
-                  (unsigned int *)&pTargetApBssid[2], (unsigned int *)&pTargetApBssid[3],
-                  (unsigned int *)&pTargetApBssid[4], (unsigned int *)&pTargetApBssid[5]);
+
+    pTargetApBssid[0] = hdd_parse_hex(macAddress[0]) << 4 | hdd_parse_hex(macAddress[1]);
+    pTargetApBssid[1] = hdd_parse_hex(macAddress[3]) << 4 | hdd_parse_hex(macAddress[4]);
+    pTargetApBssid[2] = hdd_parse_hex(macAddress[6]) << 4 | hdd_parse_hex(macAddress[7]);
+    pTargetApBssid[3] = hdd_parse_hex(macAddress[9]) << 4 | hdd_parse_hex(macAddress[10]);
+    pTargetApBssid[4] = hdd_parse_hex(macAddress[12]) << 4 | hdd_parse_hex(macAddress[13]);
+    pTargetApBssid[5] = hdd_parse_hex(macAddress[15]) << 4 | hdd_parse_hex(macAddress[16]);
 
     /* point to the next argument */
     inPtr = strnchr(inPtr, strlen(inPtr), SPACE_ASCII_VALUE);
@@ -4125,9 +4351,16 @@ VOS_STATUS hdd_parse_reassoc_command_data(tANI_U8 *pValue, tANI_U8 *pTargetApBss
     }
 
     /*getting the next argument ie the channel number */
-    sscanf(inPtr, "%s ", tempBuf);
+    v = sscanf(inPtr, "%32s ", tempBuf);
+    if (1 != v) return -EINVAL;
+
     v = kstrtos32(tempBuf, 10, &tempInt);
-    if ( v < 0) return -EINVAL;
+    if ((v < 0) ||
+        (tempInt <= 0) ||
+        (tempInt > WNI_CFG_CURRENT_CHANNEL_STAMAX))
+    {
+        return -EINVAL;
+    }
 
     *pChannel = tempInt;
     return VOS_STATUS_SUCCESS;
@@ -4219,6 +4452,52 @@ VOS_STATUS hdd_parse_get_cckm_ie(tANI_U8 *pValue, tANI_U8 **pCckmIe,
     return VOS_STATUS_SUCCESS;
 }
 #endif /* FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
+
+/**---------------------------------------------------------------------------
+
+  \brief hdd_is_valid_mac_address() - Validate MAC address
+
+  This function validates whether the given MAC address is valid or not
+  Expected MAC address is of the format XX:XX:XX:XX:XX:XX
+  where X is the hexa decimal digit character and separated by ':'
+  This algorithm works even if MAC address is not separated by ':'
+
+  This code checks given input string mac contains exactly 12 hexadecimal digits.
+  and a separator colon : appears in the input string only after
+  an even number of hex digits.
+
+  \param  - pMacAddr pointer to the input MAC address
+  \return - 1 for valid and 0 for invalid.
+
+  --------------------------------------------------------------------------*/
+
+v_BOOL_t hdd_is_valid_mac_address(const tANI_U8 *pMacAddr)
+{
+    int xdigit = 0;
+    int separator = 0;
+    while (*pMacAddr)
+    {
+        if (isxdigit(*pMacAddr))
+        {
+            xdigit++;
+        }
+        else if (':' == *pMacAddr)
+        {
+            if (0 == xdigit || ((xdigit / 2) - 1) != separator)
+                break;
+
+            ++separator;
+        }
+        else
+        {
+            separator = -1;
+            /* Invalid MAC found */
+            return 0;
+        }
+        ++pMacAddr;
+    }
+    return (xdigit == 12 && (separator == 5 || separator == 0));
+}
 
 /**---------------------------------------------------------------------------
 
@@ -5194,24 +5473,36 @@ void hdd_deinit_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter )
 
 void hdd_cleanup_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter, tANI_U8 rtnl_held )
 {
-   struct net_device *pWlanDev = pAdapter->dev;
+   struct net_device *pWlanDev;
+
+   ENTER();
+   if (NULL == pAdapter)
+   {
+      VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                 "%s: HDD adapter is Null", __func__);
+      return;
+   }
+
+   pWlanDev = pAdapter->dev;
 
 #ifdef FEATURE_WLAN_BATCH_SCAN
+   if ((pAdapter->device_mode == WLAN_HDD_INFRA_STATION)
+     || (pAdapter->device_mode == WLAN_HDD_P2P_CLIENT)
+     || (pAdapter->device_mode == WLAN_HDD_P2P_DEVICE)
+     )
+   {
       tHddBatchScanRsp *pNode;
       tHddBatchScanRsp *pPrev;
-      if (pAdapter)
+      pNode = pAdapter->pBatchScanRsp;
+      while (pNode)
       {
-          mutex_lock(&pAdapter->hdd_batch_scan_lock);
-          pNode = pAdapter->pBatchScanRsp;
-          while (pNode)
-          {
-              pPrev = pNode;
-              pNode = pNode->pNext;
-              vos_mem_free((v_VOID_t * )pPrev);
-          }
-          pAdapter->pBatchScanRsp = NULL;
-          mutex_unlock(&pAdapter->hdd_batch_scan_lock);
+          pPrev = pNode;
+          pNode = pNode->pNext;
+          vos_mem_free((v_VOID_t * )pPrev);
+          pPrev = NULL;
       }
+      pAdapter->pBatchScanRsp = NULL;
+    }
 #endif
 
    if(test_bit(NET_DEVICE_REGISTERED, &pAdapter->event_flags)) {
@@ -5227,6 +5518,7 @@ void hdd_cleanup_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter, tANI_
       // since the memory has been reclaimed
    }
 
+   EXIT();
 }
 
 void hdd_set_pwrparams(hdd_context_t *pHddCtx)
@@ -5682,6 +5974,7 @@ VOS_STATUS hdd_close_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
       hdd_cleanup_adapter( pHddCtx, pAdapterNode->pAdapter, rtnl_held );
       hdd_remove_adapter( pHddCtx, pAdapterNode );
       vos_mem_free( pAdapterNode );
+      pAdapterNode = NULL;
 
 
       /* If there is a single session of STA/P2P client, re-enable BMPS */
@@ -6517,12 +6810,14 @@ void hdd_wlan_initial_scan(hdd_adapter_t *pAdapter)
          {
             hddLog(VOS_TRACE_LEVEL_ERROR, "%s kmalloc failed", __func__);
             vos_mem_free(channelInfo.ChannelList);
+            channelInfo.ChannelList = NULL;
             return;
          }
          vos_mem_copy(scanReq.ChannelInfo.ChannelList, channelInfo.ChannelList,
             channelInfo.numOfChannels);
          scanReq.ChannelInfo.numOfChannels = channelInfo.numOfChannels;
          vos_mem_free(channelInfo.ChannelList);
+         channelInfo.ChannelList = NULL;
       }
 
       scanReq.scanType = eSIR_PASSIVE_SCAN;
@@ -6549,13 +6844,6 @@ void hdd_wlan_initial_scan(hdd_adapter_t *pAdapter)
         vos_mem_free(scanReq.ChannelInfo.ChannelList);
 }
 
-struct fullPowerContext
-{
-   struct completion completion;
-   unsigned int magic;
-};
-#define POWER_CONTEXT_MAGIC  0x504F5752   //POWR
-
 /**---------------------------------------------------------------------------
 
   \brief hdd_full_power_callback() - HDD full power callback function
@@ -6571,7 +6859,7 @@ struct fullPowerContext
   --------------------------------------------------------------------------*/
 static void hdd_full_power_callback(void *callbackContext, eHalStatus status)
 {
-   struct fullPowerContext *pContext = callbackContext;
+   struct statsContext *pContext = callbackContext;
 
    hddLog(VOS_TRACE_LEVEL_INFO,
           "%s: context = %p, status = %d", __func__, pContext, status);
@@ -6584,24 +6872,32 @@ static void hdd_full_power_callback(void *callbackContext, eHalStatus status)
       return;
    }
 
-   /* there is a race condition that exists between this callback function
-      and the caller since the caller could time out either before or
-      while this code is executing.  we'll assume the timeout hasn't
-      occurred, but we'll verify that right before we save our work */
+   /* there is a race condition that exists between this callback
+      function and the caller since the caller could time out either
+      before or while this code is executing.  we use a spinlock to
+      serialize these actions */
+   spin_lock(&hdd_context_lock);
 
    if (POWER_CONTEXT_MAGIC != pContext->magic)
    {
       /* the caller presumably timed out so there is nothing we can do */
+      spin_unlock(&hdd_context_lock);
       hddLog(VOS_TRACE_LEVEL_WARN,
              "%s: Invalid context, magic [%08x]",
               __func__, pContext->magic);
       return;
    }
 
-   /* the race is on.  caller could have timed out immediately after
-      we verified the magic, but if so, caller will wait a short time
-      for us to notify the caller, so the context will stay valid */
+   /* context is valid so caller is still waiting */
+
+   /* paranoia: invalidate the magic */
+   pContext->magic = 0;
+
+   /* notify the caller */
    complete(&pContext->completion);
+
+   /* serialization is complete */
+   spin_unlock(&hdd_context_lock);
 }
 
 /**---------------------------------------------------------------------------
@@ -6622,7 +6918,7 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    VOS_STATUS vosStatus;
    struct wiphy *wiphy = pHddCtx->wiphy;
    hdd_adapter_t* pAdapter;
-   struct fullPowerContext powerContext;
+   struct statsContext powerContext;
    long lrc;
 
    ENTER();
@@ -6746,21 +7042,10 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
          lrc = wait_for_completion_interruptible_timeout(
                                       &powerContext.completion,
                                       msecs_to_jiffies(WLAN_WAIT_TIME_POWER));
-         /* either we have a response or we timed out
-            either way, first invalidate our magic */
-         powerContext.magic = 0;
          if (lrc <= 0)
          {
             hddLog(VOS_TRACE_LEVEL_ERROR, "%s: %s while requesting full power",
                    __func__, (0 == lrc) ? "timeout" : "interrupt");
-            /* there is a race condition such that the callback
-               function could be executing at the same time we are. of
-               primary concern is if the callback function had already
-               verified the "magic" but hasn't yet set the completion
-               variable.  Since the completion variable is on our
-               stack, we'll delay just a bit to make sure the data is
-               still valid if that is the case */
-            msleep(50);
          }
       }
       else
@@ -6768,10 +7053,24 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
          hddLog(VOS_TRACE_LEVEL_ERROR,
                 "%s: Request for Full Power failed, status %d",
                 __func__, halStatus);
-         VOS_ASSERT(0);
          /* continue -- need to clean up as much as possible */
       }
    }
+
+   /* either we never sent a request, we sent a request and received a
+      response or we sent a request and timed out.  if we never sent a
+      request or if we sent a request and got a response, we want to
+      clear the magic out of paranoia.  if we timed out there is a
+      race condition such that the callback function could be
+      executing at the same time we are. of primary concern is if the
+      callback function had already verified the "magic" but had not
+      yet set the completion variable when a timeout occurred. we
+      serialize these activities by invalidating the magic while
+      holding a shared spinlock which will cause us to block if the
+      callback is currently executing */
+   spin_lock(&hdd_context_lock);
+   powerContext.magic = 0;
+   spin_unlock(&hdd_context_lock);
 
    hdd_debugfs_exit(pHddCtx);
 
@@ -6827,6 +7126,16 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
 #endif
    /* Destroy the wake lock */
    wake_lock_destroy(&pHddCtx->sap_wake_lock);
+#endif
+
+#ifdef CONFIG_ENABLE_LINUX_REG
+   vosStatus = vos_nv_close();
+   if (!VOS_IS_STATUS_SUCCESS(vosStatus))
+   {
+      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+          "%s: Failed to close NV", __func__);
+      VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
+   }
 #endif
 
    //Close VOSS
@@ -7194,6 +7503,66 @@ static boolean hdd_is_5g_supported(hdd_context_t * pHddCtx)
    }
 }
 
+/**---------------------------------------------------------------------------
+
+  \brief hdd_generate_iface_mac_addr_auto() - HDD Mac Interface Auto
+                                              generate function
+
+  This is generate the random mac address for WLAN interface
+
+  \param  - pHddCtx  - Pointer to HDD context
+            idx      - Start interface index to get auto
+                       generated mac addr.
+            mac_addr - Mac address
+
+  \return -  0 for success, < 0 for failure
+
+  --------------------------------------------------------------------------*/
+
+static int hdd_generate_iface_mac_addr_auto(hdd_context_t *pHddCtx,
+                                            int idx, v_MACADDR_t mac_addr)
+{
+   int i;
+   unsigned int serialno;
+   serialno = wcnss_get_serial_number();
+
+   if (0 != serialno)
+   {
+      /* MAC address has 3 bytes of OUI so we have a maximum of 3
+         bytes of the serial number that can be used to generate
+         the other 3 bytes of the MAC address.  Mask off all but
+         the lower 3 bytes (this will also make sure we don't
+         overflow in the next step) */
+      serialno &= 0x00FFFFFF;
+
+      /* we need a unique address for each session */
+      serialno *= VOS_MAX_CONCURRENCY_PERSONA;
+
+      /* autogen other Mac addresses */
+      for (i = idx; i < VOS_MAX_CONCURRENCY_PERSONA; i++)
+      {
+         /* start with the entire default address */
+         pHddCtx->cfg_ini->intfMacAddr[i] = mac_addr;
+         /* then replace the lower 3 bytes */
+         pHddCtx->cfg_ini->intfMacAddr[i].bytes[3] = (serialno >> 16) & 0xFF;
+         pHddCtx->cfg_ini->intfMacAddr[i].bytes[4] = (serialno >> 8) & 0xFF;
+         pHddCtx->cfg_ini->intfMacAddr[i].bytes[5] = serialno & 0xFF;
+
+         serialno++;
+         hddLog(VOS_TRACE_LEVEL_ERROR,
+                   "%s: Derived Mac Addr: "
+                   MAC_ADDRESS_STR, __func__,
+                   MAC_ADDR_ARRAY(pHddCtx->cfg_ini->intfMacAddr[i].bytes));
+      }
+
+   }
+   else
+   {
+      hddLog(LOGE, FL("Failed to Get Serial NO"));
+      return -1;
+   }
+   return 0;
+}
 
 /**---------------------------------------------------------------------------
 
@@ -7221,6 +7590,7 @@ int hdd_wlan_startup(struct device *dev )
 #endif
    int ret;
    struct wiphy *wiphy;
+   v_MACADDR_t mac_addr;
 
    ENTER();
    /*
@@ -7267,6 +7637,7 @@ int hdd_wlan_startup(struct device *dev )
    init_completion(&pHddCtx->req_bmps_comp_var);
    init_completion(&pHddCtx->scan_info.scan_req_completion_event);
    init_completion(&pHddCtx->scan_info.abortscan_event_var);
+   init_completion(&pHddCtx->wiphy_channel_update_event);
 
 #ifdef CONFIG_ENABLE_LINUX_REG
    init_completion(&pHddCtx->linux_reg_req);
@@ -7278,6 +7649,7 @@ int hdd_wlan_startup(struct device *dev )
 
    hdd_list_init( &pHddCtx->hddAdapters, MAX_NUMBER_OF_ADAPTERS );
 
+   pHddCtx->nEnableStrictRegulatoryForFCC = TRUE;
    // Load all config first as TL config is needed during vos_open
    pHddCtx->cfg_ini = (hdd_config_t*) kmalloc(sizeof(hdd_config_t), GFP_KERNEL);
    if(pHddCtx->cfg_ini == NULL)
@@ -7493,10 +7865,34 @@ int hdd_wlan_startup(struct device *dev )
       goto err_vosclose;
    }
 
-   // Apply the NV to cfg.dat
-   /* Prima Update MAC address only at here */
-   if (VOS_STATUS_SUCCESS != hdd_update_config_from_nv(pHddCtx))
+   // Get mac addr from platform driver
+   ret = wcnss_get_wlan_mac_address((char*)&mac_addr.bytes);
+
+   if ((0 == ret) && (!vos_is_macaddr_zero(&mac_addr)))
    {
+      /* Store the mac addr for first interface */
+      pHddCtx->cfg_ini->intfMacAddr[0] = mac_addr;
+
+      hddLog(VOS_TRACE_LEVEL_ERROR,
+             "%s: WLAN Mac Addr: "
+             MAC_ADDRESS_STR, __func__,
+             MAC_ADDR_ARRAY(pHddCtx->cfg_ini->intfMacAddr[0].bytes));
+
+      /* Here, passing Arg2 as 1 because we do not want to change the
+         last 3 bytes (means non OUI bytes) of first interface mac
+         addr.
+       */
+      if (0 != hdd_generate_iface_mac_addr_auto(pHddCtx, 1, mac_addr))
+      {
+         hddLog(VOS_TRACE_LEVEL_ERROR,
+                "%s: Failed to generate wlan interface mac addr "
+                "using MAC from ini file ", __func__);
+      }
+   }
+   else if (VOS_STATUS_SUCCESS != hdd_update_config_from_nv(pHddCtx))
+   {
+      // Apply the NV to cfg.dat
+      /* Prima Update MAC address only at here */
 #ifdef WLAN_AUTOGEN_MACADDR_FEATURE
       /* There was not a valid set of MAC Addresses in NV.  See if the
          default addresses were modified by the cfg.ini settings.  If so,
@@ -7505,42 +7901,24 @@ int hdd_wlan_startup(struct device *dev )
 
       static const v_MACADDR_t default_address =
          {{0x00, 0x0A, 0xF5, 0x89, 0x89, 0xFF}};
-      unsigned int serialno;
-      int i;
 
-      serialno = wcnss_get_serial_number();
-      if ((0 != serialno) &&
-          (0 == memcmp(&default_address, &pHddCtx->cfg_ini->intfMacAddr[0],
-                       sizeof(default_address))))
+      if (0 == memcmp(&default_address, &pHddCtx->cfg_ini->intfMacAddr[0],
+                   sizeof(default_address)))
       {
          /* cfg.ini has the default address, invoke autogen logic */
 
-         /* MAC address has 3 bytes of OUI so we have a maximum of 3
-            bytes of the serial number that can be used to generate
-            the other 3 bytes of the MAC address.  Mask off all but
-            the lower 3 bytes (this will also make sure we don't
-            overflow in the next step) */
-         serialno &= 0x00FFFFFF;
-
-         /* we need a unique address for each session */
-         serialno *= VOS_MAX_CONCURRENCY_PERSONA;
-
-         /* autogen all addresses */
-         for (i = 0; i < VOS_MAX_CONCURRENCY_PERSONA; i++)
+         /* Here, passing Arg2 as 0 because we want to change the
+            last 3 bytes (means non OUI bytes) of all the interfaces
+            mac addr.
+          */
+         if (0 != hdd_generate_iface_mac_addr_auto(pHddCtx, 0,
+                                                            default_address))
          {
-            /* start with the entire default address */
-            pHddCtx->cfg_ini->intfMacAddr[i] = default_address;
-            /* then replace the lower 3 bytes */
-            pHddCtx->cfg_ini->intfMacAddr[i].bytes[3] = (serialno >> 16) & 0xFF;
-            pHddCtx->cfg_ini->intfMacAddr[i].bytes[4] = (serialno >> 8) & 0xFF;
-            pHddCtx->cfg_ini->intfMacAddr[i].bytes[5] = serialno & 0xFF;
-
-            serialno++;
+            hddLog(VOS_TRACE_LEVEL_ERROR,
+                   "%s: Failed to generate wlan interface mac addr "
+                   "using MAC from ini file " MAC_ADDRESS_STR, __func__,
+                   MAC_ADDR_ARRAY(pHddCtx->cfg_ini->intfMacAddr[0].bytes));
          }
-
-         pr_info("wlan: Invalid MAC addresses in NV, autogenerated "
-                MAC_ADDRESS_STR,
-                MAC_ADDR_ARRAY(pHddCtx->cfg_ini->intfMacAddr[0].bytes));
       }
       else
 #endif //WLAN_AUTOGEN_MACADDR_FEATURE
@@ -7553,12 +7931,15 @@ int hdd_wlan_startup(struct device *dev )
    }
    {
       eHalStatus halStatus;
-      // Set the MAC Address
-      // Currently this is used by HAL to add self sta. Remove this once self sta is added as part of session open.
+
+      /* Set the MAC Address Currently this is used by HAL to
+       * add self sta. Remove this once self sta is added as
+       * part of session open.
+       */
       halStatus = cfgSetStr( pHddCtx->hHal, WNI_CFG_STA_ID,
                              (v_U8_t *)&pHddCtx->cfg_ini->intfMacAddr[0],
                              sizeof( pHddCtx->cfg_ini->intfMacAddr[0]) );
-   
+
       if (!HAL_STATUS_SUCCESS( halStatus ))
       {
          hddLog(VOS_TRACE_LEVEL_ERROR,"%s: Failed to set MAC Address. "
@@ -7797,9 +8178,21 @@ int hdd_wlan_startup(struct device *dev )
 
    vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    hdd_allow_suspend();
-
+#ifndef CONFIG_ENABLE_LINUX_REG
+   /*updating wiphy so that regulatory user hints can be processed*/
+   if (wiphy)
+   {
+       regulatory_hint(wiphy, "00");
+   }
+#endif
    // Initialize the restart logic
    wlan_hdd_restart_init(pHddCtx);
+
+#ifdef FEATURE_WLAN_CH_AVOID
+    /* Plug in avoid channel notification callback */
+    sme_AddChAvoidCallback(pHddCtx->hHal,
+                           hdd_hostapd_ch_avoid_cb);
+#endif /* FEATURE_WLAN_CH_AVOID */
 
    //Register the traffic monitor timer now
    if ( pHddCtx->cfg_ini->dynSplitscan)
