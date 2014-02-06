@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -3116,7 +3116,7 @@ eHalStatus csrValidateMCCBeaconInterval(tpAniSirGlobal pMac, tANI_U8 channelId,
                 break;
 
                 default :
-                    smsLog(pMac, LOG1, FL(" Persona not supported : %d"),currBssPersona);
+                    smsLog(pMac, LOGE, FL(" Persona not supported : %d"),currBssPersona);
                     return eHAL_STATUS_FAILURE;
             }
         }
@@ -5906,7 +5906,7 @@ tSirResultCodes csrGetDeAuthRspStatusCode( tSirSmeDeauthRsp *pSmeRsp )
     tANI_U8 *pBuffer = (tANI_U8 *)pSmeRsp;
     tANI_U32 ret;
 
-    pBuffer += (sizeof(tANI_U16) + sizeof(tANI_U16) + sizeof(tSirMacAddr));
+    pBuffer += (sizeof(tANI_U16) + sizeof(tANI_U16) + sizeof(tANI_U8) + sizeof(tANI_U16));
     //tSirResultCodes is an enum, assuming is 32bit
     //If we cannot make this assumption, use copymemory
     pal_get_U32( pBuffer, &ret );
@@ -6143,7 +6143,7 @@ v_CountryInfoSource_t source
         }
         else
         {
-            smsLog(pMac, LOGW, FL("  doesn't match country %c%c"), pCountry[0], pCountry[1]);
+            smsLog(pMac, LOGW, FL(" Couldn't find domain for country code  %c%c"), pCountry[0], pCountry[1]);
             status = eHAL_STATUS_INVALID_PARAMETER;
         }
     }

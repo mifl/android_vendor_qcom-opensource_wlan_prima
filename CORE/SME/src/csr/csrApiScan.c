@@ -2573,7 +2573,7 @@ eHalStatus csrScanFilter11dResult(tpAniSirGlobal pMac)
     if (!HAL_STATUS_SUCCESS(csrGetCfgValidChannels(pMac,
                                       pMac->roam.validChannelList, &len)))
     {
-        smsLog( pMac, LOG1, "Failed to get Channel list from CFG");
+        smsLog( pMac, LOGE, "Failed to get Channel list from CFG");
     }
 
     pEntry = csrLLPeekHead( &pMac->scan.scanResultList, LL_ACCESS_LOCK );
@@ -4258,6 +4258,11 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription
 
             /* reset info based on new cc, and we are done */
             csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
+           /* Regulatory Domain Changed, Purge Only scan result
+            * which does not have channel number belong to 11d
+            * channel list
+            */
+            csrScanFilter11dResult(pMac);
         }
 #endif
         fRet = eANI_BOOLEAN_TRUE;

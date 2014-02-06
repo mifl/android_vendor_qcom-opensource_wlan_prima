@@ -1412,6 +1412,7 @@ eHalStatus sme_UpdateConfig(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams)
    }
    pMac->isCoalesingInIBSSAllowed =
          pSmeConfigParams->csrConfig.isCoalesingInIBSSAllowed;
+   pMac->fEnableDebugLog = pSmeConfigParams->fEnableDebugLog;
    return status;
 }
 
@@ -4032,7 +4033,7 @@ eHalStatus sme_RequestStandby (
 
    MTRACE(vos_trace(VOS_MODULE_ID_SME,
              TRACE_CODE_SME_RX_HDD_REQUEST_STANDBY, NO_SESSION, 0));
-   smsLog( pMac, LOG1, FL("") );
+   smsLog( pMac, LOG1, FL(" called") );
    status = sme_AcquireGlobalLock( &pMac->sme );
    if ( HAL_STATUS_SUCCESS( status ) )
    {
@@ -5003,7 +5004,7 @@ eHalStatus sme_GenericChangeCountryCode( tHalHandle hHal,
 
         pMsg->msgType = pal_cpu_to_be16((tANI_U16)eWNI_SME_GENERIC_CHANGE_COUNTRY_CODE);
         pMsg->msgLen = (tANI_U16)sizeof(tAniGenericChangeCountryCodeReq);
-        vos_mem_copy(pMsg->countryCode, pCountry, 3);
+        vos_mem_copy(pMsg->countryCode, pCountry, 2);
         pMsg->domain_index = reg_domain;
 
         msg.type = eWNI_SME_GENERIC_CHANGE_COUNTRY_CODE;
@@ -7288,6 +7289,12 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
 
    /* reset info based on new cc, and we are done */
    csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
+   /* Country code  Changed, Purge Only scan result
+    * which does not have channel number belong to 11d
+    * channel list
+    */
+   csrScanFilter11dResult(pMac);
+
 #endif
    if( pMsg->changeCCCallback )
    {
@@ -7400,7 +7407,11 @@ eHalStatus sme_HandleChangeCountryCodeByUser(tpAniSirGlobal pMac,
         pMac->scan.f11dInfoApplied = eANI_BOOLEAN_TRUE;
         pMac->scan.f11dInfoReset = eANI_BOOLEAN_FALSE;
     }
-
+    /* Country code  Changed, Purge Only scan result
+     * which does not have channel number belong to 11d
+     * channel list
+     */
+    csrScanFilter11dResult(pMac);
     // Do active scans after the country is set by User hints or Country IE
     pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
 
@@ -7460,6 +7471,11 @@ eHalStatus sme_HandleChangeCountryCodeByCore(tpAniSirGlobal pMac, tAniGenericCha
             csrInitChannelList(pMac);
         }
     }
+    /* Country code  Changed, Purge Only scan result
+     * which does not have channel number belong to 11d
+     * channel list
+     */
+    csrScanFilter11dResult(pMac);
     smsLog(pMac, LOG1, FL(" returned"));
     return eHAL_STATUS_SUCCESS;
 }
@@ -10248,7 +10264,15 @@ void activeListCmdTimeoutHandle(void *userData)
         return;
     VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
         "%s: Active List command timeout Cmd List Count %d", __func__,
-        csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList) );
+    csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList) );
     smeGetCommandQStatus((tHalHandle) userData);
+}
+
+eHalStatus sme_UpdateConnectDebug(tHalHandle hHal, tANI_U32 set_value)
+{
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+    pMac->fEnableDebugLog = set_value;
+    return (status);
 }
 
