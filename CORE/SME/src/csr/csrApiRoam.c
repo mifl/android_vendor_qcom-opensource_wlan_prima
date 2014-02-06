@@ -47,8 +47,6 @@
   
     Implementation for the Common Roaming interfaces.
   
-    Copyright (C) 2008 Qualcomm, Incorporated
-  
  
    ========================================================================== */
 /*===========================================================================
@@ -502,9 +500,10 @@ eHalStatus csrClose(tpAniSirGlobal pMac)
     return (status);
 } 
 
-eHalStatus csrUpdateChannelList(tCsrScanStruct *pScan)
+eHalStatus csrUpdateChannelList(tpAniSirGlobal pMac)
 {
     tSirUpdateChanList *pChanList;
+    tCsrScanStruct *pScan = &pMac->scan;
     tANI_U8 numChan = pScan->base20MHzChannels.numChannels;
     tANI_U32 bufLen = sizeof(tSirUpdateChanList) +
         (sizeof(tSirUpdateChanParam) * (numChan - 1));
@@ -526,7 +525,13 @@ eHalStatus csrUpdateChannelList(tCsrScanStruct *pScan)
     for (i = 0; i < pChanList->numChan; i++)
     {
         pChanList->chanParam[i].chanId = pScan->defaultPowerTable[i].chanId;
-        pChanList->chanParam[i].pwr = pScan->defaultPowerTable[i].pwr;
+        pChanList->chanParam[i].pwr = cfgGetRegulatoryMaxTransmitPower(pMac,
+                pScan->defaultPowerTable[i].chanId);
+        if (vos_nv_getChannelEnabledState(pChanList->chanParam[i].chanId) ==
+            NV_CHANNEL_DFS)
+            pChanList->chanParam[i].dfsSet = VOS_TRUE;
+        else
+            pChanList->chanParam[i].dfsSet = VOS_FALSE;
     }
 
     if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
@@ -572,13 +577,16 @@ eHalStatus csrStart(tpAniSirGlobal pMac)
            smsLog(pMac, LOGW, " csrStart: Couldn't Init HO control blk ");
            break;
         }
-
+#ifdef QCA_WIFI_2_0
         if (pMac->fScanOffload)
         {
             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
                     "Scan offload is enabled, update default chan list");
-            status = csrUpdateChannelList(&pMac->scan);
+            status = csrUpdateChannelList(pMac);
         }
+#else
+        status = csrUpdateChannelList(pMac);
+#endif
 
     }while(0);
 #if defined(ANI_LOGDUMP)
@@ -12661,7 +12669,7 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
                 // Insert the CCKM IE into the join request
 #ifdef FEATURE_WLAN_CCX_UPLOAD
                 ieLen = pSession->suppCckmIeInfo.cckmIeLen;
-                palCopyMemory(pMac->hHdd, (void *) (wpaRsnIE),
+                vos_mem_copy((void *) (wpaRsnIE),
                      pSession->suppCckmIeInfo.cckmIe, ieLen);
 #else
                 ieLen = csrConstructCcxCckmIe( pMac,
@@ -15161,18 +15169,18 @@ eHalStatus csrGetTsmStats(tpAniSirGlobal pMac,
    eHalStatus          status = eHAL_STATUS_SUCCESS;
    tAniGetTsmStatsReq *pMsg = NULL;
 
-   status = palAllocateMemory(pMac->hHdd, (void **)&pMsg, sizeof(tAniGetTsmStatsReq));
-   if ( !HAL_STATUS_SUCCESS(status) )
+   pMsg = (tAniGetTsmStatsReq*)vos_mem_malloc(sizeof(tAniGetTsmStatsReq));
+   if (NULL == pMsg)
    {
       smsLog(pMac, LOGE, "csrGetTsmStats: failed to allocate mem for req");
-      return status;
+      return eHAL_STATUS_FAILED_ALLOC;
    }
    // need to initiate a stats request to PE
    pMsg->msgType = pal_cpu_to_be16((tANI_U16)eWNI_SME_GET_TSM_STATS_REQ);
    pMsg->msgLen = (tANI_U16)sizeof(tAniGetTsmStatsReq);
    pMsg->staId = staId;
    pMsg->tid = tid;
-   palCopyMemory(pMac->hHdd, pMsg->bssId, bssId, sizeof(tSirMacAddr));
+   vos_mem_copy(pMsg->bssId, bssId, sizeof(tSirMacAddr));
    pMsg->tsmStatsCallback = callback;
    pMsg->pDevContext = pContext;
    pMsg->pVosContext = pVosContext;
@@ -16883,7 +16891,7 @@ void csrRoamFTPreAuthRspProcessor( tHalHandle hHal, tpSirFTPreAuthRsp pFTPreAuth
         csrRoamReadTSF(pMac, (tANI_U8 *)roamInfo.timestamp);
 
         // Save the bssid from the received response
-        palCopyMemory(pMac->hHdd, (void *)&roamInfo.bssid, (void *)pFTPreAuthRsp->preAuthbssId, sizeof(tCsrBssid));
+        vos_mem_copy((void *)&roamInfo.bssid, (void *)pFTPreAuthRsp->preAuthbssId, sizeof(tCsrBssid));
         csrRoamCallCallback(pMac, pFTPreAuthRsp->smeSessionId, &roamInfo, 0, eCSR_ROAM_CCKM_PREAUTH_NOTIFY, 0);
     }
 #endif /* FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
