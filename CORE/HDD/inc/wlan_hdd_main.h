@@ -722,13 +722,6 @@ struct hdd_ap_ctx_s
    tCsrRoamSetKey wepKey[CSR_MAX_NUM_KEY];
 
    beacon_data_t *beacon;
-
-   //Elements for setting MC rate with SAP mode
-   v_U32_t targetMCRate;
-   v_U32_t getStasCookie;
-   tSap_Event getStasEventBuffer;
-   tSap_AssocMacAddr *assocStasBuffer;
-   struct completion sap_get_associated_stas_complete;
 };
 
 struct hdd_mon_ctx_s
@@ -1317,7 +1310,7 @@ void wlan_hdd_clear_concurrency_mode(hdd_context_t *pHddCtx, tVOS_CON_MODE mode)
 void wlan_hdd_reset_prob_rspies(hdd_adapter_t* pHostapdAdapter);
 void hdd_prevent_suspend(void);
 void hdd_allow_suspend(void);
-void hdd_allow_suspend_timeout(v_U32_t timeout);
+void hdd_prevent_suspend_timeout(v_U32_t timeout);
 bool hdd_is_ssr_required(void);
 void hdd_set_ssr_required(e_hdd_ssr_required value);
 

@@ -7057,7 +7057,7 @@ eHalStatus csrScanForSSID(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrRoamProfi
             {
                 pScanCmd->u.scanCmd.u.scanRequest.p2pSearch = 1;
             }
-            if(pProfile->pAddIEScan)
+            if(pProfile->nAddIEScanLength)
             {
                 status = palAllocateMemory(pMac->hHdd,
                                 (void **)&pScanCmd->u.scanCmd.u.scanRequest.pIEField,
@@ -7065,7 +7065,7 @@ eHalStatus csrScanForSSID(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrRoamProfi
                 palZeroMemory(pMac->hHdd, pScanCmd->u.scanCmd.u.scanRequest.pIEField, pProfile->nAddIEScanLength);
                 if(HAL_STATUS_SUCCESS(status))
                 {
-                    palCopyMemory(pMac->hHdd, pScanCmd->u.scanCmd.u.scanRequest.pIEField, pProfile->pAddIEScan, pProfile->nAddIEScanLength);
+                    palCopyMemory(pMac->hHdd, pScanCmd->u.scanCmd.u.scanRequest.pIEField, pProfile->addIEScan, pProfile->nAddIEScanLength);
                     pScanCmd->u.scanCmd.u.scanRequest.uIEFieldLen = pProfile->nAddIEScanLength;
                 }
                 else
@@ -7910,6 +7910,11 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
    }
    //Add to scan cache
    csrScanAddResult(pMac, pScanResult, pIesLocal);
+
+   if( (pScanResult->Result.pvIes == NULL) && pIesLocal )
+   {
+       vos_mem_free(pIesLocal);
+   }
 
    if( (pScanResult->Result.pvIes == NULL) && pIesLocal )
    {
