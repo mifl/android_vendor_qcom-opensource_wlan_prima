@@ -282,7 +282,7 @@ static int hdd_netdev_notifier_call(struct notifier_block * nb,
         { 
            int result;
            INIT_COMPLETION(pHddCtx->scan_info.abortscan_event_var);
-           hdd_abort_mac_scan(pAdapter->pHddCtx);
+           hdd_abort_mac_scan(pAdapter->pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
            result = wait_for_completion_interruptible_timeout(
                                &pHddCtx->scan_info.abortscan_event_var,
                                msecs_to_jiffies(WLAN_WAIT_TIME_ABORTSCAN));
@@ -4258,7 +4258,7 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter )
          }
          else
          {
-            hdd_abort_mac_scan(pHddCtx);
+            hdd_abort_mac_scan(pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
          }
 #ifdef WLAN_NS_OFFLOAD
 #ifdef WLAN_OPEN_SOURCE
@@ -5190,7 +5190,7 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    // we are about to Request Full Power, and since that is synchronized,
    // the expectation is that by the time Request Full Power has completed,
    // all scans will be cancelled.
-   hdd_abort_mac_scan( pHddCtx );
+   hdd_abort_mac_scan(pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
 
    //Stop the traffic monitor timer
    if ( VOS_TIMER_STATE_RUNNING ==

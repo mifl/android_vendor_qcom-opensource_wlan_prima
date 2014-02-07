@@ -1705,7 +1705,7 @@ eHalStatus sme_SetKeepAlive (tHalHandle hHal, tANI_U8 sessionId,
             VOS_STATUS_E_FAILURE - failure
             VOS_STATUS_SUCCESS  success
   ---------------------------------------------------------------------------*/
-eHalStatus sme_AbortMacScan(tHalHandle hHal);
+eHalStatus sme_AbortMacScan(tHalHandle hHal, eCsrAbortReason reason);
 
 /* ----------------------------------------------------------------------------
    \fn sme_GetOperationChannel
@@ -1891,7 +1891,7 @@ tANI_U8 sme_GetConcurrentOperationChannel( tHalHandle hHal );
             VOS_STATUS_E_FAILURE - failure
             VOS_STATUS_SUCCESS  success
   ---------------------------------------------------------------------------*/
-eHalStatus sme_AbortMacScan(tHalHandle hHal);
+eHalStatus sme_AbortMacScan(tHalHandle hHal, eCsrAbortReason reason);
 
 /* ---------------------------------------------------------------------------
     \fn sme_GetCfgValidChannels
