@@ -1132,6 +1132,11 @@ typedef PACKED_PRE struct PACKED_POST
    tStartScanParams startScanParams;
 }  tHalStartScanReqMsg, *tpHalStartScanReqMsg;
 
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+}  tHalMotionEventReqMsg, *tpHalMotionEventReqMsg;
+
 /*---------------------------------------------------------------------------
   WLAN_HAL_START_SCAN_RSP
 ---------------------------------------------------------------------------*/
@@ -1751,10 +1756,10 @@ typedef enum
 // IFACE PERSONA for different Operating modes
 typedef enum
 {
-    HAL_IFACE_UNKNOWN,
-    HAL_IFACE_STA_MODE,
-    HAL_IFACE_P2P_MODE,
-    HAL_IFACE_MAX
+    HAL_IFACE_UNKNOWN=0,
+    HAL_IFACE_STA_MODE=1,
+    HAL_IFACE_P2P_MODE=2,
+    HAL_IFACE_MAX=0x7FFFFFFF,
 } tHalIfacePersona;
 
 typedef PACKED_PRE struct PACKED_POST
@@ -2479,6 +2484,35 @@ typedef PACKED_PRE struct PACKED_POST
     tSwitchChannelParams_V1 switchChannelParams_V1;
 } tSwitchChannelReqMsg_V1, *tpSwitchChannelReqMsg_V1;
 
+
+/*---------------------------------------------------------------------------
+WLAN_HAL_CH_SWITCH_V1_RSP
+---------------------------------------------------------------------------*/
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    /* Status */
+    tANI_U32 status;
+
+    /* Channel number - same as in request*/
+    tANI_U8 channelNumber;
+
+    /* HAL fills in the tx power used for mgmt frames in this field */
+    tPowerdBm txMgmtPower;
+
+    /* BSSID needed to identify session - same as in request*/
+    tSirMacAddr bssId;
+
+    /* Source of Channel Switch */
+    eHalChanSwitchSource channelSwitchSrc;
+
+} tSwitchChannelRspParams_V1, *tpSwitchChannelRspParams_V1;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tHalMsgHeader header;
+    tSwitchChannelRspParams_V1 channelSwitchRspParams_V1;
+} tSwitchChannelRspMsg_V1, *tpSwitchChannelRspMsg_V1;
 
 /*---------------------------------------------------------------------------
 WLAN_HAL_CH_SWITCH_REQ
@@ -6230,10 +6264,12 @@ typedef enum {
     BATCH_SCAN             = 30,
     FW_IN_TX_PATH          = 31,
     EXTENDED_NSOFFLOAD_SLOT = 32,
+    CH_SWITCH_V1           = 33,
     UPDATE_CHANNEL_LIST    = 35,
     WLAN_MCADDR_FLT        = 36,
     WLAN_CH144             = 37,
     NAN                    = 38,
+
     MAX_FEATURE_SUPPORTED  = 128,
 } placeHolderInCapBitmap;
 
@@ -6256,6 +6292,7 @@ typedef PACKED_PRE struct PACKED_POST{
 #define IS_WLAN_ROAM_SCAN_OFFLOAD_SUPPORTED_BY_HOST (!!(halMsg_GetHostWlanFeatCaps(WLAN_ROAM_SCAN_OFFLOAD)))
 #define IS_IBSS_HEARTBEAT_OFFLOAD_SUPPORTED_BY_HOST (!!(halMsg_GetHostWlanFeatCaps(IBSS_HEARTBEAT_OFFLOAD)))
 #define IS_SCAN_OFFLOAD_SUPPORTED_BY_HOST (!!(halMsg_GetHostWlanFeatCaps(WLAN_SCAN_OFFLOAD)))
+#define IS_CH_SWITCH_V1_SUPPORTED_BY_HOST ((!!(halMsg_GetHostWlanFeatCaps(CH_SWITCH_V1))))
 
 tANI_U8 halMsg_GetHostWlanFeatCaps(tANI_U8 feat_enum_value);
 
