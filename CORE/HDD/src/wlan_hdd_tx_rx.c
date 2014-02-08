@@ -44,9 +44,6 @@
   \file  wlan_hdd_tx_rx.c
   
   \brief Linux HDD Tx/RX APIs
-         Copyright 2008 (c) Qualcomm, Incorporated.
-         All Rights Reserved.
-         Qualcomm Confidential and Proprietary.
   
   ==========================================================================*/
   
@@ -722,8 +719,6 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
    {
       if (pAdapter->wmm_tx_queue[ac].count >= HDD_TX_QUEUE_LOW_WATER_MARK)
       {
-          VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                     "%s: Best Effort AC Tx queue is 3/4th full", __func__);
           pAdapter->isVosLowResource = VOS_TRUE;
       }
       else
@@ -1136,6 +1131,7 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    WLANTL_ACEnumType newAc;
    v_SIZE_t size = 0;
    tANI_U8   acAdmitted, i;
+   v_U8_t proto_type = 0;
 
    //Sanity check on inputs
    if ( ( NULL == vosContext ) || 
@@ -1316,6 +1312,22 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
       pPktMetaInfo->ucIsEapol = 0;       
    else 
       pPktMetaInfo->ucIsEapol = hdd_IsEAPOLPacket( pVosPacket ) ? 1 : 0;
+
+   if (pHddCtx->cfg_ini->gEnableDebugLog)
+   {
+      proto_type = vos_pkt_get_proto_type(skb,
+                                          pHddCtx->cfg_ini->gEnableDebugLog);
+      if (VOS_PKT_PROTO_TYPE_EAPOL & proto_type)
+      {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                   "STA TX EAPOL");
+      }
+      else if (VOS_PKT_PROTO_TYPE_DHCP & proto_type)
+      {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                   "STA TX DHCP");
+      }
+   }
 
 #ifdef FEATURE_WLAN_WAPI
    // Override usIsEapol value when its zero for WAPI case
@@ -1543,6 +1555,7 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
    struct sk_buff *skb = NULL;
    vos_pkt_t* pVosPacket;
    vos_pkt_t* pNextVosPacket;
+   v_U8_t proto_type;
 
    //Sanity check on inputs
    if ( ( NULL == vosContext ) || 
@@ -1639,6 +1652,22 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
         }
     }
 #endif
+
+      if (pHddCtx->cfg_ini->gEnableDebugLog)
+      {
+         proto_type = vos_pkt_get_proto_type(skb,
+                                             pHddCtx->cfg_ini->gEnableDebugLog);
+         if (VOS_PKT_PROTO_TYPE_EAPOL & proto_type)
+         {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "STA RX EAPOL");
+         }
+         else if (VOS_PKT_PROTO_TYPE_DHCP & proto_type)
+         {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "STA RX DHCP");
+         }
+      }
 
       skb->dev = pAdapter->dev;
       skb->protocol = eth_type_trans(skb, skb->dev);
