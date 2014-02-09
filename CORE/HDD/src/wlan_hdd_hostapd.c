@@ -764,6 +764,8 @@ int hdd_hostapd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
     command[priv_data.total_len] = '\0';
 
+    command[priv_data.total_len] = '\0';
+
     if ((SIOCDEVPRIVATE + 1) == cmd)
     {
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
