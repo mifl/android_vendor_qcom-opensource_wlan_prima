@@ -1368,9 +1368,8 @@ eHalStatus csrSetBand(tHalHandle hHal, eCsrBand eBand)
     pMac->roam.configParam.bandCapability = eBand;
     csrScanGetSupportedChannels( pMac );
 #if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-#ifdef _ANDROID_
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
     if (!csrRoamIsRoamOffloadScanEnabled(pMac))
-#else
         csrUpdateBgScanConfigIniChannelList( pMac, eBand );
 #endif
 #endif
