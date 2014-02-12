@@ -1454,6 +1454,21 @@ typedef enum
 #define CFG_BTC_SAP_ACTIVE_BT_LEN_MAX          ( 250000 )
 #define CFG_BTC_SAP_ACTIVE_BT_LEN_DEFAULT      ( 90000 )
 
+#define CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_NAME                "gObssScanActiveDwellTime"
+#define CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_MIN                 ( 5 )
+#define CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_MAX                 ( 1000 )
+#define CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_DEFAULT             ( 10 )
+
+#define CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME_NAME                "gObssScanPassiveDwellTime"
+#define CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME_MIN                 ( 10 )
+#define CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME_MAX                 ( 1000 )
+#define CFG_OBSS_HT40_SCAN_PASSIVE_DWELL_TIME_DEFAULT             ( 20 )
+
+#define CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_NAME            "gObssScanWidthTriggerInterval"
+#define CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_MIN             ( 10 )
+#define CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_MAX             ( 900 )
+#define CFG_OBSS_HT40_SCAN_WIDTH_TRIGGER_INTERVAL_DEFAULT         ( 200 )
+
 /*
  * VOS Trace Enable Control
  * Notes:
@@ -1777,6 +1792,11 @@ typedef enum
 #define CFG_TDLS_EXTERNAL_CONTROL_MIN               (0)
 #define CFG_TDLS_EXTERNAL_CONTROL_MAX               (1)
 #define CFG_TDLS_EXTERNAL_CONTROL_DEFAULT           (0)
+
+#define CFG_TDLS_OFF_CHANNEL_SUPPORT_ENABLE          "gEnableTDLSOffChannel"
+#define CFG_TDLS_OFF_CHANNEL_SUPPORT_ENABLE_MIN      (0)
+#define CFG_TDLS_OFF_CHANNEL_SUPPORT_ENABLE_MAX      (1)
+#define CFG_TDLS_OFF_CHANNEL_SUPPORT_ENABLE_DEFAULT  (1)
 #endif
 
 #ifdef WLAN_ACTIVEMODE_OFFLOAD_FEATURE
@@ -2405,6 +2425,7 @@ typedef struct
    v_U32_t                     fTDLSPuapsdInactivityTimer;
    v_U32_t                     fTDLSRxFrameThreshold;
    v_BOOL_t                    fTDLSExternalControl;
+   v_U32_t                     fEnableTDLSOffChannel;
 #endif
    v_U32_t                     enableLpwrImgTransition;
 #ifdef WLAN_SOFTAP_VSTA_FEATURE
@@ -2469,6 +2490,9 @@ typedef struct
    v_BOOL_t                    debugP2pRemainOnChannel;
    v_U32_t                     cfgBtcCTS2SduringSCO;
    v_U32_t                     gEnableDebugLog;
+   v_U16_t                     nOBSSScanActiveDwellTime;
+   v_U16_t                     nOBSSScanPassiveDwellTime;
+   v_U16_t                     nOBSSScanWidthTriggerInterval;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
