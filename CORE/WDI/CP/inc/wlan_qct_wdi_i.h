@@ -478,9 +478,6 @@ typedef enum
   /* Send a delete periodic Tx pattern indicationto HAL */
   WDI_DEL_PERIODIC_TX_PATTERN_IND,
 
-  /* Send Rate Update Indication */
-  WDI_RATE_UPDATE_IND,
-
   /*Send stop batch scan indication to FW*/
   WDI_STOP_BATCH_SCAN_IND,
 
@@ -1146,6 +1143,13 @@ typedef struct
 
   /* enable/disable SSR on WDI timeout */
   wpt_boolean                 bEnableSSR;
+
+  /* timestamp derived from msm arch counter. */
+  /*timestamp when we start response timer*/
+  wpt_uint64                  uArchTimeStampRspTmrStart;
+
+  /*timestamp when we get response timer event*/
+  wpt_uint64                  uArchTimeStampRspTmrExp;
 }WDI_ControlBlockType; 
 
 
@@ -5571,22 +5575,6 @@ WDI_ProcessChAvoidInd
   WDI_EventInfoType*     pEventData
 );
 #endif /* FEATURE_WLAN_CH_AVOID */
-
-/**
- @brief Process Rate Update Indication and post it to HAL
-
- @param  pWDICtx:    pointer to the WLAN DAL context
-         pEventData: pointer to the event information structure
-
- @see
- @return Result of the function call
-*/
-WDI_Status
-WDI_ProcessRateUpdateInd
-(
-    WDI_ControlBlockType*  pWDICtx,
-    WDI_EventInfoType*     pEventData
-);
 
 #endif /*WLAN_QCT_WDI_I_H*/
 
