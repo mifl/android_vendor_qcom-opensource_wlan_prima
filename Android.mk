@@ -1,3 +1,4 @@
+ifeq (0,1)
 # Android makefile for the WLAN Module
 
 # Build/Package options for 8960 target
@@ -110,3 +111,4 @@ endif
 endif # DLKM check
 
 endif # supported target check
+endif
