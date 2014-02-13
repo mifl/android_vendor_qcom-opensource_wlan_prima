@@ -26760,6 +26760,8 @@ WDI_ProcessDHCPStartInd
   wpt_uint16              usLen              = 0;
   WDI_DHCPInd*            pwdiDHCPInd        = NULL;
   tDHCPInfo*              pDHCPInfo;
+  WDI_Status              wdiStatus;
+
 
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -26794,7 +26796,7 @@ WDI_ProcessDHCPStartInd
      return WDI_STATUS_E_FAILURE;
   }
 
-  pDHCPInfo = (tDHCPInfo*)pSendBuffer+usDataOffset;
+  pDHCPInfo = (tDHCPInfo*)(pSendBuffer+usDataOffset);
   pDHCPInfo->device_mode = pwdiDHCPInd->device_mode;
   wpalMemoryCopy(pDHCPInfo->macAddr, pwdiDHCPInd->macAddr,
                                         WDI_MAC_ADDR_LEN);
@@ -26805,8 +26807,8 @@ WDI_ProcessDHCPStartInd
  /*-------------------------------------------------------------------------
     Send DHCP Start Indication to HAL
   -------------------------------------------------------------------------*/
-  return  WDI_SendIndication( pWDICtx, pSendBuffer, usSendSize);
-
+  wdiStatus = WDI_SendIndication( pWDICtx, pSendBuffer, usSendSize);
+  return (wdiStatus != WDI_STATUS_SUCCESS) ? wdiStatus:WDI_STATUS_SUCCESS_SYNC;
 }/*WDI_ProcessDHCPStartInd*/
 
 /**
@@ -26831,6 +26833,7 @@ WDI_ProcessDHCPStopInd
   wpt_uint16              usLen              = 0;
   WDI_DHCPInd*            pwdiDHCPInd        = NULL;
   tDHCPInfo*              pDHCPInfo;
+  WDI_Status              wdiStatus;
 
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -26866,7 +26869,7 @@ WDI_ProcessDHCPStopInd
      return WDI_STATUS_E_FAILURE;
   }
 
-  pDHCPInfo = (tDHCPInfo*)pSendBuffer+usDataOffset;
+  pDHCPInfo = (tDHCPInfo*)(pSendBuffer+usDataOffset);
   pDHCPInfo->device_mode = pwdiDHCPInd->device_mode;
   wpalMemoryCopy(pDHCPInfo->macAddr, pwdiDHCPInd->macAddr,
                                         WDI_MAC_ADDR_LEN);
@@ -26876,7 +26879,8 @@ WDI_ProcessDHCPStopInd
  /*-------------------------------------------------------------------------
     Send DHCP Stop indication to HAL
   -------------------------------------------------------------------------*/
-  return  WDI_SendIndication( pWDICtx, pSendBuffer, usSendSize);
+  wdiStatus = WDI_SendIndication( pWDICtx, pSendBuffer, usSendSize);
+  return (wdiStatus != WDI_STATUS_SUCCESS) ? wdiStatus:WDI_STATUS_SUCCESS_SYNC;
 
 }/*WDI_ProcessDHCPStopInd*/
 
