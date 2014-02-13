@@ -177,6 +177,8 @@ typedef enum
 #else
 #define IS_ADVANCE_TDLS_ENABLE 0
 #endif
+#define IS_HT40_OBSS_SCAN_FEATURE_ENABLE ((WDA_getFwWlanFeatCaps(HT40_OBSS_SCAN)) & (WDI_getHostWlanFeatCaps(HT40_OBSS_SCAN)))
+
 /*--------------------------------------------------------------------------
   Definitions for Data path APIs
  --------------------------------------------------------------------------*/
@@ -1122,6 +1124,8 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_RATE_UPDATE_IND         SIR_HAL_RATE_UPDATE_IND
 
 
+#define WDA_HT40_OBSS_SCAN_IND   SIR_HAL_HT40_OBSS_SCAN_IND
+#define WDA_HT40_OBSS_STOP_SCAN_IND SIR_HAL_HT40_OBSS_STOP_SCAN_IND
 tSirRetStatus wdaPostCtrlMsg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 
 eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,

@@ -1392,6 +1392,16 @@ eHalStatus sme_UpdateConfig(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams)
    /* update the directed scan offload setting */
    pMac->fScanOffload = pSmeConfigParams->fScanOffload;
 
+   /* Enable channel bonding mode in 2.4GHz */
+   if ((pSmeConfigParams->csrConfig.channelBondingMode24GHz == TRUE) &&
+       (IS_HT40_OBSS_SCAN_FEATURE_ENABLE))
+   {
+      ccmCfgSetInt(hHal,WNI_CFG_CHANNEL_BONDING_24G,
+                 eANI_BOOLEAN_TRUE, NULL,eANI_BOOLEAN_FALSE);
+      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_HIGH,
+                   "Setting channelBondingMode24GHz:%d " ,
+                pSmeConfigParams->csrConfig.channelBondingMode24GHz);
+   }
    if (pMac->fScanOffload)
    {
        /* If scan offload is enabled then lim has allow the sending of
@@ -2570,6 +2580,29 @@ eHalStatus sme_ScanFlushResult(tHalHandle hHal, tANI_U8 sessionId)
    return (status);
 }
 
+/* ---------------------------------------------------------------------------
+    \fn sme_FilterScanResults
+    \brief a wrapper function to request CSR to clear scan results.
+    This is a synchronous call
+    \return eHalStatus
+  ---------------------------------------------------------------------------*/
+eHalStatus sme_FilterScanResults(tHalHandle hHal, tANI_U8 sessionId)
+{
+   eHalStatus status = eHAL_STATUS_SUCCESS;
+   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+   MTRACE(macTraceNew(pMac, VOS_MODULE_ID_SME,
+          TRACE_CODE_SME_RX_HDD_MSG_SCAN_FLUSH_RESULTS, sessionId,0 ));
+   status = sme_AcquireGlobalLock( &pMac->sme );
+   if ( HAL_STATUS_SUCCESS( status ) )
+   {
+       csrScanFilterResults(pMac);
+       sme_ReleaseGlobalLock( &pMac->sme );
+   }
+
+   return (status);
+}
+
 eHalStatus sme_ScanFlushP2PResult(tHalHandle hHal, tANI_U8 sessionId)
 {
         eHalStatus status = eHAL_STATUS_FAILURE;
@@ -3598,6 +3631,40 @@ eHalStatus sme_GetModifyProfileFields(tHalHandle hHal, tANI_U8 sessionId,
    }
 
    return (status);
+}
+
+/* ---------------------------------------------------------------------------
+    \fn sme_HT40StopOBSSScan
+    \brief HDD or SME - Command to stop the OBSS scan
+     THis is implemented only for debugging purpose.
+     As per spec while operating in 2.4GHz OBSS scan shouldnt be stopped.
+    \param sessionId - sessionId
+    changing which can cause reassoc
+
+    \return eHalStatus
+  -------------------------------------------------------------------------------*/
+eHalStatus sme_HT40StopOBSSScan(tHalHandle hHal, tANI_U8 sessionId)
+{
+    eHalStatus status = eHAL_STATUS_FAILURE;
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+    smsLog(pMac, LOG2, FL("enter"));
+    status = sme_AcquireGlobalLock( &pMac->sme );
+    if ( HAL_STATUS_SUCCESS( status ) )
+    {
+        if( CSR_IS_SESSION_VALID( pMac, sessionId ) )
+        {
+           csrHT40StopOBSSScan( pMac, sessionId );
+        }
+        else
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+             "%s: Invalid session sessionId %d", __func__,sessionId);
+           status = eHAL_STATUS_INVALID_PARAMETER;
+        }
+        sme_ReleaseGlobalLock( &pMac->sme );
+    }
+    return (status);
 }
 
 /*--------------------------------------------------------------------------
@@ -6416,11 +6483,13 @@ eHalStatus sme_SetPowerParams(tHalHandle hHal, tSirSetPowerParamsReq* pwParams, 
     \brief  API to cancel MAC scan.
     \param  hHal - The handle returned by macOpen.
     \param  sessionId - sessionId on which we need to abort scan.
+    \param  reason - Reason to abort the scan.
     \return VOS_STATUS
             VOS_STATUS_E_FAILURE - failure
             VOS_STATUS_SUCCESS  success
   ---------------------------------------------------------------------------*/
-eHalStatus sme_AbortMacScan(tHalHandle hHal, tANI_U8 sessionId)
+eHalStatus sme_AbortMacScan(tHalHandle hHal, tANI_U8 sessionId,
+                            eCsrAbortReason reason)
 {
     eHalStatus status;
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
@@ -6430,7 +6499,7 @@ eHalStatus sme_AbortMacScan(tHalHandle hHal, tANI_U8 sessionId)
     status = sme_AcquireGlobalLock( &pMac->sme );
     if ( HAL_STATUS_SUCCESS( status ) )
     {
-       status = csrScanAbortMacScan(pMac, sessionId);
+       status = csrScanAbortMacScan(pMac, sessionId, reason);
 
        sme_ReleaseGlobalLock( &pMac->sme );
     }
@@ -7290,7 +7359,7 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
     * which does not have channel number belong to 11d
     * channel list
     */
-   csrScanFilter11dResult(pMac);
+   csrScanFilterResults(pMac);
 
 #endif
    if( pMsg->changeCCCallback )
@@ -7408,7 +7477,7 @@ eHalStatus sme_HandleChangeCountryCodeByUser(tpAniSirGlobal pMac,
      * which does not have channel number belong to 11d
      * channel list
      */
-    csrScanFilter11dResult(pMac);
+    csrScanFilterResults(pMac);
     // Do active scans after the country is set by User hints or Country IE
     pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
 
@@ -7472,7 +7541,7 @@ eHalStatus sme_HandleChangeCountryCodeByCore(tpAniSirGlobal pMac, tAniGenericCha
      * which does not have channel number belong to 11d
      * channel list
      */
-    csrScanFilter11dResult(pMac);
+    csrScanFilterResults(pMac);
     smsLog(pMac, LOG1, FL(" returned"));
     return eHAL_STATUS_SUCCESS;
 }

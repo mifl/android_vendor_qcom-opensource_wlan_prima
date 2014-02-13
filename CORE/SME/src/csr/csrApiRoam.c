@@ -1034,9 +1034,10 @@ static void initConfigParam(tpAniSirGlobal pMac)
 {
     int i;
     pMac->roam.configParam.agingCount = CSR_AGING_COUNT;
-    pMac->roam.configParam.channelBondingMode24GHz = WNI_CFG_CHANNEL_BONDING_MODE_DISABLE;
-    pMac->roam.configParam.channelBondingMode5GHz = WNI_CFG_CHANNEL_BONDING_MODE_ENABLE;
-
+    pMac->roam.configParam.channelBondingMode24GHz =
+                              WNI_CFG_CHANNEL_BONDING_MODE_DISABLE;
+    pMac->roam.configParam.channelBondingMode5GHz =
+                              WNI_CFG_CHANNEL_BONDING_MODE_ENABLE;
     pMac->roam.configParam.phyMode = eCSR_DOT11_MODE_TAURUS;
     pMac->roam.configParam.eBand = eCSR_BAND_ALL;
     pMac->roam.configParam.uCfgDot11Mode = eCSR_CFG_DOT11_MODE_TAURUS;
@@ -2989,6 +2990,7 @@ eHalStatus csrRoamPrepareBssConfig(tpAniSirGlobal pMac, tCsrRoamProfile *pProfil
         }
         //validate CB
         pBssConfig->cbMode = csrGetCBModeFromIes(pMac, pBssDesc->channelId, pIes);
+
     }while(0);
     return (status);
 }
@@ -3807,7 +3809,6 @@ eHalStatus csrRoamSetBssConfigCfg(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrR
     //ccmCfgSetInt(pMac, WNI_CFG_RTS_THRESHOLD, csrGetRTSThresh(pMac), NULL, eANI_BOOLEAN_FALSE);
 
     //ccmCfgSetInt(pMac, WNI_CFG_DOT11_MODE, csrTranslateToWNICfgDot11Mode(pMac, pBssConfig->uCfgDot11Mode), NULL, eANI_BOOLEAN_FALSE);
-        
     //Auth type
     ccmCfgSetInt(pMac, WNI_CFG_AUTHENTICATION_TYPE, pBssConfig->authType, NULL, eANI_BOOLEAN_FALSE);
     //encryption type
@@ -3837,9 +3838,14 @@ eHalStatus csrRoamSetBssConfigCfg(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrR
     }
     if(0 != channel)
     {
-        if(CSR_IS_CHANNEL_24GHZ(channel))
-        {//for now if we are on 2.4 Ghz, CB will be always disabled
+        if(CSR_IS_CHANNEL_24GHZ(channel) &&
+           !pMac->roam.configParam.channelBondingMode24GHz &&
+           !WDA_getFwWlanFeatCaps(HT40_OBSS_SCAN))
+        {//On 2.4 Ghz, CB will be disabled if it is not configured through .ini
             cfgCb = WNI_CFG_CHANNEL_BONDING_MODE_DISABLE;
+            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_HIGH, "%s: "
+               " cbMode disabled cfgCb = %d channelBondingMode24GHz %d",
+               __func__, cfgCb, pMac->roam.configParam.channelBondingMode24GHz);
         }
         else
         {
@@ -3855,7 +3861,7 @@ eHalStatus csrRoamSetBssConfigCfg(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrR
         if(!WDA_getFwWlanFeatCaps(DOT11AC)) {
             cfgCb = csrGetHTCBStateFromVHTCBState(cfgCb);
         }
-        else 
+        else
         {
             ccmCfgSetInt(pMac, WNI_CFG_VHT_CHANNEL_WIDTH,  pMac->roam.configParam.nVhtChannelWidth, NULL, eANI_BOOLEAN_FALSE);
         }
@@ -6489,7 +6495,7 @@ eHalStatus csrRoamConnect(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrRoamProfi
     csrScanRemoveFreshScanCommand(pMac, sessionId);
     csrScanCancelIdleScan(pMac);
     //Only abort the scan if it is not used for other roam/connect purpose
-    csrScanAbortMacScan(pMac, sessionId);
+    csrScanAbortMacScan(pMac, sessionId, eCSR_SCAN_ABORT_DEFAULT);
     if (!vos_concurrent_sessions_running() && (VOS_STA_SAP_MODE == pProfile->csrPersona))//In case of AP mode we do not want idle mode scan
     {
         csrScanDisable(pMac);
@@ -9908,7 +9914,21 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                                        status = palSendMBMessage(pMac->hHdd, pMsg ); 
                                     }
 #endif
-                                       result = eCSR_ROAM_RESULT_AUTHENTICATED;
+                   /* OBSS SCAN Indication will be sent to Firmware to start OBSS Scan */
+                                    if( CSR_IS_CHANNEL_24GHZ(pSession->connectedProfile.operationChannel)
+                                       && IS_HT40_OBSS_SCAN_FEATURE_ENABLE )
+                                    {
+                                         tpSirSmeHT40OBSSScanInd pMsg;
+                                         pMsg = vos_mem_malloc(sizeof(tSirSmeHT40OBSSScanInd));
+                                         pMsg->messageType =
+                                           pal_cpu_to_be16((tANI_U16)eWNI_SME_HT40_OBSS_SCAN_IND);
+                                         pMsg->length =
+                                          pal_cpu_to_be16(sizeof( tANI_U8));
+                                         pMsg->seesionId = sessionId;
+                                         status = palSendMBMessage(pMac->hHdd,
+                                                                     pMsg );
+                                    }
+                                    result = eCSR_ROAM_RESULT_AUTHENTICATED;
                                 }
                                 else
                                 {
@@ -10217,7 +10237,7 @@ void csrRoamCancelRoaming(tpAniSirGlobal pMac, tANI_U32 sessionId)
             //Roaming is stopped after here 
             csrRoamCompleteRoaming(pMac, sessionId, eANI_BOOLEAN_TRUE, roamResult);
             //Since CSR may be in lostlink roaming situation, abort all roaming related activities
-            csrScanAbortMacScan(pMac, sessionId);
+            csrScanAbortMacScan(pMac, sessionId, eCSR_SCAN_ABORT_DEFAULT);
             csrRoamStopRoamingTimer(pMac, sessionId);
         }
     }
@@ -11074,6 +11094,7 @@ tANI_BOOLEAN csrRoamIsValid40MhzChannel(tpAniSirGlobal pMac, tANI_U8 channel)
     ePhyChanBondState eRet = PHY_SINGLE_CHANNEL_CENTERED;
     tANI_U8 centerChn;
     tANI_U32 ChannelBondingMode;
+
     if(CSR_IS_CHANNEL_24GHZ(primaryChn))
     {
         ChannelBondingMode = pMac->roam.configParam.channelBondingMode24GHz;
@@ -15232,6 +15253,13 @@ eHalStatus csrGetStatistics(tpAniSirGlobal pMac, eCsrStatsRequesterType requeste
       //smsLog(pMac, LOGW, "csrGetStatistics: wrong state curState(%d) not connected", pMac->roam.curState);
       return eHAL_STATUS_FAILURE;
    }
+
+   if (csrNeighborMiddleOfRoaming((tHalHandle)pMac))
+   {
+       smsLog(pMac, LOG1, FL("in the middle of roaming states"));
+       return eHAL_STATUS_FAILURE;
+   }
+
    if((!statsMask) && (!callback))
    {
       //msg
@@ -15618,7 +15646,7 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
    tSirBssDescription *pBssDesc = NULL;
    tDot11fBeaconIEs *pIes = NULL;
    tANI_U8 minRate = 0, dataRate;
-   tANI_U8 operationChannel;
+   tANI_U8 operationChannel = 0;
 
    currChannelListInfo = &pNeighborRoamInfo->roamChannelInfo.currentChannelListInfo;
 
@@ -17051,6 +17079,38 @@ eHalStatus csrSetTxPower(tpAniSirGlobal pMac, v_U8_t sessionId, v_U8_t mW)
    return status;
 }
 
+eHalStatus csrHT40StopOBSSScan(tpAniSirGlobal pMac, v_U8_t sessionId)
+{
+   tSirSmeHT40OBSSStopScanInd *pMsg = NULL;
+   eHalStatus status = eHAL_STATUS_SUCCESS;
+   tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
+
+   if (!pSession)
+   {
+       smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+       return eHAL_STATUS_FAILURE;
+   }
+   if(IS_HT40_OBSS_SCAN_FEATURE_ENABLE)
+   {
+       pMsg = vos_mem_malloc(sizeof(tSirSmeHT40OBSSStopScanInd));
+       vos_mem_zero((void *)pMsg, sizeof(tSirSmeHT40OBSSStopScanInd));
+       pMsg->messageType     = eWNI_SME_HT40_STOP_OBSS_SCAN_IND;
+       pMsg->length          = sizeof(tANI_U8);
+       pMsg->seesionId       = sessionId;
+       status = palSendMBMessage(pMac->hHdd, pMsg);
+       if (!HAL_STATUS_SUCCESS(status))
+       {
+           smsLog(pMac, LOGE, FL(" csr STOP OBSS SCAN Fail %d "), status);
+           //pMsg is freed by palSendMBMessage
+       }
+   }
+   else
+   {
+       smsLog(pMac, LOGE, FL(" OBSS STOP OBSS SCAN is not supported"));
+       status = eHAL_STATUS_FAILURE;
+   }
+   return status;
+}
 /* Returns whether a session is in VOS_STA_MODE...or not */
 tANI_BOOLEAN csrRoamIsStaMode(tpAniSirGlobal pMac, tANI_U32 sessionId)
 {

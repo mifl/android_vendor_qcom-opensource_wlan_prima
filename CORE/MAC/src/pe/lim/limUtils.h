@@ -398,10 +398,14 @@ tANI_BOOLEAN limIsconnectedOnDFSChannel(tANI_U8 currentChannel);
 tANI_U8 limGetCurrentOperatingChannel(tpAniSirGlobal pMac);
 
 #ifdef WLAN_FEATURE_11AC
-tANI_BOOLEAN limCheckVHTOpModeChange( tpAniSirGlobal pMac, 
+tANI_BOOLEAN limCheckVHTOpModeChange( tpAniSirGlobal pMac,
                                       tpPESession psessionEntry, tANI_U8 chanWidth, tANI_U8 staId);
 #endif
-
+tANI_BOOLEAN limCheckHTChanBondModeChange(tpAniSirGlobal pMac,
+                                                  tpPESession psessionEntry,
+                                                  tANI_U8 beaconSecChanWidth,
+                                                  tANI_U8 currentSecChanWidth,
+                                                  tANI_U8 staId);
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 
 typedef enum
@@ -500,5 +504,6 @@ tANI_U8 limGetShortSlotFromPhyMode(tpAniSirGlobal pMac, tpPESession psessionEntr
 void limCleanUpDisassocDeauthReq(tpAniSirGlobal pMac, tANI_U8 *staMac, tANI_BOOLEAN cleanRxPath);
 
 tANI_BOOLEAN limCheckDisassocDeauthAckPending(tpAniSirGlobal pMac, tANI_U8 *staMac);
-
+void limUpdateOBSSScanParams(tpPESession psessionEntry ,
+             tDot11fIEOBSSScanParameters *pOBSSScanParameters);
 #endif /* __LIM_UTILS_H */
