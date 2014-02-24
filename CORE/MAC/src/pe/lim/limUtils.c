@@ -1,10 +1,31 @@
 /*
- * Copyright (c) 2012-2013 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
+ * Copyright (c) 2011-2014 The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
+
 /*
- * Airgo Networks, Inc proprietary. All rights reserved.
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
+ */
+
+/*
  * This file limUtils.cc contains the utility functions
  * LIM uses.
  * Author:        Chandra Modumudi
@@ -33,6 +54,9 @@
 #include "limSessionUtils.h"
 #include "limSession.h"
 #include "vos_nvitem.h"
+#ifdef WLAN_FEATURE_11W
+#include "wniCfgAp.h"
+#endif
 
 /* Static global used to mark situations where pMac->lim.gLimTriggerBackgroundScanDuringQuietBss is SET
  * and limTriggerBackgroundScanDuringQuietBss() returned failure.  In this case, we will stop data
@@ -42,11 +66,23 @@ static tAniBool glimTriggerBackgroundScanDuringQuietBss_Status = eSIR_TRUE;
 
 /* 11A Channel list to decode RX BD channel information */
 static const tANI_U8 abChannel[]= {36,40,44,48,52,56,60,64,100,104,108,112,116,
-            120,124,128,132,136,140,149,153,157,161,165};
+            120,124,128,132,136,140,149,153,157,161,165
+#ifdef FEATURE_WLAN_CH144
+                ,144
+#endif
+};
+#define abChannelSize (sizeof(abChannel)/  \
+        sizeof(abChannel[0]))
 
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
 static const tANI_U8 aUnsortedChannelList[]= {52,56,60,64,100,104,108,112,116,
-            120,124,128,132,136,140,36,40,44,48,149,153,157,161,165};
+            120,124,128,132,136,140,36,40,44,48,149,153,157,161,165
+#ifdef FEATURE_WLAN_CH144
+                ,144
+#endif
+};
+#define aUnsortedChannelListSize (sizeof(aUnsortedChannelList)/  \
+        sizeof(aUnsortedChannelList[0]))
 #endif
 
 //#define LIM_MAX_ACTIVE_SESSIONS 3  //defined temporarily for BT-AMP SUPPORT 
@@ -7394,11 +7430,13 @@ void limProcessDelStaSelfRsp(tpAniSirGlobal pMac,tpSirMsgQ limMsgQ)
 *****************************************************************/
 tANI_U8 limUnmapChannel(tANI_U8 mapChannel)
 {
-   if( mapChannel > 0 && mapChannel < 25 )
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+   if( mapChannel > 0 && mapChannel < aUnsortedChannelListSize )
        if (IS_ROAM_SCAN_OFFLOAD_FEATURE_ENABLE)
            return aUnsortedChannelList[mapChannel -1];
        else
+#else
+   if( mapChannel > 0 && mapChannel < abChannelSize )
 #endif
      return abChannel[mapChannel -1];
    else
@@ -7836,3 +7874,68 @@ void limUpdateOBSSScanParams(tpPESession psessionEntry ,
               pOBSSScanParameters->obssScanActivityThreshold;
     }
 }
+
+#ifdef WLAN_FEATURE_11W
+void limPmfSaQueryTimerHandler(void *pMacGlobal, tANI_U32 param)
+{
+    tpAniSirGlobal pMac = (tpAniSirGlobal)pMacGlobal;
+    tPmfSaQueryTimerId timerId;
+    tpPESession psessionEntry;
+    tpDphHashNode pSta;
+    tANI_U32 maxRetries;
+
+    limLog(pMac, LOG1, FL("SA Query timer fires"));
+    timerId.value = param;
+
+    // Check that SA Query is in progress
+    if ((psessionEntry = peFindSessionBySessionId(
+        pMac, timerId.fields.sessionId)) == NULL)
+    {
+        limLog(pMac, LOGE, FL("Session does not exist for given session ID %d"),
+               timerId.fields.sessionId);
+        pSta->pmfSaQueryState = DPH_SA_QUERY_NOT_IN_PROGRESS;
+        return;
+    }
+    if ((pSta = dphGetHashEntry(pMac, timerId.fields.peerIdx,
+                                &psessionEntry->dph.dphHashTable)) == NULL)
+    {
+        limLog(pMac, LOGE, FL("Entry does not exist for given peer index %d"),
+               timerId.fields.peerIdx);
+        pSta->pmfSaQueryState = DPH_SA_QUERY_NOT_IN_PROGRESS;
+        return;
+    }
+    if (DPH_SA_QUERY_IN_PROGRESS != pSta->pmfSaQueryState)
+        return;
+
+    // Increment the retry count, check if reached maximum
+    if (wlan_cfgGetInt(pMac, WNI_CFG_PMF_SA_QUERY_MAX_RETRIES,
+                       &maxRetries) != eSIR_SUCCESS)
+    {
+        limLog(pMac, LOGE, FL("Could not retrieve PMF SA Query maximum retries value"));
+        pSta->pmfSaQueryState = DPH_SA_QUERY_NOT_IN_PROGRESS;
+        return;
+    }
+    pSta->pmfSaQueryRetryCount++;
+    if (pSta->pmfSaQueryRetryCount >= maxRetries)
+    {
+        limLog(pMac, LOG1, FL("SA Query timed out"));
+        /* remove before submission */
+        limLog(pMac, LOGE, FL("SA Query timed out"));
+        pSta->pmfSaQueryState = DPH_SA_QUERY_TIMED_OUT;
+        return;
+    }
+
+    // Retry SA Query
+    limSendSaQueryRequestFrame(pMac, (tANI_U8 *)&(pSta->pmfSaQueryCurrentTransId),
+                               pSta->staAddr, psessionEntry);
+    pSta->pmfSaQueryCurrentTransId++;
+    /* remove before submission */
+    limLog(pMac, LOGE, FL("Starting SA Query retry %d"), pSta->pmfSaQueryRetryCount);
+    if (tx_timer_activate(&pSta->pmfSaQueryTimer) != TX_SUCCESS)
+    {
+        limLog(pMac, LOGE, FL("PMF SA Query timer activation failed!"));
+        pSta->pmfSaQueryState = DPH_SA_QUERY_NOT_IN_PROGRESS;
+    }
+}
+#endif
+

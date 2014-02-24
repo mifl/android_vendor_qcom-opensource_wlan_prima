@@ -1,8 +1,30 @@
 /*
- * Copyright (c) 2012-2013 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
+
+/*
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
+ */
+
 /**========================================================================
 
   \file  wlan_hdd_ftm.c
@@ -208,7 +230,9 @@ static rateStr2rateIndex_t rateName_rateIndex_tbl[] =
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_58_5_MBPS,"MCS_VHT20_NGI_58_5_MBPS"},
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_65_MBPS,  "MCS_VHT20_NGI_65_MBPS"},
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_78_MBPS,  "MCS_VHT20_NGI_78_MBPS"},
+#ifdef WCN_PRONTO
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_86_5_MBPS,"MCS_VHT20_NGI_86_5_MBPS"},
+#endif
 
     /*11AC rate 20MHZ Short GI*/
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_7_2_MBPS, "MCS_VHT20_SGI_7_2_MBPS"},
@@ -220,7 +244,9 @@ static rateStr2rateIndex_t rateName_rateIndex_tbl[] =
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_65_MBPS,  "MCS_VHT20_SGI_65_MBPS"},
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_72_2_MBPS,"MCS_VHT20_SGI_72_2_MBPS"},
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_86_6_MBPS,"MCS_VHT20_SGI_86_6_MBPS"},
+#ifdef WCN_PRONTO
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_96_1_MBPS,"MCS_VHT20_SGI_96_1_MBPS"},
+#endif
 
     /*11AC rates 40MHZ normal GI*/
    { HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_13_5_MBPS,
@@ -391,8 +417,9 @@ static rateIndex2Preamble_t rate_index_2_preamble_table[] =
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_58_5_MBPS,PHYDBG_PREAMBLE_MIXED},
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_65_MBPS,  PHYDBG_PREAMBLE_MIXED},
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_78_MBPS,  PHYDBG_PREAMBLE_MIXED},
+#ifdef WCN_PRONTO
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_86_5_MBPS,PHYDBG_PREAMBLE_MIXED},
-
+#endif
     /*11AC rate 20MHZ Short GI*/
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_7_2_MBPS, PHYDBG_PREAMBLE_MIXED},
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_14_4_MBPS,PHYDBG_PREAMBLE_MIXED},
@@ -403,7 +430,9 @@ static rateIndex2Preamble_t rate_index_2_preamble_table[] =
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_65_MBPS,  PHYDBG_PREAMBLE_MIXED},
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_72_2_MBPS,PHYDBG_PREAMBLE_MIXED},
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_86_6_MBPS,PHYDBG_PREAMBLE_MIXED},
+#ifdef WCN_PRONTO
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_96_1_MBPS,PHYDBG_PREAMBLE_MIXED},
+#endif
 
     /*11AC rates 40MHZ normal GI*/
    { HAL_PHY_RATE_VHT_40MHZ_MCS_1NSS_CB_NGI_13_5_MBPS, PHYDBG_PREAMBLE_MIXED},
@@ -5023,7 +5052,7 @@ static int iw_ftm_get_char_setnone(struct net_device *dev, struct iw_request_inf
         }
         default:
         {
-            hddLog(LOGE, "Invalid IOCTL command %d",  sub_cmd );
+            hddLog(LOGE, "%s: Invalid IOCTL command %d", __func__, sub_cmd );
             break;
         }
     }

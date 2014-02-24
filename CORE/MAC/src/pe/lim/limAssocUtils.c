@@ -1,8 +1,30 @@
 /*
- * Copyright (c) 2012-2013 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
+
+/*
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
+ */
+
 /*
  * This file limAssocUtils.cc contains the utility functions
  * LIM uses while processing (Re) Association messages.
@@ -425,10 +447,10 @@ limCheckRxRSNIeMatch(tpAniSirGlobal pMac, tDot11fIERSN rxRSNIe,tpPESession pSess
     tDot11fIERSN    *pRSNIe;
     tANI_U8         i, j, match, onlyNonHtCipher = 1;
 #ifdef WLAN_FEATURE_11W
-    tANI_BOOLEAN weRequirePMF;
     tANI_BOOLEAN weArePMFCapable;
-    tANI_BOOLEAN theyRequirePMF;
+    tANI_BOOLEAN weRequirePMF;
     tANI_BOOLEAN theyArePMFCapable;
+    tANI_BOOLEAN theyRequirePMF;
 #endif
 
 
@@ -494,11 +516,12 @@ limCheckRxRSNIeMatch(tpAniSirGlobal pMac, tDot11fIERSN rxRSNIe,tpPESession pSess
     }
 
     *pmfConnection = eANI_BOOLEAN_FALSE;
+
 #ifdef WLAN_FEATURE_11W
-    weRequirePMF = (pRSNIe->RSN_Cap[0] >> 6) & 0x1;
-    weArePMFCapable = (pRSNIe->RSN_Cap[0] >> 7) & 0x1;
-    theyRequirePMF = (rxRSNIe.RSN_Cap[0] >> 6) & 0x1;
+    weArePMFCapable = pSessionEntry->pLimStartBssReq->pmfCapable;
+    weRequirePMF = pSessionEntry->pLimStartBssReq->pmfRequired;
     theyArePMFCapable = (rxRSNIe.RSN_Cap[0] >> 7) & 0x1;
+    theyRequirePMF = (rxRSNIe.RSN_Cap[0] >> 6) & 0x1;
 
     if ((theyRequirePMF && theyArePMFCapable && !weArePMFCapable) ||
         (weRequirePMF && !theyArePMFCapable))
@@ -513,6 +536,10 @@ limCheckRxRSNIeMatch(tpAniSirGlobal pMac, tDot11fIERSN rxRSNIe,tpPESession pSess
 
     if(theyArePMFCapable && weArePMFCapable)
         *pmfConnection = eANI_BOOLEAN_TRUE;
+
+    limLog(pMac, LOG1, FL("weAreCapable %d, weRequire %d, theyAreCapable %d, "
+                          "theyRequire %d, PMFconnection %d"),
+           weArePMFCapable, weRequirePMF, theyArePMFCapable, theyRequirePMF, *pmfConnection);
 #endif
 
     return eSIR_SUCCESS;
@@ -3159,6 +3186,10 @@ limDeleteDphHashEntry(tpAniSirGlobal pMac, tSirMacAddr staAddr, tANI_U16 staId,t
                 schSetFixedBeaconFields(pMac,psessionEntry);    
                 limSendBeaconParams(pMac, &beaconParams, psessionEntry );
             }
+
+#ifdef WLAN_FEATURE_11W
+            tx_timer_delete(&pStaDs->pmfSaQueryTimer);
+#endif
         }
         if (dphDeleteHashEntry(pMac, staAddr, staId, &psessionEntry->dph.dphHashTable) != eSIR_SUCCESS)
            limLog(pMac, LOGP, FL("error deleting hash entry"));

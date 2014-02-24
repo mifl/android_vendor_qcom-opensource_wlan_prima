@@ -1,10 +1,33 @@
 /*
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
  * Copyright (c) 2012-2013 Qualcomm Atheros, Inc.
  * All Rights Reserved.
  * Qualcomm Atheros Confidential and Proprietary.
+ *
  */
+
+
 /*
- * Airgo Networks, Inc proprietary. All rights reserved.
  * This file wniApi.h contains message definitions exported by
  * Sirius software modules.
  * NOTE: See projects/sirius/include/sirApi.h for structure
@@ -74,7 +97,7 @@
 
 
 /// Start of Sirius/Host message types
-#define WNI_HOST_MSG_START             0x1400
+#define WNI_HOST_MSG_START             0x1500
 
 enum eWniMsgTypes
 {
@@ -359,7 +382,7 @@ enum eWniMsgTypes
     eWNI_SME_MSG_TYPES_END
 };
 
-#define WNI_CFG_MSG_TYPES_BEGIN        0x1100
+#define WNI_CFG_MSG_TYPES_BEGIN        0x1200
 
 /*---------------------------------------------------------------------*/
 /* CFG Module Definitions                                              */
@@ -395,9 +418,9 @@ enum eWniMsgTypes
 
 /*---------------------------------------------------------------------*/
 /* CFG to HDD message paramter indices                                 */
-/*                                                                     */
+
 /*   The followings are word indices starting from the message body    */
-/*                                                                     */
+
 /*   WNI_CFG_xxxx_xxxx_xxxx:         index of parameter                */
 /*                                                                     */
 /*   WNI_CFG_xxxx_xxxx_NUM:          number of parameters in message   */

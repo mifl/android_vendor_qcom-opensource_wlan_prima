@@ -1,8 +1,32 @@
 /*
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
  * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  * All Rights Reserved.
  * Qualcomm Atheros Confidential and Proprietary.
+ *
  */
+
+
 /** ------------------------------------------------------------------------ *
     ------------------------------------------------------------------------ *
 
@@ -13,8 +37,6 @@
     interfaces.
 
     $Id: wlan_hdd_wext.c,v 1.34 2007/04/14 01:49:23 jimz Exp jimz $
-
-    Copyright (C) 2007 Airgo Networks, Incorporated
 
     This file defines all of the types that are utilized by the CCP module
     of the "Portable" HDD.   This file also includes the underlying Linux
@@ -2715,6 +2737,7 @@ static int iw_get_rssi(struct net_device *dev,
           /* append the rssi to the ssid in the format required by
              the WiFI Framework */
           rc = scnprintf(&cmd[ssidlen], len - ssidlen, " rssi %d", s7Rssi);
+          rc += ssidlen;
       }
       else
       {
@@ -4563,7 +4586,7 @@ int iw_set_three_ints_getnone(struct net_device *dev, struct iw_request_info *in
 
         default:
         {
-            hddLog(LOGE, "Invalid IOCTL command %d",  sub_cmd );
+            hddLog(LOGE, "%s: Invalid IOCTL command %d", __func__, sub_cmd );
             break;
         }
     }
@@ -4981,7 +5004,7 @@ static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *i
 #endif
         default:
         {
-            hddLog(LOGE, "Invalid IOCTL command %d",  sub_cmd );
+            hddLog(LOGE, "%s: Invalid IOCTL command %d", __func__, sub_cmd );
             break;
         }
     }
@@ -5368,7 +5391,8 @@ int iw_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info
 #endif
         default:
             {
-                hddLog(LOGE, "Invalid IOCTL command %d",  sub_cmd );
+                hddLog(LOGE, "%s: Invalid IOCTL command %d",
+                       __func__, sub_cmd );
             }
             break;
     }

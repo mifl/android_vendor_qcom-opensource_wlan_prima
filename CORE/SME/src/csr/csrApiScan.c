@@ -1,8 +1,30 @@
 /*
- * Copyright (c) 2012-2013 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
+
+/*
+ * This file was originally distributed by Qualcomm Atheros, Inc.
+ * under proprietary terms before Copyright ownership was assigned
+ * to the Linux Foundation.
+ */
+
 /** ------------------------------------------------------------------------- *
     ------------------------------------------------------------------------- *
 
@@ -10,8 +32,6 @@
     \file csrApiScan.c
 
     Implementation for the Common Scan interfaces.
-
-    Copyright (C) 2006 Airgo Networks, Incorporated
    ========================================================================== */
 
 #include "aniGlobal.h"
@@ -30,15 +50,10 @@
 #include "vos_nvitem.h"
 #include "wlan_qct_wda.h"
 
-#define CSR_VALIDATE_LIST  //This portion of code need to be removed once the issue is resolved.
 #define MIN_CHN_TIME_TO_FIND_GO 100
 #define MAX_CHN_TIME_TO_FIND_GO 100
 #define DIRECT_SSID_LEN 7
 
-#ifdef CSR_VALIDATE_LIST
-tDblLinkList *g_pchannelPowerInfoList24 = NULL, * g_pchannelPowerInfoList5 = NULL;
-tpAniSirGlobal g_pMac;
-#endif
 
 /* Purpose of HIDDEN_TIMER 
 ** When we remove hidden ssid from the profile i.e., forget the SSID via GUI that SSID shouldn't see in the profile
@@ -192,76 +207,6 @@ static eHalStatus csrLLScanPurgeResult(tpAniSirGlobal pMac, tDblLinkList *pList)
     return (status);
 }
 
-
-int csrCheckValidateLists(void * dest, const void *src, v_SIZE_t num, int idx)
-{
-#ifdef CSR_VALIDATE_LIST
-
-    int ii = 1;
-
-    if( (NULL == g_pMac) || (!g_pMac->scan.fValidateList ) )
-    {
-        return ii;
-    }
-    if(g_pchannelPowerInfoList24)
-    {
-        //check 2.4 list
-        tListElem *pElem, *pHead;
-        int count;
-        
-        count = (int)(g_pchannelPowerInfoList24->Count);
-        pHead = &g_pchannelPowerInfoList24->ListHead;
-        pElem = pHead->next;
-        if((tANI_U32)(pHead->next) > 0x00010000) //Assuming kernel address is not that low.
-        {
-            //this loop crashes if the pointer is not right
-            while(pElem->next != pHead)
-            {
-                if((tANI_U32)(pElem->next) > 0x00010000)
-                {
-                    pElem = pElem->next;
-                    VOS_ASSERT(count > 0);
-                    count--;
-                }
-                else
-                {
-                    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL,
-                         " %d Detect 1 list(%p) error Head(%p) next(%p) Count %d, dest(%p) src(%p) numBytes(%d)",
-                         idx, g_pchannelPowerInfoList24, pHead,
-                        (pHead->next), (int)g_pchannelPowerInfoList24->Count,
-                        dest, src, (int)num);
-                    VOS_ASSERT(0);
-                    ii = 0;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            //Bad list
-            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL, " %d Detect list(%p) error Head(%p) next(%p) Count %d, dest(%p) src(%p) numBytes(%d)",
-                idx, g_pchannelPowerInfoList24, pHead,
-                (pHead->next), (int)g_pchannelPowerInfoList24->Count,
-                dest, src, (int)num);
-            VOS_ASSERT(0);
-            ii = 0;
-        }
-    }
-    else
-    {
-        //list ok
-        ii = 1;
-    }
-
-
-    return ii;
-
-#else
-    return 1;
-#endif //#ifdef CSR_VALIDATE_LIST
-}
-
-
 eHalStatus csrScanOpen( tpAniSirGlobal pMac )
 {
     eHalStatus status;
@@ -274,11 +219,6 @@ eHalStatus csrScanOpen( tpAniSirGlobal pMac )
         csrLLOpen(pMac->hHdd, &pMac->scan.channelPowerInfoList5G);
 #ifdef WLAN_AP_STA_CONCURRENCY
         csrLLOpen(pMac->hHdd, &pMac->scan.scanCmdPendingList);
-#endif
-#ifdef CSR_VALIDATE_LIST
-        g_pchannelPowerInfoList5 = &pMac->scan.channelPowerInfoList5G;
-        g_pMac = pMac;
-        g_pchannelPowerInfoList24 = &pMac->scan.channelPowerInfoList24;
 #endif
         pMac->scan.fFullScanIssued = eANI_BOOLEAN_FALSE;
         pMac->scan.nBssLimit = CSR_MAX_BSS_SUPPORT;
@@ -323,11 +263,6 @@ eHalStatus csrScanOpen( tpAniSirGlobal pMac )
 
 eHalStatus csrScanClose( tpAniSirGlobal pMac )
 {
-#ifdef CSR_VALIDATE_LIST
-    g_pchannelPowerInfoList24 = NULL;
-    g_pchannelPowerInfoList5 = NULL;
-    g_pMac = NULL;
-#endif
     csrLLScanPurgeResult(pMac, &pMac->scan.tempScanResults);
     csrLLScanPurgeResult(pMac, &pMac->scan.scanResultList);
 #ifdef WLAN_AP_STA_CONCURRENCY
@@ -7527,6 +7462,12 @@ void csrSetCfgValidChannelList( tpAniSirGlobal pMac, tANI_U8 *pChannelList, tANI
     tANI_U32 dataLen = sizeof( tANI_U8 ) * NumChannels;
     eHalStatus status;
 
+    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                "%s: dump valid channel list(NumChannels(%d))",
+                __func__,NumChannels);
+    VOS_TRACE_HEX_DUMP(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                       pChannelList, NumChannels);
+
     ccmCfgSetStr(pMac, WNI_CFG_VALID_CHANNEL_LIST, pChannelList, dataLen, NULL, eANI_BOOLEAN_FALSE);
 #ifdef QCA_WIFI_2_0
     if (pMac->fScanOffload)
@@ -7716,6 +7657,11 @@ void csrSetCfgScanControlList( tpAniSirGlobal pMac, tANI_U8 *countryCode, tCsrCh
                 }
                        
             }            
+
+            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                      "%s: dump scan control list",__func__);
+            VOS_TRACE_HEX_DUMP(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                               pControlList, len);
 
             ccmCfgSetStr(pMac, WNI_CFG_SCAN_CONTROL_LIST, pControlList, len, NULL, eANI_BOOLEAN_FALSE);
         }//Successfully getting scan control list
