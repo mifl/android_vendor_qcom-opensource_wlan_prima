@@ -1,17 +1,37 @@
 /*
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
  * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  * All Rights Reserved.
  * Qualcomm Atheros Confidential and Proprietary.
+ *
  */
+
+
 /**========================================================================
 
   \file  wlan_hdd_cfg80211.c
 
   \brief WLAN Host Device Driver implementation
-
-  Copyright 2008 (c) Qualcomm Technologies, Inc.  All Rights Reserved.
-
-  Qualcomm Technologies Confidential and Proprietary.
 
   ========================================================================*/
 
@@ -939,13 +959,6 @@ void wlan_hdd_cfg80211_post_voss_start(hdd_adapter_t* pAdapter)
     sme_RegisterMgmtFrame(hHal, pAdapter->sessionId, type,
                          (v_U8_t*)WNM_BSS_ACTION_FRAME,
                                   WNM_BSS_ACTION_FRAME_SIZE );
-
-#ifdef WLAN_FEATURE_11W
-    /* SA Query Response Action Frame */
-    sme_RegisterMgmtFrame(hHal, pAdapter->sessionId, type,
-                         (v_U8_t*)SA_QUERY_FRAME_RSP,
-                                  SA_QUERY_FRAME_RSP_SIZE );
-#endif /* WLAN_FEATURE_11W */
 }
 
 void wlan_hdd_cfg80211_pre_voss_stop(hdd_adapter_t* pAdapter)
@@ -1848,6 +1861,8 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
     struct qc_mac_acl_entry *acl_entry = NULL;
     v_SINT_t i;
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pHostapdAdapter);
+    v_BOOL_t MFPCapable;
+    v_BOOL_t MFPRequired;
 
     ENTER();
 
@@ -1984,6 +1999,8 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
                         &RSNEncryptType,
                         &mcRSNEncryptType,
                         &RSNAuthType,
+                        &MFPCapable,
+                        &MFPRequired,
                         pConfig->pRSNWPAReqIE[1]+2,
                         pConfig->pRSNWPAReqIE );
 
@@ -2023,6 +2040,8 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
                           &RSNEncryptType,
                           &mcRSNEncryptType,
                           &RSNAuthType,
+                          &MFPCapable,
+                          &MFPRequired,
                           pConfig->pRSNWPAReqIE[1]+2,
                           pConfig->pRSNWPAReqIE );
 
@@ -2176,6 +2195,13 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
     //Enable OBSS protection
     pConfig->obssProtEnabled =
            (WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->apOBSSProtEnabled;
+
+#ifdef WLAN_FEATURE_11W
+    pConfig->mfpCapable = MFPCapable;
+    pConfig->mfpRequired = MFPRequired;
+    hddLog(LOGW, FL("Soft AP MFP capable %d, MFP required %d\n"),
+           pConfig->mfpCapable, pConfig->mfpRequired);
+#endif
 
     hddLog(LOGW, FL("SOftAP macaddress : "MAC_ADDRESS_STR),
                  MAC_ADDR_ARRAY(pHostapdAdapter->macAddressCurrent.bytes));
@@ -3186,7 +3212,7 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
         return -EBUSY;
     }
 
-    pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, mac, TRUE);
+    pTdlsPeer = wlan_hdd_tdls_get_peer(pAdapter, mac);
 
     if ( NULL == pTdlsPeer ) {
         VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
