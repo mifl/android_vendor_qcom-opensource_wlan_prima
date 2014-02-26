@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -3452,7 +3452,7 @@ sirConvertBeaconFrame2Struct(tpAniSirGlobal       pMac,
     {
         //CCX Tx Power
         pBeaconStruct->ccxTxPwr.present = 1;
-        palCopyMemory( pMac->hHdd, &pBeaconStruct->ccxTxPwr,
+        vos_mem_copy(&pBeaconStruct->ccxTxPwr,
                                    &pBeacon->CCXTxmitPower,
                                    sizeof(tDot11fIECCXTxmitPower));
     }
@@ -4194,7 +4194,7 @@ tSirRetStatus PopulateDot11fCCXCckmOpaque( tpAniSirGlobal pMac,
         {
             pDot11f->present  = 1;
             pDot11f->num_data = pCCKMie->cckmIEdata[ idx + 1 ] - 4; // Dont include OUI
-            palCopyMemory( pMac->hHdd, pDot11f->data,
+            vos_mem_copy(pDot11f->data,
                            pCCKMie->cckmIEdata + idx + 2 + 4,    // EID, len, OUI
                            pCCKMie->cckmIEdata[ idx + 1 ] - 4 ); // Skip OUI
         }
