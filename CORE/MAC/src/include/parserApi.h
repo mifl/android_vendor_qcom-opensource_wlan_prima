@@ -153,7 +153,7 @@ typedef struct sSirProbeRespBeacon
     tANI_U8                   WiderBWChanSwitchAnnPresent;
     tDot11fIEWiderBWChanSwitchAnn WiderBWChanSwitchAnn;
 #endif
-
+    tDot11fIEOBSSScanParameters OBSSScanParameters;
 } tSirProbeRespBeacon, *tpSirProbeRespBeacon;
 
 // probe Request structure
@@ -276,6 +276,7 @@ typedef struct sSirAssocRsp
     tDot11fIEVHTCaps          VHTCaps;
     tDot11fIEVHTOperation     VHTOperation;
 #endif
+    tDot11fIEOBSSScanParameters OBSSScanParameters;
 } tSirAssocRsp, *tpSirAssocRsp;
 
 #if defined(FEATURE_WLAN_CCX_UPLOAD)
@@ -885,7 +886,8 @@ tSirRetStatus
 PopulateDot11fVHTExtBssLoad(tpAniSirGlobal  pMac, tDot11fIEVHTExtBssLoad   *pDot11f);
 
 tSirRetStatus
-PopulateDot11fExtCap(tpAniSirGlobal pMac, tDot11fIEExtCap * pDot11f);
+PopulateDot11fExtCap(tpAniSirGlobal pMac, tDot11fIEExtCap * pDot11f,
+                            tPESession *sessionEntry);
 
 tSirRetStatus
 PopulateDot11fOperatingMode(tpAniSirGlobal pMac, tDot11fIEOperatingMode *pDot11f, tpPESession psessionEntry );

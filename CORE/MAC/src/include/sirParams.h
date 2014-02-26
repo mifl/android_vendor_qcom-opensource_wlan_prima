@@ -108,6 +108,10 @@ typedef enum {
 #ifdef FEATURE_WLAN_BATCH_SCAN
    BATCH_SCAN = 30,
 #endif
+   EXTENDED_NSOFFLOAD_SLOT = 32,
+   CH_SWITCH_V1           = 33,
+   HT40_OBSS_SCAN         = 34,
+   UPDATE_CHANNEL_LIST    = 35,
 
    //MAX_FEATURE_SUPPORTED = 128
 } placeHolderInCapBitmap;
@@ -611,6 +615,15 @@ typedef struct sSirMbMsgP2p
 #define SIR_HAL_STOP_BATCH_SCAN_IND        (SIR_HAL_ITC_MSG_TYPES_BEGIN + 212)
 #define SIR_HAL_TRIGGER_BATCH_SCAN_RESULT_IND (SIR_HAL_ITC_MSG_TYPES_BEGIN + 213)
 #endif
+
+#ifdef FEATURE_CESIUM_PROPRIETARY
+#define SIR_HAL_TX_FAIL_MONITOR_IND         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 226)
+#endif /* FEATURE_CESIUM_PROPRIETARY */
+
+/* OBSS Scan start Indication to FW*/
+#define SIR_HAL_HT40_OBSS_SCAN_IND      (SIR_HAL_ITC_MSG_TYPES_BEGIN +227)
+/* OBSS Scan stop Indication to FW*/
+#define SIR_HAL_HT40_OBSS_STOP_SCAN_IND (SIR_HAL_ITC_MSG_TYPES_BEGIN +228)
 
 #define SIR_HAL_MSG_TYPES_END              (SIR_HAL_ITC_MSG_TYPES_BEGIN + 0xFF)
 // CFG message types
