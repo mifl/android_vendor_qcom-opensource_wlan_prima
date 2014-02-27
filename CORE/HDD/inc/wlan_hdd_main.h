@@ -631,7 +631,7 @@ struct hdd_station_ctx
 
    roaming_info_t roam_info;
 
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
    int     ft_carrier_on;
 #endif
 
@@ -984,10 +984,6 @@ struct hdd_adapter_s
    v_U32_t magic;
    v_BOOL_t higherDtimTransition;
    v_BOOL_t survey_idx;
-#if defined(FEATURE_WLAN_CCX) && defined(FEATURE_WLAN_CCX_UPLOAD)
-   tAniTrafStrmMetrics tsmStats;
-#endif
-
 #ifdef FEATURE_WLAN_BATCH_SCAN
    /*Completion variable for set batch scan request*/
    struct completion hdd_set_batch_scan_req_var;
@@ -1019,6 +1015,9 @@ struct hdd_adapter_s
    v_U32_t prev_batch_id;
    /*Batch scan state*/
    eHDD_BATCH_SCAN_STATE batchScanState;
+#endif
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+   tAniTrafStrmMetrics tsmStats;
 #endif
    /* Flag to ensure PSB is configured through framework */
    v_U8_t psbChanged;

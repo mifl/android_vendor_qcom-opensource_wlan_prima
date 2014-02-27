@@ -5267,7 +5267,7 @@ VOS_STATUS WDA_ProcessGetStatsReq(tWDA_CbContext *pWDA,
    return CONVERT_WDI2VOS_STATUS(status);
 }
 
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
 /*
  * FUNCTION: WDA_GetGetRssiReqRoamRssiReqParamsCallback
  * send the response to PE with roam Rssi received from WDI
@@ -6361,7 +6361,7 @@ VOS_STATUS WDA_ProcessUpdateBeaconParams(tWDA_CbContext *pWDA,
    }
    return CONVERT_WDI2VOS_STATUS(status) ;
 }
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
 /*
  * FUNCTION: WDA_TSMStatsReqCallback
  * send TSM Stats RSP back to PE
@@ -6612,7 +6612,7 @@ VOS_STATUS WDA_ProcessUpdateProbeRspTemplate(tWDA_CbContext *pWDA,
    vos_mem_free(wdiSendProbeRspParam);
    return CONVERT_WDI2VOS_STATUS(status);
 }
-#if defined(WLAN_FEATURE_VOWIFI) || defined(FEATURE_WLAN_CCX)
+#if defined(WLAN_FEATURE_VOWIFI) || defined(FEATURE_WLAN_ESE)
 /*
  * FUNCTION: WDA_SetMaxTxPowerCallBack
  * send the response to PE with power value received from WDI
@@ -7493,7 +7493,7 @@ VOS_STATUS WDA_ProcessEnterBmpsReq(tWDA_CbContext *pWDA,
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.ucDtimCount = pEnterBmpsReqParams->dtimCount;
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.ucDtimPeriod = pEnterBmpsReqParams->dtimPeriod;
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.uTbtt = pEnterBmpsReqParams->tbtt;
-   // For CCX and 11R Roaming
+   // For ESE and 11R Roaming
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.rssiFilterPeriod = (wpt_uint32)pEnterBmpsReqParams->rssiFilterPeriod;
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.numBeaconPerRssiAverage = (wpt_uint32)pEnterBmpsReqParams->numBeaconPerRssiAverage;
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.bRssiFilterEnable = (wpt_uint8)pEnterBmpsReqParams->bRssiFilterEnable;
@@ -11578,7 +11578,7 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
       systemRole = wdaGetGlobalSystemRole(pMac);
       if (( eSYSTEM_UNKNOWN_ROLE == systemRole ) || 
           (( eSYSTEM_STA_ROLE == systemRole )
-#if defined FEATURE_WLAN_CCX || defined FEATURE_WLAN_TDLS
+#if defined FEATURE_WLAN_ESE || defined FEATURE_WLAN_TDLS
          && frmType == HAL_TXRX_FRM_802_11_MGMT
 #endif
          ))
@@ -11914,7 +11914,7 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
          handling this request when UMAC supports */
          break;
       }
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
       case WDA_TSM_STATS_REQ:
       {
          WDA_ProcessTsmStatsReq(pWDA, (tpAniGetTsmStatsReq)pMsg->bodyptr);
@@ -11962,7 +11962,7 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
          WDA_ProcessGetStatsReq(pWDA, (tAniGetPEStatsReq *)pMsg->bodyptr);
          break;
       }
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
       case WDA_GET_ROAM_RSSI_REQ:
       {
          WDA_ProcessGetRoamRssiReq(pWDA, (tAniGetRssiReq *)pMsg->bodyptr);
@@ -12216,7 +12216,7 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
                                       (tSendProbeRespParams *)pMsg->bodyptr);
           break;
       }
-#if defined(WLAN_FEATURE_VOWIFI) || defined(FEATURE_WLAN_CCX)
+#if defined(WLAN_FEATURE_VOWIFI) || defined(FEATURE_WLAN_ESE)
       case WDA_SET_MAX_TX_POWER_REQ:
       {
          WDA_ProcessSetMaxTxPowerReq(pWDA,
@@ -13879,7 +13879,7 @@ void WDA_ConvertSirAuthToWDIAuth(WDI_AuthType *AuthType, v_U8_t csrAuthType)
       case eCSR_AUTH_TYPE_OPEN_SYSTEM:
            *AuthType = eWDA_AUTH_TYPE_OPEN_SYSTEM;
            break;
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
       case eCSR_AUTH_TYPE_CCKM_WPA:
            *AuthType = eWDA_AUTH_TYPE_CCKM_WPA;
            break;
@@ -13890,7 +13890,7 @@ void WDA_ConvertSirAuthToWDIAuth(WDI_AuthType *AuthType, v_U8_t csrAuthType)
       case eCSR_AUTH_TYPE_WPA_PSK:
            *AuthType = eWDA_AUTH_TYPE_WPA_PSK;
            break;
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
       case eCSR_AUTH_TYPE_CCKM_RSN:
            *AuthType = eWDA_AUTH_TYPE_CCKM_RSN;
            break;
@@ -14048,8 +14048,8 @@ VOS_STATUS WDA_ProcessRoamScanOffloadReq(tWDA_CbContext *pWDA,
            pRoamOffloadScanReqParams->NeighborScanChannelMaxTime ;
    pwdiRoamOffloadScanInfo->EmptyRefreshScanPeriod =
            pRoamOffloadScanReqParams->EmptyRefreshScanPeriod ;
-   pwdiRoamOffloadScanInfo->IsCCXEnabled =
-           pRoamOffloadScanReqParams->IsCCXEnabled ;
+   pwdiRoamOffloadScanInfo->IsESEEnabled =
+           pRoamOffloadScanReqParams->IsESEEnabled ;
    vos_mem_copy(&pwdiRoamNetworkType->ssId.sSSID,
                 &pRoamOffloadScanReqParams->ConnectedNetwork.ssId.ssId,
                 pRoamOffloadScanReqParams->ConnectedNetwork.ssId.length);
