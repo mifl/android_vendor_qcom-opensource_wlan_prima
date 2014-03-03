@@ -2040,6 +2040,10 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MAX                 ( 1 )
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_DEFAULT             ( 1 )
 
+#define CFG_ADVERTISE_CONCURRENT_OPERATION_NAME    "gAdvertiseConcurrentOperation"
+#define CFG_ADVERTISE_CONCURRENT_OPERATION_DEFAULT ( 1 )
+#define CFG_ADVERTISE_CONCURRENT_OPERATION_MIN     ( 0 )
+#define CFG_ADVERTISE_CONCURRENT_OPERATION_MAX     ( 1 )
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -2462,9 +2466,9 @@ typedef struct
    v_U16_t                     nOBSSScanActiveDwellTime;
    v_U16_t                     nOBSSScanPassiveDwellTime;
    v_U16_t                     nOBSSScanWidthTriggerInterval;
-
    v_BOOL_t                    gEnableStrictRegulatoryForFCC;
    eHddDot11Mode               sapDot11Mode;
+   v_BOOL_t                    advertiseConcurrentOperation;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

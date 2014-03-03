@@ -2885,6 +2885,13 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                 CFG_SAP_DOT11_MODE_MIN,
                 CFG_SAP_DOT11_MODE_MAX ),
 
+   REG_VARIABLE( CFG_ADVERTISE_CONCURRENT_OPERATION_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, advertiseConcurrentOperation,
+                 VAR_FLAGS_OPTIONAL,
+                 CFG_ADVERTISE_CONCURRENT_OPERATION_DEFAULT,
+                 CFG_ADVERTISE_CONCURRENT_OPERATION_MIN,
+                 CFG_ADVERTISE_CONCURRENT_OPERATION_MAX ),
+
 };
 
 /*
