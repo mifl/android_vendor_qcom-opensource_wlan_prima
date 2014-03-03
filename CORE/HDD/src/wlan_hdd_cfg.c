@@ -2781,6 +2781,14 @@ REG_VARIABLE( CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD, WLAN_PARAM_Integer,
                 CFG_BTC_SAP_ACTIVE_BT_LEN_DEFAULT,
                 CFG_BTC_SAP_ACTIVE_BT_LEN_MIN,
                 CFG_BTC_SAP_ACTIVE_BT_LEN_MAX ),
+
+   REG_VARIABLE( CFG_DEFAULT_RATE_INDEX_24GH, WLAN_PARAM_Integer,
+                 hdd_config_t, defaultRateIndex24Ghz,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DEFAULT_RATE_INDEX_24GH_DEFAULT,
+                 CFG_DEFAULT_RATE_INDEX_24GH_MIN,
+                 CFG_DEFAULT_RATE_INDEX_24GH_MAX ),
+
 };
 
 /*
@@ -4413,6 +4421,16 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
    {
        fStatus = FALSE;
        hddLog(LOGE, "Could not pass on WNI_BTC_ACTIVE_BT_LEN to CCM");
+   }
+
+   if(ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_DEFAULT_RATE_INDEX_24GHZ,
+                    defHddRateToDefCfgRate(pConfig->defaultRateIndex24Ghz),
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_CFG_DEFAULT_RATE_INDEX_24GHZ to"
+                    " CCM\n");
    }
    return fStatus;
 }
