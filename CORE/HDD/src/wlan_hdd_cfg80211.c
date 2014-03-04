@@ -100,7 +100,7 @@
 #define MAX_SCAN_SSID 9
 #define MAX_PENDING_LOG 5
 #define GET_IE_LEN_IN_BSS_DESC(lenInBss) ( lenInBss + sizeof(lenInBss) - \
-        ((int) OFFSET_OF( tSirBssDescription, ieFields)))
+        ((uintptr_t)OFFSET_OF( tSirBssDescription, ieFields)))
 
 #define HDD2GHZCHAN(freq, chan, flag)   {     \
     .band =  IEEE80211_BAND_2GHZ, \
@@ -701,6 +701,8 @@ int wlan_hdd_cfg80211_init(struct device *dev,
                                )
 {
     int i, j;
+    hdd_context_t *pHddCtx = wiphy_priv(wiphy);
+
     ENTER();
 
     /* Now bind the underlying wlan device with wiphy */
@@ -780,19 +782,22 @@ int wlan_hdd_cfg80211_init(struct device *dev,
                              | BIT(NL80211_IFTYPE_P2P_GO)
                              | BIT(NL80211_IFTYPE_AP);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
-    if( pCfg->enableMCC )
+    if( pCfg->advertiseConcurrentOperation )
     {
-        /* Currently, supports up to two channels */
-        wlan_hdd_iface_combination.num_different_channels = 2;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
+        if( pCfg->enableMCC )
+        {
+            /* Currently, supports up to two channels */
+            wlan_hdd_iface_combination.num_different_channels = 2;
 
-        if( !pCfg->allowMCCGODiffBI )
-            wlan_hdd_iface_combination.beacon_int_infra_match = true;
+            if( !pCfg->allowMCCGODiffBI )
+                wlan_hdd_iface_combination.beacon_int_infra_match = true;
 
-    }
-    wiphy->iface_combinations = &wlan_hdd_iface_combination;
-    wiphy->n_iface_combinations = 1;
+        }
+        wiphy->iface_combinations = &wlan_hdd_iface_combination;
+        wiphy->n_iface_combinations = 1;
 #endif
+    }
 
     /* Before registering we need to update the ht capabilitied based
      * on ini values*/
@@ -814,7 +819,10 @@ int wlan_hdd_cfg80211_init(struct device *dev,
     }
 
    wiphy->bands[IEEE80211_BAND_2GHZ] = &wlan_hdd_band_2_4_GHZ;
-   wiphy->bands[IEEE80211_BAND_5GHZ] = &wlan_hdd_band_5_GHZ;
+   if (true == hdd_is_5g_supported(pHddCtx))
+   {
+       wiphy->bands[IEEE80211_BAND_5GHZ] = &wlan_hdd_band_5_GHZ;
+   }
 
    for (i = 0; i < IEEE80211_NUM_BANDS; i++)
    {
