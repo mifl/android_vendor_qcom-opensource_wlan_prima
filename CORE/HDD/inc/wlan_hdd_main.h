@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -199,6 +199,8 @@
 /* value should not be greater than PNO_MAX_SCAN_TIMERS */
 #define HDD_PNO_SCAN_TIMERS_SET_MULTIPLE 6
 #endif
+
+#define MAX_USER_COMMAND_SIZE 4096
 
 #define HDD_MAC_ADDR_LEN    6
 typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
@@ -748,11 +750,13 @@ struct hdd_adapter_s
 #ifdef WLAN_NS_OFFLOAD
    /** IPv6 notifier callback for handling NS offload on change in IP */
    struct notifier_block ipv6_notifier;
+   bool ipv6_notifier_registered;
    struct work_struct  ipv6NotifierWorkQueue;
 #endif
     
    /** IPv4 notifier callback for handling ARP offload on change in IP */
    struct notifier_block ipv4_notifier;
+   bool ipv4_notifier_registered;
    struct work_struct  ipv4NotifierWorkQueue;
 
    //TODO Move this to sta Ctx
@@ -1103,6 +1107,8 @@ struct hdd_context_s
     vos_timer_t    tx_rx_trafficTmr;
     v_U8_t         drvr_miracast;
     v_U8_t         issplitscan_enabled;
+
+    v_BOOL_t btCoexModeSet;
 };
 
 
@@ -1157,7 +1163,7 @@ tVOS_CON_MODE hdd_get_conparam( void );
 void wlan_hdd_enable_deepsleep(v_VOID_t * pVosContext);
 v_BOOL_t hdd_is_apps_power_collapse_allowed(hdd_context_t* pHddCtx);
 v_BOOL_t hdd_is_suspend_notify_allowed(hdd_context_t* pHddCtx);
-void hdd_abort_mac_scan(hdd_context_t *pHddCtx);
+void hdd_abort_mac_scan(hdd_context_t* pHddCtx, eCsrAbortReason reason);
 void wlan_hdd_set_monitor_tx_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
 void hdd_cleanup_actionframe( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
 v_BOOL_t is_crda_regulatory_entry_valid(void);
@@ -1167,7 +1173,7 @@ void wlan_hdd_clear_concurrency_mode(hdd_context_t *pHddCtx, tVOS_CON_MODE mode)
 void wlan_hdd_reset_prob_rspies(hdd_adapter_t* pHostapdAdapter);
 void hdd_prevent_suspend(void);
 void hdd_allow_suspend(void);
-void hdd_allow_suspend_timeout(v_U32_t timeout);
+void hdd_prevent_suspend_timeout(v_U32_t timeout);
 bool hdd_is_ssr_required(void);
 void hdd_set_ssr_required(e_hdd_ssr_required value);
 
