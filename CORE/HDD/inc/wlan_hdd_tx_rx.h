@@ -271,6 +271,15 @@ VOS_STATUS hdd_Ibss_GetStaId(hdd_station_ctx_t *pHddStaCtx,
   ===========================================================================*/
 void hdd_tx_rx_pkt_cnt_stat_timer_handler( void *pAdapter);
 
+/**============================================================================
+  @brief hdd_flush_ibss_tx_queues() -
+                    Flush tx queues in IBSS mode
+  @param pAdapter: Hdd adapter
+  @param STAId:    Sta index
+  @return    : VOS_STATUS_SUCCESS/VOS_STATUS_E_FAILURE
+  ===========================================================================*/
+void hdd_flush_ibss_tx_queues( hdd_adapter_t *pAdapter, v_U8_t STAId);
+
 /**=========================================================================
   @brief hdd_wmm_acquire_access_required()-
                    Determine whether wmm ac acquire access is required
@@ -280,13 +289,4 @@ void hdd_tx_rx_pkt_cnt_stat_timer_handler( void *pAdapter);
    ========================================================================*/
 void hdd_wmm_acquire_access_required(hdd_adapter_t *pAdapter,
                                      WLANTL_ACEnumType acType);
-/**============================================================================
-  @brief hdd_flush_ibss_tx_queues() -
-                    Flush tx queues in IBSS mode
-  @param pHddStaCtx : Hdd adapter
-  @param STAId:       Sta index
-  @return    : VOS_STATUS_SUCCESS/VOS_STATUS_E_FAILURE
-  ===========================================================================*/
-void hdd_flush_ibss_tx_queues( hdd_adapter_t *pAdapter, v_U8_t STAId);
-
 #endif    // end #if !defined( WLAN_HDD_TX_RX_H )
