@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -905,7 +905,7 @@ limProcessMlmReassocCnf(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         psessionEntry->pLimReAssocReq = NULL;
     }
 
-    PELOGE(limLog(pMac, LOGE, FL("Rcv MLM_REASSOC_CNF with result code %d"), pLimMlmReassocCnf->resultCode);)
+    PELOGE(limLog(pMac, LOG1, FL("Rcv MLM_REASSOC_CNF with result code %d"), pLimMlmReassocCnf->resultCode);)
     if (pLimMlmReassocCnf->resultCode == eSIR_SME_SUCCESS) {
         // Successful Reassociation
         PELOG1(limLog(pMac, LOG1, FL("*** Reassociated with new BSS ***"));)
@@ -1861,9 +1861,16 @@ void limProcessStaMlmAddStaRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ ,tpPESess
         limLog( pMac, LOGE, FL( "Encountered NULL Pointer" ));
         return;
     }
-    if( eHAL_STATUS_SUCCESS == pAddStaParams->status )
+    if (true == psessionEntry->fDeauthReceived)
     {
-        if( eLIM_MLM_WT_ADD_STA_RSP_STATE != psessionEntry->limMlmState)
+      PELOGE(limLog(pMac, LOGE,
+           FL("Received Deauth frame in ADD_STA_RESP state"));)
+       pAddStaParams->status = eHAL_STATUS_FAILURE;
+    }
+
+    if ( eHAL_STATUS_SUCCESS == pAddStaParams->status )
+    {
+        if ( eLIM_MLM_WT_ADD_STA_RSP_STATE != psessionEntry->limMlmState)
         {
             //TODO: any response to be sent out here ?
             limLog( pMac, LOGE,
@@ -1933,6 +1940,10 @@ end:
     /* Updating PE session Id*/
     mlmAssocCnf.sessionId = psessionEntry->peSessionId;
     limPostSmeMessage( pMac, mesgType, (tANI_U32 *) &mlmAssocCnf );
+    if (true == psessionEntry->fDeauthReceived)
+    {
+       psessionEntry->fDeauthReceived = false;
+    }
     return;
 }
 void limProcessMlmDelBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPESession psessionEntry)
@@ -3489,14 +3500,26 @@ void limProcessInitScanRsp(tpAniSirGlobal pMac,  void *body)
     if( pMac->lim.abortScan && 
        (eLIM_HAL_INIT_SCAN_WAIT_STATE == pMac->lim.gLimHalScanState) )
     {
-        limLog( pMac, LOGW, FL(" finish scan") );
+        limLog( pMac, LOGW, FL(" abort scan") );
         pMac->lim.abortScan = 0;
         limDeactivateAndChangeTimer(pMac, eLIM_MIN_CHANNEL_TIMER);
         limDeactivateAndChangeTimer(pMac, eLIM_MAX_CHANNEL_TIMER);
         //Set the resume channel to Any valid channel (invalid). 
         //This will instruct HAL to set it to any previous valid channel.
         peSetResumeChannel(pMac, 0, 0);
-        limSendHalFinishScanReq(pMac, eLIM_HAL_FINISH_SCAN_WAIT_STATE);
+        if (status != eHAL_STATUS_SUCCESS)
+        {
+           PELOGW(limLog(pMac, LOGW, FL("InitScnRsp failed status=%d"),status);)
+           pMac->lim.gLimHalScanState = eLIM_HAL_IDLE_SCAN_STATE;
+           pMac->lim.gLimNumOfConsecutiveBkgndScanFailure += 1;
+           limCompleteMlmScan(pMac, eSIR_SME_HAL_SCAN_INIT_FAILED);
+           return;
+        }
+        else
+        {
+           limSendHalFinishScanReq(pMac, eLIM_HAL_FINISH_SCAN_WAIT_STATE);
+        }
+
     }
     switch(pMac->lim.gLimHalScanState)
     {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -85,6 +85,7 @@
 #include "wlan_hdd_cfg80211.h"
 
 #include "sapApi.h"
+#include "vos_trace.h"
 
 
 
@@ -170,6 +171,13 @@ VOS_STATUS vos_preOpen ( v_CONTEXT_t *pVosContext )
    vos_mem_zero(gpVosContext, sizeof(VosContextType));
 
    *pVosContext = gpVosContext;
+
+   /* Initialize the spinlock */
+   vos_trace_spin_lock_init();
+   /* it is the right time to initialize MTRACE structures */
+   #if defined(TRACE_RECORD)
+       vosTraceInit();
+   #endif
 
    return VOS_STATUS_SUCCESS;
 
@@ -269,6 +277,7 @@ VOS_STATUS vos_open( v_CONTEXT_t *pVosContext, v_SIZE_t hddContextSize )
 
    /* Initialize the timer module */
    vos_timer_module_init();
+
 
    /* Initialize the probe event */
    if (vos_event_init(&gpVosContext->ProbeEvent) != VOS_STATUS_SUCCESS)
@@ -504,11 +513,29 @@ VOS_STATUS vos_preStart( v_CONTEXT_t vosContext )
    VOS_TRACE(VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_INFO,
              "vos prestart");
 
-   VOS_ASSERT(gpVosContext == pVosContext);
+   if (gpVosContext != pVosContext)
+   {
+      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                "%s: Context mismatch", __func__);
+      VOS_ASSERT(0);
+      return VOS_STATUS_E_INVAL;
+   }
 
-   VOS_ASSERT( NULL != pVosContext->pMACContext);
+   if (pVosContext->pMACContext == NULL)
+   {
+       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+            "%s: MAC NULL context", __func__);
+       VOS_ASSERT(0);
+       return VOS_STATUS_E_INVAL;
+   }
 
-   VOS_ASSERT( NULL != pVosContext->pWDAContext);
+   if (pVosContext->pWDAContext == NULL)
+   {
+       VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+          "%s: WDA NULL context", __func__);
+       VOS_ASSERT(0);
+       return VOS_STATUS_E_INVAL;
+   }
 
    /* call macPreStart */
    vStatus = macPreStart(gpVosContext->pMACContext);
@@ -1921,7 +1948,7 @@ void vos_abort_mac_scan(void)
        return;
     }
 
-    hdd_abort_mac_scan(pHddCtx);
+    hdd_abort_mac_scan(pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
     return;
 }
 
