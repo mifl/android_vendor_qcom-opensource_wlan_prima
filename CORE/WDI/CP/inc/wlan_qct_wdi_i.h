@@ -486,6 +486,10 @@ typedef enum
 
   /*Send stop batch scan indication to FW*/
   WDI_TRIGGER_BATCH_SCAN_RESULT_IND,
+
+  /* Send Rate Update Indication */
+  WDI_RATE_UPDATE_IND,
+
   WDI_START_HT40_OBSS_SCAN_IND,
   WDI_STOP_HT40_OBSS_SCAN_IND,
 
