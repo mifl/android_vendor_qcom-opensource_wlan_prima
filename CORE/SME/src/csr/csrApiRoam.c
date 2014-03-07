@@ -5752,6 +5752,15 @@ static tANI_BOOLEAN csrRoamProcessResults( tpAniSirGlobal pMac, tSmeCmd *pComman
                     sme_QosCsrEventInd(pMac, (tANI_U8)sessionId, SME_QOS_CSR_DISCONNECT_IND, NULL);
 #endif
                     csrRoamLinkDown(pMac, sessionId);
+                    /*
+                     *DelSta not done FW still in conneced state so dont
+                     *issue IMPS req
+                     */
+                    if (pMac->roam.deauthRspStatus == eSIR_SME_DEAUTH_STATUS)
+                    {
+                        smsLog(pMac, LOGW, FL("FW still in connected state "));
+                        break;
+                    }
                     csrScanStartIdleScan(pMac);
                     break;
                 case eCsrForcedIbssLeave:
@@ -7864,6 +7873,7 @@ static void csrRoamRoamingStateDeauthRspProcessor( tpAniSirGlobal pMac, tSirSmeD
     //No one is sending eWNI_SME_DEAUTH_REQ to PE.
     smsLog(pMac, LOGW, FL("is no-op"));
     statusCode = csrGetDeAuthRspStatusCode( pSmeRsp );
+    pMac->roam.deauthRspStatus = statusCode;
     if ( CSR_IS_ROAM_SUBSTATE_DEAUTH_REQ( pMac, pSmeRsp->sessionId) )
     {
         csrRoamComplete( pMac, eCsrNothingToJoin, NULL );
@@ -10850,9 +10860,14 @@ tANI_BOOLEAN csrRoamIsValid40MhzChannel(tpAniSirGlobal pMac, tANI_U8 channel)
         if(pIes->HTCaps.present && (eHT_CHANNEL_WIDTH_40MHZ == pIes->HTCaps.supportedChannelWidthSet))
         {
             // Check set as TKIP or not.
-            if (NULL != &(pIes->RSN.pwise_cipher_suites[0][0]) &&
+            if ((NULL != &(pIes->RSN.pwise_cipher_suites[0][0]) &&
                !memcmp( &(pIes->RSN.pwise_cipher_suites[0][0]),
                                         "\x00\x0f\xac\x02" ,4))
+               || (((NULL != &(pIes->WPA)) &&
+                    (pIes->WPA.unicast_cipher_count == 1))
+                    && ((NULL != &(pIes->WPA.unicast_ciphers[0]))
+                        && memcmp(&(pIes->WPA.unicast_ciphers[0]),
+                                  "\x00\x0f\xac\x02", 4))))
             {
                 smsLog(pMac, LOGW, " No channel bonding in TKIP mode ");
                 eRet = PHY_SINGLE_CHANNEL_CENTERED;
