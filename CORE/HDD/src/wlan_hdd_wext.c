@@ -2719,6 +2719,7 @@ static int iw_get_rssi(struct net_device *dev,
           /* append the rssi to the ssid in the format required by
              the WiFI Framework */
           rc = scnprintf(&cmd[ssidlen], len - ssidlen, " rssi %d", s7Rssi);
+          rc += ssidlen;
       }
       else
       {
@@ -3100,16 +3101,14 @@ static int iw_set_priv(struct net_device *dev,
         }else{
               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                         "CMD LENGTH %d is not correct",cmd_len);
-              kfree(cmd);
-              return -EINVAL;
+              return VOS_STATUS_E_FAILURE;
         }
 
         if (1 != sscanf(ptr,"%d",&mode))
         {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                       "powermode input %s is not correct",ptr);
-            kfree(cmd);
-            return -EIO;
+            return VOS_STATUS_E_FAILURE;
         }
 
         wlan_hdd_enter_bmps(pAdapter, mode);
@@ -3203,8 +3202,7 @@ static int iw_set_priv(struct net_device *dev,
         }else{
                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                          "CMD LENGTH %d is not correct",cmd_len);
-               kfree(cmd);
-               return -EINVAL;
+               return VOS_STATUS_E_FAILURE;
         }
 
         if (4 != sscanf(ptr,"%hhu %hhu %hhu %lu",
@@ -3215,8 +3213,7 @@ static int iw_set_priv(struct net_device *dev,
         {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                       "CONFIG-TX-TRACKING %s input is not correct",ptr);
-                      kfree(cmd);
-                      return -EIO;
+                      return VOS_STATUS_E_FAILURE;
         }
 
         // parameters checking
