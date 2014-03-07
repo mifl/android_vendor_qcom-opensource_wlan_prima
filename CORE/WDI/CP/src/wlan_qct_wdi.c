@@ -346,7 +346,7 @@ WDI_ReqProcFuncType  pfnReqProcTbl[WDI_MAX_UMAC_IND] =
   WDI_ProcessShutdownReq,               /* WDI_SHUTDOWN_REQ  */
 
   WDI_ProcessSetPowerParamsReq,         /*WDI_SET_POWER_PARAMS_REQ*/
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
   WDI_ProcessTSMStatsReq,          /* WDI_TSM_STATS_REQ */
 #else
   NULL,
@@ -367,7 +367,7 @@ WDI_ReqProcFuncType  pfnReqProcTbl[WDI_MAX_UMAC_IND] =
 #else
   NULL,
 #endif
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
   WDI_ProcessGetRoamRssiReq,            /* WDI_GET_ROAM_RSSI_REQ  */
 #else
   NULL,
@@ -565,7 +565,7 @@ WDI_RspProcFuncType  pfnRspProcTbl[WDI_MAX_RESP] =
   WDI_ProcessShutdownRsp,         /* WDI_SHUTDOWN_RESP */
   
   WDI_ProcessSetPowerParamsRsp,         /*WDI_SET_POWER_PARAMS_RESP*/
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
   WDI_ProcessTsmStatsRsp,          /* WDI_TSM_STATS_RESP  */
 #else
   NULL,
@@ -585,7 +585,7 @@ WDI_RspProcFuncType  pfnRspProcTbl[WDI_MAX_RESP] =
 #else
    NULL,
 #endif
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
   WDI_ProcessGetRoamRssiRsp,            /* WDI_GET_ROAM_RSSI_RESP  */
 #else
   NULL,
@@ -880,9 +880,6 @@ WDI_SetPowerStateCb
    unsigned int dxePhyAddr,
    void      *pContext
 );
-
-#define CASE_RETURN_STRING( str )           \
-    case ( ( str ) ): return( #str ); break \
 
 /**
  @brief WDI_getReqMsgString prints the WDI request message in string.
@@ -3062,7 +3059,7 @@ WDI_SetTxPowerReq
   return WDI_PostMainEvent(&gWDICb, WDI_REQUEST_EVENT, &wdiEventData);
 }
 
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
 WDI_Status
 WDI_TSMStatsReq
 (
@@ -5077,7 +5074,7 @@ WDI_GetStatsReq
 
 }/*WDI_GetStatsReq*/
 
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
 /**
  @brief WDI_GetRoamRssiReq will be called when the upper MAC wants
         to get roam rssi from the device. Upon
@@ -10293,7 +10290,7 @@ WDI_ProcessDelBAReq
                        wdiDelBARspCb, pEventData->pUserData, WDI_DEL_BA_RESP);
 }/*WDI_ProcessDelBAReq*/
 
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
 
 WDI_Status
 WDI_ProcessTSMStatsReq
@@ -11838,7 +11835,7 @@ WDI_ProcessGetStatsReq
                        wdiGetStatsRspCb, pEventData->pUserData, WDI_GET_STATS_RESP);
 }/*WDI_ProcessGetStatsReq*/
 
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
 /**
  @brief Process Get Roam Rssi Request function (called when Main FSM
         allows it)
@@ -13411,7 +13408,7 @@ WDI_ProcessEnterBmpsReq
    enterBmpsReq.dtimCount = pwdiEnterBmpsReqParams->wdiEnterBmpsInfo.ucDtimCount;
    enterBmpsReq.dtimPeriod = pwdiEnterBmpsReqParams->wdiEnterBmpsInfo.ucDtimPeriod;
 
-   // For CCX and 11R Roaming
+   // For ESE and 11R Roaming
    enterBmpsReq.rssiFilterPeriod = pwdiEnterBmpsReqParams->wdiEnterBmpsInfo.rssiFilterPeriod;
    enterBmpsReq.numBeaconPerRssiAverage = pwdiEnterBmpsReqParams->wdiEnterBmpsInfo.numBeaconPerRssiAverage;
    enterBmpsReq.bRssiFilterEnable = pwdiEnterBmpsReqParams->wdiEnterBmpsInfo.bRssiFilterEnable;
@@ -17016,7 +17013,7 @@ WDI_ProcessDelBARsp
   return WDI_STATUS_SUCCESS;
 }/*WDI_ProcessDelBARsp*/
 
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
 /**
  @brief Process TSM Stats Rsp function (called when a response
         is being received over the bus from HAL)
@@ -17835,7 +17832,7 @@ WDI_ProcessGetStatsRsp
   return WDI_STATUS_SUCCESS;
 }/*WDI_ProcessGetStatsRsp*/
 
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
 /**
  @brief Process Get Roam Rssi Rsp function (called when a response is
         being received over the bus from HAL)
@@ -21583,12 +21580,11 @@ WDI_ResponseTimerCB
        return;
     }
 #ifndef WDI_RE_ENABLE_WIFI_ON_WDI_TIMEOUT
-   if(wpalIsWDresetInProgress())
-   {
-       wpalDevicePanic();
-   }
-
     wpalWcnssResetIntr();
+    if(wpalIsWDresetInProgress())
+    {
+        wpalDevicePanic();
+    }
     /* if this timer fires, it means Riva did not receive the FIQ */
     wpalTimerStart(&pWDICtx->ssrTimer, WDI_SSR_TIMEOUT);
 #else
@@ -22855,7 +22851,7 @@ WDI_2_HAL_REQ_TYPE
     return WLAN_HAL_ADD_BA_REQ;
   case WDI_DEL_BA_REQ:
     return WLAN_HAL_DEL_BA_REQ; 
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
   case WDI_TSM_STATS_REQ:
     return WLAN_HAL_TSM_STATS_REQ; 
 #endif
@@ -23095,7 +23091,7 @@ HAL_2_WDI_RSP_TYPE
     return WDI_ADD_BA_RESP;
   case WLAN_HAL_DEL_BA_RSP:
     return WDI_DEL_BA_RESP;
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
   case WLAN_HAL_TSM_STATS_RSP:
     return WDI_TSM_STATS_RESP;
 #endif
@@ -23265,7 +23261,7 @@ case WLAN_HAL_DEL_STA_SELF_RSP:
   case WLAN_HAL_UPDATE_VHT_OP_MODE_RSP:
       return WDI_UPDATE_VHT_OP_MODE_RESP;
 #endif
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
   case WLAN_HAL_GET_ROAM_RSSI_RSP:
     return WDI_GET_ROAM_RSSI_RESP;
 #endif
@@ -24127,7 +24123,7 @@ WDI_ExtractRequestCBFromEvent
     *ppfnReqCB   =  ((WDI_DelBAReqParamsType*)pEvent->pEventData)->wdiReqStatusCB;
     *ppUserData  =  ((WDI_DelBAReqParamsType*)pEvent->pEventData)->pUserData;
     break;
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
    case WDI_TSM_STATS_REQ:
     *ppfnReqCB   =  ((WDI_TSMStatsReqParamsType*)pEvent->pEventData)->wdiReqStatusCB;
     *ppUserData  =  ((WDI_TSMStatsReqParamsType*)pEvent->pEventData)->pUserData;
@@ -24149,7 +24145,7 @@ WDI_ExtractRequestCBFromEvent
     *ppfnReqCB   =  ((WDI_GetStatsReqParamsType*)pEvent->pEventData)->wdiReqStatusCB;
     *ppUserData  =  ((WDI_GetStatsReqParamsType*)pEvent->pEventData)->pUserData;
     break;
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
   case WDI_GET_ROAM_RSSI_REQ:
     *ppfnReqCB   =  ((WDI_GetRoamRssiReqParamsType*)pEvent->pEventData)->wdiReqStatusCB;
     *ppUserData  =  ((WDI_GetRoamRssiReqParamsType*)pEvent->pEventData)->pUserData;
@@ -24387,6 +24383,18 @@ WDI_SetPreferredNetworkReq
    {
      WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WDI API call before module is initialized - Fail request");
+
+     return WDI_STATUS_E_NOT_ALLOWED;
+   }
+
+   /*----------------------------------------------------------------------
+     Avoid Enable PNO during any active session or an ongoing session
+   ----------------------------------------------------------------------*/
+   if ( (pwdiPNOScanReqParams->wdiPNOScanInfo.bEnable &&
+        WDI_GetActiveSessionsCount(&gWDICb, NULL, eWLAN_PAL_FALSE)) )
+   {
+     WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+               "%s:(Active/Ongoing Session) - Fail request", __func__);
 
      return WDI_STATUS_E_NOT_ALLOWED;
    }
@@ -25110,7 +25118,7 @@ WDI_PackRoamScanOffloadParams
    pRoamCandidateListParams->NeighborScanChannelMinTime = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.NeighborScanChannelMinTime ;
    pRoamCandidateListParams->NeighborScanChannelMaxTime = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.NeighborScanChannelMaxTime ;
    pRoamCandidateListParams->EmptyRefreshScanPeriod = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.EmptyRefreshScanPeriod ;
-   pRoamCandidateListParams->IsCCXEnabled = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.IsCCXEnabled ;
+   pRoamCandidateListParams->IsESEEnabled = pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.IsESEEnabled ;
    wpalMemoryCopy(pRoamCandidateListParams->ValidChannelList,
                   pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.ValidChannelList,
                   pwdiRoamScanOffloadReqParams->wdiRoamOffloadScanInfo.ValidChannelCount);
@@ -28406,19 +28414,20 @@ WDI_UpdateVHTOpModeReq
     Or if host driver detects any abnormal stcuk may display
         
  @param  displaySnapshot : Display DXE snapshot option
- @param  enableStallDetect : Enable stall detect feature
-                        This feature will take effect to data performance
-                        Not integrate till fully verification
+ @param  debugFlags      : Enable stall detect features
+                           defined by WPAL_DeviceDebugFlags
+                           These features may effect
+                           data performance.
  @see
  @return none
 */
 void WDI_TransportChannelDebug
 (
    wpt_boolean  displaySnapshot,
-   wpt_boolean  toggleStallDetect
+   wpt_uint8    debugFlags
 )
 {
-   WDTS_ChannelDebug(displaySnapshot, toggleStallDetect);
+   WDTS_ChannelDebug(displaySnapshot, debugFlags);
    return;
 }
 /**

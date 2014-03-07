@@ -60,6 +60,7 @@
 #include "vos_nvitem.h"
 #include "sirApi.h"
 #include "wlan_qct_pal_packet.h"
+#include "wlan_qct_pal_device.h"
 #include "wlan_qct_wda.h"
 #include "wlan_qct_wda_msg.h"
 #include "wlan_qct_wdi_cfg.h"
@@ -5274,7 +5275,7 @@ VOS_STATUS WDA_ProcessGetStatsReq(tWDA_CbContext *pWDA,
    return CONVERT_WDI2VOS_STATUS(status);
 }
 
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
 /*
  * FUNCTION: WDA_GetGetRssiReqRoamRssiReqParamsCallback
  * send the response to PE with roam Rssi received from WDI
@@ -6368,7 +6369,7 @@ VOS_STATUS WDA_ProcessUpdateBeaconParams(tWDA_CbContext *pWDA,
    }
    return CONVERT_WDI2VOS_STATUS(status) ;
 }
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
 /*
  * FUNCTION: WDA_TSMStatsReqCallback
  * send TSM Stats RSP back to PE
@@ -6619,7 +6620,7 @@ VOS_STATUS WDA_ProcessUpdateProbeRspTemplate(tWDA_CbContext *pWDA,
    vos_mem_free(wdiSendProbeRspParam);
    return CONVERT_WDI2VOS_STATUS(status);
 }
-#if defined(WLAN_FEATURE_VOWIFI) || defined(FEATURE_WLAN_CCX)
+#if defined(WLAN_FEATURE_VOWIFI) || defined(FEATURE_WLAN_ESE)
 /*
  * FUNCTION: WDA_SetMaxTxPowerCallBack
  * send the response to PE with power value received from WDI
@@ -7500,7 +7501,7 @@ VOS_STATUS WDA_ProcessEnterBmpsReq(tWDA_CbContext *pWDA,
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.ucDtimCount = pEnterBmpsReqParams->dtimCount;
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.ucDtimPeriod = pEnterBmpsReqParams->dtimPeriod;
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.uTbtt = pEnterBmpsReqParams->tbtt;
-   // For CCX and 11R Roaming
+   // For ESE and 11R Roaming
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.rssiFilterPeriod = (wpt_uint32)pEnterBmpsReqParams->rssiFilterPeriod;
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.numBeaconPerRssiAverage = (wpt_uint32)pEnterBmpsReqParams->numBeaconPerRssiAverage;
    wdiEnterBmpsReqParams->wdiEnterBmpsInfo.bRssiFilterEnable = (wpt_uint8)pEnterBmpsReqParams->bRssiFilterEnable;
@@ -10807,7 +10808,22 @@ VOS_STATUS WDA_HALDumpCmdReq(tpAniSirGlobal   pMac, tANI_U32  cmd,
    VOS_STATUS vStatus;
    pVosContext = (pVosContextType)vos_get_global_context(VOS_MODULE_ID_PE,
                                                            (void *)pMac);
-   
+   if(pVosContext)
+   {
+      if (pVosContext->isLogpInProgress)
+      {
+         VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
+                                "%s:LOGP in Progress. Ignore!!!", __func__);
+         return VOS_STATUS_E_BUSY;
+      }
+   }
+   else
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                          "%s: VOS Context Null", __func__);
+      return VOS_STATUS_E_RESOURCES;
+   }
+
    pWdaParams = (tWDA_ReqParams *)vos_mem_malloc(sizeof(tWDA_ReqParams)) ;
    if(NULL == pWdaParams)
    {
@@ -11570,7 +11586,7 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
       systemRole = wdaGetGlobalSystemRole(pMac);
       if (( eSYSTEM_UNKNOWN_ROLE == systemRole ) || 
           (( eSYSTEM_STA_ROLE == systemRole )
-#if defined FEATURE_WLAN_CCX || defined FEATURE_WLAN_TDLS
+#if defined FEATURE_WLAN_ESE || defined FEATURE_WLAN_TDLS
          && frmType == HAL_TXRX_FRM_802_11_MGMT
 #endif
          ))
@@ -11644,7 +11660,7 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
                                 after the packet gets completed(packet freed once)*/
 
       /* TX MGMT fail with COMP timeout, try to detect DXE stall */
-      WDA_TransportChannelDebug(pMac, 1, 0);
+      WDA_TransportChannelDebug(pMac, 1, WPAL_DEBUG_TX_DESC_RESYNC);
 
       /*Tag Frame as timed out for later deletion*/
       vos_pkt_set_user_data_ptr( (vos_pkt_t *)pFrmBuf, VOS_PKT_USER_DATA_ID_WDA, 
@@ -11906,7 +11922,7 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
          handling this request when UMAC supports */
          break;
       }
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
       case WDA_TSM_STATS_REQ:
       {
          WDA_ProcessTsmStatsReq(pWDA, (tpAniGetTsmStatsReq)pMsg->bodyptr);
@@ -11954,7 +11970,7 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
          WDA_ProcessGetStatsReq(pWDA, (tAniGetPEStatsReq *)pMsg->bodyptr);
          break;
       }
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
       case WDA_GET_ROAM_RSSI_REQ:
       {
          WDA_ProcessGetRoamRssiReq(pWDA, (tAniGetRssiReq *)pMsg->bodyptr);
@@ -12208,7 +12224,7 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
                                       (tSendProbeRespParams *)pMsg->bodyptr);
           break;
       }
-#if defined(WLAN_FEATURE_VOWIFI) || defined(FEATURE_WLAN_CCX)
+#if defined(WLAN_FEATURE_VOWIFI) || defined(FEATURE_WLAN_ESE)
       case WDA_SET_MAX_TX_POWER_REQ:
       {
          WDA_ProcessSetMaxTxPowerReq(pWDA,
@@ -13656,14 +13672,24 @@ eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
 void WDA_PNOScanRespCallback(WDI_Status status, void* pUserData)
 {
    tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData; 
+   tSirPNOScanReq *pPNOScanReqParams;
+
    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                                          "<------ %s " ,__func__);
+              "<------ %s, wdiStatus: %d",__func__, status);
    if(NULL == pWdaParams)
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
               "%s: pWdaParams received NULL", __func__);
       VOS_ASSERT(0) ;
       return ;
+   }
+
+   pPNOScanReqParams = (tSirPNOScanReq *)pWdaParams->wdaMsgParam;
+   if(pPNOScanReqParams->statusCallback)
+   {
+      pPNOScanReqParams->statusCallback(pPNOScanReqParams->callbackContext,
+                          (status == WDI_STATUS_SUCCESS) ?
+                           VOS_STATUS_SUCCESS : VOS_STATUS_E_FAILURE);
    }
 
    vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
@@ -13680,6 +13706,7 @@ void WDA_PNOScanRespCallback(WDI_Status status, void* pUserData)
 void WDA_PNOScanReqCallback(WDI_Status wdiStatus, void* pUserData)
 {
    tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData;
+   tSirPNOScanReq *pPNOScanReqParams;
 
    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
               "<------ %s, wdiStatus: %d", __func__, wdiStatus);
@@ -13694,6 +13721,13 @@ void WDA_PNOScanReqCallback(WDI_Status wdiStatus, void* pUserData)
 
    if(IS_WDI_STATUS_FAILURE(wdiStatus))
    {
+      pPNOScanReqParams = (tSirPNOScanReq *)pWdaParams->wdaMsgParam;
+      if(pPNOScanReqParams->statusCallback)
+      {
+         pPNOScanReqParams->statusCallback(pPNOScanReqParams->callbackContext,
+                                           VOS_STATUS_E_FAILURE);
+      }
+
       vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
       vos_mem_free(pWdaParams->wdaMsgParam);
       vos_mem_free(pWdaParams);
@@ -13829,6 +13863,12 @@ VOS_STATUS WDA_ProcessSetPrefNetworkReq(tWDA_CbContext *pWDA,
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
               "Failure in Set PNO REQ WDI API, free all the memory " );
+      if(pPNOScanReqParams->statusCallback)
+      {
+         pPNOScanReqParams->statusCallback(pPNOScanReqParams->callbackContext,
+                                           VOS_STATUS_E_FAILURE);
+      }
+
       vos_mem_free(pWdaParams->wdaWdiApiMsgParam) ;
       vos_mem_free(pWdaParams->wdaMsgParam);
       pWdaParams->wdaWdiApiMsgParam = NULL;
@@ -13847,7 +13887,7 @@ void WDA_ConvertSirAuthToWDIAuth(WDI_AuthType *AuthType, v_U8_t csrAuthType)
       case eCSR_AUTH_TYPE_OPEN_SYSTEM:
            *AuthType = eWDA_AUTH_TYPE_OPEN_SYSTEM;
            break;
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
       case eCSR_AUTH_TYPE_CCKM_WPA:
            *AuthType = eWDA_AUTH_TYPE_CCKM_WPA;
            break;
@@ -13858,7 +13898,7 @@ void WDA_ConvertSirAuthToWDIAuth(WDI_AuthType *AuthType, v_U8_t csrAuthType)
       case eCSR_AUTH_TYPE_WPA_PSK:
            *AuthType = eWDA_AUTH_TYPE_WPA_PSK;
            break;
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
       case eCSR_AUTH_TYPE_CCKM_RSN:
            *AuthType = eWDA_AUTH_TYPE_CCKM_RSN;
            break;
@@ -14016,8 +14056,8 @@ VOS_STATUS WDA_ProcessRoamScanOffloadReq(tWDA_CbContext *pWDA,
            pRoamOffloadScanReqParams->NeighborScanChannelMaxTime ;
    pwdiRoamOffloadScanInfo->EmptyRefreshScanPeriod =
            pRoamOffloadScanReqParams->EmptyRefreshScanPeriod ;
-   pwdiRoamOffloadScanInfo->IsCCXEnabled =
-           pRoamOffloadScanReqParams->IsCCXEnabled ;
+   pwdiRoamOffloadScanInfo->IsESEEnabled =
+           pRoamOffloadScanReqParams->IsESEEnabled ;
    vos_mem_copy(&pwdiRoamNetworkType->ssId.sSSID,
                 &pRoamOffloadScanReqParams->ConnectedNetwork.ssId.ssId,
                 pRoamOffloadScanReqParams->ConnectedNetwork.ssId.length);
@@ -15401,9 +15441,10 @@ VOS_STATUS WDA_ProcessUpdateOpMode(tWDA_CbContext *pWDA,
   PARAMETERS
     pMac : upper MAC context pointer
     displaySnapshot : Display DXE snapshot option
-    enableStallDetect : Enable stall detect feature
-                        This feature will take effect to data performance
-                        Not integrate till fully verification
+    debugFlags      : Enable stall detect features
+                      defined by WPAL_DeviceDebugFlags
+                      These features may effect
+                      data performance.
 
   RETURN VALUE
     NONE
@@ -15413,10 +15454,10 @@ void WDA_TransportChannelDebug
 (
   tpAniSirGlobal pMac,
   v_BOOL_t       displaySnapshot,
-  v_BOOL_t       toggleStallDetect
+  v_U8_t         debugFlags
 )
 {
-   WDI_TransportChannelDebug(displaySnapshot, toggleStallDetect);
+   WDI_TransportChannelDebug(displaySnapshot, debugFlags);
    return;
 }
 
