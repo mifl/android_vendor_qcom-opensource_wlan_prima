@@ -294,6 +294,16 @@ typedef enum
 #define CFG_DOT11_MODE_DEFAULT                 eHDD_DOT11_MODE_11n
 #endif
 
+#define CFG_SAP_DOT11_MODE_NAME                "gSapDot11Mode"
+#define CFG_SAP_DOT11_MODE_MIN                 eHDD_DOT11_MODE_AUTO
+#ifdef WLAN_FEATURE_11AC
+#define CFG_SAP_DOT11_MODE_MAX                 eHDD_DOT11_MODE_11ac
+#define CFG_SAP_DOT11_MODE_DEFAULT             eHDD_DOT11_MODE_11ac
+#else
+#define CFG_SAP_DOT11_MODE_MAX                 eHDD_DOT11_MODE_11b_ONLY
+#define CFG_SAP_DOT11_MODE_DEFAULT             eHDD_DOT11_MODE_11n
+#endif
+
 #define CFG_CHANNEL_BONDING_MODE_24GHZ_NAME    "gChannelBondingMode24GHz"
 #define CFG_CHANNEL_BONDING_MODE_MIN           WNI_CFG_CHANNEL_BONDING_MODE_STAMIN 
 #define CFG_CHANNEL_BONDING_MODE_MAX           WNI_CFG_CHANNEL_BONDING_MODE_STAMAX 
@@ -2096,6 +2106,16 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ADVERTISE_CONCURRENT_OPERATION_MIN     ( 0 )
 #define CFG_ADVERTISE_CONCURRENT_OPERATION_MAX     ( 1 )
 
+#define CFG_RA_FILTER_ENABLE_NAME               "gRAFilterEnable"
+#define CFG_RA_FILTER_ENABLE_DEFAULT            (1)
+#define CFG_RA_FILTER_ENABLE_MIN                (0)
+#define CFG_RA_FILTER_ENABLE_MAX                (1)
+
+#define CFG_RA_RATE_LIMIT_INTERVAL_NAME         "gRARateLimitInterval"
+#define CFG_RA_RATE_LIMIT_INTERVAL_DEFAULT      (60)
+#define CFG_RA_RATE_LIMIT_INTERVAL_MIN          (0)
+#define CFG_RA_RATE_LIMIT_INTERVAL_MAX          (60)
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2527,6 +2547,9 @@ typedef struct
    v_BOOL_t                    gEnableStrictRegulatoryForFCC;
    v_BOOL_t                    advertiseConcurrentOperation;
    v_U32_t                     defaultRateIndex24Ghz;
+   eHddDot11Mode               sapDot11Mode;
+   v_BOOL_t                    cfgRAFilterEnable;
+   v_U16_t                     cfgRARateLimitInterval;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
