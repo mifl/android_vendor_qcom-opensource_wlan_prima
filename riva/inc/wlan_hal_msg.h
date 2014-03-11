@@ -5928,6 +5928,7 @@ typedef enum {
     SCAN_SCH            = 25,
     IBSS_HEARTBEAT_OFFLOAD = 26,
     WLAN_PERIODIC_TX_PTRN = 28,
+    UPDATE_CHANNEL_LIST    = 35,
     MAX_FEATURE_SUPPORTED = 128,
 } placeHolderInCapBitmap;
 
@@ -6451,6 +6452,119 @@ typedef PACKED_PRE struct PACKED_POST
     tIbssPeerInactivityIndParams ibssPeerInactivityIndParams;
 }tIbssPeerInactivityIndMsg, *tpIbssPeerInactivityIndMsg;
 
+typedef PACKED_PRE struct PACKED_POST {
+    /** primary 20 MHz channel frequency in mhz */
+    tANI_U32 mhz;
+    /** Center frequency 1 in MHz*/
+    tANI_U32 band_center_freq1;
+    /** Center frequency 2 in MHz - valid only for 11acvht 80plus80 mode*/
+    tANI_U32 band_center_freq2;
+    /* The first 26 bits are a bit mask to indicate any channel flags,
+       (see WLAN_HAL_CHAN_FLAG*)
+       The last 6 bits indicate the mode (see tChannelPhyModeType)*/
+    tANI_U32 channel_info;
+    /** contains min power, max power, reg power and reg class id. */
+    tANI_U32 reg_info_1;
+    /** contains antennamax */
+    tANI_U32 reg_info_2;
+} tUpdateChannelParam;
+
+typedef enum {
+    WLAN_HAL_MODE_11A            = 0,   /* 11a Mode */
+    WLAN_HAL_MODE_11G            = 1,   /* 11b/g Mode */
+    WLAN_HAL_MODE_11B            = 2,   /* 11b Mode */
+    WLAN_HAL_MODE_11GONLY        = 3,   /* 11g only Mode */
+    WLAN_HAL_MODE_11NA_HT20      = 4,  /* 11a HT20 mode */
+    WLAN_HAL_MODE_11NG_HT20      = 5,  /* 11g HT20 mode */
+    WLAN_HAL_MODE_11NA_HT40      = 6,  /* 11a HT40 mode */
+    WLAN_HAL_MODE_11NG_HT40      = 7,  /* 11g HT40 mode */
+    WLAN_HAL_MODE_11AC_VHT20     = 8,
+    WLAN_HAL_MODE_11AC_VHT40     = 9,
+    WLAN_HAL_MODE_11AC_VHT80     = 10,
+    WLAN_HAL_MODE_11AC_VHT20_2G  = 11,
+    WLAN_HAL_MODE_11AC_VHT40_2G  = 12,
+    WLAN_HAL_MODE_11AC_VHT80_2G  = 13,
+    WLAN_HAL_MODE_UNKNOWN        = 14,
+
+} tChannelPhyModeType;
+
+#define WLAN_HAL_CHAN_FLAG_HT40_PLUS   6
+#define WLAN_HAL_CHAN_FLAG_PASSIVE     7
+#define WLAN_HAL_CHAN_ADHOC_ALLOWED    8
+#define WLAN_HAL_CHAN_AP_DISABLED      9
+#define WLAN_HAL_CHAN_FLAG_DFS         10
+#define WLAN_HAL_CHAN_FLAG_ALLOW_HT    11  /* HT is allowed on this channel */
+#define WLAN_HAL_CHAN_FLAG_ALLOW_VHT   12  /* VHT is allowed on this channel */
+#define WLAN_HAL_CHAN_CHANGE_CAUSE_CSA 13  /* Indicate reason for channel switch */
+
+#define WLAN_HAL_SET_CHANNEL_FLAG(pwlan_hal_update_channel,flag) do { \
+        (pwlan_hal_update_channel)->channel_info |=  (1 << flag);      \
+     } while(0)
+
+#define WLAN_HAL_GET_CHANNEL_FLAG(pwlan_hal_update_channel,flag)   \
+        (((pwlan_hal_update_channel)->channel_info & (1 << flag)) >> flag)
+
+#define WLAN_HAL_SET_CHANNEL_MIN_POWER(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_1 &= 0xffffff00;           \
+     (pwlan_hal_update_channel)->reg_info_1 |= (val&0xff);           \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_MIN_POWER(pwlan_hal_update_channel) ((pwlan_hal_update_channel)->reg_info_1 & 0xff )
+
+#define WLAN_HAL_SET_CHANNEL_MAX_POWER(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_1 &= 0xffff00ff;           \
+     (pwlan_hal_update_channel)->reg_info_1 |= ((val&0xff) << 8);    \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_MAX_POWER(pwlan_hal_update_channel) ( (((pwlan_hal_update_channel)->reg_info_1) >> 8) & 0xff )
+
+#define WLAN_HAL_SET_CHANNEL_REG_POWER(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_1 &= 0xff00ffff;           \
+     (pwlan_hal_update_channel)->reg_info_1 |= ((val&0xff) << 16);   \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_REG_POWER(pwlan_hal_update_channel) ( (((pwlan_hal_update_channel)->reg_info_1) >> 16) & 0xff )
+#define WLAN_HAL_SET_CHANNEL_REG_CLASSID(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_1 &= 0x00ffffff;             \
+     (pwlan_hal_update_channel)->reg_info_1 |= ((val&0xff) << 24);     \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_REG_CLASSID(pwlan_hal_update_channel) ( (((pwlan_hal_update_channel)->reg_info_1) >> 24) & 0xff )
+
+#define WLAN_HAL_SET_CHANNEL_ANTENNA_MAX(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_2 &= 0xffffff00;             \
+     (pwlan_hal_update_channel)->reg_info_2 |= (val&0xff);             \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_ANTENNA_MAX(pwlan_hal_update_channel) ((pwlan_hal_update_channel)->reg_info_2 & 0xff )
+
+#define WLAN_HAL_SET_CHANNEL_MAX_TX_POWER(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_2 &= 0xffff00ff;              \
+     (pwlan_hal_update_channel)->reg_info_2 |= ((val&0xff)<<8);         \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_MAX_TX_POWER(pwlan_hal_update_channel) ( (((pwlan_hal_update_channel)->reg_info_2)>>8) & 0xff )
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tANI_U8 numChan;
+    tUpdateChannelParam chanParam[WLAN_HAL_ROAM_SCAN_MAX_CHANNELS];
+} tUpdateChannelReqType;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_UPDATE_CHANNEL_LIST_REQ
+ *-------------------------------------------------------------------------*/
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+   tUpdateChannelReqType updateChannelParams;
+}  tHalUpdateChannelReqMsg, *tpHalUpdateChannelReqMsg;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_UPDATE_CHANNEL_LIST_RSP
+ *-------------------------------------------------------------------------*/
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+
+  /*status of the request - just to indicate SO has acknowledged
+   *                *      the request and will start scanning*/
+   tANI_U32   status;
+}  tHalUpdateChannelRspMsg, *tpHalUpdateChannelRspMsg;
 
 /*---------------------------------------------------------------------------
  * WLAN_HAL_LBP_LEADER_REQ
