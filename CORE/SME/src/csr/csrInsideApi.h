@@ -992,7 +992,7 @@ eHalStatus csrHT40StopOBSSScan(tpAniSirGlobal pMac, v_U8_t sessionId);
 eHalStatus csrScanCreateEntryInScanCache(tpAniSirGlobal pMac, tANI_U32 sessionId,
                                          tCsrBssid bssid, tANI_U8 channel);
 
-eHalStatus csrUpdateChannelList(tCsrScanStruct *pScan);
+eHalStatus csrUpdateChannelList(tpAniSirGlobal pMac);
 eHalStatus csrRoamDelPMKIDfromCache( tpAniSirGlobal pMac, tANI_U32 sessionId,
                                  tANI_U8 *pBSSId );
 #endif
