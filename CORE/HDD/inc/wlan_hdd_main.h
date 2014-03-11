@@ -793,7 +793,7 @@ typedef struct
     /*BSSID*/
     tANI_U8  bssid[SIR_MAC_ADDR_LEN];
     /*SSID*/
-    tANI_U8  ssid[SIR_MAX_SSID_SIZE];
+    tANI_U8  ssid[SIR_MAX_SSID_SIZE + 1];
     /*Channel*/
     tANI_U8  ch;
     /*RSSI or Level*/
@@ -1403,5 +1403,7 @@ int hdd_handle_batch_scan_ioctl
 void hdd_deinit_batch_scan(hdd_adapter_t *pAdapter);
 
 #endif /*End of FEATURE_WLAN_BATCH_SCAN*/
+
+boolean hdd_is_5g_supported(hdd_context_t * pHddCtx);
 
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )

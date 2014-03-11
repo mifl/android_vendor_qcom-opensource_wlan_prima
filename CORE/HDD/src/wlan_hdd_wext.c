@@ -3101,16 +3101,14 @@ static int iw_set_priv(struct net_device *dev,
         }else{
               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                         "CMD LENGTH %d is not correct",cmd_len);
-              kfree(cmd);
-              return -EINVAL;
+              return VOS_STATUS_E_FAILURE;
         }
 
         if (1 != sscanf(ptr,"%d",&mode))
         {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                       "powermode input %s is not correct",ptr);
-            kfree(cmd);
-            return -EIO;
+            return VOS_STATUS_E_FAILURE;
         }
 
         wlan_hdd_enter_bmps(pAdapter, mode);
@@ -3204,8 +3202,7 @@ static int iw_set_priv(struct net_device *dev,
         }else{
                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                          "CMD LENGTH %d is not correct",cmd_len);
-               kfree(cmd);
-               return -EINVAL;
+               return VOS_STATUS_E_FAILURE;
         }
 
         if (4 != sscanf(ptr,"%hhu %hhu %hhu %lu",
@@ -3216,8 +3213,7 @@ static int iw_set_priv(struct net_device *dev,
         {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                       "CONFIG-TX-TRACKING %s input is not correct",ptr);
-                      kfree(cmd);
-                      return -EIO;
+                      return VOS_STATUS_E_FAILURE;
         }
 
         // parameters checking
@@ -4503,7 +4499,7 @@ int iw_set_three_ints_getnone(struct net_device *dev, struct iw_request_info *in
 
         default:
         {
-            hddLog(LOGE, "Invalid IOCTL command %d",  sub_cmd );
+            hddLog(LOGE, "%s: Invalid IOCTL command %d", __func__, sub_cmd );
             break;
         }
     }
@@ -4919,7 +4915,7 @@ static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *i
 #endif
         default:
         {
-            hddLog(LOGE, "Invalid IOCTL command %d",  sub_cmd );
+            hddLog(LOGE, "%s: Invalid IOCTL command %d", __func__, sub_cmd );
             break;
         }
     }
@@ -5270,7 +5266,8 @@ int iw_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info
 #endif
         default:
             {
-                hddLog(LOGE, "Invalid IOCTL command %d",  sub_cmd );
+                hddLog(LOGE, "%s: Invalid IOCTL command %d",
+                       __func__, sub_cmd );
             }
             break;
     }
