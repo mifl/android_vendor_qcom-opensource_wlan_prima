@@ -2878,6 +2878,13 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                 CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MIN,
                 CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MAX ),
 
+   REG_VARIABLE( CFG_SAP_DOT11_MODE_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, sapDot11Mode,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK,
+                CFG_SAP_DOT11_MODE_DEFAULT,
+                CFG_SAP_DOT11_MODE_MIN,
+                CFG_SAP_DOT11_MODE_MAX ),
+
 };
 
 /*
