@@ -1002,6 +1002,26 @@ typedef enum
 #define CFG_TL_DELAYED_TRGR_FRM_INT_MAX                     (4294967295UL)
 #define CFG_TL_DELAYED_TRGR_FRM_INT_DEFAULT                 3000
 
+#define CFG_REORDER_TIME_BK_NAME                           "BkReorderTime"
+#define CFG_REORDER_TIME_BK_MIN                            30
+#define CFG_REORDER_TIME_BK_MAX                            1000
+#define CFG_REORDER_TIME_BK_DEFAULT                        300
+
+#define CFG_REORDER_TIME_BE_NAME                           "BeReorderTime"
+#define CFG_REORDER_TIME_BE_MIN                            30
+#define CFG_REORDER_TIME_BE_MAX                            1000
+#define CFG_REORDER_TIME_BE_DEFAULT                        300
+
+#define CFG_REORDER_TIME_VI_NAME                           "ViReorderTime"
+#define CFG_REORDER_TIME_VI_MIN                            30
+#define CFG_REORDER_TIME_VI_MAX                            1000
+#define CFG_REORDER_TIME_VI_DEFAULT                        300
+
+#define CFG_REORDER_TIME_VO_NAME                           "VoReorderTime"
+#define CFG_REORDER_TIME_VO_MIN                            30
+#define CFG_REORDER_TIME_VO_MAX                            1000
+#define CFG_REORDER_TIME_VO_DEFAULT                        40
+
 #if defined WLAN_FEATURE_VOWIFI
 #define CFG_RRM_ENABLE_NAME                              "gRrmEnable"
 #define CFG_RRM_ENABLE_MIN                               (0)
@@ -1990,6 +2010,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ENABLE_MEMORY_DEBUG_DEFAULT          (0)
 #endif
 
+#define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_NAME                "gEnableStrictRegulatoryForFCC"
+#define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MIN                 ( 0 )
+#define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MAX                 ( 1 )
+#define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_DEFAULT             ( 1 )
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2238,6 +2263,10 @@ typedef struct
    v_U8_t                       WfqViWeight;
    v_U8_t                       WfqVoWeight;
    v_U32_t                      DelayedTriggerFrmInt;
+   v_U16_t                      BkReorderAgingTime;
+   v_U16_t                      BeReorderAgingTime;
+   v_U16_t                      ViReorderAgingTime;
+   v_U16_t                      VoReorderAgingTime;
 
    /* Wowl pattern */
    char                        wowlPattern[1024];         
@@ -2404,6 +2433,7 @@ typedef struct
 #ifdef MEMORY_DEBUG
    v_BOOL_t                    IsMemoryDebugSupportEnabled;
 #endif
+   v_BOOL_t                    gEnableStrictRegulatoryForFCC;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

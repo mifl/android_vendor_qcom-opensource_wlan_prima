@@ -926,11 +926,11 @@ hdd_parse_set_batchscan_command
 
         if (('A' == val) || ('a' == val))
         {
-            ucRfBand = HDD_SET_BATCH_SCAN_24GHz_BAND_ONLY;
+            ucRfBand = HDD_SET_BATCH_SCAN_5GHz_BAND_ONLY;
         }
         else if (('B' == val) || ('b' == val))
         {
-            ucRfBand = HDD_SET_BATCH_SCAN_5GHz_BAND_ONLY;
+            ucRfBand = HDD_SET_BATCH_SCAN_24GHz_BAND_ONLY;
         }
         else
         {
@@ -5058,7 +5058,7 @@ tANI_U8* wlan_hdd_get_intf_addr(hdd_context_t* pHddCtx)
    int i;
    for ( i = 0; i < VOS_MAX_CONCURRENCY_PERSONA; i++)
    {
-      if( 0 == (pHddCtx->cfg_ini->intfAddrMask >> i))
+      if( 0 == ((pHddCtx->cfg_ini->intfAddrMask) & (1 << i)) )
          break;
    }
 
@@ -7622,7 +7622,7 @@ void hdd_exchange_version_and_caps(hdd_context_t *pHddCtx)
   \return -  true if hardware supports 5GHz
 
   --------------------------------------------------------------------------*/
-static boolean hdd_is_5g_supported(hdd_context_t * pHddCtx)
+boolean hdd_is_5g_supported(hdd_context_t * pHddCtx)
 {
    /* If wcnss_wlan_iris_xo_mode() returns WCNSS_XO_48MHZ(1);
     * then hardware support 5Ghz.
