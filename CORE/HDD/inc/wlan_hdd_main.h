@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -177,6 +177,8 @@
 
 /* Maximum number of interfaces allowed(STA, P2P Device, P2P Interface) */
 #define WLAN_MAX_INTERFACES 3
+
+#define MAX_USER_COMMAND_SIZE 4096
 
 typedef struct hdd_tx_rx_stats_s
 {
