@@ -234,18 +234,6 @@ int bdPduInterruptGetThreshold = WLANTL_BD_PDU_INTERRUPT_GET_THRESHOLD;
 
 
 
-/*--------------------------------------------------------------------------
-   TID to AC mapping in TL
- --------------------------------------------------------------------------*/
-const v_U8_t  WLANTL_TID_2_AC[WLAN_MAX_TID] = {   WLANTL_AC_BE,
-                                                  WLANTL_AC_BK,
-                                                  WLANTL_AC_BK,
-                                                  WLANTL_AC_BE,
-                                                  WLANTL_AC_VI,
-                                                  WLANTL_AC_VI,
-                                                  WLANTL_AC_VO,
-                                                  WLANTL_AC_VO };
-
 /*----------------------------------------------------------------------------
  * Type Declarations
  * -------------------------------------------------------------------------*/
@@ -558,6 +546,11 @@ WLANTL_Open
   for ( ucIndex = 0; ucIndex < WLANTL_MAX_AC ; ucIndex++)
   {
     pTLCb->tlConfigInfo.ucAcWeights[ucIndex] = pTLConfig->ucAcWeights[ucIndex];
+  }
+
+  for ( ucIndex = 0; ucIndex < WLANTL_MAX_AC ; ucIndex++)
+  {
+    pTLCb->tlConfigInfo.ucReorderAgingTime[ucIndex] = pTLConfig->ucReorderAgingTime[ucIndex];
   }
 
   // scheduling init to be the last one of previous round
@@ -1964,7 +1957,6 @@ WLANTL_STAPktPending
 {
   WLANTL_CbType*  pTLCb = NULL;
   WLANTL_STAClientType* pClientSTA = NULL;
-  vos_msg_t      vosMsg;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
   VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
@@ -2033,16 +2025,6 @@ WLANTL_STAPktPending
     To avoid race condition, serialize the updation of AC and AC mask 
     through WLANTL_TX_STAID_AC_IND message.
   -----------------------------------------------------------------------*/
-#ifdef FETURE_WLAN_TDLS
-    if ((WLAN_STA_SOFTAP != pClientSTA->wSTADesc.wSTAType) &&
-        !(vos_concurrent_sessions_running()) &&
-        !pTLCb->ucTdlsPeerCount)
-    {
-#else
-    if ((WLAN_STA_SOFTAP != pClientSTA->wSTADesc.wSTAType) &&
-        !(vos_concurrent_sessions_running()))
-    {
-#endif
 
       pClientSTA->aucACMask[ucAc] = 1;
 
@@ -2069,15 +2051,6 @@ WLANTL_STAPktPending
               "WLAN TL:Request to send but condition not met. Res: %d,Suspend: %d",
               pTLCb->uResCount, pTLCb->ucTxSuspended );
       }
-    }
-    else
-    {
-      vosMsg.reserved = 0;
-      vosMsg.bodyval  = 0;
-      vosMsg.bodyval = (ucAc | (ucSTAId << WLANTL_STAID_OFFSET));
-      vosMsg.type     = WLANTL_TX_STAID_AC_IND;
-      return vos_tx_mq_serialize( VOS_MQ_ID_TL, &vosMsg);
-    }
   return VOS_STATUS_SUCCESS;
 }/* WLANTL_STAPktPending */
 
@@ -8676,9 +8649,6 @@ WLANTL_TxProcessMsg
    v_U8_t          ucSTAId; 
    v_U8_t          ucUcastSig;
    v_U8_t          ucBcastSig;
-   WLANTL_CbType*        pTLCb = NULL;
-   WLANTL_STAClientType* pClientSTA = NULL;
-   WLANTL_ACEnumType     ucAC;
    void (*callbackRoutine) (void *callbackContext);
    void *callbackContext;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -8723,32 +8693,6 @@ WLANTL_TxProcessMsg
     vosStatus   = WLANTL_ForwardSTAFrames( pvosGCtx, ucSTAId, 
                                            ucUcastSig, ucBcastSig);
     break;
-  case WLANTL_TX_STAID_AC_IND:
-      pTLCb = VOS_GET_TL_CB(pvosGCtx);
-      if ( NULL == pTLCb )
-      {
-         TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-              "WLAN TL:Invalid TL pointer from pvosGCtx on WLANTL_STAPktPending"));
-         return VOS_STATUS_E_FAULT;
-      }
-
-      ucAC = message->bodyval &  WLANTL_AC_MASK;
-      ucSTAId = (v_U8_t)(message->bodyval >> WLANTL_STAID_OFFSET);  
-      pClientSTA = pTLCb->atlSTAClients[ucSTAId];
-
-      if ( NULL == pClientSTA )
-      {
-          TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
-              "WLAN TL:Client Memory was not allocated on %s", __func__));
-          return VOS_STATUS_E_FAILURE;
-      }
-
-      pClientSTA->aucACMask[ucAC] = 1;
-
-      vos_atomic_set_U8( &pClientSTA->ucPktPending, 1);
-      vosStatus = WDA_DS_StartXmit(pvosGCtx);
-      break;
-
   case WDA_DS_TX_START_XMIT:
       WLANTL_ClearTxXmitPending(pvosGCtx);
       vosStatus = WDA_DS_TxFrames( pvosGCtx );
@@ -11380,7 +11324,7 @@ VOS_STATUS WLANTL_GetStatistics
   }
 
   statistics = &pClientSTA->trafficStatistics;
-  memcpy(statBuffer, statistics, sizeof(WLANTL_TRANSFER_STA_TYPE));
+  vos_mem_copy(statBuffer, statistics, sizeof(WLANTL_TRANSFER_STA_TYPE));
 
   return status;
 }
