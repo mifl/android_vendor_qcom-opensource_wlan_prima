@@ -391,6 +391,15 @@ typedef enum
    WLAN_HAL_TDLS_IND                        = 202,
    WLAN_HAL_IBSS_PEER_INACTIVITY_IND        = 203,
 
+   /* Scan Offload APIs */
+   WLAN_HAL_START_SCAN_OFFLOAD_REQ          = 204,
+   WLAN_HAL_START_SCAN_OFFLOAD_RSP          = 205,
+   WLAN_HAL_STOP_SCAN_OFFLOAD_REQ           = 206,
+   WLAN_HAL_STOP_SCAN_OFFLOAD_RSP           = 207,
+   WLAN_HAL_UPDATE_CHANNEL_LIST_REQ         = 208,
+   WLAN_HAL_UPDATE_CHANNEL_LIST_RSP         = 209,
+   WLAN_HAL_OFFLOAD_SCAN_EVENT_IND          = 210,
+
    /* APIs to offload TCP/UDP Heartbeat handshakes */
    WLAN_HAL_LPHB_CFG_REQ                    = 211,
    WLAN_HAL_LPHB_CFG_RSP                    = 212,
@@ -399,6 +408,15 @@ typedef enum
    WLAN_HAL_ADD_PERIODIC_TX_PTRN_IND        = 214,
    WLAN_HAL_DEL_PERIODIC_TX_PTRN_IND        = 215,
    WLAN_HAL_PERIODIC_TX_PTRN_FW_IND         = 216,
+
+   // Events to set Per-Band Tx Power Limit
+   WLAN_HAL_SET_MAX_TX_POWER_PER_BAND_REQ   = 217,
+   WLAN_HAL_SET_MAX_TX_POWER_PER_BAND_RSP   = 218,
+
+   /* Reliable Multicast using Leader Based Protocol */
+   WLAN_HAL_LBP_LEADER_REQ                  = 219,
+   WLAN_HAL_LBP_LEADER_RSP                  = 220,
+   WLAN_HAL_LBP_UPDATE_IND                  = 221,
 
   WLAN_HAL_MSG_MAX = WLAN_HAL_MSG_TYPE_MAX_ENUM_SIZE
 }tHalHostMsgType;
@@ -5910,6 +5928,7 @@ typedef enum {
     SCAN_SCH            = 25,
     IBSS_HEARTBEAT_OFFLOAD = 26,
     WLAN_PERIODIC_TX_PTRN = 28,
+    UPDATE_CHANNEL_LIST    = 35,
     MAX_FEATURE_SUPPORTED = 128,
 } placeHolderInCapBitmap;
 
@@ -6433,6 +6452,231 @@ typedef PACKED_PRE struct PACKED_POST
     tIbssPeerInactivityIndParams ibssPeerInactivityIndParams;
 }tIbssPeerInactivityIndMsg, *tpIbssPeerInactivityIndMsg;
 
+typedef PACKED_PRE struct PACKED_POST {
+    /** primary 20 MHz channel frequency in mhz */
+    tANI_U32 mhz;
+    /** Center frequency 1 in MHz*/
+    tANI_U32 band_center_freq1;
+    /** Center frequency 2 in MHz - valid only for 11acvht 80plus80 mode*/
+    tANI_U32 band_center_freq2;
+    /* The first 26 bits are a bit mask to indicate any channel flags,
+       (see WLAN_HAL_CHAN_FLAG*)
+       The last 6 bits indicate the mode (see tChannelPhyModeType)*/
+    tANI_U32 channel_info;
+    /** contains min power, max power, reg power and reg class id. */
+    tANI_U32 reg_info_1;
+    /** contains antennamax */
+    tANI_U32 reg_info_2;
+} tUpdateChannelParam;
+
+typedef enum {
+    WLAN_HAL_MODE_11A            = 0,   /* 11a Mode */
+    WLAN_HAL_MODE_11G            = 1,   /* 11b/g Mode */
+    WLAN_HAL_MODE_11B            = 2,   /* 11b Mode */
+    WLAN_HAL_MODE_11GONLY        = 3,   /* 11g only Mode */
+    WLAN_HAL_MODE_11NA_HT20      = 4,  /* 11a HT20 mode */
+    WLAN_HAL_MODE_11NG_HT20      = 5,  /* 11g HT20 mode */
+    WLAN_HAL_MODE_11NA_HT40      = 6,  /* 11a HT40 mode */
+    WLAN_HAL_MODE_11NG_HT40      = 7,  /* 11g HT40 mode */
+    WLAN_HAL_MODE_11AC_VHT20     = 8,
+    WLAN_HAL_MODE_11AC_VHT40     = 9,
+    WLAN_HAL_MODE_11AC_VHT80     = 10,
+    WLAN_HAL_MODE_11AC_VHT20_2G  = 11,
+    WLAN_HAL_MODE_11AC_VHT40_2G  = 12,
+    WLAN_HAL_MODE_11AC_VHT80_2G  = 13,
+    WLAN_HAL_MODE_UNKNOWN        = 14,
+
+} tChannelPhyModeType;
+
+#define WLAN_HAL_CHAN_FLAG_HT40_PLUS   6
+#define WLAN_HAL_CHAN_FLAG_PASSIVE     7
+#define WLAN_HAL_CHAN_ADHOC_ALLOWED    8
+#define WLAN_HAL_CHAN_AP_DISABLED      9
+#define WLAN_HAL_CHAN_FLAG_DFS         10
+#define WLAN_HAL_CHAN_FLAG_ALLOW_HT    11  /* HT is allowed on this channel */
+#define WLAN_HAL_CHAN_FLAG_ALLOW_VHT   12  /* VHT is allowed on this channel */
+#define WLAN_HAL_CHAN_CHANGE_CAUSE_CSA 13  /* Indicate reason for channel switch */
+
+#define WLAN_HAL_SET_CHANNEL_FLAG(pwlan_hal_update_channel,flag) do { \
+        (pwlan_hal_update_channel)->channel_info |=  (1 << flag);      \
+     } while(0)
+
+#define WLAN_HAL_GET_CHANNEL_FLAG(pwlan_hal_update_channel,flag)   \
+        (((pwlan_hal_update_channel)->channel_info & (1 << flag)) >> flag)
+
+#define WLAN_HAL_SET_CHANNEL_MIN_POWER(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_1 &= 0xffffff00;           \
+     (pwlan_hal_update_channel)->reg_info_1 |= (val&0xff);           \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_MIN_POWER(pwlan_hal_update_channel) ((pwlan_hal_update_channel)->reg_info_1 & 0xff )
+
+#define WLAN_HAL_SET_CHANNEL_MAX_POWER(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_1 &= 0xffff00ff;           \
+     (pwlan_hal_update_channel)->reg_info_1 |= ((val&0xff) << 8);    \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_MAX_POWER(pwlan_hal_update_channel) ( (((pwlan_hal_update_channel)->reg_info_1) >> 8) & 0xff )
+
+#define WLAN_HAL_SET_CHANNEL_REG_POWER(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_1 &= 0xff00ffff;           \
+     (pwlan_hal_update_channel)->reg_info_1 |= ((val&0xff) << 16);   \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_REG_POWER(pwlan_hal_update_channel) ( (((pwlan_hal_update_channel)->reg_info_1) >> 16) & 0xff )
+#define WLAN_HAL_SET_CHANNEL_REG_CLASSID(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_1 &= 0x00ffffff;             \
+     (pwlan_hal_update_channel)->reg_info_1 |= ((val&0xff) << 24);     \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_REG_CLASSID(pwlan_hal_update_channel) ( (((pwlan_hal_update_channel)->reg_info_1) >> 24) & 0xff )
+
+#define WLAN_HAL_SET_CHANNEL_ANTENNA_MAX(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_2 &= 0xffffff00;             \
+     (pwlan_hal_update_channel)->reg_info_2 |= (val&0xff);             \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_ANTENNA_MAX(pwlan_hal_update_channel) ((pwlan_hal_update_channel)->reg_info_2 & 0xff )
+
+#define WLAN_HAL_SET_CHANNEL_MAX_TX_POWER(pwlan_hal_update_channel,val) do { \
+     (pwlan_hal_update_channel)->reg_info_2 &= 0xffff00ff;              \
+     (pwlan_hal_update_channel)->reg_info_2 |= ((val&0xff)<<8);         \
+     } while(0)
+#define WLAN_HAL_GET_CHANNEL_MAX_TX_POWER(pwlan_hal_update_channel) ( (((pwlan_hal_update_channel)->reg_info_2)>>8) & 0xff )
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    tANI_U8 numChan;
+    tUpdateChannelParam chanParam[WLAN_HAL_ROAM_SCAN_MAX_CHANNELS];
+} tUpdateChannelReqType;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_UPDATE_CHANNEL_LIST_REQ
+ *-------------------------------------------------------------------------*/
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+   tUpdateChannelReqType updateChannelParams;
+}  tHalUpdateChannelReqMsg, *tpHalUpdateChannelReqMsg;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_UPDATE_CHANNEL_LIST_RSP
+ *-------------------------------------------------------------------------*/
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+
+  /*status of the request - just to indicate SO has acknowledged
+   *                *      the request and will start scanning*/
+   tANI_U32   status;
+}  tHalUpdateChannelRspMsg, *tpHalUpdateChannelRspMsg;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_LBP_LEADER_REQ
+ *-------------------------------------------------------------------------*/
+
+/* Maximum number of RMCAST sessions in each role (transmitter or  Leader) */
+#define HAL_MAX_RMCAST_SESSIONS 2
+
+/* Maximum number of leaders in blacklist or candidate leader list */
+#define HAL_NUM_MAX_LEADERS 8
+
+typedef enum
+{
+   WLAN_HAL_SUGGEST_LEADER,
+   WLAN_HAL_BECOME_LEADER,
+   WLAN_HAL_LEADER_CMD_MAX = WLAN_HAL_MAX_ENUM_SIZE
+}tLeaderReqCmdType, tLeaderRspCmdType;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tLeaderReqCmdType cmd;
+
+   /* MAC address of MCAST Transmitter (source) */
+   tSirMacAddr mcastTransmitter;
+
+   /* MAC Address of Multicast Group (01-00-5E-xx-xx-xx) */
+   tSirMacAddr mcastGroup;
+
+   /* Optional black list for cmd = WLAN_HAL_SUGGEST_LEADER */
+   tSirMacAddr blacklist[HAL_NUM_MAX_LEADERS];
+}  tHalLbpLeaderReqParams, *tpHalLbpLeaderReqParams;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+   tHalLbpLeaderReqParams leaderReqParams;
+}  tHalLbpLeaderReqMsg, *tpHalLbpLeaderReqMsg;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_LBP_LEADER_RSP
+ *-------------------------------------------------------------------------*/
+typedef PACKED_PRE struct PACKED_POST
+{
+   /* success or failure */
+   tANI_U32 status;
+
+   /*  Command Type */
+   tLeaderRspCmdType cmd;
+
+   /* MAC address of MCAST Transmitter (source) */
+   tSirMacAddr mcastTransmitter;
+
+   /* MAC Address of Multicast Group (01-00-5E-xx-xx-xx) */
+   tSirMacAddr mcastGroup;
+
+   /* List of candidates for cmd = WLAN_HAL_SUGGEST_LEADER*/
+   tSirMacAddr leader[HAL_NUM_MAX_LEADERS];
+
+}  tHalLbpLeaderRspParams, *tpHalLbpLeaderRspParams;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+   tHalLbpLeaderRspParams leaderRspParams;
+}  tHalLbpLeaderRspMsg, *tpHalLbpLeaderRspMsg;
+
+/*---------------------------------------------------------------------------
+ * WLAN_HAL_LBP_UPDATE_IND
+ *-------------------------------------------------------------------------*/
+typedef enum
+{
+   WLAN_HAL_LEADER_ACCEPTED,    //Host-->FW
+   WLAN_HAL_LEADER_CANCELED,    //Host-->FW
+   WLAN_HAL_LEADER_PICK_NEW,    //FW-->Host
+   WLAN_HAL_LEADER_IND_MAX = WLAN_HAL_MAX_ENUM_SIZE
+}tLbpUpdateIndType;
+
+typedef enum
+{
+   WLAN_HAL_LBP_LEADER_ROLE,
+   WLAN_HAL_LBP_TRANSMITTER_ROLE,
+   WLAN_HAL_LBP_ROLE_MAX = WLAN_HAL_MAX_ENUM_SIZE
+}tLbpRoleType;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tLbpUpdateIndType indication;
+
+   /* Role of the entity generating this indication */
+   tLbpRoleType role;
+
+   /* MAC address of MCAST Transmitter (source) */
+   tSirMacAddr mcastTransmitter;
+
+   /* MAC Address of Multicast Group (01-00-5E-xx-xx-xx) */
+   tSirMacAddr mcastGroup;
+
+   /* MAC address of MCAST Receiver Leader */
+   tSirMacAddr mcastLeader;
+
+   /* Candidate list for indication = WLAN_HAL_LEADER_PICK_NEW */
+   tSirMacAddr leader[HAL_NUM_MAX_LEADERS];
+}  tHalLbpUpdateIndParams, *tpHalLbpUpdateIndParams;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+   tHalLbpUpdateIndParams leaderIndParams;
+}  tHalLbpUpdateInd, *tpHalLbpUpdateInd;
+
+/*---------------------------------------------------------------------------
+ *-------------------------------------------------------------------------*/
 
 #if defined(__ANI_COMPILER_PRAGMA_PACK_STACK)
 #pragma pack(pop)
