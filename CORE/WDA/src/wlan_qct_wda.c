@@ -10454,7 +10454,22 @@ VOS_STATUS WDA_HALDumpCmdReq(tpAniSirGlobal   pMac, tANI_U32  cmd,
    VOS_STATUS vStatus;
    pVosContext = (pVosContextType)vos_get_global_context(VOS_MODULE_ID_PE,
                                                            (void *)pMac);
-   
+   if(pVosContext)
+   {
+      if (pVosContext->isLogpInProgress)
+      {
+         VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_FATAL,
+                                "%s:LOGP in Progress. Ignore!!!", __func__);
+         return VOS_STATUS_E_BUSY;
+      }
+   }
+   else
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                          "%s: VOS Context Null", __func__);
+      return VOS_STATUS_E_RESOURCES;
+   }
+
    pWdaParams = (tWDA_ReqParams *)vos_mem_malloc(sizeof(tWDA_ReqParams)) ;
    if(NULL == pWdaParams)
    {
@@ -13113,14 +13128,24 @@ eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
 void WDA_PNOScanRespCallback(WDI_Status status, void* pUserData)
 {
    tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData; 
+   tSirPNOScanReq *pPNOScanReqParams;
+
    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                                          "<------ %s " ,__func__);
+              "<------ %s, wdiStatus: %d",__func__, status);
    if(NULL == pWdaParams)
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
               "%s: pWdaParams received NULL", __func__);
       VOS_ASSERT(0) ;
       return ;
+   }
+
+   pPNOScanReqParams = (tSirPNOScanReq *)pWdaParams->wdaMsgParam;
+   if(pPNOScanReqParams->statusCallback)
+   {
+      pPNOScanReqParams->statusCallback(pPNOScanReqParams->callbackContext,
+                          (status == WDI_STATUS_SUCCESS) ?
+                           VOS_STATUS_SUCCESS : VOS_STATUS_E_FAILURE);
    }
 
    vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
@@ -13137,6 +13162,7 @@ void WDA_PNOScanRespCallback(WDI_Status status, void* pUserData)
 void WDA_PNOScanReqCallback(WDI_Status wdiStatus, void* pUserData)
 {
    tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData;
+   tSirPNOScanReq *pPNOScanReqParams;
 
    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
               "<------ %s, wdiStatus: %d", __func__, wdiStatus);
@@ -13151,6 +13177,13 @@ void WDA_PNOScanReqCallback(WDI_Status wdiStatus, void* pUserData)
 
    if(IS_WDI_STATUS_FAILURE(wdiStatus))
    {
+      pPNOScanReqParams = (tSirPNOScanReq *)pWdaParams->wdaMsgParam;
+      if(pPNOScanReqParams->statusCallback)
+      {
+         pPNOScanReqParams->statusCallback(pPNOScanReqParams->callbackContext,
+                                           VOS_STATUS_E_FAILURE);
+      }
+
       vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
       vos_mem_free(pWdaParams->wdaMsgParam);
       vos_mem_free(pWdaParams);
@@ -13286,6 +13319,12 @@ VOS_STATUS WDA_ProcessSetPrefNetworkReq(tWDA_CbContext *pWDA,
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
               "Failure in Set PNO REQ WDI API, free all the memory " );
+      if(pPNOScanReqParams->statusCallback)
+      {
+         pPNOScanReqParams->statusCallback(pPNOScanReqParams->callbackContext,
+                                           VOS_STATUS_E_FAILURE);
+      }
+
       vos_mem_free(pWdaParams->wdaWdiApiMsgParam) ;
       vos_mem_free(pWdaParams->wdaMsgParam);
       pWdaParams->wdaWdiApiMsgParam = NULL;
