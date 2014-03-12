@@ -9112,13 +9112,6 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                     csrRoamIssueWmStatusChange( pMac, sessionId, eCsrDisassociated, pSirMsg );
                     if (CSR_IS_INFRA_AP(&pSession->connectedProfile))
                     {
-
-                        pCommand = csrGetCommandBuffer(pMac);
-                        if (NULL == pCommand)
-                        {
-                            smsLog( pMac, LOGE, FL(" fail to get command buffer") );
-                            status = eHAL_STATUS_RESOURCES;
-                        }
                         pRoamInfo = &roamInfo;
                         pRoamInfo->statusCode = pDisassocInd->statusCode;
                         pRoamInfo->u.pConnectedProfile = &pSession->connectedProfile;
@@ -9136,6 +9129,13 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                          *  STA/P2P client got  disassociated so remove any pending deauth
                          *  commands in sme pending list
                          */
+                        pCommand = csrGetCommandBuffer(pMac);
+                        if (NULL == pCommand)
+                        {
+                            smsLog( pMac, LOGE, FL(" fail to get command buffer") );
+                            status = eHAL_STATUS_RESOURCES;
+                            return;
+                        }
                         pCommand->command = eSmeCommandRoam;
                         pCommand->sessionId = (tANI_U8)sessionId;
                         pCommand->u.roamCmd.roamReason = eCsrForcedDeauthSta;
