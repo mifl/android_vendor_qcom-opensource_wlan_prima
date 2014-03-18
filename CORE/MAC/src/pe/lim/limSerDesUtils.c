@@ -674,12 +674,6 @@ limStartBssReqSerDes(tpAniSirGlobal pMac, tpSirSmeStartBssReq pStartBssReq, tANI
     if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
         return eSIR_FAILURE;
 
-    // Extract oxygenNwkIniFeatureEnabled
-    pStartBssReq->oxygenNwkIniFeatureEnabled = *pBuf++;
-    len--;
-    if (limCheckRemainingLength(pMac, len) == eSIR_FAILURE)
-       return eSIR_FAILURE;
-
 #ifdef WLAN_FEATURE_11W
     // Extract MFP capable/required
     pStartBssReq->pmfCapable = *pBuf++;

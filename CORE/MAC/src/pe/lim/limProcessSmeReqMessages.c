@@ -646,8 +646,6 @@ __limHandleSmeStartBssRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         psessionEntry->txLdpcIniFeatureEnabled = 
                                     pSmeStartBssReq->txLdpcIniFeatureEnabled;
 
-        psessionEntry->oxygenNwkIniFeatureEnabled =
-                                    pSmeStartBssReq->oxygenNwkIniFeatureEnabled;
 
 #ifdef WLAN_FEATURE_11W
         psessionEntry->limRmfEnabled = pSmeStartBssReq->pmfCapable ? 1 : 0;
