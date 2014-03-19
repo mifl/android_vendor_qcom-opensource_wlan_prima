@@ -350,6 +350,8 @@ unsigned char *gCfgParamName[] = {
     (unsigned char *)"OBSS_HT40_WIDTH_CHANNEL_TRANSITION_DELAY_FACTOR",
     (unsigned char *)"OBSS_HT40_SCAN_ACTIVITY_THRESHOLD",
     (unsigned char *)"TDLS_OFF_CHANNEL_ENABLED",
+    (unsigned char *)"RA_FILTER_ENABLE",
+    (unsigned char *)"RA_RATE_LIMIT_INTERVAL",
 };
 
 
