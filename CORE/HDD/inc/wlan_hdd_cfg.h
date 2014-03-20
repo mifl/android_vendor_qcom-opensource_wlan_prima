@@ -1005,17 +1005,17 @@ typedef enum
 #define CFG_REORDER_TIME_BK_NAME                           "BkReorderTime"
 #define CFG_REORDER_TIME_BK_MIN                            30
 #define CFG_REORDER_TIME_BK_MAX                            1000
-#define CFG_REORDER_TIME_BK_DEFAULT                        300
+#define CFG_REORDER_TIME_BK_DEFAULT                        100
 
 #define CFG_REORDER_TIME_BE_NAME                           "BeReorderTime"
 #define CFG_REORDER_TIME_BE_MIN                            30
 #define CFG_REORDER_TIME_BE_MAX                            1000
-#define CFG_REORDER_TIME_BE_DEFAULT                        300
+#define CFG_REORDER_TIME_BE_DEFAULT                        100
 
 #define CFG_REORDER_TIME_VI_NAME                           "ViReorderTime"
 #define CFG_REORDER_TIME_VI_MIN                            30
 #define CFG_REORDER_TIME_VI_MAX                            1000
-#define CFG_REORDER_TIME_VI_DEFAULT                        300
+#define CFG_REORDER_TIME_VI_DEFAULT                        100
 
 #define CFG_REORDER_TIME_VO_NAME                           "VoReorderTime"
 #define CFG_REORDER_TIME_VO_MIN                            30
@@ -1378,7 +1378,7 @@ typedef enum
 #define CFG_ENABLE_BYPASS_11D_NAME                 "gEnableBypass11d"
 #define CFG_ENABLE_BYPASS_11D_MIN                  ( 0 )
 #define CFG_ENABLE_BYPASS_11D_MAX                  ( 1 )
-#define CFG_ENABLE_BYPASS_11D_DEFAULT              ( 0 )
+#define CFG_ENABLE_BYPASS_11D_DEFAULT              ( 1 )
 
 #define CFG_ENABLE_DFS_CHNL_SCAN_NAME              "gEnableDFSChnlScan"
 #define CFG_ENABLE_DFS_CHNL_SCAN_MIN               ( 0 )
@@ -2015,6 +2015,16 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MAX                 ( 1 )
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_DEFAULT             ( 1 )
 
+#define CFG_RA_FILTER_ENABLE_NAME               "gRAFilterEnable"
+#define CFG_RA_FILTER_ENABLE_DEFAULT            (1)
+#define CFG_RA_FILTER_ENABLE_MIN                (0)
+#define CFG_RA_FILTER_ENABLE_MAX                (1)
+
+#define CFG_RA_RATE_LIMIT_INTERVAL_NAME         "gRARateLimitInterval"
+#define CFG_RA_RATE_LIMIT_INTERVAL_DEFAULT      (60)
+#define CFG_RA_RATE_LIMIT_INTERVAL_MIN          (0)
+#define CFG_RA_RATE_LIMIT_INTERVAL_MAX          (60)
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2434,6 +2444,8 @@ typedef struct
    v_BOOL_t                    IsMemoryDebugSupportEnabled;
 #endif
    v_BOOL_t                    gEnableStrictRegulatoryForFCC;
+   v_BOOL_t                    cfgRAFilterEnable;
+   v_U16_t                     cfgRARateLimitInterval;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
