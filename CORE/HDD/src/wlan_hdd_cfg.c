@@ -2847,6 +2847,13 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                  CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MIN,
                  CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MAX ),
 
+   REG_VARIABLE(CFG_CTS2S_DURING_BTC_SCO_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, cfgBtcCTS2SduringSCO,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_CTS2S_DURING_BTC_SCO_DEFAULT,
+                CFG_CTS2S_DURING_BTC_SCO_MIN,
+                CFG_CTS2S_DURING_BTC_SCO_MAX ),
+
 #ifdef MEMORY_DEBUG
    REG_VARIABLE(CFG_ENABLE_MEMORY_DEBUG_NAME, WLAN_PARAM_Integer,
                 hdd_config_t, IsMemoryDebugSupportEnabled,
@@ -4576,6 +4583,14 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
       hddLog(LOGE, "Could not pass on WNI_CFG_RA_RATE_LIMIT_INTERVAL to CCM");
    }
 
+   if (ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_BTC_CTS2S_DURING_SCO,
+                    pConfig->cfgBtcCTS2SduringSCO,
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_CFG_BTC_CTS2S_DURING_SCO to CCM");
+   }
    return fStatus;
 }
 
