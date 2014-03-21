@@ -82,9 +82,9 @@
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
 #include "csrNeighborRoam.h"
 #endif /* WLAN_FEATURE_NEIGHBOR_ROAMING */
-#if defined(FEATURE_WLAN_CCX) && !defined(FEATURE_WLAN_CCX_UPLOAD)
-#include "csrCcx.h"
-#endif /* FEATURE_WLAN_CCX && !FEATURE_WLAN_CCX_UPLOAD */
+#if defined(FEATURE_WLAN_ESE) && !defined(FEATURE_WLAN_ESE_UPLOAD)
+#include "csrEse.h"
+#endif /* FEATURE_WLAN_ESE && !FEATURE_WLAN_ESE_UPLOAD */
 #define CSR_NUM_IBSS_START_CHANNELS_50      4
 #define CSR_NUM_IBSS_START_CHANNELS_24      3
 #define CSR_DEF_IBSS_START_CHANNEL_50       36
@@ -774,16 +774,17 @@ eHalStatus csrRoamCopyConnectProfile(tpAniSirGlobal pMac, tANI_U32 sessionId, tC
                     pProfile->MDID.mobilityDomain = 0;
                 }
 #endif
-#ifdef FEATURE_WLAN_CCX
-                pProfile->isCCXAssoc = pSession->connectedProfile.isCCXAssoc;
-                if (csrIsAuthTypeCCX(pSession->connectedProfile.AuthType))
+#ifdef FEATURE_WLAN_ESE
+                pProfile->isESEAssoc = pSession->connectedProfile.isESEAssoc;
+                if (csrIsAuthTypeESE(pSession->connectedProfile.AuthType))
                 {
-                    palCopyMemory( pMac->hHdd, pProfile->ccxCckmInfo.krk, 
-                        pSession->connectedProfile.ccxCckmInfo.krk, CSR_KRK_KEY_LEN );
-                    pProfile->ccxCckmInfo.reassoc_req_num=
-                        pSession->connectedProfile.ccxCckmInfo.reassoc_req_num;
-                    pProfile->ccxCckmInfo.krk_plumbed = 
-                        pSession->connectedProfile.ccxCckmInfo.krk_plumbed;
+                    vos_mem_copy (pProfile->eseCckmInfo.krk,
+                                  pSession->connectedProfile.eseCckmInfo.krk,
+                                  CSR_KRK_KEY_LEN);
+                    pProfile->eseCckmInfo.reassoc_req_num=
+                        pSession->connectedProfile.eseCckmInfo.reassoc_req_num;
+                    pProfile->eseCckmInfo.krk_plumbed =
+                        pSession->connectedProfile.eseCckmInfo.krk_plumbed;
                 }
 #endif
             }while(0);
@@ -840,7 +841,7 @@ static eHalStatus csrRoamFreeConnectedInfo( tpAniSirGlobal pMac, tCsrRoamConnect
 #ifdef WLAN_FEATURE_VOWIFI_11R
     pConnectedInfo->nRICRspLength = 0;
 #endif    
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
     pConnectedInfo->nTspecIeLength = 0;
 #endif    
     return ( status );
@@ -1078,7 +1079,7 @@ eCsrBand csrGetCurrentBand(tHalHandle hHal)
 }
 
 
-#if defined(FEATURE_WLAN_CCX) && defined(FEATURE_WLAN_CCX_UPLOAD)
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
 /*
  This function flushes the roam scan cache
 */
@@ -1096,10 +1097,10 @@ eHalStatus csrFlushRoamScanRoamChannelList(tpAniSirGlobal pMac)
     }
     return status;
 }
-#endif  /* FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
+#endif  /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
 
 
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
 /*
  This function flushes the roam scan cache
 */
@@ -1230,7 +1231,7 @@ eHalStatus csrUpdateBgScanConfigIniChannelList(tpAniSirGlobal pMac,
 }
 #endif
 
-#if defined(FEATURE_WLAN_CCX) && defined(FEATURE_WLAN_CCX_UPLOAD)
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
 /* This function modifies the roam scan channel list as per AP neighbor
     report; AP neighbor report may be empty or may include only other AP
     channels; in any case, we merge the channel list with the learned occupied
@@ -1351,7 +1352,7 @@ eHalStatus csrCreateRoamScanChannelList(tpAniSirGlobal pMac,
     }
     return status;
 }
-#endif /* FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
+#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
 
 eHalStatus csrSetBand(tHalHandle hHal, eCsrBand eBand)
 {
@@ -1383,7 +1384,7 @@ eHalStatus csrSetBand(tHalHandle hHal, eCsrBand eBand)
     pMac->roam.configParam.eBand = eBand;
     pMac->roam.configParam.bandCapability = eBand;
     csrScanGetSupportedChannels( pMac );
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
     if (!csrRoamIsRoamOffloadScanEnabled(pMac))
         csrUpdateBgScanConfigIniChannelList( pMac, eBand );
 #endif
@@ -1684,7 +1685,7 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         palCopyMemory( pMac->hHdd, &pMac->roam.configParam.csr11rConfig, &pParam->csr11rConfig, sizeof(tCsr11rConfigParams) );
         smsLog( pMac, LOG1, "IsFTResourceReqSupp = %d", pMac->roam.configParam.csr11rConfig.IsFTResourceReqSupported);
 #endif
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
         pMac->roam.configParam.isFastTransitionEnabled = pParam->isFastTransitionEnabled;
         pMac->roam.configParam.RoamRssiDiff = pParam->RoamRssiDiff;
         pMac->roam.configParam.nImmediateRoamRssiDiff = pParam->nImmediateRoamRssiDiff;
@@ -1705,8 +1706,8 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         pMac->roam.configParam.MAWCEnabled = pParam->MAWCEnabled;
 #endif
 
-#ifdef FEATURE_WLAN_CCX
-        pMac->roam.configParam.isCcxIniFeatureEnabled = pParam->isCcxIniFeatureEnabled;
+#ifdef FEATURE_WLAN_ESE
+        pMac->roam.configParam.isEseIniFeatureEnabled = pParam->isEseIniFeatureEnabled;
 #endif
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
         palCopyMemory( pMac->hHdd, &pMac->roam.configParam.neighborRoamConfig, &pParam->neighborRoamConfig, sizeof(tCsrNeighborRoamConfigParams) );
@@ -1845,7 +1846,7 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 #ifdef WLAN_FEATURE_VOWIFI_11R
         palCopyMemory( pMac->hHdd, &pMac->roam.configParam.csr11rConfig, &pParam->csr11rConfig, sizeof(tCsr11rConfigParams) );
 #endif
-#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+#if  defined (WLAN_FEATURE_VOWIFI_11R) || defined (FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_LFR)
         pParam->isFastTransitionEnabled = pMac->roam.configParam.isFastTransitionEnabled;
         pParam->RoamRssiDiff = pMac->roam.configParam.RoamRssiDiff;
         pParam->nImmediateRoamRssiDiff = pMac->roam.configParam.nImmediateRoamRssiDiff;
@@ -1863,8 +1864,8 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
         pParam->isFastRoamIniFeatureEnabled = pMac->roam.configParam.isFastRoamIniFeatureEnabled;
 #endif
 
-#ifdef FEATURE_WLAN_CCX
-        pParam->isCcxIniFeatureEnabled = pMac->roam.configParam.isCcxIniFeatureEnabled;
+#ifdef FEATURE_WLAN_ESE
+        pParam->isEseIniFeatureEnabled = pMac->roam.configParam.isEseIniFeatureEnabled;
 #endif
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
         palCopyMemory( pMac->hHdd, &pParam->neighborRoamConfig, &pMac->roam.configParam.neighborRoamConfig, sizeof(tCsrNeighborRoamConfigParams) );
@@ -4992,12 +4993,12 @@ tANI_BOOLEAN csrRoamIs11rAssoc(tpAniSirGlobal pMac)
 #endif
 }
 #endif
-#ifdef FEATURE_WLAN_CCX
-//Returns whether the current association is a CCX assoc or not
-tANI_BOOLEAN csrRoamIsCCXAssoc(tpAniSirGlobal pMac)
+#ifdef FEATURE_WLAN_ESE
+//Returns whether the current association is a ESE assoc or not
+tANI_BOOLEAN csrRoamIsESEAssoc(tpAniSirGlobal pMac)
 {
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
-    return csrNeighborRoamIsCCXAssoc(pMac);
+    return csrNeighborRoamIsESEAssoc(pMac);
 #else
     return eANI_BOOLEAN_FALSE;
 #endif
@@ -5034,23 +5035,23 @@ tANI_BOOLEAN csrRoamIsFastRoamEnabled(tpAniSirGlobal pMac, tANI_U32 sessionId)
     }
 }
 
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
 /* ---------------------------------------------------------------------------
 
-    \fn csrNeighborRoamIsCCXAssoc
+    \fn csrNeighborRoamIsESEAssoc
 
-    \brief  This function returns whether the current association is a CCX assoc or not
+    \brief  This function returns whether the current association is a ESE assoc or not
 
     \param  pMac - The handle returned by macOpen.
 
-    \return eANI_BOOLEAN_TRUE if current assoc is CCX, eANI_BOOLEAN_FALSE otherwise
+    \return eANI_BOOLEAN_TRUE if current assoc is ESE, eANI_BOOLEAN_FALSE otherwise
 
 ---------------------------------------------------------------------------*/
-tANI_BOOLEAN csrNeighborRoamIsCCXAssoc(tpAniSirGlobal pMac)
+tANI_BOOLEAN csrNeighborRoamIsESEAssoc(tpAniSirGlobal pMac)
 {
-    return pMac->roam.neighborRoamInfo.isCCXAssoc;
+    return pMac->roam.neighborRoamInfo.isESEAssoc;
 }
-#endif /* FEATURE_WLAN_CCX */
+#endif /* FEATURE_WLAN_ESE */
 
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
 //Returns whether "FW based BG scan" is currently enabled...or not
@@ -5061,12 +5062,12 @@ tANI_BOOLEAN csrRoamIsRoamOffloadScanEnabled(tpAniSirGlobal pMac)
 #endif
 #endif
 
-#if defined(FEATURE_WLAN_CCX)
-tANI_BOOLEAN csrRoamIsCcxIniFeatureEnabled(tpAniSirGlobal pMac)
+#if defined(FEATURE_WLAN_ESE)
+tANI_BOOLEAN csrRoamIsEseIniFeatureEnabled(tpAniSirGlobal pMac)
 {
-    return pMac->roam.configParam.isCcxIniFeatureEnabled;
+    return pMac->roam.configParam.isEseIniFeatureEnabled;
 }
-#endif /*FEATURE_WLAN_CCX*/
+#endif /*FEATURE_WLAN_ESE*/
 
 //Return true means the command can be release, else not
 static tANI_BOOLEAN csrRoamProcessResults( tpAniSirGlobal pMac, tSmeCmd *pCommand,
@@ -5181,8 +5182,8 @@ static tANI_BOOLEAN csrRoamProcessResults( tpAniSirGlobal pMac, tSmeCmd *pComman
                 csrRoamSaveConnectedInfomation(pMac, sessionId, pProfile, pSirBssDesc, pIes);
                     //Save WPA/RSN IE
                 csrRoamSaveSecurityRspIE(pMac, sessionId, pProfile->negotiatedAuthType, pSirBssDesc, pIes);
-#ifdef FEATURE_WLAN_CCX
-                roamInfo.isCCXAssoc = pSession->connectedProfile.isCCXAssoc;
+#ifdef FEATURE_WLAN_ESE
+                roamInfo.isESEAssoc = pSession->connectedProfile.isESEAssoc;
 #endif
                 
                 // csrRoamStateChange also affects sub-state. Hence, csrRoamStateChange happens first and then
@@ -5255,7 +5256,7 @@ static tANI_BOOLEAN csrRoamProcessResults( tpAniSirGlobal pMac, tSmeCmd *pComman
 #ifdef WLAN_FEATURE_VOWIFI_11R
                     len += pJoinRsp->parsedRicRspLen;
 #endif /* WLAN_FEATURE_VOWIFI_11R */                    
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
                     len += pJoinRsp->tspecIeLen;
 #endif
                     if(len)
@@ -5272,8 +5273,8 @@ static tANI_BOOLEAN csrRoamProcessResults( tpAniSirGlobal pMac, tSmeCmd *pComman
 #ifdef WLAN_FEATURE_VOWIFI_11R
                                 pSession->connectedInfo.nRICRspLength = pJoinRsp->parsedRicRspLen;
 #endif /* WLAN_FEATURE_VOWIFI_11R */                                
-#ifdef FEATURE_WLAN_CCX
-                                pSession->connectedInfo.nTspecIeLength = pJoinRsp->tspecIeLen;
+#ifdef FEATURE_WLAN_ESE
+                            pSession->connectedInfo.nTspecIeLength = pJoinRsp->tspecIeLen;
 #endif
                                 roamInfo.nAssocReqLength = pJoinRsp->assocReqLength;
                                 roamInfo.nAssocRspLength = pJoinRsp->assocRspLength;
@@ -6974,9 +6975,9 @@ eHalStatus csrRoamSaveConnectedInfomation(tpAniSirGlobal pMac, tANI_U32 sessionI
     {
         status = csrGetParsedBssDescriptionIEs(pMac, pSirBssDesc, &pIesTemp);
     }
-#ifdef FEATURE_WLAN_CCX
-    if ((csrIsProfileCCX(pProfile) || 
-         ((pIesTemp->CCXVersion.present) 
+#ifdef FEATURE_WLAN_ESE
+    if ((csrIsProfileESE(pProfile) ||
+         ((pIesTemp->ESEVersion.present)
           && ((pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_OPEN_SYSTEM) 
               || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_WPA) 
               || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_WPA_PSK) 
@@ -6985,9 +6986,9 @@ eHalStatus csrRoamSaveConnectedInfomation(tpAniSirGlobal pMac, tANI_U32 sessionI
               || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_RSN_PSK_SHA256)
 #endif
               || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_RSN_PSK))))
-        && (pMac->roam.configParam.isCcxIniFeatureEnabled))
+        && (pMac->roam.configParam.isEseIniFeatureEnabled))
     {
-        pConnectProfile->isCCXAssoc = 1;
+        pConnectProfile->isESEAssoc = 1;
     }
 #endif
     //save ssid
@@ -7491,7 +7492,7 @@ static void csrRoamingStateConfigCnfProcessor( tpAniSirGlobal pMac, tANI_U32 res
                          
                         /* We need to come with other way to figure out that this is because of HO in BMP
                            The below API will be only available for Android as it uses a different HO algorithm */
-                        /* Reassoc request will be used only for CCX and 11r handoff whereas other legacy roaming should 
+                        /* Reassoc request will be used only for ESE and 11r handoff whereas other legacy roaming should
                          * use join request */
 #ifdef WLAN_FEATURE_VOWIFI_11R
                         if (csrRoamIsHandoffInProgress(pMac) && 
@@ -7502,9 +7503,9 @@ static void csrRoamingStateConfigCnfProcessor( tpAniSirGlobal pMac, tANI_U32 res
                         }
                         else
 #endif
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
                         if (csrRoamIsHandoffInProgress(pMac) && 
-                                                csrRoamIsCCXAssoc(pMac))
+                                                csrRoamIsESEAssoc(pMac))
                         {
                             // Now serialize the reassoc command.
                             status = csrRoamIssueReassociateCmd(pMac, sessionId);
@@ -8187,9 +8188,9 @@ static eHalStatus csrRoamIssueSetKeyCommand( tpAniSirGlobal pMac, tANI_U32 sessi
 {
     eHalStatus status = eHAL_STATUS_INVALID_PARAMETER;
     tSmeCmd *pCommand = NULL;
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, sessionId );
-#endif /* FEATURE_WLAN_CCX */
+#endif /* FEATURE_WLAN_ESE */
  
     do
     {
@@ -8268,7 +8269,7 @@ static eHalStatus csrRoamIssueSetKeyCommand( tpAniSirGlobal pMac, tANI_U32 sessi
             palCopyMemory( pMac->hHdd, pCommand->u.setKeyCmd.Key, pSetKey->Key, CSR_WAPI_KEY_LEN );
         }
 #endif /* FEATURE_WLAN_WAPI */
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
         else if ( eCSR_ENCRYPT_TYPE_KRK == pSetKey->encType ) 
         {
             if ( pSetKey->keyLength < CSR_KRK_KEY_LEN )
@@ -8276,13 +8277,14 @@ static eHalStatus csrRoamIssueSetKeyCommand( tpAniSirGlobal pMac, tANI_U32 sessi
                 smsLog( pMac, LOGW, "Invalid KRK keylength [= %d] in SetContext call", pSetKey->keyLength );
                 break;
             }
-            palCopyMemory( pMac->hHdd, pSession->ccxCckmInfo.krk, pSetKey->Key, CSR_KRK_KEY_LEN );
-            pSession->ccxCckmInfo.reassoc_req_num=1;
-            pSession->ccxCckmInfo.krk_plumbed = eANI_BOOLEAN_TRUE;
+            vos_mem_copy(pSession->eseCckmInfo.krk, pSetKey->Key,
+                         CSR_KRK_KEY_LEN);
+            pSession->eseCckmInfo.reassoc_req_num=1;
+            pSession->eseCckmInfo.krk_plumbed = eANI_BOOLEAN_TRUE;
             status = eHAL_STATUS_SUCCESS;
             break;
         }
-#endif /* FEATURE_WLAN_CCX */
+#endif /* FEATURE_WLAN_ESE */
 
 #ifdef WLAN_FEATURE_11W
         //Check for 11w BIP
@@ -8314,12 +8316,12 @@ static eHalStatus csrRoamIssueSetKeyCommand( tpAniSirGlobal pMac, tANI_U32 sessi
         }
     } while (0);
     // Free the command if there has been a failure, or it is a 
-    // "local" operation like the set CCX CCKM KRK key.
+    // "local" operation like the set ESE CCKM KRK key.
     if ( ( NULL != pCommand ) &&
          ( (!HAL_STATUS_SUCCESS( status ) )
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
             || ( eCSR_ENCRYPT_TYPE_KRK == pSetKey->encType ) 
-#endif /* FEATURE_WLAN_CCX */
+#endif /* FEATURE_WLAN_ESE */
            ) )
     {
         csrReleaseCommandSetKey( pMac, pCommand );
@@ -8805,7 +8807,7 @@ static void csrUpdateSnr(tpAniSirGlobal pMac, void* pMsg)
     }
     return;
 }
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
 void csrRoamRssiRspProcessor(tpAniSirGlobal pMac, void* pMsg)
 {
     tAniGetRoamRssiRsp* pRoamRssiRsp = (tAniGetRoamRssiRsp*)pMsg;
@@ -8843,7 +8845,7 @@ void csrRoamRssiRspProcessor(tpAniSirGlobal pMac, void* pMsg)
 #endif
 
 
-#if defined(FEATURE_WLAN_CCX) && defined(FEATURE_WLAN_CCX_UPLOAD)
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
 void csrTsmStatsRspProcessor(tpAniSirGlobal pMac, void* pMsg)
 {
     tAniGetTsmStatsRsp* pTsmStatsRsp = (tAniGetTsmStatsRsp*)pMsg;
@@ -8882,7 +8884,7 @@ void csrTsmStatsRspProcessor(tpAniSirGlobal pMac, void* pMsg)
     return;
 }
 
-void csrSendCcxAdjacentApRepInd(tpAniSirGlobal pMac, tCsrRoamSession *pSession)
+void csrSendEseAdjacentApRepInd(tpAniSirGlobal pMac, tCsrRoamSession *pSession)
 {
     tANI_U32 roamTS2 = 0;
     tCsrRoamInfo roamInfo;
@@ -8907,11 +8909,11 @@ void csrSendCcxAdjacentApRepInd(tpAniSirGlobal pMac, tCsrRoamSession *pSession)
         smsLog(pMac, LOGE, FL("session %d not found"), sessionId);
         return;
     }
-    pSessionEntry->ccxContext.tsm.tsmMetrics.RoamingDly = roamInfo.tsmRoamDelay;
+    pSessionEntry->eseContext.tsm.tsmMetrics.RoamingDly = roamInfo.tsmRoamDelay;
     csrRoamCallCallback(pMac, pSession->sessionId, &roamInfo,
-                        0, eCSR_ROAM_CCX_ADJ_AP_REPORT_IND, 0);
+                        0, eCSR_ROAM_ESE_ADJ_AP_REPORT_IND, 0);
 }
-#endif /* FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
+#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
 
 static void csrRoamRssiIndHdlr(tpAniSirGlobal pMac, void* pMsg)
 {
@@ -9087,15 +9089,15 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                     // If we are in neighbor preauth done state then on receiving
                     // disassoc or deauth we dont roam instead we just disassoc
                     // from current ap and then go to disconnected state
-                    // This happens for CCX and 11r FT connections ONLY.
+                    // This happens for ESE and 11r FT connections ONLY.
 #ifdef WLAN_FEATURE_VOWIFI_11R
                     if (csrRoamIs11rAssoc(pMac) && (csrNeighborRoamStatePreauthDone(pMac)))
                     {
                         csrNeighborRoamTranistionPreauthDoneToDisconnected(pMac);
                     }
 #endif
-#ifdef FEATURE_WLAN_CCX
-                    if (csrRoamIsCCXAssoc(pMac) && (csrNeighborRoamStatePreauthDone(pMac)))
+#ifdef FEATURE_WLAN_ESE
+                    if (csrRoamIsESEAssoc(pMac) && (csrNeighborRoamStatePreauthDone(pMac)))
                     {
                         csrNeighborRoamTranistionPreauthDoneToDisconnected(pMac);
                     }
@@ -9176,15 +9178,15 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                 // If we are in neighbor preauth done state then on receiving
                 // disassoc or deauth we dont roam instead we just disassoc
                 // from current ap and then go to disconnected state 
-                // This happens for CCX and 11r FT connections ONLY.
+                // This happens for ESE and 11r FT connections ONLY.
 #ifdef WLAN_FEATURE_VOWIFI_11R
                 if (csrRoamIs11rAssoc(pMac) && (csrNeighborRoamStatePreauthDone(pMac)))
                 {
                     csrNeighborRoamTranistionPreauthDoneToDisconnected(pMac);
                 }
 #endif
-#ifdef FEATURE_WLAN_CCX
-                if (csrRoamIsCCXAssoc(pMac) && (csrNeighborRoamStatePreauthDone(pMac)))
+#ifdef FEATURE_WLAN_ESE
+                if (csrRoamIsESEAssoc(pMac) && (csrNeighborRoamStatePreauthDone(pMac)))
                 {
                     csrNeighborRoamTranistionPreauthDoneToDisconnected(pMac);
                 }
@@ -9769,16 +9771,16 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                         // Indicate SME_QOS that the SET_KEY is completed, so that SME_QOS
                         // can go ahead and initiate the TSPEC if any are pending
                         sme_QosCsrEventInd(pMac, (v_U8_t)sessionId, SME_QOS_CSR_SET_KEY_SUCCESS_IND, NULL);
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
                         //Send Adjacent AP repot to new AP.
                         if (result == eCSR_ROAM_RESULT_AUTHENTICATED &&
                             pSession->isPrevApInfoValid && 
-                            pSession->connectedProfile.isCCXAssoc)
+                            pSession->connectedProfile.isESEAssoc)
                         {
-#ifdef FEATURE_WLAN_CCX_UPLOAD
-                            csrSendCcxAdjacentApRepInd(pMac, pSession);
+#ifdef FEATURE_WLAN_ESE_UPLOAD
+                            csrSendEseAdjacentApRepInd(pMac, pSession);
 #else
-                            csrCcxSendAdjacentApRepMsg(pMac, pSession);
+                            csrEseSendAdjacentApRepMsg(pMac, pSession);
 #endif
                             pSession->isPrevApInfoValid = FALSE;
                         }
@@ -9872,18 +9874,18 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
             smsLog( pMac, LOG2, FL("Stats rsp from PE"));
             csrRoamStatsRspProcessor( pMac, pSirMsg );
             break;
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
         case eWNI_SME_GET_ROAM_RSSI_RSP:
             smsLog( pMac, LOG2, FL("Stats rsp from PE"));
             csrRoamRssiRspProcessor( pMac, pSirMsg );
             break;
 #endif
-#if defined(FEATURE_WLAN_CCX) && defined(FEATURE_WLAN_CCX_UPLOAD)
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
         case eWNI_SME_GET_TSM_STATS_RSP:
             smsLog( pMac, LOG2, FL("TSM Stats rsp from PE"));
             csrTsmStatsRspProcessor( pMac, pSirMsg );
             break;
-#endif /* FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
+#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
         case eWNI_SME_GET_RSSI_REQ:
             smsLog( pMac, LOG2, FL("GetRssiReq from self"));
             csrUpdateRssi( pMac, pSirMsg );
@@ -12424,7 +12426,7 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
             *(pBuf + 1) = 0;
             pBuf += 2;
         }
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
         if( eWNI_SME_JOIN_REQ == messageType )
         {
             // Never include the cckmIE in an Join Request
@@ -12436,22 +12438,22 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
         else if(eWNI_SME_REASSOC_REQ == messageType )
         {
             // cckmIE
-            if( csrIsProfileCCX( pProfile ) )
+            if( csrIsProfileESE( pProfile ) )
             {
                 // Insert the CCKM IE into the join request
-#ifdef FEATURE_WLAN_CCX_UPLOAD
+#ifdef FEATURE_WLAN_ESE_UPLOAD
                 ieLen = pSession->suppCckmIeInfo.cckmIeLen;
                 vos_mem_copy((void *) (wpaRsnIE),
                      pSession->suppCckmIeInfo.cckmIe, ieLen);
 #else
-                ieLen = csrConstructCcxCckmIe( pMac,
+                ieLen = csrConstructEseCckmIe( pMac,
                                           pSession,
                                           pProfile,
                                           pBssDescription,
                                           pSession->pWpaRsnReqIE,
                                           pSession->nWpaRsnReqIeLength,
                                           (void *)( wpaRsnIE ) );
-#endif /* FEATURE_WLAN_CCX_UPLOAD */
+#endif /* FEATURE_WLAN_ESE_UPLOAD */
             }
             else
             {
@@ -12476,7 +12478,7 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
                 pBuf += 2;
             }
         }
-#endif /* FEATURE_WLAN_CCX */
+#endif /* FEATURE_WLAN_ESE */
         // addIEScan
         if (pProfile->nAddIEScanLength)
         {
@@ -12577,9 +12579,9 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
 #ifdef WLAN_FEATURE_VOWIFI_11R
         pProfile->MDID.mdiePresent = pBssDescription->mdiePresent;
         if (csrIsProfile11r( pProfile )
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
            && !((pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_OPEN_SYSTEM) &&
-                (pIes->CCXVersion.present) && (pMac->roam.configParam.isCcxIniFeatureEnabled))
+                (pIes->ESEVersion.present) && (pMac->roam.configParam.isEseIniFeatureEnabled))
 #endif
         )
         {
@@ -12596,10 +12598,10 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
             pBuf += sizeof(tAniBool);
         }
 #endif
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
 
-        // isCCXFeatureIniEnabled
-        if (TRUE == pMac->roam.configParam.isCcxIniFeatureEnabled)
+        // isESEFeatureIniEnabled
+        if (TRUE == pMac->roam.configParam.isEseIniFeatureEnabled)
         {
             dwTmp = pal_cpu_to_be32(TRUE);
             vos_mem_copy(pBuf, &dwTmp, sizeof(tAniBool));
@@ -12612,14 +12614,14 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
             pBuf += sizeof(tAniBool);
         }
 
-        /* A profile can not be both CCX and 11R. But an 802.11R AP
-         * may be advertising support for CCX as well. So if we are
-         * associating Open or explicitly CCX then we will get CCX.
+        /* A profile can not be both ESE and 11R. But an 802.11R AP
+         * may be advertising support for ESE as well. So if we are
+         * associating Open or explicitly ESE then we will get ESE.
          * If we are associating explictly 11R only then we will get
          * 11R.
          */
-        if ((csrIsProfileCCX(pProfile) ||
-                  ((pIes->CCXVersion.present)
+        if ((csrIsProfileESE(pProfile) ||
+                  ((pIes->ESEVersion.present)
                    && ((pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_OPEN_SYSTEM)
                        || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_WPA)
                        || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_WPA_PSK)
@@ -12628,16 +12630,16 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
                        || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_RSN_PSK_SHA256)
 #endif
                        || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_RSN_PSK))))
-                 && (pMac->roam.configParam.isCcxIniFeatureEnabled))
+                 && (pMac->roam.configParam.isEseIniFeatureEnabled))
         {
-            // isCCXconnection;
+            // isESEconnection;
             dwTmp = pal_cpu_to_be32(TRUE);
             palCopyMemory( pMac->hHdd, pBuf, &dwTmp, sizeof(tAniBool) );
             pBuf += sizeof(tAniBool);
         }
         else
         {
-            //isCCXconnection;
+            //isESEconnection;
             dwTmp = pal_cpu_to_be32(FALSE);
             palCopyMemory( pMac->hHdd, pBuf, &dwTmp, sizeof(tAniBool) );
             pBuf += sizeof(tAniBool);
@@ -12645,17 +12647,17 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
 
         if (eWNI_SME_JOIN_REQ == messageType)
         {
-            tCCXTspecInfo ccxTspec;
-            // CCX-Tspec IEs in the ASSOC request is presently not supported
+            tESETspecInfo eseTspec;
+            // ESE-Tspec IEs in the ASSOC request is presently not supported
             // so nullify the TSPEC parameters
-            palZeroMemory(pMac->hHdd, &ccxTspec, sizeof(tCCXTspecInfo));
-            palCopyMemory( pMac->hHdd, pBuf, &ccxTspec, sizeof(tCCXTspecInfo));
-            pBuf += sizeof(tCCXTspecInfo);
+            vos_mem_set(&eseTspec, sizeof(tESETspecInfo), 0);
+            vos_mem_copy(pBuf, &eseTspec, sizeof(tESETspecInfo));
+            pBuf += sizeof(tESETspecInfo);
         }
         else if (eWNI_SME_REASSOC_REQ == messageType)
         {
-        if ((csrIsProfileCCX(pProfile) ||
-             ((pIes->CCXVersion.present)
+        if ((csrIsProfileESE(pProfile) ||
+             ((pIes->ESEVersion.present)
               && ((pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_OPEN_SYSTEM)
                   || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_WPA)
                   || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_WPA_PSK)
@@ -12664,32 +12666,33 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
                   || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_RSN_PSK_SHA256)
 #endif
                   || (pProfile->negotiatedAuthType == eCSR_AUTH_TYPE_RSN_PSK))))
-            && (pMac->roam.configParam.isCcxIniFeatureEnabled))
+            && (pMac->roam.configParam.isEseIniFeatureEnabled))
         {
-           tCCXTspecInfo ccxTspec;
-           // CCX Tspec information
-           palZeroMemory(pMac->hHdd, &ccxTspec, sizeof(tCCXTspecInfo));
-           ccxTspec.numTspecs = sme_QosCCxRetrieveTspecInfo(pMac, sessionId, (tTspecInfo *) &ccxTspec.tspec[0]);
-           *pBuf = ccxTspec.numTspecs;
+           tESETspecInfo eseTspec;
+           // ESE Tspec information
+           vos_mem_set(&eseTspec, sizeof(tESETspecInfo), 0);
+           eseTspec.numTspecs = sme_QosESERetrieveTspecInfo(pMac, sessionId, (tTspecInfo *) &eseTspec.tspec[0]);
+           *pBuf = eseTspec.numTspecs;
            pBuf += sizeof(tANI_U8);
            // Copy the TSPEC information only if present
-           if (ccxTspec.numTspecs) {
-               palCopyMemory(pMac->hHdd, pBuf, (void*)&ccxTspec.tspec[0], (ccxTspec.numTspecs*sizeof(tTspecInfo)));
+           if (eseTspec.numTspecs) {
+               vos_mem_copy(pBuf, (void*)&eseTspec.tspec[0],
+                           (eseTspec.numTspecs*sizeof(tTspecInfo)));
            }
-           pBuf += sizeof(ccxTspec.tspec);
+           pBuf += sizeof(eseTspec.tspec);
         }
         else
         {
-                tCCXTspecInfo ccxTspec;
-                // CCX-Tspec IEs in the ASSOC request is presently not supported
+                tESETspecInfo eseTspec;
+                // ESE-Tspec IEs in the ASSOC request is presently not supported
                 // so nullify the TSPEC parameters
-                palZeroMemory(pMac->hHdd, &ccxTspec, sizeof(tCCXTspecInfo));
-                palCopyMemory( pMac->hHdd, pBuf, &ccxTspec, sizeof(tCCXTspecInfo));
-                pBuf += sizeof(tCCXTspecInfo);
+                vos_mem_set(&eseTspec, sizeof(tESETspecInfo), 0);
+                vos_mem_copy(pBuf, &eseTspec, sizeof(tESETspecInfo));
+                pBuf += sizeof(tESETspecInfo);
             }
         }
-#endif // FEATURE_WLAN_CCX
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#endif // FEATURE_WLAN_ESE
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
         // Fill in isFastTransitionEnabled
         if (pMac->roam.configParam.isFastTransitionEnabled
 #ifdef FEATURE_WLAN_LFR
@@ -14844,7 +14847,7 @@ eHalStatus csrGetSnr(tpAniSirGlobal pMac,
    return status;
 }
 
-#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_CCX || defined(FEATURE_WLAN_LFR)
+#if defined WLAN_FEATURE_VOWIFI_11R || defined FEATURE_WLAN_ESE || defined(FEATURE_WLAN_LFR)
 eHalStatus csrGetRoamRssi(tpAniSirGlobal pMac,
                             tCsrRssiCallback callback,
                             tANI_U8 staId, tCsrBssid bssId, void *pContext, void* pVosContext)
@@ -14878,7 +14881,7 @@ eHalStatus csrGetRoamRssi(tpAniSirGlobal pMac,
 
 
 
-#if defined(FEATURE_WLAN_CCX) && defined(FEATURE_WLAN_CCX_UPLOAD)
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
 eHalStatus csrGetTsmStats(tpAniSirGlobal pMac,
                           tCsrTsmStatsCallback callback,
                           tANI_U8 staId,
@@ -14914,7 +14917,7 @@ eHalStatus csrGetTsmStats(tpAniSirGlobal pMac,
    }
    return status;
 }
-#endif  /* FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
+#endif  /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
 
 
 /* ---------------------------------------------------------------------------
@@ -15599,16 +15602,16 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
     /* MAWC feature */
     pRequestBuf->MAWCEnabled =
             pMac->roam.configParam.MAWCEnabled;
-#ifdef FEATURE_WLAN_CCX
-    pRequestBuf->IsCCXEnabled = pMac->roam.configParam.isCcxIniFeatureEnabled;
+#ifdef FEATURE_WLAN_ESE
+    pRequestBuf->IsESEEnabled = pMac->roam.configParam.isEseIniFeatureEnabled;
 #endif
     if (
-#ifdef FEATURE_WLAN_CCX
-       ((pNeighborRoamInfo->isCCXAssoc) &&
+#ifdef FEATURE_WLAN_ESE
+       ((pNeighborRoamInfo->isESEAssoc) &&
         (pNeighborRoamInfo->roamChannelInfo.IAPPNeighborListReceived ==
          eANI_BOOLEAN_FALSE)) ||
-        (pNeighborRoamInfo->isCCXAssoc == eANI_BOOLEAN_FALSE) ||
-#endif // CCX
+        (pNeighborRoamInfo->isESEAssoc == eANI_BOOLEAN_FALSE) ||
+#endif // ESE
         currChannelListInfo->numOfChannels == 0)
     {
 
@@ -15673,12 +15676,12 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
           }
        }
     }
-#ifdef FEATURE_WLAN_CCX
+#ifdef FEATURE_WLAN_ESE
     else
     {
-      /* If CCX is enabled, and a neighbor Report is received,then
+      /* If ESE is enabled, and a neighbor Report is received,then
        * Ignore the INI Channels or the Occupied Channel List. Consider
-       * the channels in the neighbor list sent by the CCX AP.*/
+       * the channels in the neighbor list sent by the ESE AP.*/
        if (currChannelListInfo->numOfChannels != 0)
        {
           ChannelList = currChannelListInfo->ChannelList;
@@ -16610,7 +16613,7 @@ void csrRoamFTPreAuthRspProcessor( tHalHandle hHal, tpSirFTPreAuthRsp pFTPreAuth
 {
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
     eHalStatus  status = eHAL_STATUS_SUCCESS;
-#if defined(FEATURE_WLAN_LFR) || defined(FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_CCX_UPLOAD)
+#if defined(FEATURE_WLAN_LFR) || defined(FEATURE_WLAN_ESE) || defined(FEATURE_WLAN_ESE_UPLOAD)
     tCsrRoamInfo roamInfo;
 #endif
 
@@ -16652,8 +16655,8 @@ void csrRoamFTPreAuthRspProcessor( tHalHandle hHal, tpSirFTPreAuthRsp pFTPreAuth
        csrRoamCallCallback(pMac, pFTPreAuthRsp->smeSessionId, NULL, 0, 
                         eCSR_ROAM_FT_RESPONSE, eCSR_ROAM_RESULT_NONE);
 
-#if defined(FEATURE_WLAN_CCX) && defined(FEATURE_WLAN_CCX_UPLOAD)
-    if (csrRoamIsCCXAssoc(pMac))
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
+    if (csrRoamIsESEAssoc(pMac))
     {
         /* read TSF */
         csrRoamReadTSF(pMac, (tANI_U8 *)roamInfo.timestamp);
@@ -16662,7 +16665,7 @@ void csrRoamFTPreAuthRspProcessor( tHalHandle hHal, tpSirFTPreAuthRsp pFTPreAuth
         vos_mem_copy((void *)&roamInfo.bssid, (void *)pFTPreAuthRsp->preAuthbssId, sizeof(tCsrBssid));
         csrRoamCallCallback(pMac, pFTPreAuthRsp->smeSessionId, &roamInfo, 0, eCSR_ROAM_CCKM_PREAUTH_NOTIFY, 0);
     }
-#endif /* FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
+#endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
 #ifdef FEATURE_WLAN_LFR
     // If Legacy Fast Roaming is enabled, signal the supplicant  
     // So he can send us a PMK-ID for this candidate AP.
@@ -16934,7 +16937,81 @@ eHalStatus csrHandoffRequest(tpAniSirGlobal pMac,
 }
 #endif /* WLAN_FEATURE_ROAM_SCAN_OFFLOAD */
 
-#if defined(FEATURE_WLAN_CCX) && defined(FEATURE_WLAN_CCX_UPLOAD)
+#if defined WLAN_FEATURE_RELIABLE_MCAST
+eHalStatus csrEnableRMC(tpAniSirGlobal pMac, tANI_U32 sessionId)
+{
+   tSirSetRMCReq *pMsg = NULL;
+   eHalStatus status = eHAL_STATUS_SUCCESS;
+   tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
+
+   if (!pSession)
+   {
+       smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+       return eHAL_STATUS_FAILURE;
+   }
+
+   pMsg = vos_mem_malloc(sizeof(tSirSetRMCReq));
+   if (NULL != pMsg)
+   {
+       vos_mem_set((void *)pMsg, sizeof(tSirSetRMCReq), 0);
+       pMsg->msgType = eWNI_SME_ENABLE_RMC_REQ;
+       pMsg->msgLen  = sizeof(tSirSetRMCReq);
+       vos_mem_copy((v_U8_t *)pMsg->mcastTransmitter,
+             &pSession->selfMacAddr, sizeof(tSirMacAddr));
+
+       status = palSendMBMessage(pMac->hHdd, pMsg);
+       if (!HAL_STATUS_SUCCESS(status))
+       {
+           smsLog(pMac, LOGE, FL(" csr enable RMC Post MSG Fail %d "), status);
+           //pMsg is freed by palSendMBMessage
+       }
+   }
+   else
+   {
+       return eHAL_STATUS_FAILURE;
+   }
+   return status;
+}
+
+eHalStatus csrDisableRMC(tpAniSirGlobal pMac, tANI_U32 sessionId)
+{
+   tSirSetRMCReq *pMsg = NULL;
+   eHalStatus status = eHAL_STATUS_SUCCESS;
+   tCsrRoamSession *pSession = CSR_GET_SESSION(pMac, sessionId);
+
+   if (!pSession)
+   {
+       smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
+       return eHAL_STATUS_FAILURE;
+   }
+
+   pMsg = vos_mem_malloc(sizeof(tSirSetRMCReq));
+   if (NULL != pMsg)
+   {
+       vos_mem_set((void *)pMsg, sizeof(tSirSetRMCReq), 0);
+       pMsg->msgType = eWNI_SME_DISABLE_RMC_REQ;
+       pMsg->msgLen  = sizeof(tSirSetRMCReq);
+       vos_mem_copy((v_U8_t *)pMsg->mcastTransmitter,
+             &pSession->selfMacAddr, sizeof(tSirMacAddr));
+
+       status = palSendMBMessage(pMac->hHdd, pMsg);
+       if (!HAL_STATUS_SUCCESS(status))
+       {
+           smsLog(pMac, LOGE, FL(" csr disable RMC Post MSG Fail %d "), status);
+           //pMsg is freed by palSendMBMessage
+       }
+   }
+   else
+   {
+       return eHAL_STATUS_FAILURE;
+   }
+   return status;
+}
+
+#endif /* defined WLAN_FEATURE_RELIABLE_MCAST */
+
+
+#if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
 /* ---------------------------------------------------------------------------
     \fn csrSetCCKMIe
     \brief  This function stores the CCKM IE passed by the supplicant in a place holder
@@ -16996,5 +17073,5 @@ VOS_STATUS csrRoamReadTSF(tpAniSirGlobal pMac, tANI_U8 *pTimestamp)
     return status;
 }
 
-#endif /*FEATURE_WLAN_CCX && FEATURE_WLAN_CCX_UPLOAD */
+#endif /*FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
 
