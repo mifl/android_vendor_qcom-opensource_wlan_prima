@@ -1114,6 +1114,8 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_TRIGGER_BATCH_SCAN_RESULT_IND SIR_HAL_TRIGGER_BATCH_SCAN_RESULT_IND
 #endif
 
+#define WDA_RATE_UPDATE_IND         SIR_HAL_RATE_UPDATE_IND
+
 tSirRetStatus wdaPostCtrlMsg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 
 eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
@@ -1866,9 +1868,10 @@ tANI_U8 WDA_getFwWlanFeatCaps(tANI_U8 featEnumValue);
   PARAMETERS
     pMac : upper MAC context pointer
     displaySnapshot : Display DXE snapshot option
-    enableStallDetect : Enable stall detect feature
-                        This feature will take effect to data performance
-                        Not integrate till fully verification
+    debugFlags      : Enable stall detect features
+                      defined by WPAL_DeviceDebugFlags
+                      These features may effect
+                      data performance.
 
   RETURN VALUE
     NONE
@@ -1878,7 +1881,7 @@ void WDA_TransportChannelDebug
 (
   tpAniSirGlobal pMac,
   v_BOOL_t       displaySnapshot,
-  v_BOOL_t       toggleStallDetect
+  v_U8_t         debugFlags
 );
 
 /*==========================================================================

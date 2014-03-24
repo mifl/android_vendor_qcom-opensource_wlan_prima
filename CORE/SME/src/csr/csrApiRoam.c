@@ -78,6 +78,7 @@
 #include "csrApi.h"
 #include "pmc.h"
 #include "vos_nvitem.h"
+#include "macTrace.h"
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
 #include "csrNeighborRoam.h"
 #endif /* WLAN_FEATURE_NEIGHBOR_ROAMING */
@@ -457,9 +458,10 @@ eHalStatus csrClose(tpAniSirGlobal pMac)
     return (status);
 } 
 
-eHalStatus csrUpdateChannelList(tCsrScanStruct *pScan)
+eHalStatus csrUpdateChannelList(tpAniSirGlobal pMac)
 {
     tSirUpdateChanList *pChanList;
+    tCsrScanStruct *pScan = &pMac->scan;
     tANI_U8 numChan = pScan->base20MHzChannels.numChannels;
     tANI_U32 bufLen = sizeof(tSirUpdateChanList) +
         (sizeof(tSirUpdateChanParam) * (numChan - 1));
@@ -481,7 +483,13 @@ eHalStatus csrUpdateChannelList(tCsrScanStruct *pScan)
     for (i = 0; i < pChanList->numChan; i++)
     {
         pChanList->chanParam[i].chanId = pScan->defaultPowerTable[i].chanId;
-        pChanList->chanParam[i].pwr = pScan->defaultPowerTable[i].pwr;
+        pChanList->chanParam[i].pwr = cfgGetRegulatoryMaxTransmitPower(pMac,
+                pScan->defaultPowerTable[i].chanId);
+        if (vos_nv_getChannelEnabledState(pChanList->chanParam[i].chanId) ==
+            NV_CHANNEL_DFS)
+            pChanList->chanParam[i].dfsSet = VOS_TRUE;
+        else
+            pChanList->chanParam[i].dfsSet = VOS_FALSE;
     }
 
     if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
@@ -527,13 +535,16 @@ eHalStatus csrStart(tpAniSirGlobal pMac)
            smsLog(pMac, LOGW, " csrStart: Couldn't Init HO control blk ");
            break;
         }
-
+#ifdef QCA_WIFI_2_0
         if (pMac->fScanOffload)
         {
             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
                     "Scan offload is enabled, update default chan list");
-            status = csrUpdateChannelList(&pMac->scan);
+            status = csrUpdateChannelList(pMac);
         }
+#else
+        status = csrUpdateChannelList(pMac);
+#endif
 
     }while(0);
 #if defined(ANI_LOGDUMP)
@@ -926,7 +937,9 @@ void csrAbortCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOLEAN fStop
 
 void csrRoamSubstateChange( tpAniSirGlobal pMac, eCsrRoamSubState NewSubstate, tANI_U32 sessionId)
 {
-    smsLog( pMac, LOG1, "   CSR RoamSubstate: [ %d <== %d ]", NewSubstate, pMac->roam.curSubState[sessionId]);
+    smsLog(pMac, LOG1, FL("CSR RoamSubstate: [ %s <== %s ]"),
+           macTraceGetcsrRoamSubState(NewSubstate),
+           macTraceGetcsrRoamSubState(pMac->roam.curSubState[sessionId]));
 
     if(pMac->roam.curSubState[sessionId] == NewSubstate)
     {
@@ -939,7 +952,9 @@ eCsrRoamState csrRoamStateChange( tpAniSirGlobal pMac, eCsrRoamState NewRoamStat
 {
     eCsrRoamState PreviousState;
           
-    smsLog( pMac, LOG1, "CSR RoamState: [ %d <== %d ]", NewRoamState, pMac->roam.curState[sessionId]);
+    smsLog(pMac, LOG1, FL("CSR RoamState[%hu]: [ %s <== %s ]"), sessionId,
+           macTraceGetcsrRoamState(NewRoamState),
+           macTraceGetcsrRoamState(pMac->roam.curState[sessionId]));
 
     PreviousState = pMac->roam.curState[sessionId];
     
@@ -2498,9 +2513,10 @@ eHalStatus csrRoamIssueDisassociate( tpAniSirGlobal pMac, tANI_U32 sessionId,
     }
     
     
-    smsLog( pMac, LOG2, "CSR Attempting to Disassociate Bssid="MAC_ADDRESS_STR
-            " subState = %d reason=%d",
-            MAC_ADDR_ARRAY(bssId), NewSubstate, reasonCode);
+    smsLog(pMac, LOG2, FL("CSR Attempting to Disassociate Bssid="MAC_ADDRESS_STR
+           " subState = %s reason=%d"),
+           MAC_ADDR_ARRAY(bssId), macTraceGetcsrRoamSubState(NewSubstate),
+           reasonCode);
 
     csrRoamSubstateChange( pMac, NewSubstate, sessionId);
 
@@ -7953,9 +7969,10 @@ void csrRoamingStateMsgProcessor( tpAniSirGlobal pMac, void *pMsgBuf )
         // TODO Session Id need to be acquired in this function
         tANI_U32 sessionId = 0;
     pSmeRsp = (tSirSmeRsp *)pMsgBuf;
-    smsLog( pMac, LOG2, "Message %d[0x%04X] received in substate %d",
-                pSmeRsp->messageType, pSmeRsp->messageType,
-                pMac->roam.curSubState[pSmeRsp->sessionId] );
+    smsLog(pMac, LOG2, FL("Message %d[0x%04X] received in substate %s"),
+           pSmeRsp->messageType, pSmeRsp->messageType,
+           macTraceGetcsrRoamSubState(
+           pMac->roam.curSubState[pSmeRsp->sessionId]));
     pSmeRsp->messageType = (pSmeRsp->messageType);
     pSmeRsp->length = (pSmeRsp->length);
     pSmeRsp->statusCode = (pSmeRsp->statusCode);
@@ -8000,7 +8017,9 @@ void csrRoamingStateMsgProcessor( tpAniSirGlobal pMac, void *pMsgBuf )
 //HO
                  CSR_IS_ROAM_SUBSTATE_DISASSOC_HO( pMac, pSmeRsp->sessionId )         )
             {
-                smsLog(pMac, LOG1, FL("eWNI_SME_DISASSOC_RSP subState = %d"), pMac->roam.curSubState[pSmeRsp->sessionId]);
+                smsLog(pMac, LOG1, FL("eWNI_SME_DISASSOC_RSP subState = %s"),
+                       macTraceGetcsrRoamSubState(
+                       pMac->roam.curSubState[pSmeRsp->sessionId]));
                 csrRoamRoamingStateDisassocRspProcessor( pMac, (tSirSmeDisassocRsp *)pSmeRsp );
             }
             break;
@@ -8039,9 +8058,11 @@ void csrRoamingStateMsgProcessor( tpAniSirGlobal pMac, void *pMsgBuf )
                                 eCSR_ROAM_RESULT_IBSS_PEER_DEPARTED);
             break;
         default:
-            smsLog( pMac, LOG1, "Unexpected message type = %d[0x%X] received in substate %d",
-                      pSmeRsp->messageType, pSmeRsp->messageType,
-                      pMac->roam.curSubState[pSmeRsp->sessionId] );
+            smsLog(pMac, LOG1,
+                   FL("Unexpected message type = %d[0x%X] received in substate %s"),
+                   pSmeRsp->messageType, pSmeRsp->messageType,
+                   macTraceGetcsrRoamSubState(
+                   pMac->roam.curSubState[pSmeRsp->sessionId]));
 
             //If we are connected, check the link status change 
                         if(!csrIsConnStateDisconnected(pMac, sessionId))
@@ -9467,10 +9488,12 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                         else
                         {
                             smsLog(pMac, LOGW,
-                                    "Skipping csrScanForCapabilityChange as "
-                                    "CSR is in state %d and sub-state %d",
-                                    pMac->roam.curState[sessionId],
-                                    pMac->roam.curSubState[sessionId]);
+                                   FL("Skipping csrScanForCapabilityChange as "
+                                   "CSR is in state %s and sub-state %s"),
+                                   macTraceGetcsrRoamState(
+                                   pMac->roam.curState[sessionId]),
+                                   macTraceGetcsrRoamSubState(
+                                   pMac->roam.curSubState[sessionId]));
                             /* We ignore the caps change event if CSR is not in full connected state.
                              * Send one event to PE to reset limSentCapsChangeNtf
                              * Once limSentCapsChangeNtf set 0, lim can send sub sequent CAPS change event
@@ -10072,9 +10095,11 @@ void csrRoamWaitForKeyTimeOutHandler(void *pv)
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, pInfo->sessionId );
     eHalStatus status = eHAL_STATUS_FAILURE;
 
-    smsLog(pMac, LOGW, "WaitForKey timer expired in state=%d sub-state=%d",
-            pMac->roam.neighborRoamInfo.neighborRoamState,
-            pMac->roam.curSubState[pInfo->sessionId]);
+    smsLog(pMac, LOGW, FL("WaitForKey timer expired in state=%s sub-state=%s"),
+           macTraceGetNeighbourRoamState(
+           pMac->roam.neighborRoamInfo.neighborRoamState),
+           macTraceGetcsrRoamSubState(
+           pMac->roam.curSubState[pInfo->sessionId]));
 
     if( CSR_IS_WAIT_FOR_KEY( pMac, pInfo->sessionId ) )
     {
@@ -10145,10 +10170,12 @@ eHalStatus csrRoamStartWaitForKeyTimer(tpAniSirGlobal pMac, tANI_U32 interval)
     if (csrNeighborRoamIsHandoffInProgress(pMac))
     {
         /* Disable heartbeat timer when hand-off is in progress */
-        smsLog(pMac, LOG2, "%s: disabling HB timer in state=%d sub-state=%d",
-                __func__,
-                pMac->roam.neighborRoamInfo.neighborRoamState,
-                pMac->roam.curSubState[pMac->roam.WaitForKeyTimerInfo.sessionId]);
+        smsLog(pMac, LOG2, FL("disabling HB timer in state=%s sub-state=%s"),
+               macTraceGetNeighbourRoamState(
+               pMac->roam.neighborRoamInfo.neighborRoamState),
+               macTraceGetcsrRoamSubState(
+               pMac->roam.curSubState[pMac->roam.WaitForKeyTimerInfo.sessionId]
+               ));
         ccmCfgSetInt(pMac, WNI_CFG_HEART_BEAT_THRESHOLD, 0, NULL, eANI_BOOLEAN_FALSE);
     }
 #endif
@@ -10160,9 +10187,11 @@ eHalStatus csrRoamStartWaitForKeyTimer(tpAniSirGlobal pMac, tANI_U32 interval)
 
 eHalStatus csrRoamStopWaitForKeyTimer(tpAniSirGlobal pMac)
 {
-    smsLog(pMac, LOG2, "WaitForKey timer stopped in state=%d sub-state=%d",
-            pMac->roam.neighborRoamInfo.neighborRoamState,
-            pMac->roam.curSubState[pMac->roam.WaitForKeyTimerInfo.sessionId]);
+    smsLog(pMac, LOG2, FL("WaitForKey timer stopped in state=%s sub-state=%s"),
+           macTraceGetNeighbourRoamState(
+           pMac->roam.neighborRoamInfo.neighborRoamState),
+           macTraceGetcsrRoamSubState(
+           pMac->roam.curSubState[pMac->roam.WaitForKeyTimerInfo.sessionId]));
 #ifdef FEATURE_WLAN_LFR
     if (csrNeighborRoamIsHandoffInProgress(pMac))
     {
@@ -10886,13 +10915,14 @@ tANI_BOOLEAN csrRoamIsValid40MhzChannel(tpAniSirGlobal pMac, tANI_U8 channel)
         {
             // Check set as TKIP or not.
             if ((NULL != &(pIes->RSN.pwise_cipher_suites[0][0]) &&
-               !memcmp( &(pIes->RSN.pwise_cipher_suites[0][0]),
+                (pIes->RSN.pwise_cipher_suite_count == 1) &&
+                !memcmp( &(pIes->RSN.pwise_cipher_suites[0][0]),
                                         "\x00\x0f\xac\x02" ,4))
                || (((NULL != &(pIes->WPA)) &&
                     (pIes->WPA.unicast_cipher_count == 1))
                     && ((NULL != &(pIes->WPA.unicast_ciphers[0]))
                         && memcmp(&(pIes->WPA.unicast_ciphers[0]),
-                                  "\x00\x0f\xac\x02", 4))))
+                                  "\x00\x50\xf2\x02", 4))))
             {
                 smsLog(pMac, LOGW, " No channel bonding in TKIP mode ");
                 eRet = PHY_SINGLE_CHANNEL_CENTERED;
@@ -14911,6 +14941,13 @@ eHalStatus csrGetStatistics(tpAniSirGlobal pMac, eCsrStatsRequesterType requeste
       //smsLog(pMac, LOGW, "csrGetStatistics: wrong state curState(%d) not connected", pMac->roam.curState);
       return eHAL_STATUS_FAILURE;
    }
+
+   if (csrNeighborMiddleOfRoaming((tHalHandle)pMac))
+   {
+       smsLog(pMac, LOG1, FL("in the middle of roaming states"));
+       return eHAL_STATUS_FAILURE;
+   }
+
    if((!statsMask) && (!callback))
    {
       //msg
@@ -15327,8 +15364,10 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
    if ((pMac->roam.neighborRoamInfo.neighborRoamState == eCSR_NEIGHBOR_ROAM_STATE_INIT) &&
        (command != ROAM_SCAN_OFFLOAD_STOP))
    {
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO, "Scan Command not sent to FW with state = %d and cmd = %d\n",
-              pMac->roam.neighborRoamInfo.neighborRoamState, command);
+      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                FL("Scan Command not sent to FW with state = %s and cmd=%d\n"),
+                macTraceGetNeighbourRoamState(
+                pMac->roam.neighborRoamInfo.neighborRoamState), command);
       return eHAL_STATUS_FAILURE;
    }
 
