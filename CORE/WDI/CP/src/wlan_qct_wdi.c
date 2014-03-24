@@ -422,6 +422,7 @@ WDI_ReqProcFuncType  pfnReqProcTbl[WDI_MAX_UMAC_IND] =
   NULL,
   NULL,
 #endif /* FEATURE_WLAN_BATCH_SCAN */
+  WDI_ProcessRateUpdateInd,             /* WDI_RATE_UPDATE_IND */
 };
 
 
@@ -877,9 +878,6 @@ WDI_SetPowerStateCb
    void      *pContext
 );
 
-#define CASE_RETURN_STRING( str )           \
-    case ( ( str ) ): return( #str ); break \
-
 /**
  @brief WDI_getReqMsgString prints the WDI request message in string.
 
@@ -1179,6 +1177,11 @@ void WDI_TraceHostFWCapabilities(tANI_U32 *capabilityBitmap)
                           break;
                      case WLAN_ROAM_SCAN_OFFLOAD: snprintf(pCapStr, sizeof("WLAN_ROAM_SCAN_OFFLOAD"), "%s", "WLAN_ROAM_SCAN_OFFLOAD");
                           pCapStr += strlen("WLAN_ROAM_SCAN_OFFLOAD");
+                          break;
+                     case EXTENDED_NSOFFLOAD_SLOT: snprintf(pCapStr,
+                                              sizeof("EXTENDED_NSOFFLOAD_SLOT"),
+                                              "%s", "EXTENDED_NSOFFLOAD_SLOT");
+                          pCapStr += strlen("EXTENDED_NSOFFLOAD_SLOT");
                           break;
               }
               *pCapStr++ = ',';
@@ -21274,12 +21277,11 @@ WDI_ResponseTimerCB
        return;
     }
 #ifndef WDI_RE_ENABLE_WIFI_ON_WDI_TIMEOUT
-   if(wpalIsWDresetInProgress())
-   {
-       wpalDevicePanic();
-   }
-
     wpalWcnssResetIntr();
+    if(wpalIsWDresetInProgress())
+    {
+        wpalDevicePanic();
+    }
     /* if this timer fires, it means Riva did not receive the FIQ */
     wpalTimerStart(&pWDICtx->ssrTimer, WDI_SSR_TIMEOUT);
 #else
@@ -22707,6 +22709,8 @@ WDI_2_HAL_REQ_TYPE
     return WLAN_HAL_ADD_PERIODIC_TX_PTRN_IND;
   case WDI_DEL_PERIODIC_TX_PATTERN_IND:
     return WLAN_HAL_DEL_PERIODIC_TX_PTRN_IND;
+  case WDI_RATE_UPDATE_IND:
+    return WLAN_HAL_RATE_UPDATE_IND;
 
 #ifdef FEATURE_WLAN_BATCH_SCAN
   case WDI_SET_BATCH_SCAN_REQ:
@@ -24068,6 +24072,18 @@ WDI_SetPreferredNetworkReq
    {
      WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
                "WDI API call before module is initialized - Fail request");
+
+     return WDI_STATUS_E_NOT_ALLOWED;
+   }
+
+   /*----------------------------------------------------------------------
+     Avoid Enable PNO during any active session or an ongoing session
+   ----------------------------------------------------------------------*/
+   if ( (pwdiPNOScanReqParams->wdiPNOScanInfo.bEnable &&
+        WDI_GetActiveSessionsCount(&gWDICb, NULL, eWLAN_PAL_FALSE)) )
+   {
+     WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+               "%s:(Active/Ongoing Session) - Fail request", __func__);
 
      return WDI_STATUS_E_NOT_ALLOWED;
    }
@@ -28008,19 +28024,20 @@ WDI_UpdateVHTOpModeReq
     Or if host driver detects any abnormal stcuk may display
         
  @param  displaySnapshot : Display DXE snapshot option
- @param  enableStallDetect : Enable stall detect feature
-                        This feature will take effect to data performance
-                        Not integrate till fully verification
+ @param  debugFlags      : Enable stall detect features
+                           defined by WPAL_DeviceDebugFlags
+                           These features may effect
+                           data performance.
  @see
  @return none
 */
 void WDI_TransportChannelDebug
 (
    wpt_boolean  displaySnapshot,
-   wpt_boolean  toggleStallDetect
+   wpt_uint8    debugFlags
 )
 {
-   WDTS_ChannelDebug(displaySnapshot, toggleStallDetect);
+   WDTS_ChannelDebug(displaySnapshot, debugFlags);
    return;
 }
 /**
@@ -28953,3 +28970,143 @@ WDI_ProcessChAvoidInd
   return WDI_STATUS_SUCCESS;
 }
 #endif /* FEATURE_WLAN_CH_AVOID */
+
+/**
+@brief WDI_RateUpdateInd will be called when the upper MAC
+        requests the device to set rates.
+
+
+@param wdiRateUpdateIndParams:
+
+
+@see
+@return Result of the function call
+*/
+WDI_Status
+WDI_RateUpdateInd
+(
+    WDI_RateUpdateIndParams  *wdiRateUpdateIndParams
+)
+{
+   WDI_EventInfoType      wdiEventData;
+   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+   /*------------------------------------------------------------------------
+    Sanity Check
+   ------------------------------------------------------------------------*/
+   if ( eWLAN_PAL_FALSE == gWDIInitialized )
+   {
+       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+                  "WDI API call before module is initialized - Fail request");
+
+       return WDI_STATUS_E_NOT_ALLOWED;
+   }
+
+   /*------------------------------------------------------------------------
+     Fill in Event data and post to the Main FSM
+   ------------------------------------------------------------------------*/
+    wdiEventData.wdiRequest      = WDI_RATE_UPDATE_IND;
+    wdiEventData.pEventData      = wdiRateUpdateIndParams;
+    wdiEventData.uEventDataSize  = sizeof(WDI_RateUpdateIndParams);
+    wdiEventData.pCBfnc          = NULL;
+    wdiEventData.pUserData       = NULL;
+
+    return WDI_PostMainEvent(&gWDICb, WDI_REQUEST_EVENT, &wdiEventData);
+
+}/* WDI_RateUpdateInd */
+
+/**
+ @brief Process Rate Update Indication and post it to HAL
+
+ @param  pWDICtx:    pointer to the WLAN DAL context
+         pEventData: pointer to the event information structure
+
+ @see
+ @return Result of the function call
+*/
+WDI_Status
+WDI_ProcessRateUpdateInd
+(
+    WDI_ControlBlockType*  pWDICtx,
+    WDI_EventInfoType*     pEventData
+)
+{
+    wpt_uint8*              pSendBuffer        = NULL;
+    wpt_uint16              usDataOffset       = 0;
+    wpt_uint16              usSendSize         = 0;
+    WDI_RateUpdateIndParams *pwdiRateUpdateInd = NULL;
+    tHalRateUpdateInd       *pRateUpdateInd;
+    WDI_Status              wdiStatus;
+
+    /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+    WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_INFO,
+           "%s", __func__);
+
+    /*-------------------------------------------------------------------------
+      Sanity check
+    -------------------------------------------------------------------------*/
+    if (( NULL == pEventData ) || ( NULL == pEventData->pEventData ))
+    {
+       WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                   "%s: Invalid parameters", __func__);
+       WDI_ASSERT(0);
+       return WDI_STATUS_E_FAILURE;
+    }
+    pwdiRateUpdateInd = (WDI_RateUpdateIndParams *)pEventData->pEventData;
+    /*-----------------------------------------------------------------------
+      Get message buffer
+    -----------------------------------------------------------------------*/
+
+    if (( WDI_STATUS_SUCCESS != WDI_GetMessageBuffer( pWDICtx,
+                          WDI_RATE_UPDATE_IND,
+                          sizeof(tHalRateUpdateParams),
+                          &pSendBuffer, &usDataOffset, &usSendSize))||
+                          ( usSendSize < (usDataOffset +
+                                 sizeof(tHalRateUpdateParams) )))
+    {
+       WPAL_TRACE( eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_FATAL,
+                "Unable to get send buffer in Rate Update Indication %p ",
+                  pEventData);
+       WDI_ASSERT(0);
+       return WDI_STATUS_E_FAILURE;
+    }
+
+    pRateUpdateInd = (tHalRateUpdateInd *)pSendBuffer;
+
+    /* Copy the bssid */
+    wpalMemoryCopy(pRateUpdateInd->halRateUpdateParams.bssid,
+                     pwdiRateUpdateInd->bssid, WDI_MAC_ADDR_LEN);
+
+    /* Copy the tx flags */
+    pRateUpdateInd->halRateUpdateParams.ucastDataRateTxFlag =
+                             pwdiRateUpdateInd->ucastDataRateTxFlag;
+    pRateUpdateInd->halRateUpdateParams.reliableMcastDataRateTxFlag =
+                             pwdiRateUpdateInd->reliableMcastDataRateTxFlag;
+    pRateUpdateInd->halRateUpdateParams.mcastDataRate24GHzTxFlag =
+                             pwdiRateUpdateInd->mcastDataRate24GHzTxFlag;
+    pRateUpdateInd->halRateUpdateParams.mcastDataRate5GHzTxFlag =
+                             pwdiRateUpdateInd->mcastDataRate5GHzTxFlag;
+
+    /* Copy the tx rates */
+    pRateUpdateInd->halRateUpdateParams.ucastDataRate =
+                             pwdiRateUpdateInd->ucastDataRate;
+    pRateUpdateInd->halRateUpdateParams.reliableMcastDataRate =
+                             pwdiRateUpdateInd->reliableMcastDataRate;
+    pRateUpdateInd->halRateUpdateParams.mcastDataRate24GHz =
+                             pwdiRateUpdateInd->mcastDataRate24GHz;
+    pRateUpdateInd->halRateUpdateParams.mcastDataRate5GHz =
+                             pwdiRateUpdateInd->mcastDataRate5GHz;
+
+    /*-------------------------------------------------------------------------
+     Send Rate Update Indication to HAL
+    -------------------------------------------------------------------------*/
+    pWDICtx->wdiReqStatusCB     = pwdiRateUpdateInd->wdiReqStatusCB;
+    pWDICtx->pReqStatusUserData = pwdiRateUpdateInd->pUserData;
+
+    wdiStatus = WDI_SendIndication(pWDICtx, pSendBuffer, usSendSize);
+
+    return (wdiStatus != WDI_STATUS_SUCCESS) ?
+                 wdiStatus : WDI_STATUS_SUCCESS_SYNC;
+
+} /* WDI_ProcessRateUpdateInd */
