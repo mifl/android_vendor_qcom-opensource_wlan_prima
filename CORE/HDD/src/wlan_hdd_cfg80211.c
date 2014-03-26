@@ -6368,7 +6368,7 @@ int wlan_hdd_disconnect( hdd_adapter_t *pAdapter, u16 reason )
                    "%s: Set HDD connState to eConnectionState_NotConnected",
                    __func__);
 
-    pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
+    pHddStaCtx->conn_info.connState = eConnectionState_Disconnecting;
     INIT_COMPLETION(pAdapter->disconnect_comp_var);
 
     /*issue disconnect*/
@@ -6475,7 +6475,6 @@ static int __wlan_hdd_cfg80211_disconnect( struct wiphy *wiphy,
                     reasonCode = eCSR_DISCONNECT_REASON_UNSPECIFIED;
                     break;
             }
-            pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
             pScanInfo =  &pHddCtx->scan_info;
             if (pScanInfo->mScanPending)
             {
