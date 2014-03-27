@@ -1769,6 +1769,20 @@ VOS_STATUS WDA_prepareConfigTLV(v_PVOID_t pVosContext,
    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
                            + sizeof(tHalCfg) + tlvStruct->length) ;
 
+   /* QWLAN_HAL_CFG_BTC_CTS2S_ON_STA_DURING_SCO  */
+   tlvStruct->type = QWLAN_HAL_CFG_BTC_CTS2S_ON_STA_DURING_SCO ;
+   tlvStruct->length = sizeof(tANI_U32);
+   configDataValue = (tANI_U32 *)(tlvStruct + 1);
+   if (wlan_cfgGetInt(pMac, WNI_CFG_BTC_CTS2S_DURING_SCO,
+                                            configDataValue ) != eSIR_SUCCESS)
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+               "Failed to get value for WNI_CFG_BTC_CTS2S_DURING_SCO");
+      goto handle_failure;
+   }
+   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
+                           + sizeof(tHalCfg) + tlvStruct->length) ;
+
    wdiStartParams->usConfigBufferLen = (tANI_U8 *)tlvStruct - tlvStructStart ;
 #ifdef WLAN_DEBUG
    {
@@ -10940,6 +10954,55 @@ VOS_STATUS WDA_ProcessSetBatchScanReq(tWDA_CbContext *pWDA,
 #endif
 
 /*
+ * FUNCTION: WDA_ProcessRateUpdateInd
+ *
+ */
+VOS_STATUS WDA_ProcessRateUpdateInd(tWDA_CbContext *pWDA,
+                               tSirRateUpdateInd *pRateUpdateParams)
+{
+   WDI_Status wdiStatus;
+   WDI_RateUpdateIndParams rateUpdateParams;
+
+   vos_mem_copy(rateUpdateParams.bssid,
+            pRateUpdateParams->bssid, sizeof(tSirMacAddr));
+
+   rateUpdateParams.ucastDataRateTxFlag =
+                    pRateUpdateParams->ucastDataRateTxFlag;
+   rateUpdateParams.reliableMcastDataRateTxFlag =
+                     pRateUpdateParams->reliableMcastDataRateTxFlag;
+   rateUpdateParams.mcastDataRate24GHzTxFlag =
+                     pRateUpdateParams->mcastDataRate24GHzTxFlag;
+   rateUpdateParams.mcastDataRate5GHzTxFlag =
+                     pRateUpdateParams->mcastDataRate5GHzTxFlag;
+
+   rateUpdateParams.ucastDataRate = pRateUpdateParams->ucastDataRate;
+   rateUpdateParams.reliableMcastDataRate =
+                                 pRateUpdateParams->reliableMcastDataRate;
+   rateUpdateParams.mcastDataRate24GHz = pRateUpdateParams->mcastDataRate24GHz;
+   rateUpdateParams.mcastDataRate5GHz = pRateUpdateParams->mcastDataRate5GHz;
+
+   rateUpdateParams.wdiReqStatusCB = WDA_WdiIndicationCallback;
+   rateUpdateParams.pUserData = pWDA;
+
+   wdiStatus = WDI_RateUpdateInd(&rateUpdateParams);
+
+   if (WDI_STATUS_PENDING == wdiStatus)
+   {
+      VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+                "Pending received for %s:%d", __func__, __LINE__ );
+   }
+   else if (WDI_STATUS_SUCCESS_SYNC != wdiStatus)
+   {
+      VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                "Failure in %s:%d", __func__, __LINE__ );
+   }
+
+   vos_mem_free(pRateUpdateParams);
+
+   return CONVERT_WDI2VOS_STATUS(wdiStatus);
+}
+
+/*
  * -------------------------------------------------------------------------
  * DATA interface with WDI for Mgmt Frames
  * ------------------------------------------------------------------------- 
@@ -11958,6 +12021,11 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
          WDA_ProcessDelPeriodicTxPtrnInd(pWDA,
             (tSirDelPeriodicTxPtrn *)pMsg->bodyptr);
          break;
+      }
+      case WDA_RATE_UPDATE_IND:
+      {
+          WDA_ProcessRateUpdateInd(pWDA, (tSirRateUpdateInd *)pMsg->bodyptr);
+          break;
       }
 
 #ifdef FEATURE_WLAN_BATCH_SCAN
