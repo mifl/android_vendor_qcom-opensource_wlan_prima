@@ -51,7 +51,12 @@
 #include "vos_api.h"
 
 #include "dma-mapping.h"
+#include <linux/version.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+#include <soc/qcom/subsystem_restart.h>
+#else
 #include <mach/subsystem_restart.h>
+#endif
 #include <linux/wcnss_wlan.h>
 
 typedef struct sPalStruct
