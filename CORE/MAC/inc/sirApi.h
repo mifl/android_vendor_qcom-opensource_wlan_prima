@@ -242,6 +242,7 @@ typedef enum eSirResultCodes
     eSIR_SME_BSS_ALREADY_STARTED_OR_JOINED,
     eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE,
     eSIR_SME_REFUSED,
+    eSIR_SME_JOIN_DEAUTH_FROM_AP_DURING_ADD_STA,
     eSIR_SME_JOIN_TIMEOUT_RESULT_CODE,
     eSIR_SME_AUTH_TIMEOUT_RESULT_CODE,
     eSIR_SME_ASSOC_TIMEOUT_RESULT_CODE,
@@ -4056,6 +4057,7 @@ typedef struct sSirTdlsSendMgmtReq
     tANI_U8             dialog;
     tANI_U16            statusCode;
     tANI_U8             responder;
+    tANI_U32            peerCapability;
     tSirMacAddr         bssid;         // For multi-session, for PE to locate peSession ID
     tSirMacAddr         peerMac;
     tANI_U8             addIe[1];      //Variable lenght. Dont add any field after this.

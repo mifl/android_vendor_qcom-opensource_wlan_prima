@@ -46,6 +46,7 @@
 #include "limAdmitControl.h"
 #include "limStaHashApi.h"
 #include "dot11f.h"
+#include "dot11fdefs.h"
 #include "wmmApsd.h"
 #include "limTrace.h"
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
@@ -67,26 +68,18 @@ static tAniBool glimTriggerBackgroundScanDuringQuietBss_Status = eSIR_TRUE;
 
 /* 11A Channel list to decode RX BD channel information */
 static const tANI_U8 abChannel[]= {36,40,44,48,52,56,60,64,100,104,108,112,116,
-            120,124,128,132,136,140,149,153,157,161,165
-#ifdef FEATURE_WLAN_CH144
-                ,144
-#endif
-};
+            120,124,128,132,136,140,149,153,157,161,165,144};
 #define abChannelSize (sizeof(abChannel)/  \
         sizeof(abChannel[0]))
 
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
 static const tANI_U8 aUnsortedChannelList[]= {52,56,60,64,100,104,108,112,116,
-            120,124,128,132,136,140,36,40,44,48,149,153,157,161,165
-#ifdef FEATURE_WLAN_CH144
-                ,144
-#endif
-};
+            120,124,128,132,136,140,36,40,44,48,149,153,157,161,165,144};
 #define aUnsortedChannelListSize (sizeof(aUnsortedChannelList)/  \
         sizeof(aUnsortedChannelList[0]))
 #endif
 
-//#define LIM_MAX_ACTIVE_SESSIONS 3  //defined temporarily for BT-AMP SUPPORT 
+//#define LIM_MAX_ACTIVE_SESSIONS 3  //defined temporarily for BT-AMP SUPPORT
 #define SUCCESS 1                   //defined temporarily for BT-AMP
 
 #define MAX_BA_WINDOW_SIZE_FOR_CISCO 25
@@ -7230,8 +7223,7 @@ void limHandleHeartBeatFailureTimeout(tpAniSirGlobal pMac)
 #endif
                 if (psessionEntry->limMlmState == eLIM_MLM_LINK_ESTABLISHED_STATE)
                 {
-                    if ((!LIM_IS_CONNECTION_ACTIVE(psessionEntry))&&
-                                                  (psessionEntry->limSmeState != eLIM_SME_WT_DISASSOC_STATE))
+                    if (psessionEntry->limSmeState != eLIM_SME_WT_DISASSOC_STATE)
                     {
                         limLog(pMac, LOGE, FL("Probe_hb_failure: for session:%d " ),psessionEntry->peSessionId);
                         /* AP did not respond to Probe Request. Tear down link with it.*/
@@ -7815,6 +7807,69 @@ tANI_U8 limGetShortSlotFromPhyMode(tpAniSirGlobal pMac, tpPESession psessionEntr
     limLog(pMac, LOG1, FL("phyMode = %u shortslotsupported = %u"), phyMode, val);
     return val;
 }
+
+void limUtilsframeshtons(tpAniSirGlobal    pCtx,
+                            tANI_U8  *pOut,
+                            tANI_U16  pIn,
+                            tANI_U8  fMsb)
+{
+    (void)pCtx;
+#if defined ( DOT11F_LITTLE_ENDIAN_HOST )
+    if ( !fMsb )
+    {
+        DOT11F_MEMCPY(pCtx, pOut, &pIn, 2);
+    }
+    else
+    {
+        *pOut         = ( pIn & 0xff00 ) >> 8;
+        *( pOut + 1 ) = pIn & 0xff;
+    }
+#else
+    if ( !fMsb )
+    {
+        *pOut         = pIn & 0xff;
+        *( pOut + 1 ) = ( pIn & 0xff00 ) >> 8;
+    }
+    else
+    {
+        DOT11F_MEMCPY(pCtx, pOut, &pIn, 2);
+    }
+#endif
+}
+
+void limUtilsframeshtonl(tpAniSirGlobal    pCtx,
+                        tANI_U8  *pOut,
+                        tANI_U32  pIn,
+                        tANI_U8  fMsb)
+{
+    (void)pCtx;
+#if defined ( DOT11F_LITTLE_ENDIAN_HOST )
+    if ( !fMsb )
+    {
+        DOT11F_MEMCPY(pCtx, pOut, &pIn, 4);
+    }
+    else
+    {
+        *pOut         = ( pIn & 0xff000000 ) >> 24;
+        *( pOut + 1 ) = ( pIn & 0x00ff0000 ) >> 16;
+        *( pOut + 2 ) = ( pIn & 0x0000ff00 ) >>  8;
+        *( pOut + 3 ) = ( pIn & 0x000000ff );
+    }
+#else
+    if ( !fMsb )
+    {
+        *( pOut     ) = ( pIn & 0x000000ff );
+        *( pOut + 1 ) = ( pIn & 0x0000ff00 ) >>  8;
+        *( pOut + 2 ) = ( pIn & 0x00ff0000 ) >> 16;
+        *( pOut + 3 ) = ( pIn & 0xff000000 ) >> 24;
+    }
+    else
+    {
+        DOT11F_MEMCPY(pCtx, pOut, &pIn, 4);
+    }
+#endif
+}
+
 
 /**--------------------------------------------
 \fn       limUpdateOBSSScanParams
