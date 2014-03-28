@@ -48,6 +48,8 @@
 
 #include <linux/skbuff.h>
 #include "dma-mapping.h"
+#include "wlan_hdd_main.h"
+#include <linux/wcnss_wlan.h>
 
 /*Per spec definition*/
 #define WPAL_ETHERNET_PAKCET_HEADER_SIZE     14
@@ -452,7 +454,22 @@ wpt_status wpalPacketSetRxLength(wpt_packet *pPkt, wpt_uint32 len)
 WPT_STATIC WPT_INLINE void* itGetOSPktAddrForDevice( wpt_packet *pPacket )
 {
    struct sk_buff *skb;
+   hdd_context_t *pHddCtx      = NULL;
+   v_CONTEXT_t pVosContext     = NULL;
+   struct device *wcnss_device = NULL;
    /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+   pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
+   if(!pVosContext) {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Global VOS context is Null", __func__);
+      return NULL;
+   }
+   /* Get the HDD context */
+   pHddCtx = (hdd_context_t *)vos_get_context(VOS_MODULE_ID_HDD, pVosContext );
+   if(!pHddCtx) {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: HDD context is Null", __func__);
+      return NULL;
+   }
+   wcnss_device = (struct device *)pHddCtx->parent_dev;
    if ( VOS_STATUS_SUCCESS != 
         vos_pkt_get_os_packet(WPAL_TO_VOS_PKT(pPacket), (void**)&skb, VOS_FALSE ))
    {
@@ -462,7 +479,7 @@ WPT_STATIC WPT_INLINE void* itGetOSPktAddrForDevice( wpt_packet *pPacket )
    {
      /*Map skb data into dma-able memory 
        (changes will be commited from cache) */
-     return (void*)dma_map_single( NULL, skb->data, skb->len, DMA_TO_DEVICE );
+     return (void*)dma_map_single( wcnss_device, skb->data, skb->len, DMA_TO_DEVICE );
    }
 }/*itGetOSPktAddrForDevice*/
 
@@ -470,8 +487,22 @@ WPT_STATIC WPT_INLINE void* itGetOSPktAddrFromDevice( wpt_packet *pPacket )
 {
 
    struct sk_buff *skb;
-
+   hdd_context_t *pHddCtx      = NULL;
+   v_CONTEXT_t pVosContext     = NULL;
+   struct device *wcnss_device = NULL;
    /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+   pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
+   if(!pVosContext) {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Global VOS context is Null", __func__);
+      return NULL;
+   }
+   /* Get the HDD context */
+   pHddCtx = (hdd_context_t *)vos_get_context(VOS_MODULE_ID_HDD, pVosContext );
+   if(!pHddCtx) {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: HDD context is Null", __func__);
+      return NULL;
+   }
+   wcnss_device = (struct device *)pHddCtx->parent_dev;
    if ( VOS_STATUS_SUCCESS != 
         vos_pkt_get_os_packet(WPAL_TO_VOS_PKT(pPacket), (void**)&skb, VOS_FALSE ))
    {
@@ -494,7 +525,7 @@ WPT_STATIC WPT_INLINE void* itGetOSPktAddrFromDevice( wpt_packet *pPacket )
      }
      /*Map skb data into dma-able memory 
        (changes will be commited from cache) */
-     return (void*)dma_map_single( NULL, skb->data, skb->len, DMA_FROM_DEVICE );
+     return (void*)dma_map_single( wcnss_device, skb->data, skb->len, DMA_FROM_DEVICE );
    }
 }/*itGetOSPktAddrFromDevice*/
 
@@ -504,14 +535,46 @@ WPT_STATIC WPT_INLINE void* itGetOSPktAddrFromDevice( wpt_packet *pPacket )
 */
 WPT_STATIC WPT_INLINE void itReturnOSPktAddrForDevice( wpt_packet *pPacket,  void* addr, wpt_uint32 size )
 {
- 
-   dma_unmap_single( NULL, (dma_addr_t)addr, size, DMA_TO_DEVICE );
+
+   hdd_context_t *pHddCtx      = NULL;
+   v_CONTEXT_t pVosContext     = NULL;
+   struct device *wcnss_device = NULL;
+
+   pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
+   if(!pVosContext) {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Global VOS context is Null", __func__);
+      VOS_ASSERT(1);
+   }
+   /* Get the HDD context */
+   pHddCtx = (hdd_context_t *)vos_get_context(VOS_MODULE_ID_HDD, pVosContext );
+   if(!pHddCtx) {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: HDD context is Null", __func__);
+      VOS_ASSERT(1);
+   }
+   wcnss_device = (struct device *)pHddCtx->parent_dev;
+   dma_unmap_single( wcnss_device, (dma_addr_t)addr, size, DMA_TO_DEVICE );
 }
 
 WPT_STATIC WPT_INLINE void itReturnOSPktAddrFromDevice( wpt_packet *pPacket, void* addr, wpt_uint32 size  )
 {
+   hdd_context_t *pHddCtx      = NULL;
+   v_CONTEXT_t pVosContext     = NULL;
+   struct device *wcnss_device = NULL;
 
-   dma_unmap_single( NULL, (dma_addr_t)addr, size, DMA_FROM_DEVICE ); 
+   pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
+   if(!pVosContext) {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Global VOS context is Null", __func__);
+      VOS_ASSERT(1);
+   }
+   /* Get the HDD context */
+   pHddCtx = (hdd_context_t *)vos_get_context(VOS_MODULE_ID_HDD, pVosContext );
+   if(!pHddCtx) {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: HDD context is Null", __func__);
+      VOS_ASSERT(1);
+   }
+   wcnss_device = (struct device *)pHddCtx->parent_dev;
+
+   dma_unmap_single( wcnss_device, (dma_addr_t)addr, size, DMA_FROM_DEVICE );
 }
 
 

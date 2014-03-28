@@ -58,6 +58,8 @@
 #include <mach/subsystem_restart.h>
 #endif
 #include <linux/wcnss_wlan.h>
+#include "vos_api.h"
+#include "wlan_hdd_main.h"
 
 typedef struct sPalStruct
 {
@@ -218,11 +220,13 @@ void wpalMemoryFill(void *buf, wpt_uint32 size, wpt_byte bFill)
  */
 void *wpalDmaMemoryAllocate(wpt_uint32 size, void **ppPhysicalAddr)
 {
+   hdd_context_t *pHddCtx = (hdd_context_t *)gContext.devHandle;
+   struct device *wcnss_device = pHddCtx->parent_dev;
    void *pv = NULL;
    dma_addr_t PhyAddr;
    wpt_uint32 uAllocLen = size + sizeof(tPalDmaMemInfo);
    
-   pv = dma_alloc_coherent(NULL, uAllocLen, &PhyAddr, GFP_KERNEL);
+   pv = dma_alloc_coherent(wcnss_device, uAllocLen, &PhyAddr, GFP_KERNEL);
    if ( NULL == pv ) 
    {
      WPAL_TRACE(eWLAN_MODULE_PAL, eWLAN_PAL_TRACE_LEVEL_ERROR, 
@@ -248,12 +252,14 @@ void *wpalDmaMemoryAllocate(wpt_uint32 size, void **ppPhysicalAddr)
  */
 void wpalDmaMemoryFree(void *pv)
 {
+   hdd_context_t *pHddCtx = (hdd_context_t *)gContext.devHandle;
+   struct device *wcnss_device = pHddCtx->parent_dev;
    tPalDmaMemInfo *pMemInfo = (tPalDmaMemInfo *)(((wpt_byte *)pv) -
                                       sizeof(tPalDmaMemInfo));
     if(pv)
     { 
         pv = (wpt_byte *)pv - pMemInfo->offset;
-        dma_free_coherent(NULL, pMemInfo->length, pv, pMemInfo->phyAddr);
+        dma_free_coherent(wcnss_device, pMemInfo->length, pv, pMemInfo->phyAddr);
     }
 
 }/*wpalDmaMemoryFree*/
