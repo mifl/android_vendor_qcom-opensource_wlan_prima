@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -202,7 +202,7 @@ v_VOID_t * vos_mem_malloc_debug( v_SIZE_t size, char* fileName, v_U32_t lineNum)
 
    if (in_interrupt())
    {
-      flags = GPF_ATOMIC;
+      flags = GFP_ATOMIC;
    }
 
    if (!memory_dbug_flag)
@@ -270,7 +270,7 @@ v_VOID_t vos_mem_free( v_VOID_t *ptr )
 
         spin_lock_irqsave(&vosMemList.lock, IrqFlags);
         vosStatus = hdd_list_remove_node(&vosMemList, &memStruct->pNode);
-        spin_unlock_irqsave(&vosMemList.lock, IrqFlags);
+        spin_unlock_irqrestore(&vosMemList.lock, IrqFlags);
 
         if(VOS_STATUS_SUCCESS == vosStatus)
         {
@@ -292,7 +292,7 @@ v_VOID_t vos_mem_free( v_VOID_t *ptr )
         {
             VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
                       "%s: Unallocated memory (double free?)", __func__);
-            VOS_ASSERT(0);
+            VOS_BUG(0);
         }
     }
 }

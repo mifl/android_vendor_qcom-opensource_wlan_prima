@@ -787,7 +787,7 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                         p11dScanCmd->command = eSmeCommandScan;
                         p11dScanCmd->u.scanCmd.callback = pMac->scan.callback11dScanDone;
                         p11dScanCmd->u.scanCmd.pContext = NULL;
-                        p11dScanCmd->u.scanCmd.scanID = pMac->scan.nextScanID++;                
+                        p11dScanCmd->u.scanCmd.scanID = pMac->scan.nextScanID;
                         scanReq.BSSType = eCSR_BSS_TYPE_ANY;
 
                         if ( csrIs11dSupported(pMac) )
@@ -6018,6 +6018,9 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
     tANI_U32 index = 0;
     tANI_U32 new_index = 0;
     eNVChannelEnabledType NVchannel_state;
+    tANI_U8  ch144_support = 0;
+
+    ch144_support = WDA_getFwWlanFeatCaps(WLAN_CH144);
 
     do
     {
@@ -6075,6 +6078,10 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
                     {
                        for ( index = 0; index < pSrcReq->ChannelInfo.numOfChannels ; index++ )
                        {
+                          /* Skip CH 144 if firmware support not present */
+                          if (pSrcReq->ChannelInfo.ChannelList[index] == 144 && !ch144_support)
+                              continue;
+
                           NVchannel_state = vos_nv_getChannelEnabledState(
                                   pSrcReq->ChannelInfo.ChannelList[index]);
                           if ((NV_CHANNEL_ENABLE == NVchannel_state) ||
@@ -6091,10 +6098,49 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
                     {
                         new_index = 0;
                         pMac->roam.numValidChannels = len;
-                        for ( index = 0; index < pSrcReq->ChannelInfo.numOfChannels ; index++ )
+
+                     /* Since in CsrScanRequest,value of pMac->scan.nextScanID
+                      * is incremented before calling CsrScanCopyRequest, as a
+                      * result pMac->scan.nextScanID is equal to ONE for the
+                      * first scan.
+                      */
+                     if (pMac->roam.configParam.initialScanSkipDFSCh &&
+                              1 == pMac->scan.nextScanID )
+                     {
+                       smsLog(pMac, LOG1,
+                              FL("Initial scan, scan only non-DFS channels"));
+
+                       for (index = 0; index < pSrcReq->ChannelInfo.
+                                             numOfChannels ; index++ )
+                      {
+                        if((csrRoamIsValidChannel(pMac, pSrcReq->ChannelInfo.
+                                                  ChannelList[index])))
                         {
+                        /*Skiipping DFS Channels for 1st scan */
+                          if(NV_CHANNEL_DFS ==
+                             vos_nv_getChannelEnabledState(pSrcReq->ChannelInfo.
+                             ChannelList[index]))
+                                   continue ;
+
+                          pDstReq->ChannelInfo.ChannelList[new_index] =
+                                     pSrcReq->ChannelInfo.ChannelList[index];
+                          new_index++;
+
+                         }
+                       }
+                       pMac->roam.configParam.initialScanSkipDFSCh = 0;
+                     }
+                     else
+                     {
+                       for ( index = 0; index < pSrcReq->ChannelInfo.
+                                             numOfChannels ; index++ )
+                        {
+                            /* Skip CH 144 if firmware support not present */
+                            if (pSrcReq->ChannelInfo.ChannelList[index] == 144 && !ch144_support)
+                                continue;
+
                             /* Allow scan on valid channels only.
-                             * If it is p2p scan and valid channel list doesnt contain 
+                             * If it is p2p scan and valid channel list doesnt contain
                              * social channels, enforce scan on social channels because
                              * that is the only way to find p2p peers.
                              * This can happen only if band is set to 5Ghz mode.
@@ -6136,6 +6182,7 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
                                 new_index++;
                             }
                         }
+                      }
                         pDstReq->ChannelInfo.numOfChannels = new_index;
 #ifdef FEATURE_WLAN_LFR
                         if ((eCSR_SCAN_HO_BG_SCAN == pSrcReq->requestType) &&
