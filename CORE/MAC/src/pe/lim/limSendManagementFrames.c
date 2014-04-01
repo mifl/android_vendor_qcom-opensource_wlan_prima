@@ -1706,6 +1706,12 @@ limSendAssocRspMgmtFrame(tpAniSirGlobal pMac,
         txFlag |= HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME;
     }
 
+    limLog( pMac, LOG1, FL("Sending Assoc resp over WQ5 to "MAC_ADDRESS_STR
+                " From " MAC_ADDRESS_STR),MAC_ADDR_ARRAY(pMacHdr->da),
+              MAC_ADDR_ARRAY(psessionEntry->selfMacAddr));
+
+    txFlag |= HAL_USE_FW_IN_TX_PATH;
+
     MTRACE(macTrace(pMac, TRACE_CODE_TX_MGMT,
            psessionEntry->peSessionId,
            pMacHdr->fc.subType));
@@ -2578,6 +2584,11 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
     }
 
     pMacHdr = ( tpSirMacMgmtHdr ) pFrame;
+    limLog( pMac, LOG1, FL("Sending Assoc req over WQ5 to "MAC_ADDRESS_STR
+              " From " MAC_ADDRESS_STR),MAC_ADDR_ARRAY(pMacHdr->da),
+              MAC_ADDR_ARRAY(psessionEntry->selfMacAddr));
+    txFlag |= HAL_USE_FW_IN_TX_PATH;
+
     MTRACE(macTrace(pMac, TRACE_CODE_TX_MGMT,
            psessionEntry->peSessionId,
            pMacHdr->fc.subType));
@@ -3710,6 +3721,12 @@ limSendAuthMgmtFrame(tpAniSirGlobal pMac,
         txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
     }
 
+    limLog( pMac, LOG1, FL("Sending Auth Frame over WQ5 to "MAC_ADDRESS_STR
+                   " From " MAC_ADDRESS_STR),MAC_ADDR_ARRAY(pMacHdr->da),
+              MAC_ADDR_ARRAY(psessionEntry->selfMacAddr));
+
+    txFlag |= HAL_USE_FW_IN_TX_PATH;
+
     MTRACE(macTrace(pMac, TRACE_CODE_TX_MGMT,
            psessionEntry->peSessionId,
            pMacHdr->fc.subType));
@@ -4053,6 +4070,9 @@ limSendDisassocMgmtFrame(tpAniSirGlobal pMac,
         /* Without this for DEL_STA command there is
            risk of flushing frame in BTQM queue without
            sending on air */
+        limLog( pMac, LOG1, FL("Sending Disassoc Frame over WQ5 to "MAC_ADDRESS_STR
+                " From " MAC_ADDRESS_STR),MAC_ADDR_ARRAY(pMacHdr->da),
+              MAC_ADDR_ARRAY(psessionEntry->selfMacAddr));
         txFlag |= HAL_USE_FW_IN_TX_PATH;
     }
 
@@ -4260,6 +4280,9 @@ limSendDeauthMgmtFrame(tpAniSirGlobal pMac,
         /* Without this for DEL_STA command there is
            risk of flushing frame in BTQM queue without
            sending on air */
+        limLog( pMac, LOG1, FL("Sending Deauth Frame over WQ5 to "MAC_ADDRESS_STR
+               " From " MAC_ADDRESS_STR),MAC_ADDR_ARRAY(pMacHdr->da),
+              MAC_ADDR_ARRAY(psessionEntry->selfMacAddr));
         txFlag |= HAL_USE_FW_IN_TX_PATH;
     }
 
