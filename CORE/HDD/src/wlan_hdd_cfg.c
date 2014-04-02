@@ -2875,6 +2875,20 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                 CFG_CTS2S_DURING_BTC_SCO_DEFAULT,
                 CFG_CTS2S_DURING_BTC_SCO_MIN,
                 CFG_CTS2S_DURING_BTC_SCO_MAX ),
+
+   REG_VARIABLE(CFG_INITIAL_DWELL_TIME_NAME, WLAN_PARAM_Integer,
+               hdd_config_t, nInitialDwellTime,
+               VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+               CFG_INITIAL_DWELL_TIME_DEFAULT,
+               CFG_INITIAL_DWELL_TIME_MIN,
+               CFG_INITIAL_DWELL_TIME_MAX ),
+
+   REG_VARIABLE(CFG_INITIAL_SCAN_SKIP_DFS_CH_NAME, WLAN_PARAM_Integer,
+               hdd_config_t, initialScanSkipDFSCh,
+               VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+               CFG_INITIAL_SCAN_SKIP_DFS_CH_DEFAULT,
+               CFG_INITIAL_SCAN_SKIP_DFS_CH_MIN,
+               CFG_INITIAL_SCAN_SKIP_DFS_CH_MAX),
 };
 
 /*
@@ -4593,6 +4607,7 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig.csrConfig.vccUlMacLossThreshold    = pConfig->nVccUlMacLossThreshold;
    smeConfig.csrConfig.nRoamingTime             = pConfig->nRoamingTime;
    smeConfig.csrConfig.IsIdleScanEnabled        = pConfig->nEnableIdleScan;
+   smeConfig.csrConfig.nInitialDwellTime        = pConfig->nInitialDwellTime;
    smeConfig.csrConfig.nActiveMaxChnTime        = pConfig->nActiveMaxChnTime;
    smeConfig.csrConfig.nActiveMinChnTime        = pConfig->nActiveMinChnTime;
    smeConfig.csrConfig.nPassiveMaxChnTime       = pConfig->nPassiveMaxChnTime;
@@ -4734,6 +4749,7 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 
    smeConfig.csrConfig.isAmsduSupportInAMPDU = pConfig->isAmsduSupportInAMPDU;
    smeConfig.csrConfig.nSelect5GHzMargin = pConfig->nSelect5GHzMargin;
+   smeConfig.csrConfig.initialScanSkipDFSCh = pConfig->initialScanSkipDFSCh;
 
    /* update SSR config */
    sme_UpdateEnableSSR((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->enableSSR);
