@@ -585,6 +585,8 @@ typedef struct tagCsrConfig
     tANI_U32  nActiveMinChnTime;     //in units of milliseconds
     tANI_U32  nActiveMaxChnTime;     //in units of milliseconds
 
+    tANI_U32  nInitialDwellTime;     //in units of milliseconds
+
     tANI_U32  nActiveMinChnTimeBtc;     //in units of milliseconds
     tANI_U32  nActiveMaxChnTimeBtc;     //in units of milliseconds
     tANI_U8   disableAggWithBtc;
@@ -669,6 +671,7 @@ typedef struct tagCsrConfig
     tANI_BOOLEAN enableHeartBeatOffload;
     tANI_U8 isAmsduSupportInAMPDU;
     tANI_U8 nSelect5GHzMargin;
+    tANI_BOOLEAN initialScanSkipDFSCh;
 }tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo
