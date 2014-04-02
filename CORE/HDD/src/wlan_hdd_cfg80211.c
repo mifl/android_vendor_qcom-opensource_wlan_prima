@@ -2919,20 +2919,41 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                         hdd_close_adapter(pHddCtx, pP2pAdapter, VOS_TRUE);
                     }
                 }
-                //Disable IMPS & BMPS for SAP/GO
-                if(VOS_STATUS_E_FAILURE ==
-                       hdd_disable_bmps_imps(pHddCtx, WLAN_HDD_P2P_GO))
-                {
-                    //Fail to Exit BMPS
-                    VOS_ASSERT(0);
-                }
+#ifdef FEATURE_WLAN_TDLS
 
+                /* A Mutex Lock is introduced while changing the mode to
+                 * protect the concurrent access for the Adapters by TDLS
+                 * module.
+                 */
+                if (mutex_lock_interruptible(&pHddCtx->tdls_lock))
+                {
+                    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                              "%s: unable to lock list", __func__);
+                    return -EINVAL;
+                }
+#endif
                 //De-init the adapter.
                 hdd_stop_adapter( pHddCtx, pAdapter );
                 hdd_deinit_adapter( pHddCtx, pAdapter );
                 memset(&pAdapter->sessionCtx, 0, sizeof(pAdapter->sessionCtx));
                 pAdapter->device_mode = (type == NL80211_IFTYPE_AP) ?
                                    WLAN_HDD_SOFTAP : WLAN_HDD_P2P_GO;
+#ifdef FEATURE_WLAN_TDLS
+                mutex_unlock(&pHddCtx->tdls_lock);
+#endif
+
+                //Disable BMPS and IMPS if enabled
+                //before starting Go
+                if(WLAN_HDD_P2P_GO == pAdapter->device_mode)
+                {
+                    if(VOS_STATUS_E_FAILURE ==
+                       hdd_disable_bmps_imps(pHddCtx, WLAN_HDD_P2P_GO))
+                    {
+                       //Fail to Exit BMPS
+                       VOS_ASSERT(0);
+                    }
+                }
+
                 if ((WLAN_HDD_SOFTAP == pAdapter->device_mode) &&
                     (pConfig->apRandomBssidEnabled))
                 {
@@ -3035,6 +3056,19 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
            case NL80211_IFTYPE_STATION:
            case NL80211_IFTYPE_P2P_CLIENT:
            case NL80211_IFTYPE_ADHOC:
+#ifdef FEATURE_WLAN_TDLS
+
+                /* A Mutex Lock is introduced while changing the mode to
+                 * protect the concurrent access for the Adapters by TDLS
+                 * module.
+                 */
+                if (mutex_lock_interruptible(&pHddCtx->tdls_lock))
+                {
+                    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                              "%s: unable to lock list", __func__);
+                    return -EINVAL;
+                }
+#endif
                 hdd_stop_adapter( pHddCtx, pAdapter );
                 hdd_deinit_adapter( pHddCtx, pAdapter );
                 wdev->iftype = type;
@@ -3054,6 +3088,9 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                 memset(&pAdapter->sessionCtx, 0, sizeof(pAdapter->sessionCtx));
                 hdd_set_station_ops( pAdapter->dev );
                 status = hdd_init_station_mode( pAdapter );
+#ifdef FEATURE_WLAN_TDLS
+                mutex_unlock(&pHddCtx->tdls_lock);
+#endif
                 if( VOS_STATUS_SUCCESS != status )
                     return -EOPNOTSUPP;
                 /* In case of JB, for P2P-GO, only change interface will be called,
@@ -3181,7 +3218,7 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
         return -EBUSY;
     }
 
-    pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, mac);
+    pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, mac, TRUE);
 
     if ( NULL == pTdlsPeer ) {
         VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
@@ -3215,7 +3252,7 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
     }
 
     /* when others are on-going, we want to change link_status to idle */
-    if (NULL != wlan_hdd_tdls_is_progress(pHddCtx, mac, TRUE, TRUE))
+    if (NULL != wlan_hdd_tdls_is_progress(pHddCtx, mac, TRUE))
     {
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                    "%s: " MAC_ADDRESS_STR
@@ -3238,7 +3275,7 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
     else
     {
         hddTdlsPeer_t *pTdlsPeer;
-        pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, mac);
+        pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, mac, TRUE);
         if (pTdlsPeer && TDLS_IS_CONNECTED(pTdlsPeer))
         {
             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -8293,7 +8330,7 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
 
     if (WLAN_IS_TDLS_SETUP_ACTION(action_code))
     {
-        if (NULL != wlan_hdd_tdls_is_progress(pHddCtx, peer, TRUE, TRUE))
+        if (NULL != wlan_hdd_tdls_is_progress(pHddCtx, peer, TRUE))
         {
             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                        "%s: " MAC_ADDRESS_STR
@@ -8337,7 +8374,7 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
         else
         {
             hddTdlsPeer_t *pTdlsPeer;
-            pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, peer);
+            pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, peer, TRUE);
             if (pTdlsPeer && TDLS_IS_CONNECTED(pTdlsPeer))
             {
                 VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -8362,7 +8399,7 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
     {
 
        hddTdlsPeer_t *pTdlsPeer;
-       pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, peerMac);
+       pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, peerMac, TRUE);
 
        if(pTdlsPeer && TDLS_IS_CONNECTED(pTdlsPeer))
             responder = pTdlsPeer->is_responder;
@@ -8501,7 +8538,7 @@ static int wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *d
         return status;
     }
 
-    pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, peer);
+    pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, peer, TRUE);
 
     if ( NULL == pTdlsPeer ) {
         hddLog(VOS_TRACE_LEVEL_ERROR, "%s: " MAC_ADDRESS_STR " (oper %d) not exsting. ignored",
