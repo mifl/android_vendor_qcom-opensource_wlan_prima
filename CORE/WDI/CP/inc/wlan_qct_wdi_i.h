@@ -2870,6 +2870,21 @@ WDI_Status WDI_ProcessGetBatchScanReq
 );
 #endif /* FEATURE_WLAN_BATCH_SCAN */
 
+/**
+ @brief WDI_ProcessUpdateChannelParamsReq -
+    Send update channel request to FW
+
+ @param  pWDICtx : wdi context
+         pEventData : indication data
+
+ @see
+ @return success or failure
+*/
+WDI_Status WDI_ProcessUpdateChannelParamsReq
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
 
 /*=========================================================================
                              Indications
