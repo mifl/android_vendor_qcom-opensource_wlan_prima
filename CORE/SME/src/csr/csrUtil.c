@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2915,6 +2915,16 @@ tANI_U16 csrCalculateMCCBeaconInterval(tpAniSirGlobal pMac, tANI_U16 sta_bi, tAN
     else
        go_cbi = 100 + (go_gbi % 100);
 
+      if ( sta_bi == 0 )
+    {
+        /* There is possibility to receive zero as value.
+           Which will cause divide by zero. Hence initialise with 100
+        */
+        sta_bi =  100;
+        smsLog(pMac, LOGW,
+            FL("sta_bi 2nd parameter is zero, initialise to %d"), sta_bi);
+    }
+
     // check, if either one is multiple of another
     if (sta_bi > go_cbi)
     {
@@ -3090,6 +3100,14 @@ eHalStatus csrValidateMCCBeaconInterval(tpAniSirGlobal pMac, tANI_U8 channelId,
                                == 0))
                         {
                             continue;
+                        }
+
+                        //Assert if connected profile beacon internal is ZERO
+                        if(!pMac->roam.roamSession[sessionId].\
+                            connectedProfile.beaconInterval)
+                        {
+                            smsLog( pMac, LOGE, FL(" Connected profile "
+                                "beacon interval is zero") );
                         }
 
                             
@@ -5903,7 +5921,7 @@ tSirResultCodes csrGetDeAuthRspStatusCode( tSirSmeDeauthRsp *pSmeRsp )
     tANI_U8 *pBuffer = (tANI_U8 *)pSmeRsp;
     tANI_U32 ret;
 
-    pBuffer += (sizeof(tANI_U16) + sizeof(tANI_U16) + sizeof(tSirMacAddr));
+    pBuffer += (sizeof(tANI_U16) + sizeof(tANI_U16) + sizeof(tANI_U8) + sizeof(tANI_U16));
     //tSirResultCodes is an enum, assuming is 32bit
     //If we cannot make this assumption, use copymemory
     pal_get_U32( pBuffer, &ret );
