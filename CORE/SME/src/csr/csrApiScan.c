@@ -918,6 +918,14 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                             scanReq.maxChnTimeBtc = pMac->roam.configParam.nActiveMaxChnTimeBtc;
                             scanReq.minChnTimeBtc = pMac->roam.configParam.nActiveMinChnTimeBtc;
                         }
+                        if (pMac->roam.configParam.nInitialDwellTime)
+                        {
+                            scanReq.maxChnTime =
+                                     pMac->roam.configParam.nInitialDwellTime;
+                            smsLog(pMac, LOG1, FL("11d scan, updating"
+                                   "dwell time for first scan %u"),
+                                    scanReq.maxChnTime);
+                        }
 
                         status = csrScanCopyRequest(pMac, &p11dScanCmd->u.scanCmd.u.scanRequest, &scanReq);
                         //Free the channel list
@@ -966,6 +974,16 @@ eHalStatus csrScanRequest(tpAniSirGlobal pMac, tANI_U16 sessionId,
                 {
                     smsLog( pMac, LOG1, FL("Scanning only 2G Channels during first scan"));
                     csrScan2GOnyRequest(pMac, pScanCmd, pScanRequest);
+                }
+
+                if (pMac->roam.configParam.nInitialDwellTime)
+                {
+                    pScanRequest->maxChnTime =
+                            pMac->roam.configParam.nInitialDwellTime;
+                    pMac->roam.configParam.nInitialDwellTime = 0;
+                    smsLog(pMac, LOG1,
+                                 FL("updating dwell time for first scan %u"),
+                                 pScanRequest->maxChnTime);
                 }
 
                 status = csrScanCopyRequest(pMac, &pScanCmd->u.scanCmd.u.scanRequest, pScanRequest);
@@ -5975,6 +5993,7 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
     tANI_U32 len = sizeof(pMac->roam.validChannelList);
     tANI_U32 index = 0;
     tANI_U32 new_index = 0;
+    eNVChannelEnabledType NVchannel_state;
 
     do
     {
@@ -6030,9 +6049,15 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
                     {
                        for ( index = 0; index < pSrcReq->ChannelInfo.numOfChannels ; index++ )
                        {
-                          pDstReq->ChannelInfo.ChannelList[new_index] =
-                                             pSrcReq->ChannelInfo.ChannelList[index];
-                          new_index++;
+                          NVchannel_state = vos_nv_getChannelEnabledState(
+                                  pSrcReq->ChannelInfo.ChannelList[index]);
+                          if ((NV_CHANNEL_ENABLE == NVchannel_state) ||
+                                  (NV_CHANNEL_DFS == NVchannel_state))
+                          {
+                             pDstReq->ChannelInfo.ChannelList[new_index] =
+                                 pSrcReq->ChannelInfo.ChannelList[index];
+                             new_index++;
+                          }
                        }
                        pDstReq->ChannelInfo.numOfChannels = new_index;
                     }
