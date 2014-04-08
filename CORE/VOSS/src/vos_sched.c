@@ -925,9 +925,6 @@ static int VosTXThread ( void * Arg )
       if (!vos_is_mq_empty(&pSchedContext->wdiTxMq))
       {
         wpt_msg *pWdiMsg;
-        VOS_TRACE(VOS_MODULE_ID_WDI, VOS_TRACE_LEVEL_INFO,
-                  "%s: Servicing the VOS TX WDI Message queue",__func__);
-
         pMsgWrapper = vos_mq_get(&pSchedContext->wdiTxMq);
 
         if (pMsgWrapper == NULL)
@@ -1103,9 +1100,6 @@ static int VosRXThread ( void * Arg )
       if (!vos_is_mq_empty(&pSchedContext->wdiRxMq))
       {
         wpt_msg *pWdiMsg;
-        VOS_TRACE(VOS_MODULE_ID_WDI, VOS_TRACE_LEVEL_INFO,
-                  "%s: Servicing the VOS RX WDI Message queue",__func__);
-
         pMsgWrapper = vos_mq_get(&pSchedContext->wdiRxMq);
         if ((NULL == pMsgWrapper) || (NULL == pMsgWrapper->pVosMsg))
         {
@@ -1789,7 +1783,7 @@ VOS_STATUS vos_watchdog_wlan_shutdown(void)
     /* Release the lock here */
     spin_unlock(&gpVosWatchdogContext->wdLock);
 
-    if (pHddCtx->isLoadUnloadInProgress)
+    if (WLAN_HDD_IS_LOAD_UNLOAD_IN_PROGRESS(pHddCtx))
     {
         VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
                 "%s: Load/unload in Progress. Ignoring signaling Watchdog",
