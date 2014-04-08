@@ -535,6 +535,65 @@ static const struct nla_policy wlan_hdd_tm_policy[WLAN_HDD_TM_ATTR_MAX + 1] =
 };
 #endif /* WLAN_NL80211_TESTMODE */
 
+#ifdef FEATURE_WLAN_CH_AVOID
+/*
+ * FUNCTION: wlan_hdd_send_avoid_freq_event
+ * This is called when wlan driver needs to send vendor specific
+ * avoid frequency range event to userspace
+ */
+int wlan_hdd_send_avoid_freq_event(hdd_context_t *pHddCtx,
+                                   tHddAvoidFreqList *pAvoidFreqList)
+{
+    struct sk_buff *vendor_event;
+
+    ENTER();
+
+    if (!pHddCtx)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: HDD context is null", __func__);
+        return -1;
+    }
+
+    if (!pAvoidFreqList)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: pAvoidFreqList is null", __func__);
+        return -1;
+    }
+
+    vendor_event = cfg80211_vendor_event_alloc(pHddCtx->wiphy,
+                       sizeof(tHddAvoidFreqList),
+                       QCOM_NL80211_VENDOR_SUBCMD_AVOID_FREQUENCY_INDEX,
+                       GFP_KERNEL);
+    if (!vendor_event)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: cfg80211_vendor_event_alloc failed", __func__);
+        return -1;
+    }
+
+    memcpy(skb_put(vendor_event, sizeof(tHddAvoidFreqList)),
+                   (void *)pAvoidFreqList, sizeof(tHddAvoidFreqList));
+
+    cfg80211_vendor_event(vendor_event, GFP_KERNEL);
+
+    EXIT();
+    return 0;
+}
+#endif /* FEATURE_WLAN_CH_AVOID */
+
+/* vendor specific events */
+static const struct nl80211_vendor_cmd_info wlan_hdd_cfg80211_vendor_events[] =
+{
+#ifdef FEATURE_WLAN_CH_AVOID
+    {
+        .vendor_id = QCOM_NL80211_VENDOR_ID,
+        .subcmd = QCOM_NL80211_VENDOR_SUBCMD_AVOID_FREQUENCY
+    },
+#endif /* FEATURE_WLAN_CH_AVOID */
+};
+
 /*
  * FUNCTION: wlan_hdd_cfg80211_wiphy_alloc
  * This function is called by hdd_wlan_startup()
@@ -637,6 +696,8 @@ int wlan_hdd_cfg80211_init(struct device *dev,
                                )
 {
     int i, j;
+    hdd_context_t *pHddCtx = wiphy_priv(wiphy);
+
     ENTER();
 
     /* Now bind the underlying wlan device with wiphy */
@@ -752,7 +813,10 @@ int wlan_hdd_cfg80211_init(struct device *dev,
     }
 
    wiphy->bands[IEEE80211_BAND_2GHZ] = &wlan_hdd_band_2_4_GHZ;
-   wiphy->bands[IEEE80211_BAND_5GHZ] = &wlan_hdd_band_5_GHZ;
+   if (true == hdd_is_5g_supported(pHddCtx))
+   {
+       wiphy->bands[IEEE80211_BAND_5GHZ] = &wlan_hdd_band_5_GHZ;
+   }
 
    for (i = 0; i < IEEE80211_NUM_BANDS; i++)
    {
@@ -794,6 +858,10 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
     wiphy->max_remain_on_channel_duration = 1000;
 #endif
+
+    wiphy->n_vendor_commands = 0;
+    wiphy->vendor_events = wlan_hdd_cfg80211_vendor_events;
+    wiphy->n_vendor_events = ARRAY_SIZE(wlan_hdd_cfg80211_vendor_events);
 
     EXIT();
     return 0;
@@ -1772,6 +1840,8 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
     struct qc_mac_acl_entry *acl_entry = NULL;
     v_SINT_t i;
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pHostapdAdapter);
+    eHddDot11Mode sapDot11Mode =
+            (WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->sapDot11Mode;
 
     ENTER();
 
@@ -2062,10 +2132,11 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
      */
     if( ((pConfig->SapHw_mode == eSAP_DOT11_MODE_11n) ||
          (pConfig->SapHw_mode == eSAP_DOT11_MODE_11n_ONLY)) &&
-        (((WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->dot11Mode == eHDD_DOT11_MODE_AUTO) ||
-         ((WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->dot11Mode == eHDD_DOT11_MODE_11ac) ||
-         ((WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->dot11Mode == eHDD_DOT11_MODE_11ac_ONLY)) &&
-         (sme_IsFeatureSupportedByDriver(DOT11AC)) && (sme_IsFeatureSupportedByFW(DOT11AC)) )
+        (( sapDot11Mode == eHDD_DOT11_MODE_AUTO ) ||
+         ( sapDot11Mode == eHDD_DOT11_MODE_11ac ) ||
+         ( sapDot11Mode == eHDD_DOT11_MODE_11ac_ONLY ) ) &&
+         (sme_IsFeatureSupportedByDriver(DOT11AC)) &&
+          (sme_IsFeatureSupportedByFW(DOT11AC)) )
     {
         pConfig->SapHw_mode = eSAP_DOT11_MODE_11ac;
 
@@ -5026,6 +5097,7 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
 {
     int status = 0;
     hdd_wext_state_t *pWextState;
+    hdd_context_t *pHddCtx;
     v_U32_t roamId;
     tCsrRoamProfile *pRoamProfile;
     eMib_dot11DesiredBssType connectedBssType;
@@ -5034,6 +5106,15 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
     ENTER();
 
     pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
+    pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+
+    status = wlan_hdd_validate_context(pHddCtx);
+    if (status)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: HDD context is not valid!", __func__);
+        return status;
+    }
 
     if (SIR_MAC_MAX_SSID_LENGTH < ssid_len)
     {
@@ -7572,6 +7653,33 @@ static eHalStatus wlan_hdd_is_pno_allowed(hdd_adapter_t *pAdapter)
    return eHAL_STATUS_SUCCESS;
 }
 
+void hdd_cfg80211_sched_scan_start_status_cb(void *callbackContext, VOS_STATUS status)
+{
+    hdd_adapter_t *pAdapter = callbackContext;
+    hdd_context_t *pHddCtx;
+
+    if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("Invalid adapter or adapter has invalid magic"));
+        return;
+    }
+
+    pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+    if (0 != wlan_hdd_validate_context(pHddCtx))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("HDD context is not valid"));
+        return;
+    }
+
+    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+              FL("PNO enable response status = %d"), status);
+
+    pAdapter->pno_req_status = (status == VOS_STATUS_SUCCESS) ? 0 : -EBUSY;
+    complete(&pAdapter->pno_comp_var);
+}
+
 /*
  * FUNCTION: wlan_hdd_cfg80211_sched_scan_start
  * NL interface to enable PNO
@@ -7754,6 +7862,11 @@ static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 
     pPnoRequest->modePNO = SIR_PNO_MODE_IMMEDIATE;
 
+    INIT_COMPLETION(pAdapter->pno_comp_var);
+    pPnoRequest->statusCallback = hdd_cfg80211_sched_scan_start_status_cb;
+    pPnoRequest->callbackContext = pAdapter;
+    pAdapter->pno_req_status = 0;
+
     status = sme_SetPreferredNetworkList(WLAN_HDD_GET_HAL_CTX(pAdapter),
                               pPnoRequest, pAdapter->sessionId,
                               hdd_cfg80211_sched_scan_done_callback, pAdapter);
@@ -7765,10 +7878,26 @@ static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
         goto error;
     }
 
-    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                  "PNO scanRequest offloaded");
+    ret = wait_for_completion_timeout(
+                 &pAdapter->pno_comp_var,
+                  msecs_to_jiffies(WLAN_WAIT_TIME_PNO));
+    if (0 >= ret)
+    {
+        // Did not receive the response for PNO enable in time.
+        // Assuming the PNO enable was success.
+        // Returning error from here, because we timeout, results
+        // in side effect of Wifi (Wifi Setting) not to work.
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("Timed out waiting for PNO to be Enabled"));
+        ret = 0;
+        goto error;
+    }
+
+    ret = pAdapter->pno_req_status;
 
 error:
+    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+              FL("PNO scanRequest offloaded ret = %d"), ret);
     vos_mem_free(pPnoRequest);
     return ret;
 }
@@ -7856,11 +7985,12 @@ static int wlan_hdd_cfg80211_sched_scan_stop(struct wiphy *wiphy,
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "Failed to disabled PNO");
         ret = -EINVAL;
+        goto error;
     }
 
+error:
     VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                   "%s: PNO scan disabled", __func__);
-
+                   FL("PNO scan disabled ret = %d"), ret);
     vos_mem_free(pPnoRequest);
 
     EXIT();
