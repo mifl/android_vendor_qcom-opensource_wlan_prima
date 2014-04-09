@@ -12743,7 +12743,7 @@ WDI_Status WDI_ProcessSetMaxTxPowerPerBandReq
   wpt_uint8*                             pSendBuffer         = NULL;
   wpt_uint16                             usDataOffset        = 0;
   wpt_uint16                             usSendSize          = 0;
-  tpSetMaxTxPwrPerBandReq                phalSetMxTxPwrPerBand = NULL;
+  tpSetMaxTxPwrPerBandParams             phalSetMxTxPwrPerBand = NULL;
   WDI_Status                             rValue = WDI_STATUS_SUCCESS;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -12786,11 +12786,11 @@ WDI_Status WDI_ProcessSetMaxTxPowerPerBandReq
   }
 
 
-  phalSetMxTxPwrPerBand = (tpSetMaxTxPwrPerBandReq)(pSendBuffer + usDataOffset);
-  phalSetMxTxPwrPerBand->setMaxTxPwrPerBandParams.bandInfo = \
+  phalSetMxTxPwrPerBand = (tpSetMaxTxPwrPerBandParams)(pSendBuffer + usDataOffset);
+  phalSetMxTxPwrPerBand->bandInfo = \
   pwdiSetMaxTxPowerPerBandParams->wdiMaxTxPowerPerBandInfo.bandInfo;
 
-  phalSetMxTxPwrPerBand->setMaxTxPwrPerBandParams.power = \
+  phalSetMxTxPwrPerBand->power = \
   pwdiSetMaxTxPowerPerBandParams->wdiMaxTxPowerPerBandInfo.ucPower;
 
   pWDICtx->wdiReqStatusCB     = pwdiSetMaxTxPowerPerBandParams->wdiReqStatusCB;
@@ -22997,6 +22997,8 @@ WDI_2_HAL_REQ_TYPE
     return WLAN_HAL_DEL_PERIODIC_TX_PTRN_IND;
   case WDI_RATE_UPDATE_IND:
     return WLAN_HAL_RATE_UPDATE_IND;
+  case WDI_UPDATE_CHAN_REQ:
+    return WLAN_HAL_UPDATE_CHANNEL_LIST_REQ;
 
 #ifdef FEATURE_WLAN_BATCH_SCAN
   case WDI_SET_BATCH_SCAN_REQ:
@@ -23007,8 +23009,6 @@ WDI_2_HAL_REQ_TYPE
        return WLAN_HAL_BATCHSCAN_TRIGGER_RESULT_IND;
 #endif
 
-  case WDI_UPDATE_CHAN_REQ:
-    return WLAN_HAL_UPDATE_CHANNEL_LIST_REQ;
   default:
     return WLAN_HAL_MSG_MAX;
   }

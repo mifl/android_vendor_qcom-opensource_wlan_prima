@@ -1653,7 +1653,12 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         {
             pMac->roam.configParam.scanAgeTimeCPS = pParam->scanAgeTimeCPS;   
         }
-        
+        if (pParam->initialScanSkipDFSCh)
+        {
+            pMac->roam.configParam.initialScanSkipDFSCh =
+                  pParam->initialScanSkipDFSCh;
+        }
+
         csrAssignRssiForCategory(pMac, CSR_BEST_RSSI_VALUE, pParam->bCatRssiOffset);
         pMac->roam.configParam.nRoamingTime = pParam->nRoamingTime;
         pMac->roam.configParam.fEnforce11dChannels = pParam->fEnforce11dChannels;
@@ -5134,6 +5139,12 @@ static tANI_BOOLEAN csrRoamProcessResults( tpAniSirGlobal pMac, tSmeCmd *pComman
             So moving this after saving the profile
             */
             //csrRoamStateChange( pMac, eCSR_ROAMING_STATE_JOINED );
+
+            /* Reset remainInPowerActiveTillDHCP as it might have been set
+             * by last failed secured connection.
+             * It should be set only for secured connection.
+             */
+            pMac->pmc.remainInPowerActiveTillDHCP = FALSE;
             if( CSR_IS_INFRASTRUCTURE( pProfile ) )
             {
                 pSession->connectState = eCSR_ASSOC_STATE_TYPE_INFRA_ASSOCIATED;
@@ -5216,6 +5227,11 @@ static tANI_BOOLEAN csrRoamProcessResults( tpAniSirGlobal pMac, tSmeCmd *pComman
                     roamInfo.fAuthRequired = eANI_BOOLEAN_TRUE;
                     //Set the subestate to WaitForKey in case authentiation is needed
                     csrRoamSubstateChange( pMac, eCSR_ROAM_SUBSTATE_WAIT_FOR_KEY, sessionId );
+
+                    /* Set remainInPowerActiveTillDHCP to make sure we wait for
+                     * until keys are set before going into BMPS.
+                     */
+                     pMac->pmc.remainInPowerActiveTillDHCP = TRUE;
 
                     if(pProfile->bWPSAssociation)
                     {
@@ -10918,16 +10934,15 @@ tANI_BOOLEAN csrRoamIsValid40MhzChannel(tpAniSirGlobal pMac, tANI_U8 channel)
     {
         if(pIes->HTCaps.present && (eHT_CHANNEL_WIDTH_40MHZ == pIes->HTCaps.supportedChannelWidthSet))
         {
-            // Check set as TKIP or not.
-            if ((NULL != &(pIes->RSN.pwise_cipher_suites[0][0]) &&
-                (pIes->RSN.pwise_cipher_suite_count == 1) &&
-                !memcmp( &(pIes->RSN.pwise_cipher_suites[0][0]),
-                                        "\x00\x0f\xac\x02" ,4))
-               || (((NULL != &(pIes->WPA)) &&
-                    (pIes->WPA.unicast_cipher_count == 1))
-                    && ((NULL != &(pIes->WPA.unicast_ciphers[0]))
-                        && memcmp(&(pIes->WPA.unicast_ciphers[0]),
-                                  "\x00\x50\xf2\x02", 4))))
+           // In Case WPA2 and TKIP is the only one cipher suite in Pairwise.
+            if ((pIes->RSN.present && (pIes->RSN.pwise_cipher_suite_count == 1) &&
+                !memcmp(&(pIes->RSN.pwise_cipher_suites[0][0]),
+                               "\x00\x0f\xac\x02",4))
+               //In Case WPA1 and TKIP is the only one cipher suite in Unicast.
+               ||(pIes->WPA.present && (pIes->WPA.unicast_cipher_count == 1) &&
+                 !memcmp(&(pIes->WPA.unicast_ciphers[0][0]),
+                              "\x00\x50\xf2\x02",4)))
+
             {
                 smsLog(pMac, LOGW, " No channel bonding in TKIP mode ");
                 eRet = PHY_SINGLE_CHANNEL_CENTERED;
