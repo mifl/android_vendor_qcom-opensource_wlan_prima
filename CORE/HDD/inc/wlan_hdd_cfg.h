@@ -282,11 +282,6 @@
 #define CFG_ENABLE_ADAPT_RX_DRAIN_MAX       WNI_CFG_ENABLE_ADAPT_RX_DRAIN_STAMAX
 #define CFG_ENABLE_ADAPT_RX_DRAIN_DEFAULT   WNI_CFG_ENABLE_ADAPT_RX_DRAIN_STADEF
 
-//Enable Prop IE
-#define CFG_ENABLE_OXYNWK_NAME                   "gEnableOxygenNwk"
-#define CFG_ENABLE_OXYNWK_MIN                    ( 0 )
-#define CFG_ENABLE_OXYNWK_MAX                    ( 1 )
-#define CFG_ENABLE_OXYNWK_DEFAULT                ( 0 )
 
 typedef enum
 {
@@ -2029,6 +2024,37 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_CTS2S_DURING_BTC_SCO_DEFAULT        WNI_CFG_BTC_CTS2S_DURING_SCO_STADEF
 #define CFG_CTS2S_DURING_BTC_SCO_MIN            WNI_CFG_BTC_CTS2S_DURING_SCO_STAMIN
 #define CFG_CTS2S_DURING_BTC_SCO_MAX            WNI_CFG_BTC_CTS2S_DURING_SCO_STAMAX
+
+#define CFG_INITIAL_DWELL_TIME_NAME            "gInitialDwellTime"
+#define CFG_INITIAL_DWELL_TIME_DEFAULT         (0)
+#define CFG_INITIAL_DWELL_TIME_MIN             (0)
+#define CFG_INITIAL_DWELL_TIME_MAX             (100)
+
+#define CFG_INITIAL_SCAN_SKIP_DFS_CH_NAME      "gInitialScanSkipDFSCh"
+#define CFG_INITIAL_SCAN_SKIP_DFS_CH_DEFAULT   (1)
+#define CFG_INITIAL_SCAN_SKIP_DFS_CH_MIN       (0)
+#define CFG_INITIAL_SCAN_SKIP_DFS_CH_MAX       (1)
+
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+//Enable WLAN Logging to app space
+#define CFG_WLAN_LOGGING_SUPPORT_NAME            "wlanLoggingEnable"
+#define CFG_WLAN_LOGGING_SUPPORT_ENABLE          ( 1 )
+#define CFG_WLAN_LOGGING_SUPPORT_DISABLE         ( 0 )
+#define CFG_WLAN_LOGGING_SUPPORT_DEFAULT         ( 1 )
+
+//Enable FATAL and ERROR logs for kmsg console
+#define CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_NAME     "wlanLoggingFEToConsole"
+#define CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_ENABLE   ( 1 )
+#define CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_DISABLE  ( 0 )
+#define CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_DEFAULT  ( 0 )
+
+//Number of buffers to be used for WLAN logging
+#define CFG_WLAN_LOGGING_NUM_BUF_NAME     "wlanLoggingNumBuf"
+#define CFG_WLAN_LOGGING_NUM_BUF_MIN      ( 8  )
+#define CFG_WLAN_LOGGING_NUM_BUF_MAX      ( 64 )
+#define CFG_WLAN_LOGGING_NUM_BUF_DEFAULT  ( 32 )
+#endif //WLAN_LOGGING_SOCK_SVC_ENABLE
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2180,6 +2206,8 @@ typedef struct
    v_U32_t        nPassiveMaxChnTime;    //in units of milliseconds
    v_U32_t        nActiveMinChnTime;     //in units of milliseconds
    v_U32_t        nActiveMaxChnTime;     //in units of milliseconds
+
+   v_U32_t        nInitialDwellTime;     //in units of milliseconds
 
    v_U32_t        nActiveMinChnTimeBtc;     //in units of milliseconds
    v_U32_t        nActiveMaxChnTimeBtc;     //in units of milliseconds
@@ -2426,7 +2454,6 @@ typedef struct
                                                  //splitscan
    //Traffic monitor timer for split scan
    v_U32_t                     trafficMntrTmrForSplitScan;
-   v_BOOL_t                    enableOxygenNwk;
    v_U8_t                      flexConnectPowerFactor;
    v_BOOL_t                    enableIbssHeartBeatOffload;
    v_U32_t                     antennaDiversity;
@@ -2451,6 +2478,15 @@ typedef struct
    v_BOOL_t                    cfgRAFilterEnable;
    v_U16_t                     cfgRARateLimitInterval;
    v_U32_t                     cfgBtcCTS2SduringSCO;
+   v_BOOL_t                    initialScanSkipDFSCh;
+
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+   //WLAN Logging
+   v_U32_t                     wlanLoggingEnable;
+   v_U32_t                     wlanLoggingFEToConsole;
+   v_U32_t                     wlanLoggingNumBuf;
+#endif
+
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

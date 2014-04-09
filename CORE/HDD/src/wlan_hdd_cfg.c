@@ -2733,13 +2733,6 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                  CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_MIN,
                  CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_MAX ),
 
-   REG_VARIABLE( CFG_ENABLE_OXYNWK_NAME, WLAN_PARAM_Integer,
-                 hdd_config_t, enableOxygenNwk,
-                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-                 CFG_ENABLE_OXYNWK_DEFAULT,
-                 CFG_ENABLE_OXYNWK_MIN,
-                 CFG_ENABLE_OXYNWK_MAX ),
-
    REG_VARIABLE( CFG_FLEX_CONNECT_POWER_FACTOR_NAME, WLAN_PARAM_Integer,
                  hdd_config_t, flexConnectPowerFactor,
                  VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_MINMAX,
@@ -2875,6 +2868,44 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                 CFG_CTS2S_DURING_BTC_SCO_DEFAULT,
                 CFG_CTS2S_DURING_BTC_SCO_MIN,
                 CFG_CTS2S_DURING_BTC_SCO_MAX ),
+
+   REG_VARIABLE(CFG_INITIAL_DWELL_TIME_NAME, WLAN_PARAM_Integer,
+               hdd_config_t, nInitialDwellTime,
+               VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+               CFG_INITIAL_DWELL_TIME_DEFAULT,
+               CFG_INITIAL_DWELL_TIME_MIN,
+               CFG_INITIAL_DWELL_TIME_MAX ),
+
+   REG_VARIABLE(CFG_INITIAL_SCAN_SKIP_DFS_CH_NAME, WLAN_PARAM_Integer,
+               hdd_config_t, initialScanSkipDFSCh,
+               VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+               CFG_INITIAL_SCAN_SKIP_DFS_CH_DEFAULT,
+               CFG_INITIAL_SCAN_SKIP_DFS_CH_MIN,
+               CFG_INITIAL_SCAN_SKIP_DFS_CH_MAX),
+
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+   REG_VARIABLE( CFG_WLAN_LOGGING_SUPPORT_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, wlanLoggingEnable,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_WLAN_LOGGING_SUPPORT_DEFAULT,
+                 CFG_WLAN_LOGGING_SUPPORT_DISABLE,
+                 CFG_WLAN_LOGGING_SUPPORT_ENABLE ),
+
+   REG_VARIABLE( CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, wlanLoggingFEToConsole,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_DEFAULT,
+                 CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_DISABLE,
+                 CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_ENABLE ),
+
+   REG_VARIABLE( CFG_WLAN_LOGGING_NUM_BUF_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, wlanLoggingNumBuf,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_WLAN_LOGGING_NUM_BUF_DEFAULT,
+                 CFG_WLAN_LOGGING_NUM_BUF_MIN,
+                 CFG_WLAN_LOGGING_NUM_BUF_MAX ),
+#endif //WLAN_LOGGING_SOCK_SVC_ENABLE
+
 };
 
 /*
@@ -4593,6 +4624,7 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig.csrConfig.vccUlMacLossThreshold    = pConfig->nVccUlMacLossThreshold;
    smeConfig.csrConfig.nRoamingTime             = pConfig->nRoamingTime;
    smeConfig.csrConfig.IsIdleScanEnabled        = pConfig->nEnableIdleScan;
+   smeConfig.csrConfig.nInitialDwellTime        = pConfig->nInitialDwellTime;
    smeConfig.csrConfig.nActiveMaxChnTime        = pConfig->nActiveMaxChnTime;
    smeConfig.csrConfig.nActiveMinChnTime        = pConfig->nActiveMinChnTime;
    smeConfig.csrConfig.nPassiveMaxChnTime       = pConfig->nPassiveMaxChnTime;
@@ -4729,11 +4761,9 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
 
    smeConfig.csrConfig.enableTxLdpc = pConfig->enableTxLdpc;
 
-   // Prop IE enabling/disabling option
-   smeConfig.csrConfig.enableOxygenNwk = pConfig->enableOxygenNwk;
-
    smeConfig.csrConfig.isAmsduSupportInAMPDU = pConfig->isAmsduSupportInAMPDU;
    smeConfig.csrConfig.nSelect5GHzMargin = pConfig->nSelect5GHzMargin;
+   smeConfig.csrConfig.initialScanSkipDFSCh = pConfig->initialScanSkipDFSCh;
 
    /* update SSR config */
    sme_UpdateEnableSSR((tHalHandle)(pHddCtx->hHal), pHddCtx->cfg_ini->enableSSR);

@@ -4312,6 +4312,9 @@ eHalStatus sme_RoamSetKey(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamSetKey *pS
       smsLog(pMac, LOGE, FL("Invalid key length %d"), pSetKey->keyLength);
       return eHAL_STATUS_FAILURE;
    }
+   /*Once Setkey is done, we can go in BMPS*/
+   if(pSetKey->keyLength)
+     pMac->pmc.remainInPowerActiveTillDHCP = FALSE;
 
    status = sme_AcquireGlobalLock( &pMac->sme );
    if ( HAL_STATUS_SUCCESS( status ) )
@@ -9803,8 +9806,8 @@ VOS_STATUS sme_SelectCBMode(tHalHandle hHal, eCsrPhyMode eCsrPhyMode, tANI_U8 ch
       smeConfig.csrConfig.channelBondingMode5GHz = 0;
    }
 
-   VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
-         "cbmode selected=%ld\n", smeConfig.csrConfig.channelBondingMode5GHz);
+   VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_WARN,
+         "cbmode selected=%d", smeConfig.csrConfig.channelBondingMode5GHz);
 
    sme_UpdateConfig (pMac, &smeConfig);
    return VOS_STATUS_SUCCESS;

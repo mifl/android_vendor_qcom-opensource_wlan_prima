@@ -93,6 +93,7 @@
 #include <wlan_btc_svc.h>
 #include <wlan_hdd_cfg.h>
 #include <wlan_ptt_sock_svc.h>
+#include <wlan_logging_sock_svc.h>
 #include <wlan_hdd_wowl.h>
 #include <wlan_hdd_misc.h>
 #include <wlan_hdd_wext.h>
@@ -5965,12 +5966,7 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
          /* A Mutex Lock is introduced while changing/initializing the mode to
           * protect the concurrent access for the Adapters by TDLS module.
           */
-         if (mutex_lock_interruptible(&pHddCtx->tdls_lock))
-         {
-             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                       "%s: unable to lock list", __func__);
-             return NULL;
-         }
+          mutex_lock(&pHddCtx->tdls_lock);
 #endif
 
          pAdapter->wdev.iftype = (session_type == WLAN_HDD_P2P_CLIENT) ?
@@ -6209,12 +6205,7 @@ VOS_STATUS hdd_close_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
       /* A Mutex Lock is introduced while changing/initializing the mode to
        * protect the concurrent access for the Adapters by TDLS module.
        */
-       if (mutex_lock_interruptible(&pHddCtx->tdls_lock))
-       {
-           VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                     "%s: unable to lock list", __func__);
-           return VOS_STATUS_E_FAILURE;
-       }
+       mutex_lock(&pHddCtx->tdls_lock);
 #endif
 
       hdd_remove_adapter( pHddCtx, pAdapterNode );
@@ -7502,6 +7493,13 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    nl_srv_exit();
 #endif /* WLAN_KD_READY_NOTIFIER */
 
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+   if(pHddCtx->cfg_ini->wlanLoggingEnable)
+   {
+       wlan_logging_sock_deactivate_svc();
+   }
+#endif
+
    /* Cancel the vote for XO Core ON. 
     * This is done here to ensure there is no race condition since MC, TX and WD threads have
     * exited at this point
@@ -8596,6 +8594,20 @@ int hdd_wlan_startup(struct device *dev )
    {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: ptt_sock_activate_svc failed",__func__);
       goto err_nl_srv;
+   }
+#endif
+
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+   if(pHddCtx->cfg_ini && pHddCtx->cfg_ini->wlanLoggingEnable)
+   {
+      if(wlan_logging_sock_activate_svc(
+               pHddCtx->cfg_ini->wlanLoggingFEToConsole,
+               pHddCtx->cfg_ini->wlanLoggingNumBuf))
+      {
+         hddLog(VOS_TRACE_LEVEL_ERROR, "%s: wlan_logging_sock_activate_svc"
+                                      " failed", __func__);
+         goto err_nl_srv;
+      }
    }
 #endif
 
