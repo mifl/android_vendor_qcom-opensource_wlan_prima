@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -124,6 +124,8 @@ moduleTraceInfo gVosTraceInfo[ VOS_MODULE_ID_MAX ] =
    [VOS_MODULE_ID_SAP]        = { VOS_DEFAULT_TRACE_LEVEL, "SAP" },
    [VOS_MODULE_ID_HDD_SOFTAP] = { VOS_DEFAULT_TRACE_LEVEL, "HSP" },
    [VOS_MODULE_ID_PMC]        = { VOS_DEFAULT_TRACE_LEVEL, "PMC" },
+   [VOS_MODULE_ID_HDD_DATA]   = { VOS_DEFAULT_TRACE_LEVEL, "HDP" },
+   [VOS_MODULE_ID_HDD_SAP_DATA] = { VOS_DEFAULT_TRACE_LEVEL, "SDP" },
 };
 /*-------------------------------------------------------------------------
   Static and Global variables
@@ -547,6 +549,7 @@ void vosTraceInit()
 void vos_trace(v_U8_t module, v_U8_t code, v_U8_t session, v_U32_t data)
 {
     tpvosTraceRecord rec = NULL;
+    unsigned long flags;
 
 
     if (!gvosTraceData.enable)
@@ -560,7 +563,7 @@ void vos_trace(v_U8_t module, v_U8_t code, v_U8_t session, v_U32_t data)
     }
 
     /* Aquire the lock so that only one thread at a time can fill the ring buffer */
-    spin_lock(&ltraceLock);
+    spin_lock_irqsave(&ltraceLock, flags);
 
     gvosTraceData.num++;
 
@@ -604,7 +607,7 @@ void vos_trace(v_U8_t module, v_U8_t code, v_U8_t session, v_U32_t data)
     rec->time = vos_timer_get_system_time();
     rec->module =  module;
     gvosTraceData.numSinceLastDump ++;
-    spin_unlock(&ltraceLock);
+    spin_unlock_irqrestore(&ltraceLock, flags);
 }
 
 
