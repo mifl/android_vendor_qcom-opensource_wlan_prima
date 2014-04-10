@@ -917,7 +917,8 @@ int wlan_hdd_mgmt_tx( struct wiphy *wiphy, struct net_device *dev,
 
         // Assign the preserved cookie value here to appear as
         // same RoC to supplicant
-        if (pAdapter->internalRoCinProgress == VOS_TRUE)
+        if (cfgState->remain_on_chan_ctx &&
+            (pAdapter->internalRoCinProgress == VOS_TRUE))
             cfgState->remain_on_chan_ctx->cookie = old_roc_ctx.cookie;
 
         if(0 != status)
@@ -962,7 +963,8 @@ int wlan_hdd_mgmt_tx( struct wiphy *wiphy, struct net_device *dev,
         {
             // If Ready indication timeout occuers then indicate complete
             // RoC to supplicant is internalRoCin Progress is set
-            if(pAdapter->internalRoCinProgress == VOS_TRUE)
+            if(cfgState->remain_on_chan_ctx &&
+               (pAdapter->internalRoCinProgress == VOS_TRUE))
             {
                 hddLog( LOGE, "Indicate Complete RoC to supplicant for"
                   "cookie %llu Timeout",cfgState->remain_on_chan_ctx->cookie);
