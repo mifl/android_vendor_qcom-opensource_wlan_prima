@@ -1,5 +1,5 @@
 /*
-  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+  * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
   *
   * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
   *
@@ -7260,10 +7260,9 @@ static int wlan_hdd_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *d
     tANI_U32 j=0;
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     tHalHandle halHandle;
-    int status;
     tANI_U8  BSSIDMatched = 0;
     hdd_context_t *pHddCtx;
-    int result = 0;
+    int status = 0;
 
     hddLog(VOS_TRACE_LEVEL_DEBUG, "%s: deleting PMKSA with PMKSA_ID %d .",
             __func__,pmksa->pmkid);
@@ -7327,11 +7326,12 @@ static int wlan_hdd_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *d
              PMKIDCacheIndex--;
 
              /*delete the last PMKID cache in CSR*/
-             result = sme_RoamDelPMKIDfromCache(halHandle, pAdapter->sessionId, pmksa->bssid);
-             if (0 != result)
+             if (eHAL_STATUS_SUCCESS !=
+                 sme_RoamDelPMKIDfromCache(halHandle, pAdapter->sessionId, pmksa->bssid))
              {
                 hddLog(VOS_TRACE_LEVEL_ERROR,"%s: cannot delete PMKSA %d CONTENT.",
                           __func__,PMKIDCacheIndex);
+                status = -EINVAL;
              }
 
              dump_bssid(pmksa->bssid);
@@ -7350,7 +7350,7 @@ static int wlan_hdd_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *d
        dump_pmkid(halHandle, pmksa->pmkid);
        return -EINVAL;
     }
-   return result;
+   return status;
 }
 
 
@@ -7362,8 +7362,7 @@ static int wlan_hdd_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device 
     tHalHandle halHandle;
     hdd_context_t *pHddCtx;
     tANI_U8 *pBSSId;
-    int status;
-    int result;
+    int status = 0;
 
     hddLog(VOS_TRACE_LEVEL_DEBUG, "%s: flushing PMKSA ",__func__);
 
@@ -7402,12 +7401,12 @@ static int wlan_hdd_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device 
           pBSSId =(tANI_U8 *)(PMKIDCache[j].BSSID);
 
           /*delete the PMKID in CSR*/
-          result = sme_RoamDelPMKIDfromCache(halHandle, pAdapter->sessionId, pBSSId);
-
-          if (0!= result)
+          if (eHAL_STATUS_SUCCESS !=
+              sme_RoamDelPMKIDfromCache(halHandle, pAdapter->sessionId, pBSSId))
           {
              hddLog(VOS_TRACE_LEVEL_ERROR ,"%s cannot flush PMKIDCache %d.",
                     __func__,j);
+             status = -EINVAL;
           }
           /*clear the entry in HDD cache 0--index-1 */
           vos_mem_zero(PMKIDCache[j].BSSID, WNI_CFG_BSSID_LEN);
@@ -7415,7 +7414,7 @@ static int wlan_hdd_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device 
       }
 
     PMKIDCacheIndex = 0;
-    return result;
+    return status;
 }
 #endif
 
@@ -7498,6 +7497,33 @@ void hdd_cfg80211_sched_scan_done_callback(void *callbackContext,
     cfg80211_sched_scan_results(pHddCtx->wiphy);
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
             "%s: cfg80211 scan result database updated", __func__);
+}
+
+void hdd_cfg80211_sched_scan_start_status_cb(void *callbackContext, VOS_STATUS status)
+{
+    hdd_adapter_t *pAdapter = callbackContext;
+    hdd_context_t *pHddCtx;
+
+    if ((NULL == pAdapter) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("Invalid adapter or adapter has invalid magic"));
+        return;
+    }
+
+    pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+    if (0 != wlan_hdd_validate_context(pHddCtx))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("HDD context is not valid"));
+        return;
+    }
+
+    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+              FL("PNO enable response status = %d"), status);
+
+    pAdapter->pno_req_status = (status == VOS_STATUS_SUCCESS) ? 0 : -EBUSY;
+    complete(&pAdapter->pno_comp_var);
 }
 
 /*
@@ -7716,6 +7742,16 @@ static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 
     pPnoRequest->modePNO = SIR_PNO_MODE_IMMEDIATE;
 
+    INIT_COMPLETION(pAdapter->pno_comp_var);
+    pPnoRequest->statusCallback = hdd_cfg80211_sched_scan_start_status_cb;
+    pPnoRequest->callbackContext = pAdapter;
+    pAdapter->pno_req_status = 0;
+
+    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+              "SessionId %d, enable %d, modePNO %d, ucScanTimersCount %d",
+              pAdapter->sessionId, pPnoRequest->enable, pPnoRequest->modePNO,
+                                pPnoRequest->scanTimers.ucScanTimersCount);
+
     status = sme_SetPreferredNetworkList(WLAN_HDD_GET_HAL_CTX(pAdapter),
                               pPnoRequest, pAdapter->sessionId,
                               hdd_cfg80211_sched_scan_done_callback, pAdapter);
@@ -7727,10 +7763,26 @@ static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
         goto error;
     }
 
-    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                  "PNO scanRequest offloaded");
+    ret = wait_for_completion_timeout(
+                 &pAdapter->pno_comp_var,
+                  msecs_to_jiffies(WLAN_WAIT_TIME_PNO));
+    if (0 >= ret)
+    {
+        // Did not receive the response for PNO enable in time.
+        // Assuming the PNO enable was success.
+        // Returning error from here, because we timeout, results
+        // in side effect of Wifi (Wifi Setting) not to work.
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("Timed out waiting for PNO to be Enabled"));
+        ret = 0;
+        goto error;
+    }
+
+    ret = pAdapter->pno_req_status;
 
 error:
+    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+              FL("PNO scanRequest offloaded ret = %d"), ret);
     vos_mem_free(pPnoRequest);
     return ret;
 }
@@ -7818,11 +7870,12 @@ static int wlan_hdd_cfg80211_sched_scan_stop(struct wiphy *wiphy,
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "Failed to disabled PNO");
         ret = -EINVAL;
+        goto error;
     }
 
+error:
     VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                   "%s: PNO scan disabled", __func__);
-
+                   FL("PNO scan disabled ret = %d"), ret);
     vos_mem_free(pPnoRequest);
 
     EXIT();
