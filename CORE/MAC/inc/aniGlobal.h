@@ -1074,6 +1074,7 @@ typedef struct sAniSirGlobal
 #endif
     tANI_U8 fScanOffload;
     tANI_U32 fEnableDebugLog;
+    tANI_U8 isCoalesingInIBSSAllowed;
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS

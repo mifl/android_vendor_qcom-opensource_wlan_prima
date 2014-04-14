@@ -2134,6 +2134,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_INITIAL_SCAN_SKIP_DFS_CH_MIN       (0)
 #define CFG_INITIAL_SCAN_SKIP_DFS_CH_MAX       (1)
 
+#define CFG_COALESING_IN_IBSS_NAME                "gCoalesingInIBSS"
+#define CFG_COALESING_IN_IBSS_MIN                 (0)
+#define CFG_COALESING_IN_IBSS_MAX                 (1)
+#define CFG_COALESING_IN_IBSS_DEFAULT             (0) //disabled
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2574,6 +2579,7 @@ typedef struct
    v_U32_t                     wlanLoggingNumBuf;
 #endif
    v_BOOL_t                    initialScanSkipDFSCh;
+   v_U8_t                      isCoalesingInIBSSAllowed;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
