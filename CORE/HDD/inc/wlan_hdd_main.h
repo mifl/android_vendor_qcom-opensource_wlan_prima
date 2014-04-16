@@ -543,6 +543,13 @@ typedef enum
    WLAN_HDD_TM_LEVEL_MAX
 } WLAN_TmLevelEnumType;
 
+typedef enum
+{
+   WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS = 0 ,
+   WLAN_HDD_LOAD_IN_PROGRESS           = 1<<0,
+   WLAN_HDD_UNLOAD_IN_PROGRESS         = 1<<1,
+}load_unload_sequence;
+
 /* Driver Action based on thermal mitigation level structure */
 typedef struct
 {
@@ -1067,15 +1074,6 @@ typedef struct
    v_TIME_t    lastFrameTs;
 }hdd_traffic_monitor_t;
 
-#ifdef FEATURE_WLAN_LPHB
-typedef struct
-{
-   v_U8_t enable;
-   v_U8_t item;
-   v_U8_t session;
-} lphbEnableStruct;
-#endif /* FEATURE_WLAN_LPHB */
-
 /** Adapter stucture definition */
 
 struct hdd_context_s
@@ -1152,7 +1150,7 @@ struct hdd_context_s
 
    struct completion ssr_comp_var;
 
-   v_BOOL_t isLoadUnloadInProgress;
+   v_U8_t isLoadUnloadInProgress;
    
    /**Track whether driver has been suspended.*/
    hdd_ps_state_t hdd_ps_state;
@@ -1245,9 +1243,6 @@ struct hdd_context_s
     v_U8_t configuredMcastBcastFilter;
 
     v_U8_t sus_res_mcastbcast_filter;
-#ifdef FEATURE_WLAN_LPHB
-    lphbEnableStruct  lphbEnableReq;
-#endif /* FEATURE_WLAN_LPHB */
 
     v_BOOL_t sus_res_mcastbcast_filter_valid;
 
@@ -1284,7 +1279,15 @@ struct hdd_context_s
 };
 
 
+#define WLAN_HDD_IS_LOAD_IN_PROGRESS(pHddCtx)  \
+            (pHddCtx->isLoadUnloadInProgress & WLAN_HDD_LOAD_IN_PROGRESS)
 
+#define WLAN_HDD_IS_UNLOAD_IN_PROGRESS(pHddCtx)  \
+            (pHddCtx->isLoadUnloadInProgress & WLAN_HDD_UNLOAD_IN_PROGRESS)
+
+#define WLAN_HDD_IS_LOAD_UNLOAD_IN_PROGRESS(pHddCtx)  \
+            (pHddCtx->isLoadUnloadInProgress &    \
+              (WLAN_HDD_UNLOAD_IN_PROGRESS | WLAN_HDD_UNLOAD_IN_PROGRESS))
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
   -------------------------------------------------------------------------*/ 
