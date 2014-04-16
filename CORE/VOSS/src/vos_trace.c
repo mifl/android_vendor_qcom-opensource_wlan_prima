@@ -78,6 +78,7 @@
   ------------------------------------------------------------------------*/
 #include <vos_trace.h>
 #include <aniGlobal.h>
+#include <wlan_logging_sock_svc.h>
 /*--------------------------------------------------------------------------
   Preprocessor definitions and constants
   ------------------------------------------------------------------------*/
@@ -114,7 +115,7 @@ moduleTraceInfo gVosTraceInfo[ VOS_MODULE_ID_MAX ] =
 {
    [VOS_MODULE_ID_BAP]        = { VOS_DEFAULT_TRACE_LEVEL, "BAP" },
    [VOS_MODULE_ID_TL]         = { VOS_DEFAULT_TRACE_LEVEL, "TL " },
-   [VOS_MODULE_ID_WDI]        = { VOS_DEFAULT_TRACE_LEVEL, "WDI"},
+   [VOS_MODULE_ID_WDI]        = { VOS_DEFAULT_TRACE_LEVEL, "WDI" },
    [VOS_MODULE_ID_HDD]        = { VOS_DEFAULT_TRACE_LEVEL, "HDD" },
    [VOS_MODULE_ID_SME]        = { VOS_DEFAULT_TRACE_LEVEL, "SME" },
    [VOS_MODULE_ID_PE]         = { VOS_DEFAULT_TRACE_LEVEL, "PE " },
@@ -364,7 +365,12 @@ void vos_trace_msg( VOS_MODULE_ID module, VOS_TRACE_LEVEL level, char *strFormat
          kmsgwconnBuffWrite(strBuffer);
          spin_unlock_irqrestore (&gVosSpinLock, irq_flag);
 #endif
+
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+         wlan_log_to_user(level, (char *)strBuffer, strlen(strBuffer));
+#else
          pr_err("%s\n", strBuffer);
+#endif
       }
      va_end(val);
    }
@@ -549,6 +555,7 @@ void vosTraceInit()
 void vos_trace(v_U8_t module, v_U8_t code, v_U8_t session, v_U32_t data)
 {
     tpvosTraceRecord rec = NULL;
+    unsigned long flags;
 
 
     if (!gvosTraceData.enable)
@@ -562,7 +569,7 @@ void vos_trace(v_U8_t module, v_U8_t code, v_U8_t session, v_U32_t data)
     }
 
     /* Aquire the lock so that only one thread at a time can fill the ring buffer */
-    spin_lock(&ltraceLock);
+    spin_lock_irqsave(&ltraceLock, flags);
 
     gvosTraceData.num++;
 
@@ -606,7 +613,7 @@ void vos_trace(v_U8_t module, v_U8_t code, v_U8_t session, v_U32_t data)
     rec->time = vos_timer_get_system_time();
     rec->module =  module;
     gvosTraceData.numSinceLastDump ++;
-    spin_unlock(&ltraceLock);
+    spin_unlock_irqrestore(&ltraceLock, flags);
 }
 
 

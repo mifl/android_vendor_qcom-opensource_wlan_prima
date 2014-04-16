@@ -1762,8 +1762,6 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
 #endif
         pMac->roam.configParam.txLdpcEnable = pParam->enableTxLdpc;
 
-        pMac->roam.configParam.enableOxygenNwk = pParam->enableOxygenNwk;
-
         pMac->roam.configParam.isAmsduSupportInAMPDU = pParam->isAmsduSupportInAMPDU;
         pMac->roam.configParam.nSelect5GHzMargin = pParam->nSelect5GHzMargin;
     }
@@ -1888,7 +1886,6 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 #endif
 
         pParam->enableTxLdpc = pMac->roam.configParam.txLdpcEnable;
-        pParam->enableOxygenNwk = pMac->roam.configParam.enableOxygenNwk;
 
         pParam->isAmsduSupportInAMPDU = pMac->roam.configParam.isAmsduSupportInAMPDU;
         pParam->nSelect5GHzMargin = pMac->roam.configParam.nSelect5GHzMargin;
@@ -4236,7 +4233,6 @@ static eCsrJoinState csrRoamJoinNextBss( tpAniSirGlobal pMac, tSmeCmd *pCommand,
 #ifndef WLAN_MDM_CODE_REDUCTION_OPT
                     acm_mask = sme_QosGetACMMask(pMac, &pScanResult->Result.BssDescriptor, 
                          pIesLocal);
-                    pCommand->u.roamCmd.roamProfile.uapsd_mask &= ~(acm_mask);
 #endif /* WLAN_MDM_CODE_REDUCTION_OPT*/
                 }
                 else
@@ -10934,16 +10930,15 @@ tANI_BOOLEAN csrRoamIsValid40MhzChannel(tpAniSirGlobal pMac, tANI_U8 channel)
     {
         if(pIes->HTCaps.present && (eHT_CHANNEL_WIDTH_40MHZ == pIes->HTCaps.supportedChannelWidthSet))
         {
-            // Check set as TKIP or not.
-            if ((NULL != &(pIes->RSN.pwise_cipher_suites[0][0]) &&
-                (pIes->RSN.pwise_cipher_suite_count == 1) &&
-                !memcmp( &(pIes->RSN.pwise_cipher_suites[0][0]),
-                                        "\x00\x0f\xac\x02" ,4))
-               || (((NULL != &(pIes->WPA)) &&
-                    (pIes->WPA.unicast_cipher_count == 1))
-                    && ((NULL != &(pIes->WPA.unicast_ciphers[0]))
-                        && memcmp(&(pIes->WPA.unicast_ciphers[0]),
-                                  "\x00\x50\xf2\x02", 4))))
+           // In Case WPA2 and TKIP is the only one cipher suite in Pairwise.
+            if ((pIes->RSN.present && (pIes->RSN.pwise_cipher_suite_count == 1) &&
+                !memcmp(&(pIes->RSN.pwise_cipher_suites[0][0]),
+                               "\x00\x0f\xac\x02",4))
+               //In Case WPA1 and TKIP is the only one cipher suite in Unicast.
+               ||(pIes->WPA.present && (pIes->WPA.unicast_cipher_count == 1) &&
+                 !memcmp(&(pIes->WPA.unicast_ciphers[0][0]),
+                              "\x00\x50\xf2\x02",4)))
+
             {
                 smsLog(pMac, LOGW, " No channel bonding in TKIP mode ");
                 eRet = PHY_SINGLE_CHANNEL_CENTERED;
@@ -12547,7 +12542,6 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
 #ifndef WLAN_MDM_CODE_REDUCTION_OPT
                     acm_mask = sme_QosGetACMMask(pMac, pBssDescription, pIes);
 #endif /* WLAN_MDM_CODE_REDUCTION_OPT*/
-                    uapsd_mask &= ~(acm_mask);
                 }
                 else
                 {
@@ -13500,10 +13494,6 @@ eHalStatus csrSendMBStartBssReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, eCs
         
         //txLdpcIniFeatureEnabled
         *pBuf = (tANI_U8)(tANI_U8)pMac->roam.configParam.txLdpcEnable;
-        pBuf++;
-
-        // prop IE enabled in .ini file
-        *pBuf = (tANI_U8)pMac->roam.configParam.enableOxygenNwk;
         pBuf++;
 
         // set RSN IE
