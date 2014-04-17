@@ -2760,10 +2760,10 @@ void* wlan_hdd_change_country_code_cb(void *pAdapter)
 }
 
 /*
- * FUNCTION: wlan_hdd_cfg80211_change_iface
+ * FUNCTION: __wlan_hdd_cfg80211_change_iface
  * This function is used to set the interface type (INFRASTRUCTURE/ADHOC)
  */
-int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                                     struct net_device *ndev,
                                     enum nl80211_iftype type,
                                     u32 *flags,
@@ -2919,6 +2919,13 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                         hdd_close_adapter(pHddCtx, pP2pAdapter, VOS_TRUE);
                     }
                 }
+                //Disable IMPS & BMPS for SAP/GO
+                if(VOS_STATUS_E_FAILURE ==
+                       hdd_disable_bmps_imps(pHddCtx, WLAN_HDD_P2P_GO))
+                {
+                    //Fail to Exit BMPS
+                    VOS_ASSERT(0);
+                }
 #ifdef FEATURE_WLAN_TDLS
 
                 /* A Mutex Lock is introduced while changing the mode to
@@ -2936,19 +2943,6 @@ int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
 #ifdef FEATURE_WLAN_TDLS
                 mutex_unlock(&pHddCtx->tdls_lock);
 #endif
-
-                //Disable BMPS and IMPS if enabled
-                //before starting Go
-                if(WLAN_HDD_P2P_GO == pAdapter->device_mode)
-                {
-                    if(VOS_STATUS_E_FAILURE ==
-                       hdd_disable_bmps_imps(pHddCtx, WLAN_HDD_P2P_GO))
-                    {
-                       //Fail to Exit BMPS
-                       VOS_ASSERT(0);
-                    }
-                }
-
                 if ((WLAN_HDD_SOFTAP == pAdapter->device_mode) &&
                     (pConfig->apRandomBssidEnabled))
                 {
@@ -3169,6 +3163,26 @@ done:
 #endif //WLAN_BTAMP_FEATURE
     EXIT();
     return 0;
+}
+
+/*
+ * FUNCTION: wlan_hdd_cfg80211_change_iface
+ * wrapper function to protect the actual implementation from SSR.
+ */
+int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
+                                    struct net_device *ndev,
+                                    enum nl80211_iftype type,
+                                    u32 *flags,
+                                    struct vif_params *params
+                                  )
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_change_iface(wiphy, ndev, type, flags, params);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
 }
 
 #ifdef FEATURE_WLAN_TDLS
