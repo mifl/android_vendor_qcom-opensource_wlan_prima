@@ -1103,9 +1103,6 @@ limCleanupMlm(tpAniSirGlobal pMac)
         tx_timer_delete(&pMac->lim.limTimers.gLimFTPreAuthRspTimer);
 #endif
 
-        // Deactivate and delete remain on channel timer
-        tx_timer_deactivate(&pMac->lim.limTimers.gLimRemainOnChannelTimer);
-        tx_timer_delete(&pMac->lim.limTimers.gLimRemainOnChannelTimer);
 
 #if defined(FEATURE_WLAN_CCX) && !defined(FEATURE_WLAN_CCX_UPLOAD)
         // Deactivate and delete TSM
@@ -1757,27 +1754,13 @@ limIsNullSsid( tSirMacSSid *pSsid )
         }
 
 #define ASCII_SPACE_CHARACTER 0x20
-        /* If the first charactes is space, then check if all characters in 
-         * SSID are spaces to consider it as NULL SSID*/
-        if( ASCII_SPACE_CHARACTER == pSsid->ssId[0])
+        /* If the first charactes is space and SSID length is 1
+         * then consider it as NULL SSID*/
+        if ((ASCII_SPACE_CHARACTER == pSsid->ssId[0]) &&
+            (pSsid->length == 1))
         {
-            SsidLength = pSsid->length;
-            pSsidStr = pSsid->ssId;
-            /* check if all the charactes in SSID are spaces*/
-            while ( SsidLength )
-            {
-                if( ASCII_SPACE_CHARACTER != *pSsidStr )
-                    break;
-    
-                pSsidStr++;
-                SsidLength--;
-            }
-    
-            if( 0 == SsidLength )
-            {
-                fNullSsid = true;
-                break;
-            }
+             fNullSsid = true;
+             break;
         }
         else
         {

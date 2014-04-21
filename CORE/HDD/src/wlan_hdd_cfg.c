@@ -2906,6 +2906,31 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                  CFG_WLAN_LOGGING_NUM_BUF_MAX ),
 #endif //WLAN_LOGGING_SOCK_SVC_ENABLE
 
+   REG_VARIABLE( CFG_ADVERTISE_CONCURRENT_OPERATION_NAME , WLAN_PARAM_Integer,
+                 hdd_config_t, advertiseConcurrentOperation,
+                 VAR_FLAGS_OPTIONAL,
+                 CFG_ADVERTISE_CONCURRENT_OPERATION_DEFAULT,
+                 CFG_ADVERTISE_CONCURRENT_OPERATION_MIN,
+                 CFG_ADVERTISE_CONCURRENT_OPERATION_MAX ),
+
+   REG_VARIABLE_STRING( CFG_OVERRIDE_COUNTRY_CODE, WLAN_PARAM_String,
+                hdd_config_t, overrideCountryCode,
+                VAR_FLAGS_OPTIONAL,
+               (void *)CFG_OVERRIDE_COUNTRY_CODE_DEFAULT),
+
+   REG_VARIABLE( CFG_SAP_DOT11_MODE_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, sapDot11Mode,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK,
+                CFG_SAP_DOT11_MODE_DEFAULT,
+                CFG_SAP_DOT11_MODE_MIN,
+                CFG_SAP_DOT11_MODE_MAX ),
+
+  REG_VARIABLE( CFG_ENABLE_DEBUG_CONNECT_ISSUE, WLAN_PARAM_Integer,
+              hdd_config_t, gEnableDebugLog,
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+              CFG_ENABLE_DEBUG_CONNECT_ISSUE_DEFAULT,
+              CFG_ENABLE_DEBUG_CONNECT_ISSUE_MIN ,
+              CFG_ENABLE_DEBUG_CONNECT_ISSUE_MAX),
 };
 
 /*
@@ -3281,6 +3306,7 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gGoKeepAlivePeriod] Value = [%u]", pHddCtx->cfg_ini->goKeepAlivePeriod);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gApKeepAlivePeriod]Value = [%u]", pHddCtx->cfg_ini->apKeepAlivePeriod);
 
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [overrideCountryCode] Value = [%s] ",pHddCtx->cfg_ini->overrideCountryCode);
 }
 
 
@@ -4770,6 +4796,7 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    /* Update the Directed scan offload setting */
    smeConfig.fScanOffload =  pHddCtx->cfg_ini->fScanOffload;
 
+   smeConfig.fEnableDebugLog = pHddCtx->cfg_ini->gEnableDebugLog;
    halStatus = sme_UpdateConfig( pHddCtx->hHal, &smeConfig);
    if ( !HAL_STATUS_SUCCESS( halStatus ) )
    {

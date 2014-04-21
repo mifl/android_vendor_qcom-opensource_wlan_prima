@@ -2089,8 +2089,6 @@ VOS_STATUS WDA_GetWcnssWlanCompiledVersion(v_PVOID_t pvosGCtx,
                                            tSirVersionType *pVersion)
 {
    tWDA_CbContext *pWDA;
-   VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO_LOW,
-             "%s: Entered", __func__);
    if ((NULL == pvosGCtx) || (NULL == pVersion))
    {
       VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
@@ -2118,8 +2116,6 @@ VOS_STATUS WDA_GetWcnssWlanReportedVersion(v_PVOID_t pvosGCtx,
                                            tSirVersionType *pVersion)
 {
    tWDA_CbContext *pWDA;
-   VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO_LOW,
-             "%s: Entered", __func__);
    if ((NULL == pvosGCtx) || (NULL == pVersion))
    {
       VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
@@ -11655,6 +11651,21 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
                           pData, frmLen);
    }
 #endif
+
+   if (VOS_IS_STATUS_SUCCESS(status))
+   {
+      if (pMac->fEnableDebugLog & 0x1)
+      {
+         if ((pFc->type == SIR_MAC_MGMT_FRAME) &&
+             (pFc->subType != SIR_MAC_MGMT_PROBE_REQ) &&
+             (pFc->subType != SIR_MAC_MGMT_PROBE_RSP))
+         {
+            VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR, "TX MGMT - Type %hu, SubType %hu",
+                       pFc->type, pFc->subType);
+         }
+      }
+   }
+
 
    return status;
 }
