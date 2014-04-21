@@ -2982,6 +2982,34 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                  CFG_COALESING_IN_IBSS_DEFAULT,
                  CFG_COALESING_IN_IBSS_MIN,
                  CFG_COALESING_IN_IBSS_MAX ),
+
+   REG_VARIABLE(CFG_BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, cfgBtcFatalHidnSniffBlkGuidance,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE_DEFAULT,
+                CFG_BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE_MIN,
+                CFG_BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE_MAX ),
+
+   REG_VARIABLE(CFG_BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, cfgBtcCriticalHidnSniffBlkGuidance,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE_DEFAULT,
+                CFG_BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE_MIN,
+                CFG_BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE_MAX ),
+
+   REG_VARIABLE(CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, cfgBtcA2dpTxQueueThold,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD_DEFAULT,
+                CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD_MIN,
+                CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD_MAX ),
+
+   REG_VARIABLE(CFG_BTC_DYN_OPP_TX_QUEUE_THOLD_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, cfgBtcOppTxQueueThold,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_BTC_DYN_OPP_TX_QUEUE_THOLD_DEFAULT,
+                CFG_BTC_DYN_OPP_TX_QUEUE_THOLD_MIN,
+                CFG_BTC_DYN_OPP_TX_QUEUE_THOLD_MAX ),
 };
 
 
@@ -4675,6 +4703,47 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
        hddLog(LOGE, "Could not pass on WNI_CFG_DEFAULT_RATE_INDEX_24GHZ to"
                     " CCM\n");
    }
+
+   if (ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE,
+                    pConfig->cfgBtcFatalHidnSniffBlkGuidance,
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+                              fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on"
+                     "WNI_CFG_BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE,
+                    pConfig->cfgBtcCriticalHidnSniffBlkGuidance,
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+                              fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on"
+                    "WNI_CFG_BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD,
+                    pConfig->cfgBtcA2dpTxQueueThold,
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+                              fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on"
+                    "WNI_CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal,
+                    WNI_CFG_BTC_DYN_OPP_TX_QUEUE_THOLD,
+                    pConfig->cfgBtcOppTxQueueThold,
+                    NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+                              fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on"
+                    "WNI_CFG_BTC_DYN_OPP_TX_QUEUE_THOLD to CCM");
+   }
+
    return fStatus;
 }
 
