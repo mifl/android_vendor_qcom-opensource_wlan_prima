@@ -1687,13 +1687,42 @@ VOS_STATUS wlan_hdd_validate_operation_channel(hdd_adapter_t *pAdapter,int chann
             }
          }
 
-        if (indx >= num_ch)
-        {
-            hddLog(VOS_TRACE_LEVEL_ERROR,
-                "%s: Invalid Channel [%d]", __func__, channel);
-            return VOS_STATUS_E_FAILURE;
-        }
+         if (indx >= num_ch)
+         {
+             if (WLAN_HDD_P2P_GO == pAdapter->device_mode)
+             {
+                 eCsrBand band;
+                 unsigned int freq;
+
+                 sme_GetFreqBand(hHal, &band);
+
+                 if (eCSR_BAND_5G == band)
+                 {
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,38))
+                     if (channel <= ARRAY_SIZE(hdd_channels_2_4_GHZ))
+                     {
+                         freq = ieee80211_channel_to_frequency(channel,
+                                                          IEEE80211_BAND_2GHZ);
+                     }
+                     else
+                     {
+                         freq = ieee80211_channel_to_frequency(channel,
+                                                          IEEE80211_BAND_5GHZ);
+                     }
+#else
+                     freq = ieee80211_channel_to_frequency(channel);
+#endif
+                     if(WLAN_HDD_IS_SOCIAL_CHANNEL(freq))
+                         return VOS_STATUS_SUCCESS;
+                 }
+             }
+
+             hddLog(VOS_TRACE_LEVEL_ERROR,
+                    "%s: Invalid Channel [%d]", __func__, channel);
+             return VOS_STATUS_E_FAILURE;
+         }
     }
+
     return VOS_STATUS_SUCCESS;
 
 }
@@ -2176,7 +2205,7 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
     {
         pConfig->SapHw_mode = eSAP_DOT11_MODE_11ac;
 
-        /* Disable VHT support in 2.4 GHz band */
+        /* Disable VHT support in 2.4 GHz and */
         if (pConfig->channel <= 14 &&
             (WLAN_HDD_GET_CTX(pHostapdAdapter))->cfg_ini->enableVhtFor24GHzBand == FALSE)
         {
@@ -2760,10 +2789,10 @@ void* wlan_hdd_change_country_code_cb(void *pAdapter)
 }
 
 /*
- * FUNCTION: wlan_hdd_cfg80211_change_iface
+ * FUNCTION: __wlan_hdd_cfg80211_change_iface
  * This function is used to set the interface type (INFRASTRUCTURE/ADHOC)
  */
-int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                                     struct net_device *ndev,
                                     enum nl80211_iftype type,
                                     u32 *flags,
@@ -3169,6 +3198,26 @@ done:
 #endif //WLAN_BTAMP_FEATURE
     EXIT();
     return 0;
+}
+
+/*
+ * FUNCTION: wlan_hdd_cfg80211_change_iface
+ * wrapper function to protect the actual implementation from SSR.
+ */
+int wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
+                                    struct net_device *ndev,
+                                    enum nl80211_iftype type,
+                                    u32 *flags,
+                                    struct vif_params *params
+                                  )
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_change_iface(wiphy, ndev, type, flags, params);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
 }
 
 #ifdef FEATURE_WLAN_TDLS
@@ -9160,9 +9209,17 @@ void wlan_hdd_cfg80211_lphb_ind_handler
 {
    tSirLPHBInd     *lphbInd;
    struct sk_buff  *skb;
+   hdd_context_t  *pHddCtxt;
 
    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
              "LPHB indication arrived");
+
+   if (pAdapter == NULL)
+   {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                 "%s: pAdapter is NULL\n",__func__);
+       return;
+   }
 
    if (NULL == indCont)
    {
@@ -9171,9 +9228,10 @@ void wlan_hdd_cfg80211_lphb_ind_handler
       return;
    }
 
+   pHddCtxt  = (hdd_context_t *)pAdapter;
    lphbInd = (tSirLPHBInd *)indCont;
    skb = cfg80211_testmode_alloc_event_skb(
-                  ((hdd_adapter_t *)pAdapter)->wdev.wiphy,
+                  pHddCtxt->wiphy,
                   sizeof(tSirLPHBInd),
                   GFP_ATOMIC);
    if (!skb)

@@ -1393,6 +1393,21 @@ eHalStatus sme_GetCountryCode(tHalHandle hHal, tANI_U8 *pBuf, tANI_U8 *pbLen);
 eHalStatus sme_SetCountryCode(tHalHandle hHal, tANI_U8 *pCountry, tANI_BOOLEAN *pfRestartNeeded);
 
 /* ---------------------------------------------------------------------------
+
+    \fn sme_InitChannels
+
+    \brief Used to initialize CSR channel lists while driver loading
+
+    \param hHal - global pMac structure
+
+    \return eHalStatus  SUCCESS.
+
+                         FAILURE or RESOURCES  The API finished and failed.
+
+ -------------------------------------------------------------------------------*/
+eHalStatus sme_InitChannels(tHalHandle hHal);
+
+/* ---------------------------------------------------------------------------
     \fn sme_ResetCountryCodeInformation
     \brief this function is to reset the country code current being used back to EEPROM default
     this includes channel list and power setting. This is a synchronous API.
@@ -1544,7 +1559,7 @@ eHalStatus sme_GenericChangeCountryCode( tHalHandle hHal,
 
     \param device_mode the mode of the device
 
-    \param macAddr the macAddress of the devices
+    \param sessionId session ID
 
     \return eHalStatus  SUCCESS.
 
@@ -1554,7 +1569,7 @@ eHalStatus sme_GenericChangeCountryCode( tHalHandle hHal,
 
 eHalStatus sme_DHCPStartInd( tHalHandle hHal,
                              tANI_U8 device_mode,
-                             tANI_U8 *macAddr );
+                             tANI_U8 sessionId );
 
 /* ---------------------------------------------------------------------------
 
@@ -1566,7 +1581,7 @@ eHalStatus sme_DHCPStartInd( tHalHandle hHal,
 
     \param device_mode the mode of the device
 
-    \param macAddr the macAddress of the devices
+    \param sessionId session ID
 
     \return eHalStatus  SUCCESS.
 
@@ -1575,7 +1590,7 @@ eHalStatus sme_DHCPStartInd( tHalHandle hHal,
  -------------------------------------------------------------------------------*/
 eHalStatus sme_DHCPStopInd( tHalHandle hHal,
                             tANI_U8 device_mode,
-                            tANI_U8 *macAddr );
+                            tANI_U8 sessionId );
 
 
 /* ---------------------------------------------------------------------------

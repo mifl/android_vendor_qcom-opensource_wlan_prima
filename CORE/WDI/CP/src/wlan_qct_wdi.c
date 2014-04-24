@@ -679,6 +679,7 @@ WDI_RspProcFuncType  pfnRspProcTbl[WDI_MAX_RESP] =
    NULL,
 #endif /* FEATURE_WLAN_CH_AVOID */
 
+  WDI_printRegInfo,                        /* WDI_PRINT_REG_INFO_IND */
 };
 
 
@@ -23273,6 +23274,9 @@ case WLAN_HAL_DEL_STA_SELF_RSP:
   case WLAN_HAL_UPDATE_CHANNEL_LIST_RSP:
     return WDI_UPDATE_CHAN_RESP;
 
+  case WLAN_HAL_PRINT_REG_INFO_IND:
+    return  WDI_PRINT_REG_INFO_IND;
+
   default:
     return eDRIVER_TYPE_MAX;
   }
@@ -27078,7 +27082,7 @@ WDI_dhcpStartInd
 
    wdiEventData.wdiRequest      = WDI_DHCP_START_IND;
    wdiEventData.pEventData      = wdiDHCPInd;
-   wdiEventData.uEventDataSize  = sizeof(wdiDHCPInd);
+   wdiEventData.uEventDataSize  = sizeof(WDI_DHCPInd);
    wdiEventData.pCBfnc          = NULL;
    wdiEventData.pUserData       = NULL;
 
@@ -27116,7 +27120,7 @@ WDI_dhcpStopInd
 
    wdiEventData.wdiRequest      = WDI_DHCP_STOP_IND;
    wdiEventData.pEventData      = wdiDHCPInd;
-   wdiEventData.uEventDataSize  = sizeof(wdiDHCPInd);
+   wdiEventData.uEventDataSize  = sizeof(WDI_DHCPInd);
    wdiEventData.pCBfnc          = NULL;
    wdiEventData.pUserData       = NULL;
 
@@ -27146,6 +27150,8 @@ WDI_ProcessDHCPStartInd
   wpt_uint16              usLen              = 0;
   WDI_DHCPInd*            pwdiDHCPInd        = NULL;
   tDHCPInfo*              pDHCPInfo;
+  WDI_Status              wdiStatus;
+
 
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -27180,7 +27186,7 @@ WDI_ProcessDHCPStartInd
      return WDI_STATUS_E_FAILURE;
   }
 
-  pDHCPInfo = (tDHCPInfo*)pSendBuffer+usDataOffset;
+  pDHCPInfo = (tDHCPInfo*)(pSendBuffer+usDataOffset);
   pDHCPInfo->device_mode = pwdiDHCPInd->device_mode;
   wpalMemoryCopy(pDHCPInfo->macAddr, pwdiDHCPInd->macAddr,
                                         WDI_MAC_ADDR_LEN);
@@ -27191,8 +27197,8 @@ WDI_ProcessDHCPStartInd
  /*-------------------------------------------------------------------------
     Send DHCP Start Indication to HAL
   -------------------------------------------------------------------------*/
-  return  WDI_SendIndication( pWDICtx, pSendBuffer, usSendSize);
-
+  wdiStatus = WDI_SendIndication( pWDICtx, pSendBuffer, usSendSize);
+  return (wdiStatus != WDI_STATUS_SUCCESS) ? wdiStatus:WDI_STATUS_SUCCESS_SYNC;
 }/*WDI_ProcessDHCPStartInd*/
 
 /**
@@ -27217,6 +27223,7 @@ WDI_ProcessDHCPStopInd
   wpt_uint16              usLen              = 0;
   WDI_DHCPInd*            pwdiDHCPInd        = NULL;
   tDHCPInfo*              pDHCPInfo;
+  WDI_Status              wdiStatus;
 
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -27252,7 +27259,7 @@ WDI_ProcessDHCPStopInd
      return WDI_STATUS_E_FAILURE;
   }
 
-  pDHCPInfo = (tDHCPInfo*)pSendBuffer+usDataOffset;
+  pDHCPInfo = (tDHCPInfo*)(pSendBuffer+usDataOffset);
   pDHCPInfo->device_mode = pwdiDHCPInd->device_mode;
   wpalMemoryCopy(pDHCPInfo->macAddr, pwdiDHCPInd->macAddr,
                                         WDI_MAC_ADDR_LEN);
@@ -27262,7 +27269,8 @@ WDI_ProcessDHCPStopInd
  /*-------------------------------------------------------------------------
     Send DHCP Stop indication to HAL
   -------------------------------------------------------------------------*/
-  return  WDI_SendIndication( pWDICtx, pSendBuffer, usSendSize);
+  wdiStatus = WDI_SendIndication( pWDICtx, pSendBuffer, usSendSize);
+  return (wdiStatus != WDI_STATUS_SUCCESS) ? wdiStatus:WDI_STATUS_SUCCESS_SYNC;
 
 }/*WDI_ProcessDHCPStopInd*/
 
@@ -29533,3 +29541,53 @@ WDI_ProcessRateUpdateInd
                  wdiStatus : WDI_STATUS_SUCCESS_SYNC;
 
 } /* WDI_ProcessRateUpdateInd */
+
+WDI_Status
+WDI_printRegInfo
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+)
+{
+   tHalRegDebugInfo *pRegTable;
+   tHalRegDebugInfoParams *pRegParams;
+   uint32 cnt=0;
+
+   WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_INFO,
+                  "%s: ", __func__);
+    /*-------------------------------------------------------------------------
+     Sanity check
+    -------------------------------------------------------------------------*/
+   if (( NULL == pWDICtx ) || ( NULL == pEventData ) ||
+       ( NULL == pEventData->pEventData))
+   {
+       WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
+                  "%s: Invalid parameters", __func__);
+       WDI_ASSERT(0);
+       return WDI_STATUS_E_FAILURE;
+   }
+
+   pRegParams  = (tHalRegDebugInfoParams *)pEventData->pEventData;
+
+   WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+          "%s: regCount: %x scenario: %x reasonCode: %x", __func__,
+           pRegParams->regCount, pRegParams->scenario, pRegParams->reasonCode);
+
+   pRegTable = (tHalRegDebugInfo *)(pRegParams+1); //data starts after regParams
+
+   if (pRegParams->regCount <= 0)
+   {
+       WPAL_TRACE (eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                   "%s incorrect parameters passed", __func__);
+       return WDI_STATUS_E_FAILURE;
+   }
+
+   while(pRegParams->regCount--)
+   {
+       WPAL_TRACE (eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                   "%x: %x", pRegTable[cnt].regAddr, pRegTable[cnt].regValue);
+       cnt++;
+   }
+
+   return WDI_STATUS_SUCCESS;
+}
