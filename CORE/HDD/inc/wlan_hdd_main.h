@@ -204,6 +204,8 @@
 #define WLAN_WAIT_TIME_PNO  500
 #endif
 
+#define MAX_USER_COMMAND_SIZE 4096
+
 #define HDD_MAC_ADDR_LEN    6
 #define HDD_ROAM_SCAN_CHANNEL_SWITCH_TIME 3
 typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
