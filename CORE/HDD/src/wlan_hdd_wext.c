@@ -50,8 +50,6 @@
 
     $Id: wlan_hdd_wext.c,v 1.34 2007/04/14 01:49:23 jimz Exp jimz $
 
-    Copyright (C) 2007 Airgo Networks, Incorporated
-
     This file defines all of the types that are utilized by the CCP module
     of the "Portable" HDD.   This file also includes the underlying Linux
     Wireless Extensions Data types referred to by CCP.
@@ -113,6 +111,7 @@
 #include "wlan_hdd_dev_pwr.h"
 #include "qc_sap_ioctl.h"
 #include "sme_Api.h"
+#include "vos_trace.h"
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 extern void hdd_suspend_wlan(struct early_suspend *wlan_suspend);
@@ -124,6 +123,7 @@ extern void hdd_resume_wlan(struct early_suspend *wlan_suspend);
 #endif
 
 #define HDD_FINISH_ULA_TIME_OUT    800
+
 
 extern int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand);
 int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr);
@@ -158,6 +158,9 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WE_ENABLE_STRICT_FCC_REG  10
 #define WE_SET_MAX_TX_POWER_2_4   11
 #define WE_SET_MAX_TX_POWER_5_0   12
+/* Private IOCTL for debug connection issues */
+#define WE_SET_DEBUG_LOG     13
+
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_NONE_GET_INT    (SIOCIWFIRSTPRIV + 1)
@@ -232,6 +235,9 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #ifdef FEATURE_WLAN_TDLS
 #define WE_TDLS_CONFIG_PARAMS   5
 #endif
+
+#define WE_MTRACE_DUMP_CMD    8
+#define WE_MTRACE_SELECTIVE_MODULE_LOG_ENABLE_CMD    9
 
 #ifdef FEATURE_WLAN_TDLS
 #undef  MAX_VAR_ARGS
@@ -477,8 +483,9 @@ int hdd_wlan_get_rts_threshold(hdd_adapter_t *pAdapter, union iwreq_data *wrqu)
 
     ENTER();
 
-    if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress) {
-      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+    if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
+    {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
                                   "%s:LOGP in Progress. Ignore!!!",__func__);
       return status;
     }
@@ -486,6 +493,8 @@ int hdd_wlan_get_rts_threshold(hdd_adapter_t *pAdapter, union iwreq_data *wrqu)
     if ( eHAL_STATUS_SUCCESS !=
                      ccmCfgGetInt(hHal, WNI_CFG_RTS_THRESHOLD, &threshold) )
     {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                      FL("failed to get ini parameter, WNI_CFG_RTS_THRESHOLD"));
        return -EIO;
     }
     wrqu->rts.value = threshold;
@@ -505,7 +514,8 @@ int hdd_wlan_get_frag_threshold(hdd_adapter_t *pAdapter, union iwreq_data *wrqu)
 
     ENTER();
 
-    if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress) {
+    if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
+    {
       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                                   "%s:LOGP in Progress. Ignore!!!",__func__);
       return status;
@@ -514,6 +524,8 @@ int hdd_wlan_get_frag_threshold(hdd_adapter_t *pAdapter, union iwreq_data *wrqu)
     if ( ccmCfgGetInt(hHal, WNI_CFG_FRAGMENTATION_THRESHOLD, &threshold)
                                                 != eHAL_STATUS_SUCCESS )
     {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                      FL("failed to get ini parameter, WNI_CFG_FRAGMENTATION_THRESHOLD"));
         return -EIO;
     }
     wrqu->frag.value = threshold;
@@ -1211,10 +1223,10 @@ VOS_STATUS wlan_hdd_check_ula_done(hdd_adapter_t *pAdapter)
 
         rc = wait_for_completion_timeout(&pAdapter->ula_complete,
                                     msecs_to_jiffies(HDD_FINISH_ULA_TIME_OUT));
-        if (0 == rc)
+        if (rc <= 0)
         {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                      "%s: Timeout waiting for ULA to complete", __func__);
+                      FL("failure wait on ULA to complete %ld"), rc);
             /* we'll still fall through and return success since the
              * connection may still get established but is just taking
              * too long for us to wait */
@@ -1338,7 +1350,7 @@ static int iw_set_mode(struct net_device *dev,
         pRoamProfile->BSSType = eCSR_BSS_TYPE_ANY;
         break;
     default:
-        hddLog(LOG1, "%s Unknown AP Mode value", __func__);
+        hddLog(LOGE, "%s Unknown AP Mode value %d ", __func__, wrqu->mode);
         return -EOPNOTSUPP;
     }
 
@@ -1356,8 +1368,15 @@ static int iw_set_mode(struct net_device *dev,
                                           pAdapter->sessionId,
                                           eCSR_DISCONNECT_REASON_IBSS_LEAVE );
             if(VOS_STATUS_SUCCESS == vosStatus)
-                 wait_for_completion_interruptible_timeout(&pAdapter->disconnect_comp_var,
-                     msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+            {
+                 long ret;
+                 ret = wait_for_completion_interruptible_timeout(
+                                   &pAdapter->disconnect_comp_var,
+                                    msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+                 if (ret <= 0)
+                     hddLog(VOS_TRACE_LEVEL_ERROR,
+                            FL("failed wait on disconnect_comp_var %ld"), ret);
+            }
         }
     }
 
@@ -1486,6 +1505,8 @@ static int iw_set_freq(struct net_device *dev, struct iw_request_info *info,
 
         if (ccmCfgGetStr(hHal, WNI_CFG_VALID_CHANNEL_LIST,
                 validChan, &numChans) != eHAL_STATUS_SUCCESS){
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+               FL("failed to get ini parameter, WNI_CFG_VALID_CHANNEL_LIST"));
             return -EIO;
         }
 
@@ -1543,6 +1564,8 @@ static int iw_get_freq(struct net_device *dev, struct iw_request_info *info,
    {
        if (sme_GetOperationChannel(hHal, &channel, pAdapter->sessionId) != eHAL_STATUS_SUCCESS)
        {
+           VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                       FL("failed to get operating channel %u"), pAdapter->sessionId);
            return -EIO;
        }
        else
@@ -1613,6 +1636,8 @@ static int iw_set_tx_power(struct net_device *dev,
 
     if ( ccmCfgSetInt(hHal, WNI_CFG_CURRENT_TX_POWER_LEVEL, wrqu->txpower.value, ccmCfgSetCallback, eANI_BOOLEAN_TRUE) != eHAL_STATUS_SUCCESS )
     {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                FL("failed to set ini parameter, WNI_CFG_CURRENT_TX_POWER_LEVEL"));
         return -EIO;
     }
 
@@ -1750,6 +1775,8 @@ static int iw_set_bitrate(struct net_device *dev,
                      WNI_CFG_FIXED_RATE, rate,
                      ccmCfgSetCallback,eANI_BOOLEAN_FALSE) != eHAL_STATUS_SUCCESS)
     {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                FL("failed to set ini parameter, WNI_CFG_FIXED_RATE"));
         return -EIO;
     }
     return 0;
@@ -2055,6 +2082,8 @@ static int iw_set_rts_threshold(struct net_device *dev,
 
     if ( ccmCfgSetInt(hHal, WNI_CFG_RTS_THRESHOLD, wrqu->rts.value, ccmCfgSetCallback, eANI_BOOLEAN_TRUE) != eHAL_STATUS_SUCCESS )
     {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                FL("failed to set ini parameter, WNI_CFG_RTS_THRESHOLD"));
         return -EIO;
     }
 
@@ -2097,6 +2126,8 @@ static int iw_set_frag_threshold(struct net_device *dev,
 
     if ( ccmCfgSetInt(hHal, WNI_CFG_FRAGMENTATION_THRESHOLD, wrqu->frag.value, ccmCfgSetCallback, eANI_BOOLEAN_TRUE) != eHAL_STATUS_SUCCESS )
     {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                FL("failed to set ini parameter, WNI_CFG_FRAGMENTATION_THRESHOLD"));
         return -EIO;
     }
 
@@ -2220,6 +2251,8 @@ static int iw_get_range(struct net_device *dev, struct iw_request_info *info,
    /*Supported Channels and Frequencies*/
    if (ccmCfgGetStr((hHal), WNI_CFG_VALID_CHANNEL_LIST, channels, &num_channels) != eHAL_STATUS_SUCCESS)
    {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+               FL("failed to get ini parameter, WNI_CFG_VALID_CHANNEL_LIST"));
       return -EIO;
    }
    if (num_channels > IW_MAX_FREQUENCIES)
@@ -2674,6 +2707,24 @@ static int iw_get_linkspeed(struct net_device *dev,
    return rc;
 }
 
+/*
+ * Helper function to return correct value for WLAN_GET_LINK_SPEED
+ *
+ */
+static int iw_get_linkspeed_priv(struct net_device *dev,
+                                 struct iw_request_info *info,
+                                 union iwreq_data *wrqu, char *extra)
+{
+   int rc;
+
+   rc = iw_get_linkspeed(dev, info, wrqu, extra);
+
+   if (rc < 0)
+       return rc;
+
+   /* a value is being successfully returned */
+   return 0;
+}
 
 /*
  * Support for the RSSI & RSSI-APPROX private commands
@@ -2904,7 +2955,7 @@ VOS_STATUS wlan_hdd_enter_lowpower(hdd_context_t *pHddCtx)
 
    if (NULL == pHddCtx)
    {
-        hddLog(VOS_TRACE_LEVEL_INFO_HIGH, "HDD context NULL");
+        hddLog(VOS_TRACE_LEVEL_ERROR, "HDD context NULL");
         return VOS_STATUS_E_FAULT;
    }
 
@@ -3378,8 +3429,15 @@ static int iw_set_encode(struct net_device *dev,struct iw_request_info *info,
            INIT_COMPLETION(pAdapter->disconnect_comp_var);
            status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter), pAdapter->sessionId, eCSR_DISCONNECT_REASON_UNSPECIFIED );
            if(eHAL_STATUS_SUCCESS == status)
-                 wait_for_completion_interruptible_timeout(&pAdapter->disconnect_comp_var,
-                     msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+           {
+                 long ret;
+                 ret = wait_for_completion_interruptible_timeout(
+                                         &pAdapter->disconnect_comp_var,
+                                          msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+                if (ret <= 0)
+                     hddLog(VOS_TRACE_LEVEL_ERROR,
+                            FL("failed wait on disconnect_comp_var %ld"), ret);
+           }
        }
 
        return status;
@@ -3595,7 +3653,8 @@ static int iw_set_encodeext(struct net_device *dev,
     {
        if(IW_AUTH_KEY_MGMT_802_1X == pWextState->authKeyMgmt) {
 
-          VOS_TRACE (VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,("Invalid Configuration:%s \n"),__func__);
+          VOS_TRACE (VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                           ("Invalid Configuration:%s"),__func__);
           return -EINVAL;
        }
        else {
@@ -3774,6 +3833,8 @@ static int iw_set_retry(struct net_device *dev, struct iw_request_info *info,
        {
           if ( ccmCfgSetInt(hHal, WNI_CFG_LONG_RETRY_LIMIT, wrqu->retry.value, ccmCfgSetCallback, eANI_BOOLEAN_TRUE) != eHAL_STATUS_SUCCESS )
           {
+             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+               FL("failed to set ini parameter, WNI_CFG_LONG_RETRY_LIMIT"));
              return -EIO;
           }
        }
@@ -3781,6 +3842,8 @@ static int iw_set_retry(struct net_device *dev, struct iw_request_info *info,
        {
           if ( ccmCfgSetInt(hHal, WNI_CFG_SHORT_RETRY_LIMIT, wrqu->retry.value, ccmCfgSetCallback, eANI_BOOLEAN_TRUE) != eHAL_STATUS_SUCCESS )
           {
+             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                FL("failed to set ini parameter, WNI_CFG_SHORT_RETRY_LIMIT"));
              return -EIO;
           }
        }
@@ -3820,6 +3883,8 @@ static int iw_get_retry(struct net_device *dev, struct iw_request_info *info,
 
       if ( ccmCfgGetInt(hHal, WNI_CFG_LONG_RETRY_LIMIT, &retry) != eHAL_STATUS_SUCCESS )
       {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                      FL("failed to get ini parameter, WNI_CFG_LONG_RETRY_LIMIT"));
          return -EIO;
       }
 
@@ -3831,6 +3896,8 @@ static int iw_get_retry(struct net_device *dev, struct iw_request_info *info,
 
       if ( ccmCfgGetInt(hHal, WNI_CFG_SHORT_RETRY_LIMIT, &retry) != eHAL_STATUS_SUCCESS )
       {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                      FL("failed to get ini parameter, WNI_CFG_SHORT_RETRY_LIMIT"));
          return -EIO;
       }
 
@@ -3882,8 +3949,15 @@ static int iw_set_mlme(struct net_device *dev,
                 status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter), pAdapter->sessionId,reason);
 
                 if(eHAL_STATUS_SUCCESS == status)
-                    wait_for_completion_interruptible_timeout(&pAdapter->disconnect_comp_var,
-                        msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+                {
+                    long ret;
+                    ret = wait_for_completion_interruptible_timeout(
+                                      &pAdapter->disconnect_comp_var,
+                                       msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+                    if (ret <= 0)
+                        hddLog(VOS_TRACE_LEVEL_ERROR,
+                            FL("failed wait on disconnect_comp_var %ld"), ret);
+                }
                 else
                     hddLog(LOGE,"%s %d Command Disassociate/Deauthenticate : csrRoamDisconnect failure returned %d \n",
                        __func__, (int)mlme->cmd, (int)status );
@@ -4140,6 +4214,8 @@ static int iw_setint_getnone(struct net_device *dev, struct iw_request_info *inf
                                    set_value, NULL, eANI_BOOLEAN_FALSE)
                       != eHAL_STATUS_SUCCESS )
             {
+                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("failed to set ini parameter, WNI_CFG_ASSOC_STA_LIMIT"));
                 ret = -EIO;
             }
             break;
@@ -4293,6 +4369,13 @@ static int iw_setint_getnone(struct net_device *dev, struct iw_request_info *inf
            hddLog(VOS_TRACE_LEVEL_INFO,"%s: SUCCESS in setting strict FCC regulatory rule",
                   __func__);
 
+           break;
+        }
+        case WE_SET_DEBUG_LOG:
+        {
+           hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+           pHddCtx->cfg_ini->gEnableDebugLog = set_value;
+           sme_UpdateConnectDebug(pHddCtx->hHal, set_value);
            break;
         }
 
@@ -4467,6 +4550,8 @@ static int iw_setnone_getint(struct net_device *dev, struct iw_request_info *inf
         {
             if (ccmCfgGetInt(hHal, WNI_CFG_ASSOC_STA_LIMIT, (tANI_U32 *)value) != eHAL_STATUS_SUCCESS)
             {
+                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
+                      FL("failed to get ini parameter, WNI_CFG_ASSOC_STA_LIMIT"));
                 ret = -EIO;
             }
             break;
@@ -5239,6 +5324,26 @@ int iw_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info
             }
             break;
 
+        case WE_MTRACE_SELECTIVE_MODULE_LOG_ENABLE_CMD:
+            {
+                hddLog(LOG1, "%s: SELECTIVE_MODULE_LOG %d arg1 %d arg2",
+                        __func__, apps_args[0], apps_args[1]);
+                vosTraceEnable(apps_args[0], apps_args[1]);
+            }
+            break;
+
+        case WE_MTRACE_DUMP_CMD:
+            {
+                hddLog(LOG1, "%s: MTRACE_DUMP code %d session %d count %d "
+                       "bitmask_of_module %d ",
+                        __func__, apps_args[0], apps_args[1], apps_args[2],
+                        apps_args[3]);
+                vosTraceDumpAll((void*)hHal , apps_args[0], apps_args[1],
+                                apps_args[2], apps_args[3]);
+
+            }
+            break;
+
         case WE_MCC_CONFIG_CREDENTIAL :
             {
                 cmd = 287; //Command should be updated if there is any change
@@ -5577,7 +5682,6 @@ static int iw_qcom_get_wapi_mode(struct net_device *dev, struct iw_request_info 
 
     pWapiMode->wapiMode = pAdapter->wapi_info.nWapiMode;
     hddLog(LOG1, "%s: GET WAPI Mode Value:%02d", __func__, pWapiMode->wapiMode);
-    printk("\nGET WAPI MODE:%d",pWapiMode->wapiMode);
     return 0;
 }
 
@@ -7119,7 +7223,7 @@ int hdd_setBand_helper(struct net_device *dev, tANI_U8* ptr)
          (band == eCSR_BAND_5G && pHddCtx->cfg_ini->nBandCapability==1) ||
          (band == eCSR_BAND_ALL && pHddCtx->cfg_ini->nBandCapability!=0))
     {
-         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
              "%s: band value %u violate INI settings %u", __func__,
              band, pHddCtx->cfg_ini->nBandCapability);
          return -EIO;
@@ -7506,7 +7610,7 @@ static const iw_handler we_private[] = {
    [WLAN_PRIV_SET_MCBC_FILTER           - SIOCIWFIRSTPRIV]   = iw_set_dynamic_mcbc_filter,
    [WLAN_PRIV_CLEAR_MCBC_FILTER         - SIOCIWFIRSTPRIV]   = iw_clear_dynamic_mcbc_filter,
    [WLAN_SET_POWER_PARAMS               - SIOCIWFIRSTPRIV]   = iw_set_power_params_priv,
-   [WLAN_GET_LINK_SPEED                 - SIOCIWFIRSTPRIV]   = iw_get_linkspeed,
+   [WLAN_GET_LINK_SPEED                 - SIOCIWFIRSTPRIV]   = iw_get_linkspeed_priv,
 };
 
 /*Maximum command length can be only 15 */
@@ -7589,6 +7693,10 @@ static const struct iw_priv_args we_private_args[] = {
         IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
         0,
         "setStrictFCCreg" },
+
+    {   WE_SET_DEBUG_LOG,
+        IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
+        0, "setDbgLvl" },
 
     /* handlers for main ioctl */
     {   WLAN_PRIV_SET_NONE_GET_INT,
@@ -7812,6 +7920,17 @@ static const struct iw_priv_args we_private_args[] = {
         IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
         0,
         "dump" },
+
+    /* handlers for sub-ioctl */
+    {   WE_MTRACE_SELECTIVE_MODULE_LOG_ENABLE_CMD,
+        IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
+        0,
+        "setdumplog" },
+
+    {   WE_MTRACE_DUMP_CMD,
+        IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
+        0,
+        "dumplog" },
 
     /* handlers for sub ioctl */
    {
