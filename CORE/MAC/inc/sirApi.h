@@ -4730,4 +4730,21 @@ typedef struct sSirRateUpdateInd
 
 } tSirRateUpdateInd, *tpSirRateUpdateInd;
 
+typedef void (*pGetBcnMissRateCB)( tANI_S32 bcnMissRate,
+                                   VOS_STATUS status, void *data);
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tANI_U32   msgLen;
+   tANI_U8    bssid[WNI_CFG_BSSID_LEN];
+   void      *callback;
+   void      *data;
+}tSirBcnMissRateReq;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+    pGetBcnMissRateCB callback;
+    void             *data;
+}tSirBcnMissRateInfo;
+
 #endif /* __SIR_API_H */
