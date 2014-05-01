@@ -2883,6 +2883,11 @@ REG_VARIABLE( CFG_TDLS_PUAPSD_RX_FRAME_THRESHOLD, WLAN_PARAM_Integer,
               CFG_ENABLE_DEBUG_CONNECT_ISSUE_DEFAULT,
               CFG_ENABLE_DEBUG_CONNECT_ISSUE_MIN ,
               CFG_ENABLE_DEBUG_CONNECT_ISSUE_MAX),
+
+   REG_VARIABLE_STRING( CFG_OVERRIDE_COUNTRY_CODE, WLAN_PARAM_String,
+                hdd_config_t, overrideCountryCode,
+                VAR_FLAGS_OPTIONAL,
+               (void *)CFG_OVERRIDE_COUNTRY_CODE_DEFAULT),
 };
 
 /*
@@ -3259,6 +3264,7 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gApKeepAlivePeriod]Value = [%u]",pHddCtx->cfg_ini->apKeepAlivePeriod);
 
 
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [overrideCountryCode] Value = [%s] ",pHddCtx->cfg_ini->overrideCountryCode);
 }
 
 
