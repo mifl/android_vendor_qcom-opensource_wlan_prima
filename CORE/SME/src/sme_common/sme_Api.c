@@ -2576,6 +2576,29 @@ eHalStatus sme_ScanFlushResult(tHalHandle hHal, tANI_U8 sessionId)
    return (status);
 }
 
+/* ---------------------------------------------------------------------------
+    \fn sme_FilterScanResults
+    \brief a wrapper function to request CSR to clear scan results.
+    This is a synchronous call
+    \return eHalStatus
+  ---------------------------------------------------------------------------*/
+eHalStatus sme_FilterScanResults(tHalHandle hHal, tANI_U8 sessionId)
+{
+   eHalStatus status = eHAL_STATUS_SUCCESS;
+   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+   MTRACE(macTraceNew(pMac, VOS_MODULE_ID_SME,
+          TRACE_CODE_SME_RX_HDD_MSG_SCAN_FLUSH_RESULTS, sessionId,0 ));
+   status = sme_AcquireGlobalLock( &pMac->sme );
+   if ( HAL_STATUS_SUCCESS( status ) )
+   {
+       csrScanFilterResults(pMac);
+       sme_ReleaseGlobalLock( &pMac->sme );
+   }
+
+   return (status);
+}
+
 eHalStatus sme_ScanFlushP2PResult(tHalHandle hHal, tANI_U8 sessionId)
 {
         eHalStatus status = eHAL_STATUS_FAILURE;
@@ -6432,11 +6455,12 @@ eHalStatus sme_SetPowerParams(tHalHandle hHal, tSirSetPowerParamsReq* pwParams, 
     \fn sme_AbortMacScan
     \brief  API to cancel MAC scan.
     \param  hHal - The handle returned by macOpen.
+    \param  reason - Reason to abort the scan.
     \return VOS_STATUS
             VOS_STATUS_E_FAILURE - failure
             VOS_STATUS_SUCCESS  success
   ---------------------------------------------------------------------------*/
-eHalStatus sme_AbortMacScan(tHalHandle hHal)
+eHalStatus sme_AbortMacScan(tHalHandle hHal, eCsrAbortReason reason)
 {
     eHalStatus status;
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
@@ -6446,8 +6470,7 @@ eHalStatus sme_AbortMacScan(tHalHandle hHal)
     status = sme_AcquireGlobalLock( &pMac->sme );
     if ( HAL_STATUS_SUCCESS( status ) )
     {
-       status = csrScanAbortMacScan(pMac);
-    
+       status = csrScanAbortMacScan(pMac, reason);
        sme_ReleaseGlobalLock( &pMac->sme );
     }
 
@@ -7297,7 +7320,7 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
     * which does not have channel number belong to 11d
     * channel list
     */
-   csrScanFilter11dResult(pMac);
+   csrScanFilterResults(pMac);
 
 #endif
    if( pMsg->changeCCCallback )
@@ -7416,7 +7439,7 @@ eHalStatus sme_HandleChangeCountryCodeByUser(tpAniSirGlobal pMac,
      * which does not have channel number belong to 11d
      * channel list
      */
-    csrScanFilter11dResult(pMac);
+    csrScanFilterResults(pMac);
     // Do active scans after the country is set by User hints or Country IE
     pMac->scan.curScanType = eSIR_ACTIVE_SCAN;
 
@@ -7480,7 +7503,7 @@ eHalStatus sme_HandleChangeCountryCodeByCore(tpAniSirGlobal pMac, tAniGenericCha
      * which does not have channel number belong to 11d
      * channel list
      */
-    csrScanFilter11dResult(pMac);
+    csrScanFilterResults(pMac);
     smsLog(pMac, LOG1, FL(" returned"));
     return eHAL_STATUS_SUCCESS;
 }
