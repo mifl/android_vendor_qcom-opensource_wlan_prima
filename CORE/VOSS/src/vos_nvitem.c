@@ -3633,7 +3633,6 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
         if  (REGDOMAIN_COUNT == temp_reg_domain)
             temp_reg_domain = REGDOMAIN_WORLD;
 
-        nBandCapability = pHddCtx->cfg_ini->nBandCapability;
         isVHT80Allowed = pHddCtx->isVHT80Allowed;
         if (create_linux_regulatory_entry(wiphy, request,
                                           nBandCapability) == 0)
@@ -3718,6 +3717,8 @@ VOS_STATUS vos_init_wiphy_from_nv_bin(void)
         reg_domain = pnvEFSTable->halnv.tables.defaultCountryTable.regDomain;
         wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
     }
+
+    temp_reg_domain = cur_reg_domain = reg_domain;
 
     m = 0;
     for (i = 0; i < IEEE80211_NUM_BANDS; i++)
