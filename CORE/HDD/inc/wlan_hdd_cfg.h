@@ -2028,7 +2028,7 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 
 //Number of buffers to be used for WLAN logging
 #define CFG_WLAN_LOGGING_NUM_BUF_NAME     "wlanLoggingNumBuf"
-#define CFG_WLAN_LOGGING_NUM_BUF_MIN      ( 8  )
+#define CFG_WLAN_LOGGING_NUM_BUF_MIN      ( 4  )
 #define CFG_WLAN_LOGGING_NUM_BUF_MAX      ( 64 )
 #define CFG_WLAN_LOGGING_NUM_BUF_DEFAULT  ( 32 )
 #endif //WLAN_LOGGING_SOCK_SVC_ENABLE
@@ -2044,6 +2044,9 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ENABLE_DEBUG_CONNECT_ISSUE_MIN         (0)
 #define CFG_ENABLE_DEBUG_CONNECT_ISSUE_MAX         (0xFF)
 #define CFG_ENABLE_DEBUG_CONNECT_ISSUE_DEFAULT     (0)
+
+#define CFG_OVERRIDE_COUNTRY_CODE                "gStaCountryCode"
+#define CFG_OVERRIDE_COUNTRY_CODE_DEFAULT        "000"
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -2469,6 +2472,7 @@ typedef struct
    v_U32_t                     wlanLoggingNumBuf;
 #endif
    v_U32_t                     gEnableDebugLog;
+   char                        overrideCountryCode[4];
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
