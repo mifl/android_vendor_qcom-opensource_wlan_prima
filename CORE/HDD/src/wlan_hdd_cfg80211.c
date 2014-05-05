@@ -8719,8 +8719,6 @@ static int wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *d
                     return -ENOTSUPP;
                 }
 
-                if ( 0 != wlan_hdd_tdls_remove_force_peer(pAdapter, peer) )
-                    return -EINVAL;
 
                 pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, peer, TRUE);
 
@@ -8728,11 +8726,15 @@ static int wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *d
                     hddLog(VOS_TRACE_LEVEL_INFO, "%s: " MAC_ADDRESS_STR
                            " peer not exsting",
                            __func__, MAC_ADDR_ARRAY(peer));
+                    return -EINVAL;
                 }
                 else {
                     wlan_hdd_tdls_indicate_teardown(pAdapter, pTdlsPeer,
                                        eSIR_MAC_TDLS_TEARDOWN_UNSPEC_REASON);
                 }
+
+                if ( 0 != wlan_hdd_tdls_set_force_peer(pAdapter, peer, FALSE) )
+                    return -EINVAL;
                 break;
             }
         case NL80211_TDLS_SETUP:
@@ -8751,13 +8753,6 @@ static int wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *d
                     return -ENOTSUPP;
                 }
 
-                if ( 0 != wlan_hdd_tdls_add_force_peer(pAdapter, peer) ) {
-
-                    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                          " %s TDLS Add Force Peer Failed",
-                          __func__);
-                    return -EINVAL;
-                }
                 /* To cater the requirement of establishing the TDLS link
                  * irrespective of the data traffic , get an entry of TDLS peer.
                  */
@@ -8766,6 +8761,14 @@ static int wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device *d
                     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                               "%s: peer " MAC_ADDRESS_STR " not existing",
                               __func__, MAC_ADDR_ARRAY(peer));
+                    return -EINVAL;
+                }
+
+                if ( 0 != wlan_hdd_tdls_set_force_peer(pAdapter, peer, TRUE) ) {
+
+                    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                          " %s TDLS Add Force Peer Failed",
+                          __func__);
                     return -EINVAL;
                 }
                 break;
