@@ -262,6 +262,7 @@ extern spinlock_t hdd_context_lock;
 #define RSSI_CONTEXT_MAGIC  0x52535349   //RSSI
 #define POWER_CONTEXT_MAGIC 0x504F5752   //POWR
 #define SNR_CONTEXT_MAGIC   0x534E5200   //SNR
+#define BCN_MISS_RATE_CONTEXT_MAGIC 0x513F5753
 
 #ifdef FEATURE_WLAN_BATCH_SCAN
 #define HDD_BATCH_SCAN_VERSION (17)
@@ -1079,6 +1080,12 @@ typedef struct
    v_U8_t session;
 } lphbEnableStruct;
 #endif /* FEATURE_WLAN_LPHB */
+
+typedef struct
+{
+   struct completion completion;
+   tANI_U32 magic;
+}bcnMissRateContext_t;
 
 /** Adapter stucture definition */
 

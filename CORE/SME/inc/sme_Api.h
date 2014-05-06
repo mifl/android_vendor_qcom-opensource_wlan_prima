@@ -3210,4 +3210,7 @@ eHalStatus sme_AddChAvoidCallback
 );
 #endif /* FEATURE_WLAN_CH_AVOID */
 eHalStatus sme_UpdateConnectDebug(tHalHandle hHal, tANI_U32 set_value);
+
+eHalStatus sme_getBcnMissRate(tHalHandle, tANI_U8, void *, void *);
+
 #endif //#if !defined( __SME_API_H )

@@ -1178,6 +1178,8 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_TRIGGER_BATCH_SCAN_RESULT_IND SIR_HAL_TRIGGER_BATCH_SCAN_RESULT_IND
 #endif
 
+#define WDA_GET_BCN_MISS_RATE_REQ        SIR_HAL_BCN_MISS_RATE_REQ
+
 tSirRetStatus wdaPostCtrlMsg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 
 eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
