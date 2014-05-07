@@ -201,6 +201,7 @@
 #define HDD_PNO_SCAN_TIMERS_SET_ONE      1
 /* value should not be greater than PNO_MAX_SCAN_TIMERS */
 #define HDD_PNO_SCAN_TIMERS_SET_MULTIPLE 6
+#define WLAN_WAIT_TIME_PNO  500
 #endif
 
 #define MAX_USER_COMMAND_SIZE 4096
@@ -507,6 +508,13 @@ typedef enum
    WLAN_HDD_TM_LEVEL_4,
    WLAN_HDD_TM_LEVEL_MAX
 } WLAN_TmLevelEnumType;
+
+typedef enum
+{
+   WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS = 0 ,
+   WLAN_HDD_LOAD_IN_PROGRESS           = 1<<0,
+   WLAN_HDD_UNLOAD_IN_PROGRESS         = 1<<1,
+}load_unload_sequence;
 
 /* Driver Action based on thermal mitigation level structure */
 typedef struct
@@ -822,6 +830,10 @@ struct hdd_adapter_s
    /* completion variable for cancel remain on channel Event */
    struct completion cancel_rem_on_chan_var;
 
+   /** completion variable for PNO req callback */
+   struct completion pno_comp_var;
+   int pno_req_status;
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
    /* completion variable for off channel  remain on channel Event */
    struct completion offchannel_tx_event;
@@ -1026,7 +1038,7 @@ struct hdd_context_s
 
    volatile v_BOOL_t isLogpInProgress;
 
-   v_BOOL_t isLoadUnloadInProgress;
+   v_U8_t isLoadUnloadInProgress;
    
    /**Track whether driver has been suspended.*/
    hdd_ps_state_t hdd_ps_state;
@@ -1145,7 +1157,15 @@ struct hdd_context_s
 };
 
 
+#define WLAN_HDD_IS_LOAD_IN_PROGRESS(pHddCtx)  \
+            (pHddCtx->isLoadUnloadInProgress & WLAN_HDD_LOAD_IN_PROGRESS)
 
+#define WLAN_HDD_IS_UNLOAD_IN_PROGRESS(pHddCtx)  \
+            (pHddCtx->isLoadUnloadInProgress & WLAN_HDD_UNLOAD_IN_PROGRESS)
+
+#define WLAN_HDD_IS_LOAD_UNLOAD_IN_PROGRESS(pHddCtx)  \
+            (pHddCtx->isLoadUnloadInProgress &    \
+              (WLAN_HDD_LOAD_IN_PROGRESS | WLAN_HDD_UNLOAD_IN_PROGRESS))
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
   -------------------------------------------------------------------------*/ 
