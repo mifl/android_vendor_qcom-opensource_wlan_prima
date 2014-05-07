@@ -694,7 +694,7 @@ static void hdd_SendAssociationEvent(struct net_device *dev,tCsrRoamInfo *pCsrRo
     msg = NULL;
     /*During the WLAN uninitialization,supplicant is stopped before the
       driver so not sending the status of the connection to supplicant*/
-    if(pHddCtx->isLoadUnloadInProgress != TRUE)
+    if(pHddCtx->isLoadUnloadInProgress == WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS)
     {
         wireless_send_event(dev, we_event, &wrqu, msg);
 #ifdef FEATURE_WLAN_CCX
@@ -784,7 +784,7 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
     {
         /*During the WLAN uninitialization,supplicant is stopped before the
             driver so not sending the status of the connection to supplicant*/
-        if(pHddCtx->isLoadUnloadInProgress != TRUE)
+        if(pHddCtx->isLoadUnloadInProgress == WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS)
         {
             hddLog(VOS_TRACE_LEVEL_INFO_HIGH,
                     "%s: sent disconnected event to nl80211",
@@ -1506,6 +1506,11 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
 
         /*Clear the roam profile*/
         hdd_clearRoamProfileIe( pAdapter );
+
+        if (pRoamInfo)
+        {
+            WLANTL_AssocFailed(pRoamInfo->staId);
+        }
 
         netif_tx_disable(dev);
         netif_carrier_off(dev);

@@ -464,7 +464,7 @@ int wlan_hdd_validate_context(hdd_context_t *pHddCtx)
         return -EAGAIN;
     }
 
-    if (pHddCtx->isLoadUnloadInProgress)
+    if (WLAN_HDD_IS_LOAD_UNLOAD_IN_PROGRESS(pHddCtx))
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: Unloading/Loading in Progress. Ignore!!!", __func__);
@@ -3675,6 +3675,7 @@ static hdd_adapter_t* hdd_alloc_station_adapter( hdd_context_t *pHddCtx, tSirMac
       init_completion(&pAdapter->linkup_event_var);
       init_completion(&pAdapter->cancel_rem_on_chan_var);
       init_completion(&pAdapter->rem_on_chan_ready_event);
+      init_completion(&pAdapter->pno_comp_var);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
       init_completion(&pAdapter->offchannel_tx_event);
 #endif
@@ -6132,7 +6133,7 @@ int hdd_wlan_startup(struct device *dev )
 
    pHddCtx->wiphy = wiphy;
    hdd_prevent_suspend();
-   pHddCtx->isLoadUnloadInProgress = TRUE;
+   pHddCtx->isLoadUnloadInProgress = WLAN_HDD_LOAD_IN_PROGRESS;
 
    vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
 
@@ -6638,7 +6639,7 @@ int hdd_wlan_startup(struct device *dev )
 
    mutex_init(&pHddCtx->sap_lock);
 
-   pHddCtx->isLoadUnloadInProgress = FALSE;
+   pHddCtx->isLoadUnloadInProgress = WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS;
 
 #ifdef WLAN_OPEN_SOURCE
 #ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
@@ -6991,7 +6992,7 @@ static void hdd_driver_exit(void)
       }
 
 
-      pHddCtx->isLoadUnloadInProgress = TRUE;
+      pHddCtx->isLoadUnloadInProgress = WLAN_HDD_UNLOAD_IN_PROGRESS;
       vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
 
       //Do all the cleanup before deregistering the driver
