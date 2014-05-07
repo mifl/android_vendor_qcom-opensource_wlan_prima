@@ -83,7 +83,6 @@ static const tANI_U8 aUnsortedChannelList[]= {52,56,60,64,100,104,108,112,116,
 #define SUCCESS 1                   //defined temporarily for BT-AMP
 
 #define MAX_BA_WINDOW_SIZE_FOR_CISCO 25
-
 static void
 limProcessChannelSwitchSuspendLink(tpAniSirGlobal pMac,
                                     eHalStatus status,
@@ -614,8 +613,6 @@ char *limMsgStr(tANI_U32 msgType)
             return "SIR_LIM_CHANNEL_SCAN_TIMEOUT";
         case SIR_LIM_LINK_TEST_DURATION_TIMEOUT:
             return "SIR_LIM_LINK_TEST_DURATION_TIMEOUT";
-        case SIR_LIM_HASH_MISS_THRES_TIMEOUT:
-            return "SIR_LIM_HASH_MISS_THRES_TIMEOUT";
         case SIR_LIM_KEEPALIVE_TIMEOUT:
             return "SIR_LIM_KEEPALIVE_TIMEOUT";
         case SIR_LIM_UPDATE_OLBC_CACHEL_TIMEOUT:
@@ -1061,12 +1058,6 @@ limCleanupMlm(tpAniSirGlobal pMac)
             // timers, which might have been started.
             tx_timer_delete(&pAuthNode->timer);
         }
-
-
-
-        // Deactivate and delete Hash Miss throttle timer
-        tx_timer_deactivate(&pMac->lim.limTimers.gLimSendDisassocFrameThresholdTimer);
-        tx_timer_delete(&pMac->lim.limTimers.gLimSendDisassocFrameThresholdTimer);
 
         tx_timer_deactivate(&pMac->lim.limTimers.gLimUpdateOlbcCacheTimer);
         tx_timer_delete(&pMac->lim.limTimers.gLimUpdateOlbcCacheTimer);
@@ -8119,5 +8110,43 @@ void limInitOBSSScanParams(tpAniSirGlobal pMac,
        return ;
     }
     psessionEntry->obssHT40ScanParam.OBSSScanActivityThreshold = cfgValue;
+}
 
+const char * lim_ScanTypetoString(const v_U8_t scanType)
+{
+    switch (scanType)
+    {
+        CASE_RETURN_STRING( eSIR_PASSIVE_SCAN );
+        CASE_RETURN_STRING( eSIR_ACTIVE_SCAN );
+        CASE_RETURN_STRING( eSIR_BEACON_TABLE );
+        default:
+            return "Unknown ScanType";
+    }
+}
+
+const char * lim_BssTypetoString(const v_U8_t bssType)
+{
+    switch (bssType)
+    {
+        CASE_RETURN_STRING( eSIR_INFRASTRUCTURE_MODE );
+        CASE_RETURN_STRING( eSIR_INFRA_AP_MODE );
+        CASE_RETURN_STRING( eSIR_IBSS_MODE );
+        CASE_RETURN_STRING( eSIR_BTAMP_STA_MODE );
+        CASE_RETURN_STRING( eSIR_BTAMP_AP_MODE );
+        CASE_RETURN_STRING( eSIR_AUTO_MODE );
+        default:
+            return "Unknown BssType";
+    }
+}
+
+const char *lim_BackgroundScanModetoString(const v_U8_t mode)
+{
+    switch (mode)
+    {
+        CASE_RETURN_STRING( eSIR_AGGRESSIVE_BACKGROUND_SCAN );
+        CASE_RETURN_STRING( eSIR_NORMAL_BACKGROUND_SCAN );
+        CASE_RETURN_STRING( eSIR_ROAMING_SCAN );
+        default:
+            return "Unknown BgScanMode";
+    }
 }
