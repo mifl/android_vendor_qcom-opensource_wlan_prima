@@ -1228,11 +1228,8 @@ typedef struct tagCsrRoamInfo
     tANI_U8* assocReqPtr;
 
     tANI_S8 rxRssi;
+    tANI_U32 maxRateFlags;
 }tCsrRoamInfo;
-
-
-
-
 
 typedef struct tagCsrFreqScanInfo
 {
