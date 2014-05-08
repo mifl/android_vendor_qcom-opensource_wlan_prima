@@ -1082,15 +1082,6 @@ typedef struct
    v_TIME_t    lastFrameTs;
 }hdd_traffic_monitor_t;
 
-#ifdef FEATURE_WLAN_LPHB
-typedef struct
-{
-   v_U8_t enable;
-   v_U8_t item;
-   v_U8_t session;
-} lphbEnableStruct;
-#endif /* FEATURE_WLAN_LPHB */
-
 /** Adapter stucture definition */
 
 struct hdd_context_s
@@ -1260,9 +1251,6 @@ struct hdd_context_s
     v_U8_t configuredMcastBcastFilter;
 
     v_U8_t sus_res_mcastbcast_filter;
-#ifdef FEATURE_WLAN_LPHB
-    lphbEnableStruct  lphbEnableReq;
-#endif /* FEATURE_WLAN_LPHB */
 
     v_BOOL_t sus_res_mcastbcast_filter_valid;
 
