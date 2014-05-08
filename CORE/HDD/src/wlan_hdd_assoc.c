@@ -694,7 +694,7 @@ static void hdd_SendAssociationEvent(struct net_device *dev,tCsrRoamInfo *pCsrRo
     msg = NULL;
     /*During the WLAN uninitialization,supplicant is stopped before the
       driver so not sending the status of the connection to supplicant*/
-    if(pHddCtx->isLoadUnloadInProgress != TRUE)
+    if(pHddCtx->isLoadUnloadInProgress == WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS)
     {
         wireless_send_event(dev, we_event, &wrqu, msg);
 #ifdef FEATURE_WLAN_CCX
@@ -784,7 +784,7 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
     {
         /*During the WLAN uninitialization,supplicant is stopped before the
             driver so not sending the status of the connection to supplicant*/
-        if(pHddCtx->isLoadUnloadInProgress != TRUE)
+        if(pHddCtx->isLoadUnloadInProgress == WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS)
         {
             hddLog(VOS_TRACE_LEVEL_INFO_HIGH,
                     "%s: sent disconnected event to nl80211",
@@ -1349,7 +1349,6 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                             rspRsnIe, rspRsnLength,
                             WLAN_STATUS_SUCCESS,
                             GFP_KERNEL);
-
                 }
             }
             cfg80211_put_bss(
@@ -1472,8 +1471,11 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
         }
 
         /* CR465478: Only send up a connection failure result when CSR has
-         * completed operation - with a ASSOCIATION_FAILURE status. */
-        if ( eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus )
+         * completed operation - with a ASSOCIATION_FAILURE status.
+         * or an ASSOCIATION_COMPLETION with RESULT_NOT_ASSOCIATED */
+        if (( eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus ) ||
+                (( eCSR_ROAM_ASSOCIATION_COMPLETION == roamStatus )
+                 && ( eCSR_ROAM_RESULT_NOT_ASSOCIATED == roamResult )))
         {
             /* inform association failure event to nl80211 */
             if ( eCSR_ROAM_RESULT_ASSOC_FAIL_CON_CHANNEL == roamResult )
@@ -2485,8 +2487,6 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
                     halStatus = eHAL_STATUS_FAILURE;
                 }
 #endif
-                // Clear saved connection information in HDD
-                hdd_connRemoveConnectInfo( WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) );
             }
            break;
         case eCSR_ROAM_LOSTLINK:
@@ -2547,6 +2547,14 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
             }
             else
             {
+                // To Do - address probable memory leak with WEP encryption upon successful association
+                if (eCSR_ROAM_RESULT_ASSOCIATED != roamResult)
+                {
+                  //Clear saved connection information in HDD
+                  hdd_connRemoveConnectInfo( WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) );
+                }
+                // Clear saved connection information in HDD
+                hdd_connRemoveConnectInfo( WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) );
                 halStatus = hdd_AssociationCompletionHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
             }
 
