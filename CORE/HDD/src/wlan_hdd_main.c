@@ -1779,6 +1779,10 @@ int hdd_handle_batch_scan_ioctl
 
          if ( eHAL_STATUS_SUCCESS == halStatus )
          {
+             char extra[32];
+             tANI_U8 len = 0;
+             tANI_U8 mScan = 0;
+
              VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                 "sme_SetBatchScanReq  returned success halStatus %d",
                 halStatus);
@@ -1807,13 +1811,21 @@ int hdd_handle_batch_scan_ioctl
              }
              /*As per the Batch Scan Framework API we should return the MIN of
                either MSCAN or the max # of scans firmware can cache*/
-             ret = MIN(pReq->numberOfScansToBatch , pRsp->nScansToBatch);
+             mScan = MIN(pReq->numberOfScansToBatch , pRsp->nScansToBatch);
 
              pAdapter->batchScanState = eHDD_BATCH_SCAN_STATE_STARTED;
 
              VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "%s: request MSCAN %d response MSCAN %d ret %d",
-                __func__, pReq->numberOfScansToBatch, pRsp->nScansToBatch, ret);
+                __func__, pReq->numberOfScansToBatch, pRsp->nScansToBatch, mScan);
+             len = scnprintf(extra, sizeof(extra), "%d", mScan);
+             if (copy_to_user(pPrivdata->buf, &extra, len + 1))
+             {
+                 VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                    "%s: failed to copy MSCAN value to user buffer", __func__);
+                 ret = -EFAULT;
+                 goto exit;
+             }
          }
          else
          {
@@ -7739,7 +7751,7 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
 #endif /* WLAN_KD_READY_NOTIFIER */
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
-   if(pHddCtx->cfg_ini->wlanLoggingEnable)
+   if (pHddCtx->cfg_ini->wlanLoggingEnable)
    {
        wlan_logging_sock_deactivate_svc();
    }
@@ -9039,8 +9051,8 @@ static int hdd_driver_init( void)
    int max_retries = 0;
 #endif
 
-#ifdef WCONN_TRACE_KMSG_LOG_BUFF
-   vos_wconn_trace_init();
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+   wlan_logging_sock_init_svc();
 #endif
 
    ENTER();
@@ -9062,6 +9074,11 @@ static int hdd_driver_init( void)
 #ifdef WLAN_OPEN_SOURCE
       wake_lock_destroy(&wlan_wake_lock);
 #endif
+
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+      wlan_logging_sock_deinit_svc();
+#endif
+
       return -EIO;
    }
 
@@ -9083,6 +9100,11 @@ static int hdd_driver_init( void)
 #ifdef WLAN_OPEN_SOURCE
       wake_lock_destroy(&wlan_wake_lock);
 #endif
+
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+      wlan_logging_sock_deinit_svc();
+#endif
+
       return -ENODEV;
    }
 #endif
@@ -9160,6 +9182,11 @@ static int hdd_driver_init( void)
 #ifdef WLAN_OPEN_SOURCE
       wake_lock_destroy(&wlan_wake_lock);
 #endif
+
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+      wlan_logging_sock_deinit_svc();
+#endif
+
       pr_err("%s: driver load failure\n", WLAN_MODULE_NAME);
    }
    else
@@ -9270,14 +9297,15 @@ static void hdd_driver_exit(void)
    vos_mem_exit();
 #endif
 
-#ifdef WCONN_TRACE_KMSG_LOG_BUFF
-   vos_wconn_trace_exit();
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+   wlan_logging_sock_deinit_svc();
 #endif
 
 done:
 #ifdef WLAN_OPEN_SOURCE
    wake_lock_destroy(&wlan_wake_lock);
 #endif
+
    pr_info("%s: driver unloaded\n", WLAN_MODULE_NAME);
 }
 
