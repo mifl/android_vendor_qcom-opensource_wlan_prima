@@ -1475,7 +1475,9 @@ int wlan_hdd_add_virtual_intf( struct wiphy *wiphy, char *name,
 
     MTRACE(vos_trace(VOS_MODULE_ID_HDD,
                      TRACE_CODE_HDD_ADD_VIRTUAL_INTF, NO_SESSION, type));
-    if(hdd_get_adapter(pHddCtx, wlan_hdd_get_session_type(type)) != NULL)
+    if (WLAN_HDD_P2P_CLIENT != wlan_hdd_get_session_type(type) &&
+            WLAN_HDD_INFRA_STATION != wlan_hdd_get_session_type(type) &&
+            hdd_get_adapter(pHddCtx, wlan_hdd_get_session_type(type)) != NULL)
     {
        hddLog(VOS_TRACE_LEVEL_ERROR,"%s: Interface type %d already exists. Two"
                      "interfaces of same type are not supported currently.",__func__, type);
@@ -1492,11 +1494,10 @@ int wlan_hdd_add_virtual_intf( struct wiphy *wiphy, char *name,
        return -EAGAIN;
 #endif
     }
-    if ( pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated )
+    if (pHddCtx->cfg_ini->isP2pDeviceAddrAdministrated &&
+        ((NL80211_IFTYPE_P2P_GO == type) ||
+         (NL80211_IFTYPE_P2P_CLIENT == type)))
     {
-        if( (NL80211_IFTYPE_P2P_GO == type) || 
-            (NL80211_IFTYPE_P2P_CLIENT == type) )
-        {
             /* Generate the P2P Interface Address. this address must be
              * different from the P2P Device Address.
              */
@@ -1506,7 +1507,6 @@ int wlan_hdd_add_virtual_intf( struct wiphy *wiphy, char *name,
                                          wlan_hdd_get_session_type(type),
                                          name, p2pDeviceAddress.bytes,
                                          VOS_TRUE );
-        }
     }
     else
     {
