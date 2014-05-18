@@ -18,14 +18,29 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*
+ * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limScanResultUtils.cc contains the utility functions
  * LIM uses for maintaining and accessing scan results on STA.
  * Author:        Chandra Modumudi
@@ -43,7 +58,8 @@
 #if defined WLAN_FEATURE_VOWIFI
 #include "rrmApi.h"
 #endif
-#include "vos_utils.h"
+
+
 
 /**
  * limDeactiveMinChannelTimerDuringScan()
@@ -191,7 +207,7 @@ limCollectBssDescription(tpAniSirGlobal pMac,
             FL("Beacon Interval is ZERO, making it to default 100 "
             MAC_ADDRESS_STR), MAC_ADDR_ARRAY(pHdr->bssId));
         pBssDescr->beaconInterval= 100;
-    }	
+    }
     /*
     * There is a narrow window after Channel Switch msg is sent to HAL and before the AGC is shut
     * down and beacons/Probe Rsps can trickle in and we may report the incorrect channel in 5Ghz
@@ -724,9 +740,8 @@ limLookupNaddHashEntry(tpAniSirGlobal pMac,
             (vos_mem_compare( (tANI_U8 *) pBssDescr->bssDescription.bssId,
                       (tANI_U8 *) ptemp->bssDescription.bssId,
                       sizeof(tSirMacAddr))) &&   //matching BSSID
-             // matching band to update new channel info
-            (vos_chan_to_band(pBssDescr->bssDescription.channelId) ==
-                      vos_chan_to_band(ptemp->bssDescription.channelId)) &&
+            (pBssDescr->bssDescription.channelId ==
+                                      ptemp->bssDescription.channelId) &&
             vos_mem_compare( ((tANI_U8 *) &pBssDescr->bssDescription.ieFields + 1),
                            ((tANI_U8 *) &ptemp->bssDescription.ieFields + 1),
                            (tANI_U8) (ssidLen + 1)) &&

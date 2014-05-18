@@ -1,5 +1,25 @@
 /*
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -19,13 +39,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * Copyright (c) 2012-2013 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
- *
- */
-
 
 #ifndef WLAN_QCT_WDI_I_H
 #define WLAN_QCT_WDI_I_H
@@ -39,7 +52,11 @@
                    
 DESCRIPTION
   This file contains the internal API exposed by the DAL Control Path Core 
-  module to be used by the DAL Data Path Core.
+  module to be used by the DAL Data Path Core. 
+  
+      
+  Copyright (c) 2010 Qualcomm Technologies, Inc. All Rights Reserved.
+  Qualcomm Technologies Confidential and Proprietary
 ===========================================================================*/
 
 
@@ -443,8 +460,6 @@ typedef enum
 
   WDI_UPDATE_CHAN_REQ                           = 88,
 
-  WDI_GET_BCN_MISS_RATE_REQ                     = 89,
-
   WDI_MAX_REQ,
 
   /*Send a suspend Indication down to HAL*/
@@ -480,11 +495,9 @@ typedef enum
   WDI_START_HT40_OBSS_SCAN_IND,
   WDI_STOP_HT40_OBSS_SCAN_IND,
 
-  /* csa channel switch req*/
-  WDI_CH_SWITCH_REQ_V1,
-
   /*Keep adding the indications to the max request
     such that we keep them sepparate */
+
   WDI_MAX_UMAC_IND
 }WDI_RequestEnumType;
 
@@ -748,10 +761,7 @@ typedef enum
   WDI_SET_MAX_TX_POWER_PER_BAND_RSP             = 86,
 
   WDI_UPDATE_CHAN_RESP                          = 87,
-  /* channel switch resp v1*/
-  WDI_CH_SWITCH_RESP_V1                         = 88,
 
-  WDI_GET_BCN_MISS_RATE_RSP                     = 89,
   /*-------------------------------------------------------------------------
     Indications
      !! Keep these last in the enum if possible
@@ -803,7 +813,7 @@ typedef enum
   WDI_HAL_TDLS_IND                     = WDI_HAL_IND_MIN + 13,
 
   /* LPHB timeout indication */
-  WDI_HAL_LPHB_IND                     = WDI_HAL_IND_MIN + 14,
+  WDI_HAL_LPHB_WAIT_TIMEOUT_IND        = WDI_HAL_IND_MIN + 14,
 
   /* IBSS Peer Inactivity Indication from FW to Host */
   WDI_HAL_IBSS_PEER_INACTIVITY_IND     = WDI_HAL_IND_MIN + 15,
@@ -815,10 +825,6 @@ typedef enum
   WDI_BATCHSCAN_RESULT_IND           =  WDI_HAL_IND_MIN + 17,
 
   WDI_HAL_CH_AVOID_IND                 = WDI_HAL_IND_MIN + 18,
-
-  /* print register values indication from FW to Host */
-  WDI_PRINT_REG_INFO_IND               = WDI_HAL_IND_MIN + 19,
-
   WDI_MAX_RESP
 }WDI_ResponseEnumType; 
 
@@ -1161,9 +1167,6 @@ typedef struct
 
   /*timestamp when we get response timer event*/
   wpt_uint64                  uArchTimeStampRspTmrExp;
-
-  /* reason for WDI_DetectedDeviceError */
-  void *                        DeviceErrorReason;
 }WDI_ControlBlockType; 
 
 
@@ -2032,24 +2035,6 @@ WDI_ProcessChannelSwitchReq
   WDI_ControlBlockType*  pWDICtx,
   WDI_EventInfoType*     pEventData
 );
-
-/**
- @brief Process Channel Switch Request function (called when
-        Main FSM allows it)
-
- @param  pWDICtx:         pointer to the WLAN DAL context
-         pEventData:      pointer to the event information structure
-
- @see
- @return Result of the function call
-*/
-
-WDI_Status WDI_ProcessChannelSwitchReq_V1
-(
-  WDI_ControlBlockType*  pWDICtx,
-  WDI_EventInfoType*     pEventData
-);
-
 
 /**
  @brief Process Config STA Request function (called when Main FSM 
@@ -3539,22 +3524,6 @@ WDI_ProcessChannelSwitchRsp
   WDI_EventInfoType*     pEventData
 );
 
-/**
- @brief Process Channel Switch Rsp function (called when a response
-        is being received over the bus from HAL)
-
- @param  pWDICtx:         pointer to the WLAN DAL context
-         pEventData:      pointer to the event information structure
-
- @see
- @return Result of the function call
-*/
-WDI_Status
-WDI_ProcessChannelSwitchRsp_V1
-(
-  WDI_ControlBlockType*  pWDICtx,
-  WDI_EventInfoType*     pEventData
-);
 
 /**
  @brief Process Config STA Rsp function (called when a response
@@ -4531,7 +4500,7 @@ WDI_ProcessTxPerHitInd
 
 #ifdef FEATURE_WLAN_LPHB
 /**
- @brief WDI_ProcessLphbInd -
+ @brief WDI_ProcessLphbWaitTimeoutInd -
     This function will be invoked when FW detects low power
     heart beat failure
 
@@ -4542,7 +4511,7 @@ WDI_ProcessTxPerHitInd
  @return Result of the function call
 */
 WDI_Status
-WDI_ProcessLphbInd
+WDI_ProcessLphbWaitTimeoutInd
 (
   WDI_ControlBlockType*  pWDICtx,
   WDI_EventInfoType*     pEventData
@@ -5663,22 +5632,6 @@ WDI_Status WDI_ProcessLphbCfgRsp
 );
 #endif /* FEATURE_WLAN_LPHB */
 
-/**
- @brief Process Rate Update Indication and post it to HAL
-
- @param  pWDICtx:    pointer to the WLAN DAL context
-         pEventData: pointer to the event information structure
-
- @see
- @return Result of the function call
-*/
-WDI_Status
-WDI_ProcessRateUpdateInd
-(
-    WDI_ControlBlockType*  pWDICtx,
-    WDI_EventInfoType*     pEventData
-);
-
 #ifdef FEATURE_WLAN_BATCH_SCAN
 /**
  @brief WDI_ProcessSetBatchScanRsp -
@@ -5691,20 +5644,6 @@ WDI_ProcessRateUpdateInd
  @return Result of the function call
 */
 WDI_Status WDI_ProcessSetBatchScanRsp
-(
-  WDI_ControlBlockType*  pWDICtx,
-  WDI_EventInfoType*     pEventData
-);
-
-WDI_Status
-WDI_ProcessGetBcnMissRateReq
-(
-  WDI_ControlBlockType*  pWDICtx,
-  WDI_EventInfoType*     pEventData
-);
-
-WDI_Status
-WDI_ProcessGetBcnMissRateRsp
 (
   WDI_ControlBlockType*  pWDICtx,
   WDI_EventInfoType*     pEventData
@@ -5747,19 +5686,19 @@ WDI_ProcessChAvoidInd
 #endif /* FEATURE_WLAN_CH_AVOID */
 
 /**
- @brief v -
+ @brief Process Rate Update Indication and post it to HAL
 
+ @param  pWDICtx:    pointer to the WLAN DAL context
+         pEventData: pointer to the event information structure
 
- @param  pWDICtx : wdi context
-         pEventData : indication data
  @see
  @return Result of the function call
 */
 WDI_Status
-WDI_printRegInfo
+WDI_ProcessRateUpdateInd
 (
-  WDI_ControlBlockType*  pWDICtx,
-  WDI_EventInfoType*     pEventData
+    WDI_ControlBlockType*  pWDICtx,
+    WDI_EventInfoType*     pEventData
 );
 
 #endif /*WLAN_QCT_WDI_I_H*/

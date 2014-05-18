@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,14 +18,28 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
+ * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limTimerUtils.cc contains the utility functions
  * LIM uses for handling various timers.
  * Author:        Chandra Modumudi
@@ -87,7 +101,6 @@ v_UINT_t
 limCreateTimers(tpAniSirGlobal pMac)
 {
     tANI_U32 cfgValue, i=0;
-    tANI_U32 cfgValue1;
 
     PELOG1(limLog(pMac, LOG1, FL("Creating Timers used by LIM module in Role %d"), pMac->lim.gLimSystemRole);)
 
@@ -121,14 +134,14 @@ limCreateTimers(tpAniSirGlobal pMac)
      * timer expires
      */
 
-    cfgValue1 = cfgValue/2 ;
-    if( cfgValue1 >= 1)
+    cfgValue = cfgValue/2 ;
+    if( cfgValue >= 1)
     {
         // Create periodic probe request timer and activate them later
         if (tx_timer_create(&pMac->lim.limTimers.gLimPeriodicProbeReqTimer,
                            "Periodic Probe Request Timer",
                            limTimerHandler, SIR_LIM_PERIODIC_PROBE_REQ_TIMEOUT,
-                           cfgValue1, 0,
+                           cfgValue, 0,
                            TX_NO_ACTIVATE) != TX_SUCCESS)
         {
            /// Could not start Periodic Probe Req timer.
@@ -150,9 +163,6 @@ limCreateTimers(tpAniSirGlobal pMac)
                FL("could not retrieve MAXChannelTimeout value"));
     }
     cfgValue = SYS_MS_TO_TICKS(cfgValue);
-
-    /* Limiting max numm of probe req for each channel scan */
-    pMac->lim.maxProbe = (cfgValue/cfgValue1);
 
     if (tx_timer_create(&pMac->lim.limTimers.gLimMaxChannelTimer,
                         "MAX CHANNEL TIMEOUT",
@@ -490,6 +500,27 @@ limCreateTimers(tpAniSirGlobal pMac)
 #endif
     }
 
+
+    cfgValue = SYS_MS_TO_TICKS(LIM_HASH_MISS_TIMER_MS);
+
+    if (tx_timer_create(
+                        &pMac->lim.limTimers.gLimSendDisassocFrameThresholdTimer,
+                        "Disassoc throttle TIMEOUT",
+                        limSendDisassocFrameThresholdHandler,
+                        SIR_LIM_HASH_MISS_THRES_TIMEOUT,
+                        cfgValue,
+                        cfgValue,
+                        TX_AUTO_ACTIVATE) != TX_SUCCESS)
+    {
+        /// Could not start Send Disassociate Frame Threshold timer.
+        // Log error
+        limLog(pMac, LOGP,
+               FL("create Disassociate throttle timer failed"));
+        goto err_timer;
+    }
+    PELOG1(limLog(pMac, LOG1,
+           FL("Created Disassociate throttle timer "));)
+
     /**
      * Create keepalive timer and  activate it right away for AP role
      */
@@ -663,6 +694,21 @@ limCreateTimers(tpAniSirGlobal pMac)
 
     cfgValue = 1000;
     cfgValue = SYS_MS_TO_TICKS(cfgValue);
+    if (tx_timer_create(&pMac->lim.limTimers.gLimRemainOnChannelTimer,
+                                    "FT PREAUTH RSP TIMEOUT",
+                                    limTimerHandler, SIR_LIM_REMAIN_CHN_TIMEOUT,
+                                    cfgValue, 0,
+                                    TX_NO_ACTIVATE) != TX_SUCCESS)
+    {
+        // Could not create Join failure timer.
+        // Log error
+        limLog(pMac, LOGP, FL("could not create Join failure timer"));
+        goto err_timer;
+    }
+
+
+    cfgValue = 1000;
+    cfgValue = SYS_MS_TO_TICKS(cfgValue);
     if (tx_timer_create(&pMac->lim.limTimers.gLimDisassocAckTimer,
                                     "DISASSOC ACK TIMEOUT",
                                     limTimerHandler, SIR_LIM_DISASSOC_ACK_TIMEOUT,
@@ -714,6 +760,7 @@ limCreateTimers(tpAniSirGlobal pMac)
     err_timer:
         tx_timer_delete(&pMac->lim.limTimers.gLimDeauthAckTimer);
         tx_timer_delete(&pMac->lim.limTimers.gLimDisassocAckTimer);
+        tx_timer_delete(&pMac->lim.limTimers.gLimRemainOnChannelTimer);
 #if defined(FEATURE_WLAN_ESE) && !defined(FEATURE_WLAN_ESE_UPLOAD)
         tx_timer_delete(&pMac->lim.limTimers.gLimEseTsmTimer);
 #endif /* FEATURE_WLAN_ESE && !FEATURE_WLAN_ESE_UPLOAD */
@@ -724,6 +771,7 @@ limCreateTimers(tpAniSirGlobal pMac)
             tx_timer_delete(&pMac->lim.limTimers.gpLimCnfWaitTimer[i]);
         }
         tx_timer_delete(&pMac->lim.limTimers.gLimKeepaliveTimer);
+        tx_timer_delete(&pMac->lim.limTimers.gLimSendDisassocFrameThresholdTimer);
         tx_timer_delete(&pMac->lim.limTimers.gLimBackgroundScanTimer);
         tx_timer_delete(&pMac->lim.limTimers.gLimProbeAfterHBTimer);
         tx_timer_delete(&pMac->lim.limTimers.gLimHeartBeatTimer);
@@ -1376,7 +1424,7 @@ limDeactivateAndChangeTimer(tpAniSirGlobal pMac, tANI_U32 timerId)
             }
             else
             {
-                limLog(pMac, LOGW, FL("HeartBeat timer value is changed = %u"), val);
+                limLog(pMac, LOGW, FL("HeartBeat timer value is changed = %lu"), val);
             }
             break;
 
@@ -1418,7 +1466,7 @@ limDeactivateAndChangeTimer(tpAniSirGlobal pMac, tANI_U32 timerId)
             }
             else
             {
-                limLog(pMac, LOGW, FL("Probe after HB timer value is changed = %u"), val);
+                limLog(pMac, LOGW, FL("Probe after HB timer value is changed = %lu"), val);
             }
 
             break;
@@ -1636,6 +1684,29 @@ limDeactivateAndChangeTimer(tpAniSirGlobal pMac, tANI_U32 timerId)
              }
              break;
 #endif /* FEATURE_WLAN_ESE && !FEATURE_WLAN_ESE_UPLOAD */
+        case eLIM_REMAIN_CHN_TIMER:
+            if (tx_timer_deactivate(&pMac->lim.limTimers.gLimRemainOnChannelTimer) != TX_SUCCESS)
+            {
+                /**
+                ** Could not deactivate Join Failure
+                ** timer. Log error.
+                **/
+                limLog(pMac, LOGP, FL("Unable to deactivate Remain on Chn timer"));
+                return;
+            }
+            val = 1000;
+            val = SYS_MS_TO_TICKS(val);
+            if (tx_timer_change(&pMac->lim.limTimers.gLimRemainOnChannelTimer,
+                                                val, 0) != TX_SUCCESS)
+            {
+                /**
+                * Could not change Join Failure
+                * timer. Log error.
+                */
+                limLog(pMac, LOGP, FL("Unable to change timer"));
+                return;
+            }
+            break;
 
     case eLIM_CONVERT_ACTIVE_CHANNEL_TO_PASSIVE:
             if (tx_timer_deactivate(&pMac->lim.limTimers.gLimActiveToPassiveChannelTimer) != TX_SUCCESS)
@@ -1812,13 +1883,6 @@ limHeartBeatDeactivateAndChangeTimer(tpAniSirGlobal pMac, tpPESession psessionEn
 void
 limReactivateHeartBeatTimer(tpAniSirGlobal pMac, tpPESession psessionEntry)
 {
-    if (NULL == psessionEntry)
-    {
-        limLog(pMac, LOGE, FL("%s: received session id NULL."
-                   " Heartbeat timer config failed"), __func__);
-        return;
-    }
-
     PELOG3(limLog(pMac, LOG3, FL("Rxed Heartbeat. Count=%d"), psessionEntry->LimRxedBeaconCntDuringHB);)
 
 #ifdef WLAN_ACTIVEMODE_OFFLOAD_FEATURE
@@ -2127,6 +2191,41 @@ void limActivateAuthRspTimer(tpAniSirGlobal pMac, tLimPreAuthNode *pAuthNode)
     }
 }
 
+
+/**
+ * limSendDisassocFrameThresholdHandler()
+ *
+ *FUNCTION:
+ *        This function reloads the credit to the send disassociate frame bucket
+ *
+ *LOGIC:
+ *
+ *ASSUMPTIONS:
+ *
+ *NOTE:
+ * NA
+ *
+ * @param
+ *
+ * @return None
+ */
+
+void
+limSendDisassocFrameThresholdHandler(void *pMacGlobal, tANI_U32 param)
+{
+    tSirMsgQ    msg;
+    tANI_U32         statusCode;
+    tpAniSirGlobal pMac = (tpAniSirGlobal)pMacGlobal;
+
+    msg.type = SIR_LIM_HASH_MISS_THRES_TIMEOUT;
+    msg.bodyval = 0;
+    msg.bodyptr = NULL;
+
+    if ((statusCode = limPostMsgApi(pMac, &msg)) != eSIR_SUCCESS)
+            limLog(pMac, LOGE,
+        FL("posting to LIM failed, reason=%d"), statusCode);
+
+}
 
 /**
  * limAssocCnfWaitTmerHandler()

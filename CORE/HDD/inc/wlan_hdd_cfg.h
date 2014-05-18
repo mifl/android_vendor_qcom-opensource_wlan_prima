@@ -1,5 +1,25 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -19,12 +39,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 #if !defined( HDD_CONFIG_H__ )
 #define HDD_CONFIG_H__
 
@@ -33,10 +47,6 @@
   \file  hdd_Config.h
 
   \brief Android WLAN Adapter Configuration functions
-
-               Copyright 2008 (c) Qualcomm, Incorporated.
-               All Rights Reserved.
-               Qualcomm Confidential and Proprietary.
 
   ==========================================================================*/
 
@@ -51,7 +61,7 @@
 #include <csrApi.h>
 
 //Number of items that can be configured
-#define MAX_CFG_INI_ITEMS   512
+#define MAX_CFG_INI_ITEMS   320
 
 // Defines for all of the things we read from the configuration (registry).
 
@@ -268,6 +278,7 @@
 #define CFG_ENABLE_ADAPT_RX_DRAIN_MAX       WNI_CFG_ENABLE_ADAPT_RX_DRAIN_STAMAX
 #define CFG_ENABLE_ADAPT_RX_DRAIN_DEFAULT   WNI_CFG_ENABLE_ADAPT_RX_DRAIN_STADEF
 
+
 typedef enum
 {
     eHDD_DOT11_MODE_AUTO = 0, //covers all things we support
@@ -448,7 +459,7 @@ typedef enum
 #define CFG_AP_OBSS_PROTECTION_MODE_NAME       "gEnableApOBSSProt" 
 #define CFG_AP_OBSS_PROTECTION_MODE_MIN        ( 0 )
 #define CFG_AP_OBSS_PROTECTION_MODE_MAX        ( 1 ) 
-#define CFG_AP_OBSS_PROTECTION_MODE_DEFAULT    ( 0 )   
+#define CFG_AP_OBSS_PROTECTION_MODE_DEFAULT    ( 1 )
 
 #define CFG_AP_STA_SECURITY_SEPERATION_NAME    "gDisableIntraBssFwd"
 #define CFG_AP_STA_SECURITY_SEPERATION_MIN     ( 0 )
@@ -1290,7 +1301,7 @@ typedef enum
 #define CFG_SINGLE_TID_RC_NAME                             "SingleTIDRC"
 #define CFG_SINGLE_TID_RC_MIN                               (0) // Seperate replay counter for all TID
 #define CFG_SINGLE_TID_RC_MAX                               (1) // Single replay counter for all TID 
-#define CFG_SINGLE_TID_RC_DEFAULT                           (1) 
+#define CFG_SINGLE_TID_RC_DEFAULT                           (1)
 #define CFG_MCAST_BCAST_FILTER_SETTING_NAME          "McastBcastFilter"
 #define CFG_MCAST_BCAST_FILTER_SETTING_MIN           (0)
 #define CFG_MCAST_BCAST_FILTER_SETTING_MAX           (3)
@@ -1433,26 +1444,6 @@ typedef enum
 #define CFG_ENABLE_SSR_MIN                  ( 0 )
 #define CFG_ENABLE_SSR_MAX                  ( 1 )
 #define CFG_ENABLE_SSR_DEFAULT              ( 1 )
-
-#define CFG_BTC_ACTIVE_WLAN_LEN_NAME           "btcActiveWlanLen"
-#define CFG_BTC_ACTIVE_WLAN_LEN_MIN            ( 0 )
-#define CFG_BTC_ACTIVE_WLAN_LEN_MAX            ( 250000 )
-#define CFG_BTC_ACTIVE_WLAN_LEN_DEFAULT        ( 60000 )
-
-#define CFG_BTC_ACTIVE_BT_LEN_NAME             "btcActiveBtLen"
-#define CFG_BTC_ACTIVE_BT_LEN_MIN              ( 0 )
-#define CFG_BTC_ACTIVE_BT_LEN_MAX              ( 250000 )
-#define CFG_BTC_ACTIVE_BT_LEN_DEFAULT          ( 90000 )
-
-#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_NAME       "btcSapActiveWlanLen"
-#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_MIN        ( 0 )
-#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_MAX        ( 250000 )
-#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_DEFAULT    ( 60000 )
-
-#define CFG_BTC_SAP_ACTIVE_BT_LEN_NAME         "btcSapActiveBtLen"
-#define CFG_BTC_SAP_ACTIVE_BT_LEN_MIN          ( 0 )
-#define CFG_BTC_SAP_ACTIVE_BT_LEN_MAX          ( 250000 )
-#define CFG_BTC_SAP_ACTIVE_BT_LEN_DEFAULT      ( 90000 )
 
 #define CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_NAME                "gObssScanActiveDwellTime"
 #define CFG_OBSS_HT40_SCAN_ACTIVE_DWELL_TIME_MIN                 ( 5 )
@@ -2006,6 +1997,11 @@ static __inline tANI_U32 defHddRateToDefCfgRate( tANI_U32 defRateIndex )
 #define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_MAX       ( 10000 )
 #define CFG_SPLIT_SCAN_TRAFFIC_MONITOR_TIMER_DEFAULT   ( 5000 )
 
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_NAME                "gAmsduSupportInAMPDU"
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_MIN                 (0)
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_MAX                 (1)
+#define CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT             (0) //disabled
+
 #ifdef FEATURE_WLAN_SCAN_PNO
 #define CFG_PNO_SCAN_SUPPORT                         "gPNOScanSupport"
 #define CFG_PNO_SCAN_SUPPORT_ENABLE                  ( 1 )
@@ -2018,10 +2014,30 @@ static __inline tANI_U32 defHddRateToDefCfgRate( tANI_U32 defRateIndex )
 #define CFG_PNO_SCAN_TIMER_REPEAT_VALUE_MAX          ( 0xffffffff )
 #endif
 
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_NAME                "gAmsduSupportInAMPDU"
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_MIN                 (0)
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_MAX                 (1)
-#define CFG_AMSDU_SUPPORT_IN_AMPDU_DEFAULT             (0) //disabled
+#define CFG_DISABLE_ATH_NAME                       "gAthDisable"
+#define CFG_DISABLE_ATH_MIN                        (0)
+#define CFG_DISABLE_ATH_MAX                        (1)
+#define CFG_DISABLE_ATH_DEFAULT                    (0)
+
+#define CFG_BTC_ACTIVE_WLAN_LEN_NAME           "btcActiveWlanLen"
+#define CFG_BTC_ACTIVE_WLAN_LEN_MIN            ( 0 )
+#define CFG_BTC_ACTIVE_WLAN_LEN_MAX            ( 250000 )
+#define CFG_BTC_ACTIVE_WLAN_LEN_DEFAULT        ( 60000 )
+
+#define CFG_BTC_ACTIVE_BT_LEN_NAME             "btcActiveBtLen"
+#define CFG_BTC_ACTIVE_BT_LEN_MIN              ( 0 )
+#define CFG_BTC_ACTIVE_BT_LEN_MAX              ( 250000 )
+#define CFG_BTC_ACTIVE_BT_LEN_DEFAULT          ( 90000 )
+
+#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_NAME       "btcSapActiveWlanLen"
+#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_MIN        ( 0 )
+#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_MAX        ( 250000 )
+#define CFG_BTC_SAP_ACTIVE_WLAN_LEN_DEFAULT    ( 60000 )
+
+#define CFG_BTC_SAP_ACTIVE_BT_LEN_NAME         "btcSapActiveBtLen"
+#define CFG_BTC_SAP_ACTIVE_BT_LEN_MIN          ( 0 )
+#define CFG_BTC_SAP_ACTIVE_BT_LEN_MAX          ( 250000 )
+#define CFG_BTC_SAP_ACTIVE_BT_LEN_DEFAULT      ( 90000 )
 
 /* Prefer connecting to 5G AP even if its RSSI is lower by
  gSelect5GHzMargin dBm than 2.4G AP.
@@ -2031,15 +2047,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_STRICT_5GHZ_PREF_BY_MARGIN_MAX             (60)
 #define CFG_STRICT_5GHZ_PREF_BY_MARGIN_DEFAULT         (0) //set 0 to disable
 
-#define CFG_COALESING_IN_IBSS_NAME                "gCoalesingInIBSS"
-#define CFG_COALESING_IN_IBSS_MIN                 (0)
-#define CFG_COALESING_IN_IBSS_MAX                 (1)
-#define CFG_COALESING_IN_IBSS_DEFAULT             (0) //disabled
-
-#define CFG_DISABLE_ATH_NAME                       "gAthDisable"
-#define CFG_DISABLE_ATH_MIN                        (0)
-#define CFG_DISABLE_ATH_MAX                        (1)
-#define CFG_DISABLE_ATH_DEFAULT                    (0)
+//Enable debug for remain on channel issues
+#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_NAME    "gDebugP2pRemainOnChannel"
+#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_DEFAULT ( 0 )
+#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MIN     ( 0 )
+#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MAX     ( 1 )
 
 //Enable Memory Debug
 #ifdef MEMORY_DEBUG
@@ -2048,53 +2060,6 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ENABLE_MEMORY_DEBUG_MAX              (1)
 #define CFG_ENABLE_MEMORY_DEBUG_DEFAULT          (0)
 #endif
-
-#define CFG_OVERRIDE_COUNTRY_CODE                "gStaCountryCode"
-#define CFG_OVERRIDE_COUNTRY_CODE_DEFAULT        "000"
-
-/*Once the period expires the RSSI will be compared with Threshold
- * and if needed trigger events will be raised
- */
-#define CFG_ASD_PROBE_INTERVAL_NAME                     "gAsdProbeInterval"
-#define CFG_ASD_PROBE_INTERVAL_DEFAULT                  (50)
-#define CFG_ASD_PROBE_INTERVAL_MIN                      (10)
-#define CFG_ASD_PROBE_INTERVAL_MAX                      (100)
-
-/* RSSI Threshold used to trigger probing activity/selection process*/
-#define CFG_ASD_TRIGGER_THRESHOLD_NAME                  "gAsdTriggerThreshold"
-#define CFG_ASD_TRIGGER_THRESHOLD_DEFAULT               (-75)
-#define CFG_ASD_TRIGGER_THRESHOLD_MIN                   (-120)
-#define CFG_ASD_TRIGGER_THRESHOLD_MAX                   (0)
-
-/*RSSI Hysteresis Threshold for RSSI-RTT*/
-#define CFG_ASD_RTT_RSSI_HYST_THRESHOLD_NAME             "gAsdRTTRssiHystThreshold"
-#define CFG_ASD_RTT_RSSI_HYST_THRESHOLD_DEFAULT          (50)
-#define CFG_ASD_RTT_RSSI_HYST_THRESHOLD_MIN              (0)
-#define CFG_ASD_RTT_RSSI_HYST_THRESHOLD_MAX              (100)
-
-//Enable debug for remain on channel issues
-#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_NAME    "gDebugP2pRemainOnChannel"
-#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_DEFAULT ( 0 )
-#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MIN     ( 0 )
-#define CFG_DEBUG_P2P_REMAIN_ON_CHANNEL_MAX     ( 1 )
-
-#define CFG_CTS2S_DURING_BTC_SCO_NAME           "btcCTS2SduringSCO"
-#define CFG_CTS2S_DURING_BTC_SCO_DEFAULT        WNI_CFG_BTC_CTS2S_DURING_SCO_STADEF
-#define CFG_CTS2S_DURING_BTC_SCO_MIN            WNI_CFG_BTC_CTS2S_DURING_SCO_STAMIN
-#define CFG_CTS2S_DURING_BTC_SCO_MAX            WNI_CFG_BTC_CTS2S_DURING_SCO_STAMAX
-
-
-/*
- * Connection related log Enable/Disable.
- * 0x1 - Enable mgmt pkt logs (no probe req/rsp).
- * 0x2 - Enable EAPOL pkt logs.
- * 0x4 - Enable DHCP pkt logs.
- * 0x0 - Disable all the above connection related logs.
- */
-#define CFG_ENABLE_DEBUG_CONNECT_ISSUE             "gEnableDebugLog"
-#define CFG_ENABLE_DEBUG_CONNECT_ISSUE_MIN         (0)
-#define CFG_ENABLE_DEBUG_CONNECT_ISSUE_MAX         (0xFF)
-#define CFG_ENABLE_DEBUG_CONNECT_ISSUE_DEFAULT     (0)
 
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_NAME                "gEnableStrictRegulatoryForFCC"
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MIN                 ( 0 )
@@ -2115,13 +2080,35 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_RA_RATE_LIMIT_INTERVAL_DEFAULT      (60)
 #define CFG_RA_RATE_LIMIT_INTERVAL_MIN          (0)
 #define CFG_RA_RATE_LIMIT_INTERVAL_MAX          (60)
+/*
+ * Connection related log Enable/Disable.
+ * 0x1 - Enable mgmt pkt logs (no probe req/rsp).
+ * 0x2 - Enable EAPOL pkt logs.
+ * 0x4 - Enable DHCP pkt logs.
+ * 0x0 - Disable all the above connection related logs.
+ */
+#define CFG_ENABLE_DEBUG_CONNECT_ISSUE             "gEnableDebugLog"
+#define CFG_ENABLE_DEBUG_CONNECT_ISSUE_MIN         (0)
+#define CFG_ENABLE_DEBUG_CONNECT_ISSUE_MAX         (0xFF)
+#define CFG_ENABLE_DEBUG_CONNECT_ISSUE_DEFAULT     (0)
+
+#define CFG_CTS2S_DURING_BTC_SCO_NAME           "btcCTS2SduringSCO"
+#define CFG_CTS2S_DURING_BTC_SCO_DEFAULT        WNI_CFG_BTC_CTS2S_DURING_SCO_STADEF
+#define CFG_CTS2S_DURING_BTC_SCO_MIN            WNI_CFG_BTC_CTS2S_DURING_SCO_STAMIN
+#define CFG_CTS2S_DURING_BTC_SCO_MAX            WNI_CFG_BTC_CTS2S_DURING_SCO_STAMAX
 
 #define CFG_ROAMING_DFS_CHANNEL_NAME                "gAllowDFSChannelRoam"
 #define CFG_ROAMING_DFS_CHANNEL_MIN                 (0)
 #define CFG_ROAMING_DFS_CHANNEL_MAX                 (1)
 #define CFG_ROAMING_DFS_CHANNEL_DEFAULT             (0)
 
+#define CFG_OVERRIDE_COUNTRY_CODE                "gStaCountryCode"
+#define CFG_OVERRIDE_COUNTRY_CODE_DEFAULT        "000"
 
+#define CFG_INITIAL_DWELL_TIME_NAME            "gInitialDwellTime"
+#define CFG_INITIAL_DWELL_TIME_DEFAULT         (0)
+#define CFG_INITIAL_DWELL_TIME_MIN             (0)
+#define CFG_INITIAL_DWELL_TIME_MAX             (100)
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
 //Enable WLAN Logging to app space
 #define CFG_WLAN_LOGGING_SUPPORT_NAME            "wlanLoggingEnable"
@@ -2137,52 +2124,15 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 
 //Number of buffers to be used for WLAN logging
 #define CFG_WLAN_LOGGING_NUM_BUF_NAME     "wlanLoggingNumBuf"
-#define CFG_WLAN_LOGGING_NUM_BUF_MIN      ( 4  )
+#define CFG_WLAN_LOGGING_NUM_BUF_MIN      ( 8  )
 #define CFG_WLAN_LOGGING_NUM_BUF_MAX      ( 64 )
 #define CFG_WLAN_LOGGING_NUM_BUF_DEFAULT  ( 32 )
 #endif //WLAN_LOGGING_SOCK_SVC_ENABLE
-
-#define CFG_INITIAL_DWELL_TIME_NAME            "gInitialDwellTime"
-#define CFG_INITIAL_DWELL_TIME_DEFAULT         (0)
-#define CFG_INITIAL_DWELL_TIME_MIN             (0)
-#define CFG_INITIAL_DWELL_TIME_MAX             (100)
 
 #define CFG_INITIAL_SCAN_SKIP_DFS_CH_NAME      "gInitialScanSkipDFSCh"
 #define CFG_INITIAL_SCAN_SKIP_DFS_CH_DEFAULT   (1)
 #define CFG_INITIAL_SCAN_SKIP_DFS_CH_MIN       (0)
 #define CFG_INITIAL_SCAN_SKIP_DFS_CH_MAX       (1)
-
-#define CFG_BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE_NAME           "btcFatalHidnSniffBlkGuidance"
-#define CFG_BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE_MIN            ( 0 )
-#define CFG_BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE_MAX            ( 2 )
-#define CFG_BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE_DEFAULT        ( 2 )
-
-#define CFG_BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE_NAME        "btcCriticalHidnSniffBlkGuidance"
-#define CFG_BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE_MIN         ( 0 )
-#define CFG_BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE_MAX         ( 1 )
-#define CFG_BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE_DEFAULT     ( 1 )
-
-#define CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD_NAME                 "btcA2dpTxQueueThold"
-#define CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD_MIN                  ( 0 )
-#define CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD_MAX                  ( 1 )
-#define CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD_DEFAULT              ( 0 )
-
-#define CFG_BTC_DYN_OPP_TX_QUEUE_THOLD_NAME                  "btcOppTxQueueThold"
-#define CFG_BTC_DYN_OPP_TX_QUEUE_THOLD_MIN                   ( 0 )
-#define CFG_BTC_DYN_OPP_TX_QUEUE_THOLD_MAX                   ( 3 )
-#define CFG_BTC_DYN_OPP_TX_QUEUE_THOLD_DEFAULT               ( 1 )
-
-#ifdef WLAN_FEATURE_11W
-#define CFG_PMF_SA_QUERY_MAX_RETRIES_NAME                    "pmfSaQueryMaxRetries"
-#define CFG_PMF_SA_QUERY_MAX_RETRIES_DEFAULT                 ( 5  )
-#define CFG_PMF_SA_QUERY_MAX_RETRIES_MIN                     ( 0  )
-#define CFG_PMF_SA_QUERY_MAX_RETRIES_MAX                     ( 20 )
-
-#define CFG_PMF_SA_QUERY_RETRY_INTERVAL_NAME                 "pmfSaQueryRetryInterval"
-#define CFG_PMF_SA_QUERY_RETRY_INTERVAL_DEFAULT              ( 200  )
-#define CFG_PMF_SA_QUERY_RETRY_INTERVAL_MIN                  ( 0    )
-#define CFG_PMF_SA_QUERY_RETRY_INTERVAL_MAX                  ( 2000 )
-#endif
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -2588,57 +2538,42 @@ typedef struct
    v_BOOL_t                    enableIbssHeartBeatOffload;
    v_U32_t                     antennaDiversity;
    v_BOOL_t                    fEnableSNRMonitoring;
+   v_U8_t                      isAmsduSupportInAMPDU;
    /*PNO related parameters */
 #ifdef FEATURE_WLAN_SCAN_PNO
    v_BOOL_t                    configPNOScanSupport;
    v_U32_t                     configPNOScanTimerRepeatValue;
 #endif
-   v_U8_t                      isAmsduSupportInAMPDU;
-   v_U8_t                      nSelect5GHzMargin;
-   v_U8_t                      isCoalesingInIBSSAllowed;
    v_BOOL_t                    cfgAthDisable;
    v_U32_t                     cfgBtcActiveWlanLen;
    v_U32_t                     cfgBtcActiveBtLen;
    v_U32_t                     cfgBtcSapActiveWlanLen;
    v_U32_t                     cfgBtcSapActiveBtLen;
+   v_U8_t                      nSelect5GHzMargin;
+   v_BOOL_t                    debugP2pRemainOnChannel;
 #ifdef MEMORY_DEBUG
    v_BOOL_t                    IsMemoryDebugSupportEnabled;
 #endif
-   char                        overrideCountryCode[4];
-   v_U32_t                     gAsdProbeInterval;
-   v_U32_t                     gAsdTriggerThreshold;
-   v_U32_t                     gAsdRTTRssiHystThreshold;
-   v_BOOL_t                    debugP2pRemainOnChannel;
-   v_U32_t                     cfgBtcCTS2SduringSCO;
-   v_U32_t                     gEnableDebugLog;
    v_U16_t                     nOBSSScanActiveDwellTime;
    v_U16_t                     nOBSSScanPassiveDwellTime;
    v_U16_t                     nOBSSScanWidthTriggerInterval;
    v_BOOL_t                    gEnableStrictRegulatoryForFCC;
-   v_BOOL_t                    advertiseConcurrentOperation;
-   v_U32_t                     defaultRateIndex24Ghz;
    eHddDot11Mode               sapDot11Mode;
+   v_BOOL_t                    advertiseConcurrentOperation;
    v_BOOL_t                    cfgRAFilterEnable;
    v_U16_t                     cfgRARateLimitInterval;
+   v_U32_t                     cfgBtcCTS2SduringSCO;
+   v_U32_t                     defaultRateIndex24Ghz;
    v_U8_t                      allowDFSChannelRoam;
-
+   v_U32_t                     gEnableDebugLog;
+   char                        overrideCountryCode[4];
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
    //WLAN Logging
    v_U32_t                     wlanLoggingEnable;
    v_U32_t                     wlanLoggingFEToConsole;
    v_U32_t                     wlanLoggingNumBuf;
 #endif
-
    v_BOOL_t                    initialScanSkipDFSCh;
-   v_U32_t                     cfgBtcFatalHidnSniffBlkGuidance;
-   v_U32_t                     cfgBtcCriticalHidnSniffBlkGuidance;
-   v_U32_t                     cfgBtcA2dpTxQueueThold;
-   v_U32_t                     cfgBtcOppTxQueueThold;
-
-#ifdef WLAN_FEATURE_11W
-   v_U32_t                     pmfSaQueryMaxRetries;
-   v_U32_t                     pmfSaQueryRetryInterval;
-#endif
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
@@ -2651,8 +2586,9 @@ eCsrPhyMode hdd_cfg_xlate_to_csr_phy_mode( eHddDot11Mode dot11Mode );
 VOS_STATUS hdd_execute_config_command(hdd_context_t *pHddCtx, char *command);
 tANI_BOOLEAN hdd_is_okc_mode_enabled(hdd_context_t *pHddCtx);
 
-#define VAR_OFFSET( _Struct, _Var ) (offsetof(_Struct, _Var))
-#define VAR_SIZE( _Struct, _Var ) (sizeof(((_Struct *)0)->_Var))
+#define FIELD_OFFSET(__type, __field) ((unsigned int)(&((__type *)0)->__field))
+#define VAR_OFFSET( _Struct, _Var ) ( (unsigned int) FIELD_OFFSET(_Struct, _Var ) )
+#define VAR_SIZE( _Struct, _Var ) sizeof( ((_Struct *)0)->_Var )
 
 #define VAR_FLAGS_NONE         (      0 )
 #define VAR_FLAGS_REQUIRED     ( 1 << 0 )   // bit 0 is Required or Optional

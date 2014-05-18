@@ -1,5 +1,25 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -20,14 +40,7 @@
  */
 
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
- *
- */
-
-
-/*
+ * Airgo Networks, Inc proprietary. All rights reserved.
  * This file sirApi.h contains definitions exported by
  * Sirius software.
  * Author:        Chandra Modumudi
@@ -203,6 +216,7 @@ typedef enum eSirScanType
     eSIR_BEACON_TABLE,
 } tSirScanType;
 
+/// Result codes Firmware return to Host SW
 typedef enum eSirResultCodes
 {
     eSIR_SME_SUCCESS,
@@ -367,9 +381,6 @@ typedef enum eStaRateMode {
 #define IERATE_IS_BASICRATE(x)   ((x) & IERATE_BASICRATE_MASK)
 #define ANIENHANCED_TAURUS_RATEMAP_BITOFFSET_START  28
 
-const char * lim_BssTypetoString(const v_U8_t bssType);
-const char * lim_ScanTypetoString(const v_U8_t scanType);
-const char * lim_BackgroundScanModetoString(const v_U8_t mode);
 typedef struct sSirSupportedRates {
     /*
     * For Self STA Entry: this represents Self Mode.
@@ -649,7 +660,6 @@ typedef struct sSirSmeStartBssReq
     tAniAuthType            authType;
     tANI_U32                dtimPeriod;
     tANI_U8                 wps_state;
-    tANI_U8                 isCoalesingInIBSSAllowed; //Coalesing on/off knob
     tVOS_CON_MODE           bssPersona;
 
     tANI_U8                 txLdpcIniFeatureEnabled;
@@ -669,7 +679,7 @@ typedef struct sSirSmeStartBssReq
 } tSirSmeStartBssReq, *tpSirSmeStartBssReq;
 
 #define GET_IE_LEN_IN_BSS(lenInBss) ( lenInBss + sizeof(lenInBss) - \
-              ((uintptr_t)OFFSET_OF( tSirBssDescription, ieFields)))
+              ((int) OFFSET_OF( tSirBssDescription, ieFields)))
 
 #define WSCIE_PROBE_RSP_LEN (317 + 2)
 
@@ -778,6 +788,8 @@ typedef enum eSirBackgroundScanMode
     eSIR_NORMAL_BACKGROUND_SCAN = 1,
     eSIR_ROAMING_SCAN = 2,
 } tSirBackgroundScanMode;
+
+/// Two types of traffic check
 typedef enum eSirLinkTrafficCheck
 {
     eSIR_DONT_CHECK_LINK_TRAFFIC_BEFORE_SCAN = 0,
@@ -896,21 +908,6 @@ typedef struct sSirSmeScanReq
       up to uIEFieldLen (can be 0)
       -----------------------------*/
 } tSirSmeScanReq, *tpSirSmeScanReq;
-
-typedef struct sSirSmeScanAbortReq
-{
-    tANI_U16        type;
-    tANI_U16        msgLen;
-    tANI_U8         sessionId;
-} tSirSmeScanAbortReq, *tpSirSmeScanAbortReq;
-
-typedef struct sSirSmeScanChanReq
-{
-    tANI_U16        type;
-    tANI_U16        msgLen;
-    tANI_U8         sessionId;
-    tANI_U16        transcationId;
-} tSirSmeGetScanChanReq, *tpSirSmeGetScanChanReq;
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
 
@@ -1118,9 +1115,6 @@ typedef struct sSirSmeJoinRsp
 
     /*Broadcast DPU signature*/
     tANI_U8            bcastSig;
-
-    /*to report MAX link-speed populate rate-flags from ASSOC RSP frame*/
-    tANI_U32           maxRateFlags;
 
     tANI_U8         frames[ 1 ];
 } tSirSmeJoinRsp, *tpSirSmeJoinRsp;
@@ -2734,13 +2728,6 @@ typedef struct sSirGetNoiseRsp
     tSirMacNoise        noise;
 } tSirGetNoiseRsp, *tpSirGetNoiseRsp;
 
-typedef struct sSirQosMapSet
-{
-    tANI_U8      present;
-    tANI_U8      num_dscp_exceptions;
-    tANI_U8      dscp_exceptions[21][2];
-    tANI_U8      dscp_range[7][2];
-} tSirQosMapSet, *tpSirQosMapSet;
 
 //
 // PMC --> PE --> HAL
@@ -4067,7 +4054,6 @@ typedef struct sSirTdlsSendMgmtReq
     tANI_U8             dialog;
     tANI_U16            statusCode;
     tANI_U8             responder;
-    tANI_U32            peerCapability;
     tSirMacAddr         bssid;         // For multi-session, for PE to locate peSession ID
     tSirMacAddr         peerMac;
     tANI_U8             addIe[1];      //Variable lenght. Dont add any field after this.
@@ -4378,7 +4364,7 @@ typedef struct sSirSmeHT40OBSSScanInd
 {
    tANI_U16               messageType;
    tANI_U16               length;
-   tSirMacAddr            peerMacAddr;
+   tANI_U8                seesionId;
 } tSirSmeHT40OBSSScanInd, *tpSirSmeHT40OBSSScanInd;
 
 typedef struct sSirHT40OBSSScanInd
@@ -4533,8 +4519,6 @@ typedef struct sSirLPHBTcpParamStruct
    v_U16_t      timeout;
    v_U8_t       session;
    tSirMacAddr  gateway_mac;
-   uint16       timePeriodSec; // in seconds
-   uint32       tcpSn;
 } tSirLPHBTcpParamStruct;
 
 typedef struct sSirLPHBTcpFilterStruct
@@ -4579,12 +4563,12 @@ typedef struct sSirLPHBReq
    } params;
 } tSirLPHBReq;
 
-typedef struct sSirLPHBInd
+typedef struct sSirLPHBTimeoutInd
 {
    v_U8_t sessionIdx;
    v_U8_t protocolType; /*TCP or UDP*/
    v_U8_t eventReason;
-} tSirLPHBInd;
+} tSirLPHBTimeoutInd;
 #endif /* FEATURE_WLAN_LPHB */
 
 typedef struct sSirAddPeriodicTxPtrn
@@ -4606,48 +4590,6 @@ typedef struct sSirDelPeriodicTxPtrn
     /* Bitmap of pattern IDs that need to be deleted */
     tANI_U32 ucPatternIdBitmap;
 } tSirDelPeriodicTxPtrn, *tpSirDelPeriodicTxPtrn;
-
-typedef struct sSirRateUpdateInd
-{
-    /* 0 implies RA, positive value implies fixed rate, -1 implies ignore this
-     * param.
-     */
-    tANI_S32 ucastDataRate;
-
-    /* TX flag to differentiate between HT20, HT40 etc */
-    tTxrateinfoflags ucastDataRateTxFlag;
-
-    /* BSSID - Optional. 00-00-00-00-00-00 implies apply to all BCAST STAs */
-    tSirMacAddr bssid;
-
-    /*
-     * 0 implies MCAST RA, positive value implies fixed rate,
-     * -1 implies ignore this param
-     */
-    tANI_S32 reliableMcastDataRate;//unit Mbpsx10
-
-    /* TX flag to differentiate between HT20, HT40 etc */
-    tTxrateinfoflags reliableMcastDataRateTxFlag;
-
-    /*
-     * MCAST(or BCAST) fixed data rate in 2.4 GHz, unit Mbpsx10,
-     * 0 implies ignore
-     */
-    tANI_U32 mcastDataRate24GHz;
-
-    /* TX flag to differentiate between HT20, HT40 etc */
-    tTxrateinfoflags mcastDataRate24GHzTxFlag;
-
-    /*
-     * MCAST(or BCAST) fixed data rate in 5 GHz,
-     * unit Mbpsx10, 0 implies ignore
-     */
-    tANI_U32 mcastDataRate5GHz;
-
-    /* TX flag to differentiate between HT20, HT40 etc */
-    tTxrateinfoflags mcastDataRate5GHzTxFlag;
-
-} tSirRateUpdateInd, *tpSirRateUpdateInd;
 
 #ifdef FEATURE_WLAN_BATCH_SCAN
 // Set batch scan resposne from FW
@@ -4735,21 +4677,46 @@ typedef struct sSirChAvoidIndType
 } tSirChAvoidIndType;
 #endif /* FEATURE_WLAN_CH_AVOID */
 
-typedef void (*pGetBcnMissRateCB)( tANI_S32 bcnMissRate,
-                                   VOS_STATUS status, void *data);
-
-typedef PACKED_PRE struct PACKED_POST
+typedef struct sSirRateUpdateInd
 {
-   tANI_U32   msgLen;
-   tANI_U8    bssid[WNI_CFG_BSSID_LEN];
-   void      *callback;
-   void      *data;
-}tSirBcnMissRateReq;
+    /* 0 implies RA, positive value implies fixed rate, -1 implies ignore this
+     * param.
+     */
+    tANI_S32 ucastDataRate;
 
-typedef PACKED_PRE struct PACKED_POST
-{
-    pGetBcnMissRateCB callback;
-    void             *data;
-}tSirBcnMissRateInfo;
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags ucastDataRateTxFlag;
+
+    /* BSSID - Optional. 00-00-00-00-00-00 implies apply to all BCAST STAs */
+    tSirMacAddr bssid;
+
+    /*
+     * 0 implies MCAST RA, positive value implies fixed rate,
+     * -1 implies ignore this param
+     */
+    tANI_S32 reliableMcastDataRate;//unit Mbpsx10
+
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags reliableMcastDataRateTxFlag;
+
+    /*
+     * MCAST(or BCAST) fixed data rate in 2.4 GHz, unit Mbpsx10,
+     * 0 implies ignore
+     */
+    tANI_U32 mcastDataRate24GHz;
+
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags mcastDataRate24GHzTxFlag;
+
+    /*
+     * MCAST(or BCAST) fixed data rate in 5 GHz,
+     * unit Mbpsx10, 0 implies ignore
+     */
+    tANI_U32 mcastDataRate5GHz;
+
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags mcastDataRate5GHzTxFlag;
+
+} tSirRateUpdateInd, *tpSirRateUpdateInd;
 
 #endif /* __SIR_API_H */

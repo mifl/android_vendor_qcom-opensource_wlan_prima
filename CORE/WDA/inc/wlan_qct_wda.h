@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,14 +18,26 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
-
 
 #ifndef WLAN_QCT_WDA_H
 #define WLAN_QCT_WDA_H
@@ -398,31 +410,11 @@ typedef struct
    /* Traffic Stats timer */
    TX_TIMER trafficStatsTimer ;
 }tWdaTimers ;
-
 #ifdef WLAN_SOFTAP_VSTA_FEATURE
 #define WDA_MAX_STA    (41)
 #else
 #define WDA_MAX_STA    (16)
 #endif
-typedef enum
-{
-   WDA_ADDSTA_REQ_NO_MEM = 0,
-   WDA_ADDSTA_REQ_WDI_FAIL = 1,
-   WDA_ADDSTA_RSP_NO_MEM = 2,
-   WDA_ADDSTA_RSP_WDI_FAIL = 3,
-   WDA_ADDSTA_MAX
-} WDA_AddSelfStaFailReasonDebug;
-
-/*AddSelfSta Request and Response Debug*/
-typedef struct
-{
-   wpt_uint8            wdiAddStaSelfStaReqCounter;
-   wpt_uint8            wdiAddStaSelfStaRspCounter;
-   wpt_uint8            wdiAddStaSelfStaFailCounter;
-   wpt_uint8            ucSTASelfIdx; /* received SelfStaIdx*/
-   wpt_uint8            wdaAddSelfStaFailReason;
-} tWDA_AddSelfStaDebugParams;
-
 typedef struct
 {
    v_PVOID_t            pVosContext;             /* global VOSS context*/
@@ -489,9 +481,6 @@ typedef struct
 
    /* Event to wait for WDA stop on FTM mode */
    vos_event_t          ftmStopDoneEvent;
-
-   tWDA_AddSelfStaDebugParams wdaAddSelfStaParams;
-
 } tWDA_CbContext ; 
 
 typedef struct
@@ -506,7 +495,7 @@ typedef struct
  * open WDA context
  */ 
 
-VOS_STATUS WDA_open(v_PVOID_t pVosContext, v_PVOID_t devHandle,
+VOS_STATUS WDA_open(v_PVOID_t pVosContext, v_PVOID_t pOSContext, 
                                               tMacOpenParameters *pMacParams ) ;
 
 /*
@@ -1193,14 +1182,11 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_STOP_BATCH_SCAN_IND           SIR_HAL_STOP_BATCH_SCAN_IND
 #define WDA_TRIGGER_BATCH_SCAN_RESULT_IND SIR_HAL_TRIGGER_BATCH_SCAN_RESULT_IND
 #endif
-#define WDA_RATE_UPDATE_IND         SIR_HAL_RATE_UPDATE_IND
 
+#define WDA_RATE_UPDATE_IND         SIR_HAL_RATE_UPDATE_IND
 
 #define WDA_HT40_OBSS_SCAN_IND   SIR_HAL_HT40_OBSS_SCAN_IND
 #define WDA_HT40_OBSS_STOP_SCAN_IND SIR_HAL_HT40_OBSS_STOP_SCAN_IND
-
-#define WDA_GET_BCN_MISS_RATE_REQ        SIR_HAL_BCN_MISS_RATE_REQ
-
 tSirRetStatus wdaPostCtrlMsg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 
 eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,

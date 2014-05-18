@@ -30,7 +30,6 @@
  *
  ******************************************************************************/
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
-#include <vmalloc.h>
 #include <wlan_nlink_srv.h>
 #include <vos_status.h>
 #include <vos_trace.h>
@@ -206,12 +205,10 @@ static int wlan_queue_logmsg_for_app(void)
 		 */
 		gwlan_logging.pcur_node =
 			(struct log_msg *)(gwlan_logging.filled_list.next);
-		if (gapp_pid != INVALID_PID) {
-			pr_err("%s: drop_count = %u index = %d filled_length = %d\n",
-				__func__, ++gwlan_logging.drop_count,
-				gwlan_logging.pcur_node->index,
-				gwlan_logging.pcur_node->filled_length);
-		}
+		pr_err("%s: drop_count = %u index = %d filled_length = %d\n",
+			__func__, ++gwlan_logging.drop_count,
+			gwlan_logging.pcur_node->index,
+			gwlan_logging.pcur_node->filled_length);
 		list_del_init(gwlan_logging.filled_list.next);
 		ret = 1;
 	}
@@ -231,7 +228,6 @@ int wlan_log_to_user(VOS_TRACE_LEVEL log_level, char *to_be_sent, int length)
 	int total_log_len;
 	unsigned int *pfilled_length;
 	bool wake_up_thread = false;
-	unsigned long flags;
 
 	struct timeval tv;
 
@@ -245,6 +241,7 @@ int wlan_log_to_user(VOS_TRACE_LEVEL log_level, char *to_be_sent, int length)
 		 * messages.
 		 */
 		pr_info("%s\n", to_be_sent);
+		return -EIO;
 	}
 
 	/* Format the Log time [Secondselapsedinaday.microseconds] */
@@ -256,13 +253,7 @@ int wlan_log_to_user(VOS_TRACE_LEVEL log_level, char *to_be_sent, int length)
 	/* 1+1 indicate '\n'+'\0' */
 	total_log_len = length + tlen + 1 + 1;
 
-	spin_lock_irqsave(&gwlan_logging.spin_lock, flags);
-	// wlan logging svc resources are not yet initialized
-	if (!gwlan_logging.pcur_node) {
-		spin_unlock_irqrestore(&gwlan_logging.spin_lock, flags);
-		return -EIO;
-	}
-
+	spin_lock_bh(&gwlan_logging.spin_lock);
 	pfilled_length = &gwlan_logging.pcur_node->filled_length;
 
 	 /* Check if we can accomodate more log into current node/buffer */
@@ -295,14 +286,13 @@ int wlan_log_to_user(VOS_TRACE_LEVEL log_level, char *to_be_sent, int length)
 	ptr[*pfilled_length] = '\n';
 	*pfilled_length += 1;
 
-	spin_unlock_irqrestore(&gwlan_logging.spin_lock, flags);
+	spin_unlock_bh(&gwlan_logging.spin_lock);
 
 	/* Wakeup logger thread */
-	if ((true == wake_up_thread) && (gapp_pid != INVALID_PID))
+	if (true == wake_up_thread)
 		wake_up_interruptible(&gwlan_logging.wait_queue);
 
-	if ((gapp_pid != INVALID_PID)
-		&& gwlan_logging.log_fe_to_console
+	if (gwlan_logging.log_fe_to_console
 		&& ((VOS_TRACE_LEVEL_FATAL == log_level)
 		|| (VOS_TRACE_LEVEL_ERROR == log_level))) {
 		pr_info("%s\n", to_be_sent);
@@ -321,7 +311,6 @@ static int send_filled_buffers_to_user(void)
 	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
 	static int nlmsg_seq;
-	unsigned long flags;
 
 	while (!list_empty(&gwlan_logging.filled_list)
 		&& !gwlan_logging.exit) {
@@ -334,12 +323,11 @@ static int send_filled_buffers_to_user(void)
 			break;
 		}
 
-		spin_lock_irqsave(&gwlan_logging.spin_lock, flags);
+		spin_lock(&gwlan_logging.spin_lock);
 
 		plog_msg = (struct log_msg *)
 			(gwlan_logging.filled_list.next);
 		list_del_init(gwlan_logging.filled_list.next);
-		spin_unlock_irqrestore(&gwlan_logging.spin_lock, flags);
 		/* 4 extra bytes for the radio idx */
 		payload_len = plog_msg->filled_length +
 			sizeof(wnl->radio) + sizeof(tAniHdr);
@@ -349,11 +337,9 @@ static int send_filled_buffers_to_user(void)
 				ANI_NL_MSG_LOG, payload_len,
 				NLM_F_REQUEST);
 		if (NULL == nlh) {
-			spin_lock_irqsave(&gwlan_logging.spin_lock, flags);
 			list_add_tail(&plog_msg->node,
 				&gwlan_logging.free_list);
-			spin_unlock_irqrestore(&gwlan_logging.spin_lock,
-							flags);
+			spin_unlock(&gwlan_logging.spin_lock);
 			pr_err("%s: drop_count = %u\n", __func__,
 				++gwlan_logging.drop_count);
 			pr_err("%s: nlmsg_put() failed for msg size[%d]\n",
@@ -363,7 +349,7 @@ static int send_filled_buffers_to_user(void)
 			ret = -EINVAL;
 			continue;
 		}
-		spin_unlock_irqrestore(&gwlan_logging.spin_lock, flags);
+		spin_unlock(&gwlan_logging.spin_lock);
 
 		wnl = (tAniNlHdr *) nlh;
 		wnl->radio = plog_msg->radio;
@@ -371,10 +357,10 @@ static int send_filled_buffers_to_user(void)
 				plog_msg->filled_length +
 				sizeof(tAniHdr));
 
-		spin_lock_irqsave(&gwlan_logging.spin_lock, flags);
+		spin_lock(&gwlan_logging.spin_lock);
 		list_add_tail(&plog_msg->node,
 				&gwlan_logging.free_list);
-		spin_unlock_irqrestore(&gwlan_logging.spin_lock, flags);
+		spin_unlock(&gwlan_logging.spin_lock);
 
 		ret = nl_srv_ucast(skb, gapp_pid, 0);
 		if (ret < 0) {
@@ -501,7 +487,7 @@ int wlan_logging_sock_activate_svc(int log_fe_to_console, int num_buf)
 
 	gapp_pid = INVALID_PID;
 
-	gplog_msg = (struct log_msg *) vmalloc(
+	gplog_msg = (struct log_msg *) vos_mem_malloc(
 			num_buf * sizeof(struct log_msg));
 	if (!gplog_msg) {
 		pr_err("%s: Could not allocate memory\n", __func__);
@@ -512,6 +498,8 @@ int wlan_logging_sock_activate_svc(int log_fe_to_console, int num_buf)
 
 	gwlan_logging.log_fe_to_console = !!log_fe_to_console;
 	gwlan_logging.num_buf = num_buf;
+
+	spin_lock_init(&gwlan_logging.spin_lock);
 
 	spin_lock_irqsave(&gwlan_logging.spin_lock, irq_flag);
 	INIT_LIST_HEAD(&gwlan_logging.free_list);
@@ -534,11 +522,7 @@ int wlan_logging_sock_activate_svc(int log_fe_to_console, int num_buf)
 	if (IS_ERR(gwlan_logging.thread)) {
 		pr_err("%s: Could not Create LogMsg Thread Controller",
 		       __func__);
-		spin_lock_irqsave(&gwlan_logging.spin_lock, irq_flag);
-		vfree(gplog_msg);
-		gplog_msg = NULL;
-		gwlan_logging.pcur_node = NULL;
-		spin_unlock_irqrestore(&gwlan_logging.spin_lock, irq_flag);
+		vos_mem_free(gplog_msg);
 		return -ENOMEM;
 	}
 	wake_up_process(gwlan_logging.thread);
@@ -551,10 +535,6 @@ int wlan_logging_sock_activate_svc(int log_fe_to_console, int num_buf)
 
 int wlan_logging_sock_deactivate_svc(void)
 {
-	unsigned long irq_flag;
-
-	if (!gplog_msg)
-		return 0;
 
 	nl_srv_unregister(ANI_NL_MSG_LOG, wlan_logging_proc_sock_rx_msg);
 	clear_default_logtoapp_log_level();
@@ -565,30 +545,11 @@ int wlan_logging_sock_deactivate_svc(void)
 	wake_up_interruptible(&gwlan_logging.wait_queue);
 	wait_for_completion_interruptible(&gwlan_logging.shutdown_comp);
 
-	spin_lock_irqsave(&gwlan_logging.spin_lock, irq_flag);
-	vfree(gplog_msg);
-	gwlan_logging.pcur_node = NULL;
-	spin_unlock_irqrestore(&gwlan_logging.spin_lock, irq_flag);
+	vos_mem_free(gplog_msg);
 
 	pr_info("%s: Deactivate wlan_logging svc\n", __func__);
 
 	return 0;
 }
 
-int wlan_logging_sock_init_svc(void)
-{
-	spin_lock_init(&gwlan_logging.spin_lock);
-	gapp_pid = INVALID_PID;
-	gwlan_logging.pcur_node = NULL;
-
-	return 0;
-}
-
-int wlan_logging_sock_deinit_svc(void)
-{
-	gwlan_logging.pcur_node = NULL;
-	gapp_pid = INVALID_PID;
-
-       return 0;
-}
 #endif /* WLAN_LOGGING_SOCK_SVC_ENABLE */

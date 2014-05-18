@@ -1,5 +1,25 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -19,19 +39,14 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
 
 /**=========================================================================
-  
+
   \file  sme_Qos.c
-  
+
   \brief implementation for SME QoS APIs
-  
-  
+
+
   ========================================================================*/
 /* $Header$ */
 /*--------------------------------------------------------------------------
@@ -1500,8 +1515,7 @@ sme_QosStatusType sme_QosInternalSetupReq(tpAniSirGlobal pMac,
                return status;
             }
             /* Flow aggregation */
-            if(((pACInfo->tspec_mask_status > 0) &&
-                (pACInfo->tspec_mask_status <= SME_QOS_TSPEC_INDEX_MAX)))
+            if(SME_QOS_TSPEC_MASK_BIT_1_2_SET != pACInfo->tspec_mask_status)
             {
               /* Either of upstream, downstream or bidirectional flows are present */
               /* If either of new stream or current stream is for bidirecional, aggregate 
@@ -1530,7 +1544,7 @@ sme_QosStatusType sme_QosInternalSetupReq(tpAniSirGlobal pMac,
                 pACInfo->tspec_mask_status = SME_QOS_TSPEC_MASK_BIT_1_2_SET;
               }
             }
-            else if(SME_QOS_TSPEC_MASK_BIT_1_2_SET == pACInfo->tspec_mask_status)
+            else
             {
               /* Both uplink and downlink streams are present. */
               /* If new stream is bidirectional, aggregate new stream with all existing
@@ -1554,12 +1568,6 @@ sme_QosStatusType sme_QosInternalSetupReq(tpAniSirGlobal pMac,
                 // Aggregate with 1st tspec index
                 tmask = SME_QOS_TSPEC_MASK_BIT_1_SET;
               }
-            }
-            else
-            {
-              VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_MED,
-                "%s: %d: wrong tmask = %d", __func__, __LINE__,
-                pACInfo->tspec_mask_status );
             }
          }
          else
@@ -1618,12 +1626,7 @@ sme_QosStatusType sme_QosInternalSetupReq(tpAniSirGlobal pMac,
          else
          {
             tmask = new_tmask;
-            if(tmask)
-               pACInfo->requested_QoSInfo[tmask-1] = Tspec_Info;
-            else
-               VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
-                         "%s: %d: ArrayIndexOutOfBoundsException",
-                         __func__, __LINE__);
+            pACInfo->requested_QoSInfo[tmask-1] = Tspec_Info;
          }
       }
       else
@@ -1725,12 +1728,7 @@ sme_QosStatusType sme_QosInternalSetupReq(tpAniSirGlobal pMac,
             //which index of the AC the request was from
             pACInfo->tspec_pending = tmask;
          }
-         if(tmask)
-            pACInfo->num_flows[tmask - 1]++;
-         else
-            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
-                      "%s: %d: ArrayIndexOutOfBoundsException",
-                       __func__, __LINE__);
+         pACInfo->num_flows[tmask - 1]++;
          //indicate on which index the flow entry belongs to & add it to the 
          //Flow List at the end
          pentry->tspec_mask = tmask;
@@ -2829,7 +2827,7 @@ sme_QosStatusType sme_QosSetup(tpAniSirGlobal pMac,
    }
 
    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_DEBUG,
-             "%s: %d: UAPSD/PSB set %d: ", __func__, __LINE__,
+             "%s: UAPSD/PSB set %d: ", __func__, __LINE__,
              pTspec_Info->ts_info.psb);
 
    pACInfo = &pSession->ac_info[ac];
@@ -3664,18 +3662,15 @@ eHalStatus sme_QosProcessFTReassocRspEv(tpAniSirGlobal pMac, v_U8_t sessionId, v
     tDot11fIERICDataDesc *pRicDataDesc = NULL;
     eHalStatus            status = eHAL_STATUS_SUCCESS;
     tCsrRoamSession *pCsrSession = CSR_GET_SESSION( pMac, sessionId );
-    tCsrRoamConnectedInfo *pCsrConnectedInfo = NULL;
+    tCsrRoamConnectedInfo *pCsrConnectedInfo = &pCsrSession->connectedInfo;
     tANI_U32    ricRspLen;
-
-    if(NULL == pCsrSession)
+    /* To silence the KW tool NULL check is added */ 
+    if(pCsrConnectedInfo == NULL)
     {
         VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
-                FL("The Session pointer is NULL"));
+                FL("The connected info pointer is NULL"));
         return eHAL_STATUS_FAILURE;
     }
-
-    pCsrConnectedInfo = &pCsrSession->connectedInfo;
-
     ricRspLen = pCsrConnectedInfo->nRICRspLength;
 
     VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_HIGH,
@@ -3801,7 +3796,6 @@ eHalStatus sme_QosAddTsReq(tpAniSirGlobal pMac,
                 __func__, __LINE__, sessionId);
       return eHAL_STATUS_FAILURE;
    }
-
    pSession = &sme_QosCb.sessionInfo[sessionId];
    pMsg = (tSirAddtsReq *)vos_mem_malloc(sizeof(tSirAddtsReq));
    if (!pMsg)
@@ -5580,7 +5574,7 @@ eHalStatus sme_QosAggregateParams(
    if(pCurrent_Tspec_Info->ts_info.direction != 
       pInput_Tspec_Info->ts_info.direction)
    {
-      TspecInfo.ts_info.direction = pInput_Tspec_Info->ts_info.direction;
+      TspecInfo.ts_info.direction = SME_QOS_WMM_TS_DIR_BOTH;
    }
    /*-------------------------------------------------------------------------
      Max MSDU size : these sizes are `maxed'
@@ -7356,16 +7350,16 @@ void sme_QosPmcDeviceStateUpdateInd(void *callbackContext, tPmcState pmcState)
    default:
       status = eHAL_STATUS_SUCCESS;
       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, 
-                "%s: %d: nothing to process in PMC state %s (%d)",
+                "%s: %d: nothing to process in PMC state %d",
                 __func__, __LINE__,
-                sme_PmcStatetoString(pmcState), pmcState);
+                pmcState);
    }
    if(!HAL_STATUS_SUCCESS(status))
    {
       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO_HIGH, 
-                "%s: %d: ignoring Device(PMC) state change to %s (%d)",
+                "%s: %d: ignoring Device(PMC) state change to %d",
                 __func__, __LINE__,
-                sme_PmcStatetoString(pmcState), pmcState);
+                pmcState);
    }
 
 }

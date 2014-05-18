@@ -1,30 +1,23 @@
 /*
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
- *
- * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
- *
- *
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all
- * copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
- * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
- * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
+  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+  *
+  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+  *
+  *
+  * Permission to use, copy, modify, and/or distribute this software for
+  * any purpose with or without fee is hereby granted, provided that the
+  * above copyright notice and this permission notice appear in all
+  * copies.
+  *
+  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+  * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+  * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+  * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+  * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+  * PERFORMANCE OF THIS SOFTWARE.
+*/
 /*==========================================================================
  *
  *  @file:     wlan_hal_cfg.h
@@ -33,6 +26,8 @@
  *
  *  @author:   Kumar Anand
  *
+ *             Copyright (C) 2010, Qualcomm Technologies, Inc. 
+ *             All rights reserved.
  *
  *=========================================================================*/
 
@@ -251,12 +246,7 @@
 #define QWLAN_HAL_CFG_VHT_TX_SUPP_MCS                   193
 #define QWLAN_HAL_CFG_RA_FILTER_ENABLE                  194
 #define QWLAN_HAL_CFG_RA_RATE_LIMIT_INTERVAL            195
-#define QWLAN_HAL_CFG_BTC_FATAL_HID_NSNIFF_BLK_GUIDANCE      196
-#define QWLAN_HAL_CFG_BTC_CRITICAL_HID_NSNIFF_BLK_GUIDANCE   197
-#define QWLAN_HAL_CFG_BTC_DYN_A2DP_TX_QUEUE_THOLD            198
-#define QWLAN_HAL_CFG_BTC_DYN_OPP_TX_QUEUE_THOLD             199
-#define QWLAN_HAL_CFG_MAX_PARAMS                        200
-
+#define QWLAN_HAL_CFG_MAX_PARAMS                        196
 
 /* Total number of Integer CFGs. This is used while allocating the memory for TLV */
 #define QWLAN_HAL_CFG_INTEGER_PARAM                     196
@@ -956,21 +946,6 @@
 #define QWLAN_HAL_CFG_SAR_POWER_BACKOFF_MIN  1
 #define QWLAN_HAL_CFG_SAR_POWER_BACKOFF_MAX  21
 
-/*Once the period expires the RSSI will be compared with Threshold
- * and if needed trigger events will be raised
- */
-#define QWLAN_HAL_CFG_ASD_PROBE_INTERVAL_DEF     50
-#define QWLAN_HAL_CFG_ASD_PROBE_INTERVAL_MIN     10
-#define QWLAN_HAL_CFG_ASD_PROBE_INTERVAL_MAX     100
-
-/* RSSI Threshold used to trigger probing activity/selection process*/
-#define QWLAN_HAL_CFG_ASD_TRIGGER_THRESHOLD_DEF     -75
-#define QWLAN_HAL_CFG_ASD_TRIGGER_THRESHOLD_MIN     -120
-#define QWLAN_HAL_CFG_ASD_TRIGGER_THRESHOLD_MAX     0
-
-/*RSSI Hysteresis Threshold for RSSI-RTT*/
-#define QWLAN_HAL_CFG_ASD_RTT_RSSI_HYST_THRESHOLD_DEF     50
-#define QWLAN_HAL_CFG_ASD_RTT_RSSI_HYST_THRESHOLD_MIN     50
-#define QWLAN_HAL_CFG_ASD_RTT_RSSI_HYST_THRESHOLD_MAX     100
-
 #endif //__WLAN_HAL_CFG_H__
+
+

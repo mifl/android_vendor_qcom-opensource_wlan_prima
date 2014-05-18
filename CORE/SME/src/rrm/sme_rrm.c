@@ -1,5 +1,25 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -19,20 +39,14 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 /**=========================================================================
   
   \file  sme_Rrm.c
   
   \brief implementation for SME RRM APIs
-  
+
    Copyright 2008 (c) Qualcomm, Incorporated.  All Rights Reserved.
-   
+
    Qualcomm Confidential and Proprietary.
   
   ========================================================================*/
@@ -294,11 +308,11 @@ static eHalStatus sme_RrmSendBeaconReportXmitInd( tpAniSirGlobal pMac,
    beacon report information in one custom event;
 
   \param  - pMac -      Pointer to the Hal Handle.
-              - sessionId  - Session id
-              - channel     - scan results belongs to this channel
-              - pResultArr - scan result.
-              - measurementDone - flag to indicate that the measurement is done.
-              - bss_count - number of bss found
+          - sessionId  - Session id
+          - channel     - scan results belongs to this channel
+          - pResultArr - scan result.
+          - measurementDone - flag to indicate that the measurement is done.
+          - bss_count - number of bss found
   \return - 0 for success, non zero for failure
 
   --------------------------------------------------------------------------*/
@@ -689,12 +703,7 @@ eHalStatus sme_RrmIssueScanReq( tpAniSirGlobal pMac )
    if ((pSmeRrmContext->currentIndex) >= pSmeRrmContext->channelList.numOfChannels)
        return status;
 
-   if( eRRM_MSG_SOURCE_ESE_UPLOAD == pSmeRrmContext->msgSource ||
-       eRRM_MSG_SOURCE_LEGACY_ESE == pSmeRrmContext->msgSource )
-       scanType = pSmeRrmContext->measMode[pSmeRrmContext->currentIndex];
-   else
-       scanType = pSmeRrmContext->measMode[0];
-
+   scanType = pSmeRrmContext->measMode[pSmeRrmContext->currentIndex];
    if ((eSIR_ACTIVE_SCAN == scanType) || (eSIR_PASSIVE_SCAN == scanType))
    {
 #if defined WLAN_VOWIFI_DEBUG
@@ -704,6 +713,7 @@ eHalStatus sme_RrmIssueScanReq( tpAniSirGlobal pMac )
        vos_mem_zero( &scanRequest, sizeof(scanRequest));
 
        /* set scanType, active or passive */
+       scanRequest.bcnRptReqScan = TRUE;
        scanRequest.scanType = scanType;
 
        vos_mem_copy(scanRequest.bssid,
@@ -728,16 +738,9 @@ eHalStatus sme_RrmIssueScanReq( tpAniSirGlobal pMac )
 
        /* set min and max channel time */
        scanRequest.minChnTime = 0; //pSmeRrmContext->duration; Dont use min timeout.
-       if( eRRM_MSG_SOURCE_ESE_UPLOAD == pSmeRrmContext->msgSource ||
-           eRRM_MSG_SOURCE_LEGACY_ESE == pSmeRrmContext->msgSource )
-          scanRequest.maxChnTime = pSmeRrmContext->duration[pSmeRrmContext->currentIndex];
-       else
-          scanRequest.maxChnTime = pSmeRrmContext->duration[0];
-
-       smsLog( pMac, LOG1, "Scan Type(%s (%d)) Max Dwell Time(%d)",
-               lim_ScanTypetoString(scanRequest.scanType),
-               scanRequest.scanType,
-               scanRequest.maxChnTime );
+       scanRequest.maxChnTime = pSmeRrmContext->duration[pSmeRrmContext->currentIndex];
+       smsLog( pMac, LOG1, "Scan Type(%d) Max Dwell Time(%d)", scanRequest.scanType,
+                  scanRequest.maxChnTime );
 
 #if defined WLAN_VOWIFI_DEBUG
        smsLog( pMac, LOGE, "For Duration %d ", scanRequest.maxChnTime );
@@ -768,7 +771,7 @@ eHalStatus sme_RrmIssueScanReq( tpAniSirGlobal pMac )
 #endif
        }
    }
-   else if (2 == scanType)  /* beacon table */
+   else if (eSIR_BEACON_TABLE == scanType)  /* beacon table */
    {
        if ((pSmeRrmContext->currentIndex + 1) < pSmeRrmContext->channelList.numOfChannels)
        {
@@ -785,8 +788,7 @@ eHalStatus sme_RrmIssueScanReq( tpAniSirGlobal pMac )
    }
    else
    {
-       smsLog( pMac, LOGE, "Unknown beacon report request mode(%s (%d))",
-               lim_ScanTypetoString(scanType), scanType);
+       smsLog( pMac, LOGE, "Unknown beacon report request mode(%d)", scanType);
                 /* Indicate measurement completion to PE */
                 /* If this is not done, pCurrentReq pointer will not be freed and
                    PE will not handle subsequent Beacon requests */
@@ -900,8 +902,8 @@ void sme_RrmProcessBeaconReportReqInd(tpAniSirGlobal pMac, void *pMsgBuf)
 
    pSmeRrmContext->token = pBeaconReq->uDialogToken;
    pSmeRrmContext->regClass = pBeaconReq->channelInfo.regulatoryClass;
-   pSmeRrmContext->randnIntvl = VOS_MAX( pBeaconReq->randomizationInterval, pSmeRrmContext->rrmConfig.maxRandnInterval );
-   pSmeRrmContext->currentIndex = 0;
+         pSmeRrmContext->randnIntvl = VOS_MAX( pBeaconReq->randomizationInterval, pSmeRrmContext->rrmConfig.maxRandnInterval );
+         pSmeRrmContext->currentIndex = 0;
    pSmeRrmContext->msgSource = pBeaconReq->msgSource;
    vos_mem_copy((tANI_U8*)&pSmeRrmContext->measMode, (tANI_U8*)&pBeaconReq->fMeasurementtype, SIR_ESE_MAX_MEAS_IE_REQS);
    vos_mem_copy((tANI_U8*)&pSmeRrmContext->duration, (tANI_U8*)&pBeaconReq->measurementDuration, SIR_ESE_MAX_MEAS_IE_REQS);
