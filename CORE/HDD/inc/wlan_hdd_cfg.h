@@ -2129,6 +2129,14 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_CTS2S_DURING_BTC_SCO_MIN            WNI_CFG_BTC_CTS2S_DURING_SCO_STAMIN
 #define CFG_CTS2S_DURING_BTC_SCO_MAX            WNI_CFG_BTC_CTS2S_DURING_SCO_STAMAX
 
+/* If last disconnection was due to HB failure and we reconnect
+ * to same AP next time, send Deauth before starting connection
+ */
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION                  "gSendDeauthBeforeCon"
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_MIN              (0)
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_MAX              (1)
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_DEFAULT          (0)
+
 #ifdef WLAN_FEATURE_11W
 #define CFG_PMF_SA_QUERY_MAX_RETRIES_NAME                    "pmfSaQueryMaxRetries"
 #define CFG_PMF_SA_QUERY_MAX_RETRIES_DEFAULT                 ( 5  )
@@ -2604,6 +2612,7 @@ typedef struct
    v_U32_t                     gEnableDebugLog;
    v_U32_t                     cfgBtcCTS2SduringSCO;
    v_U32_t                     defaultRateIndex24Ghz;
+   v_BOOL_t                    sendDeauthBeforeCon;
 
 #ifdef WLAN_FEATURE_11W
    v_U32_t                     pmfSaQueryMaxRetries;

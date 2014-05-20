@@ -679,6 +679,7 @@ typedef struct tagCsrConfig
     tANI_U8 nSelect5GHzMargin;
     tANI_BOOLEAN initialScanSkipDFSCh;
     tANI_U8 allowDFSChannelRoam;
+    tANI_BOOLEAN sendDeauthBeforeCon;
 }tCsrConfig;
 
 typedef struct tagCsrChannelPowerInfo
