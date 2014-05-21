@@ -562,7 +562,7 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
    ++pAdapter->hdd_stats.hddTxRxStats.txXmitCalled;
 
-   if (unlikely(netif_queue_stopped(dev))) {
+   if (unlikely(netif_subqueue_stopped(dev, skb))) {
        VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
                   "%s is called when netif TX %d is disabled",
                   __func__, skb->queue_mapping);
