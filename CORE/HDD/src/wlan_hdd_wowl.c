@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,11 +18,25 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*============================================================================
@@ -84,7 +98,7 @@ static inline int find_ptrn_len(const char* ptrn)
 static void hdd_wowl_callback( void *pContext, eHalStatus halStatus )
 {
   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-      "%s: Return code = (%d)", __func__, halStatus );
+      "%s: Return code = (%ld)", __func__, halStatus );
 }
 
 #ifdef WLAN_WAKEUP_EVENTS
@@ -266,7 +280,7 @@ v_BOOL_t hdd_add_wowl_ptrn (hdd_adapter_t *pAdapter, const char * ptrn)
     {
       // Add failed, so invalidate the local storage
       VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, 
-          "sme_WowlAddBcastPattern failed with error code (%d)", halStatus );
+          "sme_WowlAddBcastPattern failed with error code (%ld)", halStatus );
       kfree(g_hdd_wowl_ptrns[first_empty_slot]);
       g_hdd_wowl_ptrns[first_empty_slot] = NULL;
     }
@@ -417,7 +431,6 @@ v_BOOL_t hdd_add_wowl_ptrn_debugfs(hdd_adapter_t *pAdapter, v_U8_t pattern_idx,
   {
     VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                "%s: Malformed WoW pattern mask!", __func__);
-
     return VOS_FALSE;
   }
   if (localPattern.ucPatternMaskSize > WOWL_PTRN_MASK_MAX_SIZE) {
@@ -426,6 +439,7 @@ v_BOOL_t hdd_add_wowl_ptrn_debugfs(hdd_adapter_t *pAdapter, v_U8_t pattern_idx,
                __func__, localPattern.ucPatternMaskSize, WOWL_PTRN_MASK_MAX_SIZE);
     return VOS_FALSE;
   }
+
   /* Extract the pattern mask */
   for (i = 0; i < localPattern.ucPatternMaskSize; i++)
   {
@@ -442,7 +456,7 @@ v_BOOL_t hdd_add_wowl_ptrn_debugfs(hdd_adapter_t *pAdapter, v_U8_t pattern_idx,
   if (!HAL_STATUS_SUCCESS(halStatus))
   {
     VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-               "%s: sme_WowlAddBcastPattern failed with error code (%d).",
+               "%s: sme_WowlAddBcastPattern failed with error code (%ld).",
                __func__, halStatus);
 
     return VOS_FALSE;
@@ -501,7 +515,7 @@ v_BOOL_t hdd_del_wowl_ptrn_debugfs(hdd_adapter_t *pAdapter, v_U8_t pattern_idx)
   if (!HAL_STATUS_SUCCESS(halStatus))
   {
     VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-               "%s: sme_WowlDelBcastPattern failed with error code (%d).",
+               "%s: sme_WowlDelBcastPattern failed with error code (%ld).",
                __func__, halStatus);
 
     return VOS_FALSE;
@@ -523,13 +537,11 @@ v_BOOL_t hdd_del_wowl_ptrn_debugfs(hdd_adapter_t *pAdapter, v_U8_t pattern_idx)
   @return           : FALSE if any errors encountered
                     : TRUE otherwise
   ===========================================================================*/
-v_BOOL_t hdd_enter_wowl (hdd_adapter_t *pAdapter, v_BOOL_t enable_mp, v_BOOL_t enable_pbm)
+v_BOOL_t hdd_enter_wowl (hdd_adapter_t *pAdapter, v_BOOL_t enable_mp, v_BOOL_t enable_pbm) 
 {
   tSirSmeWowlEnterParams wowParams;
   eHalStatus halStatus;
   tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
-
-  vos_mem_zero( &wowParams, sizeof( tSirSmeWowlEnterParams ) );
 
   wowParams.ucPatternFilteringEnable = enable_pbm;
   wowParams.ucMagicPktEnable = enable_mp;
@@ -538,14 +550,6 @@ v_BOOL_t hdd_enter_wowl (hdd_adapter_t *pAdapter, v_BOOL_t enable_mp, v_BOOL_t e
     vos_copy_macaddr( (v_MACADDR_t *)&(wowParams.magicPtrn),
                     &(pAdapter->macAddressCurrent) );
   }
-
-#ifdef WLAN_WAKEUP_EVENTS
-  wowParams.ucWoWEAPIDRequestEnable = VOS_TRUE;
-  wowParams.ucWoWEAPOL4WayEnable = VOS_TRUE;
-  wowParams.ucWowNetScanOffloadMatch = VOS_TRUE;
-  wowParams.ucWowGTKRekeyError = VOS_TRUE;
-  wowParams.ucWoWBSSConnLoss = VOS_TRUE;
-#endif // WLAN_WAKEUP_EVENTS
 
   // Request to put Libra into WoWL
   halStatus = sme_EnterWowl( hHal, hdd_wowl_callback, 
@@ -562,7 +566,7 @@ v_BOOL_t hdd_enter_wowl (hdd_adapter_t *pAdapter, v_BOOL_t enable_mp, v_BOOL_t e
     {
       // We failed to enter WoWL
       VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, 
-          "sme_EnterWowl failed with error code (%d)", halStatus );
+          "sme_EnterWowl failed with error code (%ld)", halStatus );
       return VOS_FALSE;
     }
   }
@@ -584,7 +588,7 @@ v_BOOL_t hdd_exit_wowl (hdd_adapter_t*pAdapter)
   if ( !HAL_STATUS_SUCCESS( halStatus ) )
   {
     VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-      "sme_ExitWowl failed with error code (%d)", halStatus );
+      "sme_ExitWowl failed with error code (%ld)", halStatus );
     return VOS_FALSE;
   }
 

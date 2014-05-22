@@ -1,5 +1,25 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -19,12 +39,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 /**=========================================================================
 
   \file        vos_packet.c
@@ -32,10 +46,6 @@
   \brief       virtual Operating System Services (vOSS) network Packet APIs
 
    Network Protocol packet/buffer support interfaces
-
-   Copyright 2009 (c) Qualcomm, Incorporated.  All Rights Reserved.
-
-   Qualcomm Confidential and Proprietary.
 
   ========================================================================*/
 
@@ -368,7 +378,7 @@ VOS_STATUS vos_packet_open( v_VOID_t *pVosContext,
       if (sizeof(vos_pkt_context_t) != vosPacketContextSize)
       {
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
-                   "VPKT [%d]: invalid vosPacketContextSize, %zu vs %d",
+                   "VPKT [%d]: invalid vosPacketContextSize, %d vs %d",
                    __LINE__, sizeof(vos_pkt_context_t), vosPacketContextSize);
          vosStatus = VOS_STATUS_E_INVAL;
          break;
@@ -1294,7 +1304,7 @@ VOS_STATUS vos_pkt_return_packet( vos_pkt_t *pPacket )
    vos_pkt_get_packet_callback callback;
    v_SIZE_t *pCount;
    VOS_PKT_TYPE packetType = VOS_PKT_TYPE_TX_802_3_DATA;
-   v_BOOL_t lowResource;
+   v_BOOL_t lowResource = VOS_FALSE;
    struct mutex * mlock;
 
    // Validate the input parameter pointer
@@ -1310,7 +1320,6 @@ VOS_STATUS vos_pkt_return_packet( vos_pkt_t *pPacket )
       pNext = pPacket->pNext;
       pPacket->pNext = NULL;
 
-      lowResource = VOS_FALSE;
       // Validate that this really an initialized vos packet
       if (unlikely(VPKT_MAGIC_NUMBER != pPacket->magic))
       {
@@ -2382,7 +2391,7 @@ VOS_STATUS vos_pkt_pop_head( vos_pkt_t *pPacket,
    // Make sure there is enough data to pop
    if (unlikely(skb->len < dataSize))
    {
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN,
+      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
                 "VPKT [%d]: pop exceeds packet size, len[%d], req[%d]",
                 __LINE__, skb->len, dataSize);
       return VOS_STATUS_E_INVAL;
@@ -2680,7 +2689,7 @@ VOS_STATUS vos_pkt_pop_tail( vos_pkt_t *pPacket,
    // Make sure there is enough data to pop
    if (unlikely(skb->len < dataSize))
    {
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN,
+      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
                 "VPKT [%d]: pop exceeds packet size, len[%d], req[%d]",
                 __LINE__, skb->len, dataSize);
       return VOS_STATUS_E_INVAL;
@@ -2757,7 +2766,7 @@ VOS_STATUS vos_pkt_trim_tail( vos_pkt_t *pPacket,
    // Make sure there is enough data to pop
    if (unlikely(skb->len < dataSize))
    {
-      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN,
+      VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
                 "VPKT [%d]: pop exceeds packet size, len[%d], req[%d]",
                 __LINE__, skb->len, dataSize);
       return VOS_STATUS_E_INVAL;
