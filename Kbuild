@@ -7,6 +7,9 @@ else
 endif
 
 ifeq ($(KERNEL_BUILD),1)
+	#Flag to enable TDLS feature
+	CONFIG_QCOM_TDLS := y
+
 	# These are provided in Android-based builds
 	# Need to explicitly define for Kernel-based builds
 	MODNAME := wlan
@@ -28,9 +31,6 @@ ifeq ($(KERNEL_BUILD), 0)
 
 	# JB kernel has CPU enablement patches, so enable
 	CONFIG_PRIMA_WLAN_11AC_HIGH_TP := y
-
-	#Flag to enable TDLS feature
-	CONFIG_QCOM_TDLS := y
 
 	#Flag to enable Fast Transition (11r) feature
 	CONFIG_QCOM_VOWIFI_11R := y
