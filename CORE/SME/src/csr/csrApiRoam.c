@@ -349,7 +349,7 @@ eHalStatus csrOpen(tpAniSirGlobal pMac)
         status = csrInitGetChannels( pMac );
 #endif
     }while(0);
-    
+
     return (status);
 }
 
@@ -363,7 +363,7 @@ eHalStatus csrInitChannels(tpAniSirGlobal pMac)
     eHalStatus status = eHAL_STATUS_SUCCESS;
     static uNvTables nvTables;
     VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
-    v_REGDOMAIN_t regId;
+    v_REGDOMAIN_t regId = REGDOMAIN_WORLD;
 
     vosStatus = vos_nv_readDefaultCountryTable( &nvTables );
     if ( VOS_IS_STATUS_SUCCESS(vosStatus) )
@@ -382,17 +382,6 @@ eHalStatus csrInitChannels(tpAniSirGlobal pMac)
     }
     smsLog( pMac, LOG1, FL(" country Code from nvRam %.2s"), pMac->scan.countryCodeDefault );
 
-    if (!('0' == pMac->scan.countryCodeDefault[0] &&
-        '0' == pMac->scan.countryCodeDefault[1]))
-    {
-        csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeDefault,
-                                         &regId, COUNTRY_NV);
-    }
-    else
-    {
-        regId = REGDOMAIN_WORLD;
-    }
-
     WDA_SetRegDomain(pMac, regId, eSIR_TRUE);
     pMac->scan.domainIdDefault = regId;
     pMac->scan.domainIdCurrent = pMac->scan.domainIdDefault;
@@ -403,6 +392,31 @@ eHalStatus csrInitChannels(tpAniSirGlobal pMac)
     status = csrInitGetChannels( pMac );
     csrClearVotesForCountryInfo(pMac);
 
+    return status;
+}
+
+eHalStatus csrInitChannelsForCC(tpAniSirGlobal pMac)
+{
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    v_REGDOMAIN_t regId = REGDOMAIN_WORLD;
+
+    if (!('0' == pMac->scan.countryCodeDefault[0] &&
+        '0' == pMac->scan.countryCodeDefault[1]))
+    {
+        csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeDefault,
+                                           &regId, COUNTRY_NV);
+
+    }
+    else
+    {
+        return status;
+    }
+    WDA_SetRegDomain(pMac, regId, eSIR_TRUE);
+    pMac->scan.domainIdDefault = regId;
+    pMac->scan.domainIdCurrent = pMac->scan.domainIdDefault;
+    vos_mem_copy(pMac->scan.countryCodeCurrent, pMac->scan.countryCodeDefault,
+                 WNI_CFG_COUNTRY_CODE_LEN);
+    status = csrInitGetChannels( pMac );
     return status;
 }
 
@@ -4405,8 +4419,22 @@ static eCsrJoinState csrRoamJoinNextBss( tpAniSirGlobal pMac, tSmeCmd *pCommand,
         {
             //Need to assign these value because they are used in csrIsSameProfile
             pScanResult = GET_BASE_ADDR(pCommand->u.roamCmd.pRoamBssEntry, tCsrScanResult, Link);
-            pCommand->u.roamCmd.roamProfile.negotiatedUCEncryptionType = pScanResult->ucEncryptionType; //Negotiated while building scan result.
-            pCommand->u.roamCmd.roamProfile.negotiatedMCEncryptionType = pScanResult->mcEncryptionType;
+           /* The OSEN IE doesn't provide the cipher suite.
+            * Therefore set to constant value of AES */
+            if(pCommand->u.roamCmd.roamProfile.bOSENAssociation)
+            {
+                pCommand->u.roamCmd.roamProfile.negotiatedUCEncryptionType =
+                                                         eCSR_ENCRYPT_TYPE_AES;
+                pCommand->u.roamCmd.roamProfile.negotiatedMCEncryptionType =
+                                                         eCSR_ENCRYPT_TYPE_AES;
+            }
+            else
+            {
+                pCommand->u.roamCmd.roamProfile.negotiatedUCEncryptionType =
+                                                   pScanResult->ucEncryptionType; //Negotiated while building scan result.
+                pCommand->u.roamCmd.roamProfile.negotiatedMCEncryptionType =
+                                                   pScanResult->mcEncryptionType;
+            }
             pCommand->u.roamCmd.roamProfile.negotiatedAuthType = pScanResult->authType;
             if ( CSR_IS_START_IBSS(&pCommand->u.roamCmd.roamProfile) )
             {
