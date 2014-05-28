@@ -4125,6 +4125,7 @@ void csrConstructCurrentValidChannelList( tpAniSirGlobal pMac, tDblLinkList *pCh
 */
 tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForce)
 {
+    eHalStatus status;
     tANI_BOOLEAN fRet = eANI_BOOLEAN_FALSE;
     v_REGDOMAIN_t domainId;
 
@@ -4135,11 +4136,7 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForc
     {
         // check if .11d support is enabled
         if( !csrIs11dSupported( pMac ) ) break;
-#ifdef CONFIG_ENABLE_LINUX_REG
-            csrGetRegulatoryDomainForCountry(pMac, pMac->scan.countryCodeElected,
-                                             &domainId, COUNTRY_IE);
-#endif
-#ifndef CONFIG_ENABLE_LINUX_REG
+
         status = csrGetRegulatoryDomainForCountry(pMac,
                        pMac->scan.countryCodeElected, &domainId, COUNTRY_IE);
         if ( status != eHAL_STATUS_SUCCESS )
@@ -4148,6 +4145,7 @@ tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tANI_BOOLEAN fForc
             fRet = eANI_BOOLEAN_FALSE;
             break;
         }
+#ifndef CONFIG_ENABLE_LINUX_REG
         // Checking for Domain Id change
         if ( domainId != pMac->scan.domainIdCurrent )
         {
