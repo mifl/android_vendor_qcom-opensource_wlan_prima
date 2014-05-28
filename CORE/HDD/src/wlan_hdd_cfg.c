@@ -3010,6 +3010,14 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                 CFG_BTC_DYN_OPP_TX_QUEUE_THOLD_DEFAULT,
                 CFG_BTC_DYN_OPP_TX_QUEUE_THOLD_MIN,
                 CFG_BTC_DYN_OPP_TX_QUEUE_THOLD_MAX ),
+
+   REG_VARIABLE(CFG_DEFER_IMPS_FOR_TIME_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, deferImpsTime,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_DEFER_IMPS_FOR_TIME_DEFAULT,
+                CFG_DEFER_IMPS_FOR_TIME_MIN,
+                CFG_DEFER_IMPS_FOR_TIME_MAX),
+
 };
 
 
@@ -4958,6 +4966,8 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig.fScanOffload =  pHddCtx->cfg_ini->fScanOffload;
 
    smeConfig.fEnableDebugLog = pHddCtx->cfg_ini->gEnableDebugLog;
+
+   smeConfig.fDeferIMPSTime = pHddCtx->cfg_ini->deferImpsTime;
 
    halStatus = sme_UpdateConfig( pHddCtx->hHal, &smeConfig);
    if ( !HAL_STATUS_SUCCESS( halStatus ) )

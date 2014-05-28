@@ -1069,6 +1069,8 @@ typedef struct sAniSirGlobal
     tANI_U32 fEnableDebugLog;
     tANI_U8 isCoalesingInIBSSAllowed;
     tSirQosMapSet QosMapSet;
+    tANI_U32 fDeferIMPSTime;
+    tANI_BOOLEAN deferImps;
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS
