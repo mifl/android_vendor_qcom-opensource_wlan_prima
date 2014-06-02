@@ -4297,6 +4297,11 @@ static struct cfg80211_bss* wlan_hdd_cfg80211_inform_bss(
 
     chan = __ieee80211_get_channel(wiphy, freq);
 
+    if (!chan) {
+       hddLog(VOS_TRACE_LEVEL_ERROR, "%s chan pointer is NULL", __func__);
+       return NULL;
+    }
+
     bss = cfg80211_get_bss(wiphy, chan, pBssDesc->bssId,
                            &roamProfile->SSID.ssId[0], roamProfile->SSID.length,
                            WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
@@ -4919,22 +4924,19 @@ v_BOOL_t hdd_isScanAllowed( hdd_context_t *pHddCtx )
 }
 
 /*
- * FUNCTION: wlan_hdd_cfg80211_scan
+ * FUNCTION: __wlan_hdd_cfg80211_scan
  * this scan respond to scan trigger and update cfg80211 scan database
  * later, scan dump command can be used to recieve scan results
  */
-int wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
+int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
                             struct net_device *dev,
 #endif
                             struct cfg80211_scan_request *request)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
-   struct net_device *dev = request->wdev->netdev;
-#endif
-    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR( dev );
-    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
-    hdd_wext_state_t *pwextBuf = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
+    hdd_adapter_t *pAdapter = NULL;
+    hdd_context_t *pHddCtx = NULL;
+    hdd_wext_state_t *pwextBuf = NULL;
     hdd_config_t *cfg_param = NULL;
     tCsrScanRequest scanRequest;
     tANI_U8 *channelList = NULL, i;
@@ -4943,11 +4945,23 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
     hdd_scaninfo_t *pScanInfo = NULL;
     v_U8_t* pP2pIe = NULL;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
+    struct net_device *dev = NULL;
+    if (NULL == request)
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+                "%s: scan req param null", __func__);
+        return -EINVAL;
+    }
+    dev = request->wdev->netdev;
+#endif
+
+    pAdapter = WLAN_HDD_GET_PRIV_PTR( dev );
+    pHddCtx = WLAN_HDD_GET_CTX( pAdapter );
+    pwextBuf = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
+
     ENTER();
 
-    MTRACE(vos_trace(VOS_MODULE_ID_HDD,
-                     TRACE_CODE_HDD_CFG80211_SCAN,
-                     pAdapter->sessionId, request->n_channels));
 
     hddLog(VOS_TRACE_LEVEL_INFO, "%s: device_mode = %d",
                                    __func__,pAdapter->device_mode);
@@ -4961,6 +4975,12 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
         return status;
     }
 
+    if (NULL == pwextBuf)
+    {
+        hddLog (VOS_TRACE_LEVEL_ERROR, "%s ERROR: invalid WEXT state\n",
+                __func__);
+        return -EIO;
+    }
     cfg_param = pHddCtx->cfg_ini;
     pScanInfo = &pHddCtx->scan_info;
 
@@ -5058,6 +5078,9 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
 
     if (NULL != request)
     {
+        MTRACE(vos_trace(VOS_MODULE_ID_HDD,
+                    TRACE_CODE_HDD_CFG80211_SCAN,
+                    pAdapter->sessionId, request->n_channels));
         hddLog(VOS_TRACE_LEVEL_INFO, "scan request for ssid = %d",
                (int)request->n_ssids);
 
@@ -5116,6 +5139,9 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
     }
     else
     {
+        MTRACE(vos_trace(VOS_MODULE_ID_HDD,
+                    TRACE_CODE_HDD_CFG80211_SCAN,
+                    pAdapter->sessionId, 0));
         /* set the scan type to active */
         scanRequest.scanType = eSIR_ACTIVE_SCAN;
         vos_mem_set( scanRequest.bssid, sizeof( tCsrBssid ), 0xff );
@@ -5133,8 +5159,15 @@ int wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
     /*Right now scanning all the channels */
     if( request )
     {
+        if (MAX_CHANNEL < request->n_channels)
+        {
+            hddLog(VOS_TRACE_LEVEL_WARN,
+               "No of Scan Channels exceeded limit: %d", request->n_channels);
+            request->n_channels = MAX_CHANNEL;
+        }
         hddLog(VOS_TRACE_LEVEL_INFO,
                                "No of Scan Channels: %d", request->n_channels);
+
         if( request->n_channels )
         {
             char chList [(request->n_channels*5)+1];
@@ -5330,6 +5363,24 @@ free_mem:
     return status;
 }
 
+int wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+                            struct net_device *dev,
+#endif
+                            struct cfg80211_scan_request *request)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret =  __wlan_hdd_cfg80211_scan(wiphy,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
+                                   dev,
+#endif
+                                   request);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
 
 void hdd_select_cbmode( hdd_adapter_t *pAdapter,v_U8_t operationChannel)
 {
@@ -6200,11 +6251,11 @@ static int wlan_hdd_try_disconnect( hdd_adapter_t *pAdapter )
 }
 
 /*
- * FUNCTION: wlan_hdd_cfg80211_set_privacy
+ * FUNCTION: __wlan_hdd_cfg80211_set_privacy
  * This function is used to initialize the security
  * parameters during connect operation.
  */
-static int wlan_hdd_cfg80211_connect( struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_connect( struct wiphy *wiphy,
                                       struct net_device *ndev,
                                       struct cfg80211_connect_params *req
                                       )
@@ -6303,6 +6354,17 @@ static int wlan_hdd_cfg80211_connect( struct wiphy *wiphy,
     return status;
 }
 
+static int wlan_hdd_cfg80211_connect( struct wiphy *wiphy,
+                                      struct net_device *ndev,
+                                      struct cfg80211_connect_params *req)
+{
+    int ret;
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_connect(wiphy, ndev, req);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
 
 /*
  * FUNCTION: wlan_hdd_disconnect
@@ -6363,10 +6425,10 @@ int wlan_hdd_disconnect( hdd_adapter_t *pAdapter, u16 reason )
 
 
 /*
- * FUNCTION: wlan_hdd_cfg80211_disconnect
+ * FUNCTION: __wlan_hdd_cfg80211_disconnect
  * This function is used to issue a disconnect request to SME
  */
-static int wlan_hdd_cfg80211_disconnect( struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_disconnect( struct wiphy *wiphy,
                                          struct net_device *dev,
                                          u16 reason
                                          )
@@ -6485,6 +6547,18 @@ static int wlan_hdd_cfg80211_disconnect( struct wiphy *wiphy,
     return status;
 }
 
+static int wlan_hdd_cfg80211_disconnect( struct wiphy *wiphy,
+                                         struct net_device *dev,
+                                         u16 reason
+                                         )
+{
+    int ret;
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_disconnect(wiphy, dev, reason);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
 
 /*
  * FUNCTION: wlan_hdd_cfg80211_set_privacy_ibss
@@ -7012,7 +7086,7 @@ static int wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_device 
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR( dev );
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
     int ssidlen = pHddStaCtx->conn_info.SSID.SSID.length;
-    tANI_U8 rate_flags;
+    tANI_U32 rate_flags;
 
     hdd_context_t *pHddCtx = (hdd_context_t*) wiphy_priv(wiphy);
     hdd_config_t  *pCfg    = pHddCtx->cfg_ini;
@@ -7061,8 +7135,17 @@ static int wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_device 
     wlan_hdd_get_rssi(pAdapter, &sinfo->signal);
     sinfo->filled |= STATION_INFO_SIGNAL;
 
-    wlan_hdd_get_station_stats(pAdapter);
-    rate_flags = pAdapter->hdd_stats.ClassA_stat.tx_rate_flags;
+    if ((eHDD_LINK_SPEED_REPORT_MAX == pCfg->reportMaxLinkSpeed) ||
+        (eHDD_LINK_SPEED_REPORT_MAX_SCALED == pCfg->reportMaxLinkSpeed &&
+         sinfo->signal >= pCfg->linkSpeedRssiHigh))
+    {
+        rate_flags = pAdapter->maxRateFlags;
+    }
+    else
+    {
+        wlan_hdd_get_station_stats(pAdapter);
+        rate_flags = pAdapter->hdd_stats.ClassA_stat.tx_rate_flags;
+    }
 
     //convert to the UI units of 100kbps
     myRate = pAdapter->hdd_stats.ClassA_stat.tx_rate * 5;
@@ -8057,10 +8140,10 @@ void hdd_cfg80211_sched_scan_start_status_cb(void *callbackContext, VOS_STATUS s
 }
 
 /*
- * FUNCTION: wlan_hdd_cfg80211_sched_scan_start
- * NL interface to enable PNO
+ * FUNCTION: __wlan_hdd_cfg80211_sched_scan_start
+ * Function to enable PNO
  */
-static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
           struct net_device *dev, struct cfg80211_sched_scan_request *request)
 {
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
@@ -8294,10 +8377,26 @@ error:
 }
 
 /*
- * FUNCTION: wlan_hdd_cfg80211_sched_scan_stop
- * NL interface to disable PNO
+ * FUNCTION: wlan_hdd_cfg80211_sched_scan_start
+ * NL interface to enable PNO
  */
-static int wlan_hdd_cfg80211_sched_scan_stop(struct wiphy *wiphy,
+static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
+          struct net_device *dev, struct cfg80211_sched_scan_request *request)
+{
+     int ret;
+
+     vos_ssr_protect(__func__);
+     ret = __wlan_hdd_cfg80211_sched_scan_start(wiphy, dev, request);
+     vos_ssr_unprotect(__func__);
+
+     return ret;
+}
+
+/*
+ * FUNCTION: __wlan_hdd_cfg80211_sched_scan_stop
+ * Function to disable PNO
+ */
+static int __wlan_hdd_cfg80211_sched_scan_stop(struct wiphy *wiphy,
           struct net_device *dev)
 {
     eHalStatus status = eHAL_STATUS_FAILURE;
@@ -8388,6 +8487,21 @@ error:
     return ret;
 }
 
+/*
+ * FUNCTION: wlan_hdd_cfg80211_sched_scan_stop
+ * NL interface to disable PNO
+ */
+static int wlan_hdd_cfg80211_sched_scan_stop(struct wiphy *wiphy,
+          struct net_device *dev)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_sched_scan_stop(wiphy, dev);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
 #endif /*FEATURE_WLAN_SCAN_PNO*/
 
 

@@ -551,6 +551,13 @@ void sapInterferenceRssiCount(tSapSpectChInfo *pSpectCh)
     tSapSpectChInfo *pExtSpectCh = NULL;
     v_S31_t rssi;
 
+    if (NULL == pSpectCh)
+    {
+        VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
+                   "%s: pSpectCh is NULL", __func__);
+        return;
+    }
+
     switch(pSpectCh->chNum)
     {
         case CHANNEL_1:
@@ -1364,7 +1371,7 @@ void sapComputeSpectWeight( tSapChSelSpectInfo* pSpectInfoParams,
             else
                 channel_id = pScanResult->BssDescriptor.channelId;
 
-            if (channel_id == pSpectCh->chNum) {
+            if (pSpectCh && (channel_id == pSpectCh->chNum)) {
                 if (pSpectCh->rssiAgr < pScanResult->BssDescriptor.rssi)
                     pSpectCh->rssiAgr = pScanResult->BssDescriptor.rssi;
 
