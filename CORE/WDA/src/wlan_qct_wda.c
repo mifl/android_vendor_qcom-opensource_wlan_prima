@@ -5878,26 +5878,28 @@ VOS_STATUS WDA_ProcessDelBAReq(tWDA_CbContext *pWDA,
  */
 void WDA_UpdateChReqCallback(WDI_Status status, void* pUserData)
 {
-   tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData;
-   WDI_UpdateChReqParamsType *pwdiUpdateChReqParam =
-       (WDI_UpdateChReqParamsType *)pWdaParams->wdaWdiApiMsgParam;
-   WDI_UpdateChannelReqType *pwdiUpdateChanReqType =
-      &pwdiUpdateChReqParam->wdiUpdateChanParams;
-   WDI_UpdateChannelReqinfoType *pChanInfoType =
-       pwdiUpdateChanReqType->pchanParam;
-   tSirUpdateChanList *pChanList =
-       (tSirUpdateChanList *)pWdaParams->wdaMsgParam;
+   tWDA_ReqParams *pWdaParams;
+   WDI_UpdateChReqParamsType *pwdiUpdateChReqParam;
+   WDI_UpdateChannelReqType *pwdiUpdateChanReqType;
+   WDI_UpdateChannelReqinfoType *pChanInfoType;
+   tSirUpdateChanList *pChanList;
 
    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
                                           "<------ %s " ,__func__);
-   if(NULL == pWdaParams)
+   if(NULL == pUserData)
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-              "%s: pWdaParams received NULL", __func__);
+              "%s: pUserData received NULL", __func__);
       VOS_ASSERT(0);
       return;
    }
 
+   pWdaParams = (tWDA_ReqParams *)pUserData;
+   pwdiUpdateChReqParam =
+       (WDI_UpdateChReqParamsType *)pWdaParams->wdaWdiApiMsgParam;
+   pwdiUpdateChanReqType = &pwdiUpdateChReqParam->wdiUpdateChanParams;
+   pChanInfoType = pwdiUpdateChanReqType->pchanParam;
+   pChanList = (tSirUpdateChanList *)pWdaParams->wdaMsgParam;
    /*
     * currently there is no response message is expected between PE and
     * WDA, Failure return from WDI is a ASSERT condition
@@ -10658,15 +10660,25 @@ void WDA_GtkOffloadGetInfoRespCallback( WDI_GtkOffloadGetInfoRspParams *pwdiGtkO
    tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData;
    tWDA_CbContext *pWDA;
    tpSirGtkOffloadGetInfoRspParams pGtkOffloadGetInfoReq;
-   tpSirGtkOffloadGetInfoRspParams pGtkOffloadGetInfoRsp = vos_mem_malloc(sizeof(tSirGtkOffloadGetInfoRspParams)) ;
+   tpSirGtkOffloadGetInfoRspParams pGtkOffloadGetInfoRsp;
    vos_msg_t vosMsg;
 
    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
                                           "<------ %s " ,__func__);
+
    if(NULL == pWdaParams)
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                  "%s: pWdaParams received NULL", __func__);
+      VOS_ASSERT(0);
+      return;
+   }
+
+   pGtkOffloadGetInfoRsp = vos_mem_malloc(sizeof(tSirGtkOffloadGetInfoRspParams));
+   if(NULL == pGtkOffloadGetInfoRsp)
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                 "%s: vos_mem_malloc failed ", __func__);
       VOS_ASSERT(0);
       return;
    }

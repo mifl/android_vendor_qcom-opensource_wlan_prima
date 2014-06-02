@@ -1749,6 +1749,7 @@ eHalStatus sme_SetCcxBeaconRequest(tHalHandle hHal, const tANI_U8 sessionId,
    vos_mem_copy( pSmeBcnReportReq->bssId, pSession->connectedProfile.bssid, sizeof(tSirMacAddr) );
    pSmeBcnReportReq->channelInfo.channelNum = 255;
    pSmeBcnReportReq->channelList.numChannels = pCcxBcnReq->numBcnReqIe;
+   pSmeBcnReportReq->msgSource = eRRM_MSG_SOURCE_CCX_UPLOAD;
 
    for (counter = 0; counter < pCcxBcnReq->numBcnReqIe; counter++)
    {
@@ -3556,45 +3557,6 @@ eHalStatus sme_CfgSetStr(tHalHandle hHal, tANI_U32 cfgId, tANI_U8 *pStr,
    return(ccmCfgSetStr(hHal, cfgId, pStr, length, callback, toBeSaved));
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_GetModifyProfileFields
-    \brief HDD or SME - QOS calls this function to get the current values of
-    connected profile fields, changing which can cause reassoc.
-    This function must be called after CFG is downloaded and STA is in connected
-    state. Also, make sure to call this function to get the current profile
-    fields before calling the reassoc. So that pModifyProfileFields will have
-    all the latest values plus the one(s) has been updated as part of reassoc
-    request.
-    \param pModifyProfileFields - pointer to the connected profile fields
-    changing which can cause reassoc
-
-    \return eHalStatus
-  -------------------------------------------------------------------------------*/
-eHalStatus sme_GetModifyProfileFields(tHalHandle hHal, tANI_U8 sessionId,
-                                     tCsrRoamModifyProfileFields * pModifyProfileFields)
-{
-   eHalStatus status = eHAL_STATUS_FAILURE;
-   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-
-   MTRACE(vos_trace(VOS_MODULE_ID_SME,
-              TRACE_CODE_SME_RX_HDD_GET_MODPROFFIELDS, sessionId, 0));
-   status = sme_AcquireGlobalLock( &pMac->sme );
-   if ( HAL_STATUS_SUCCESS( status ) )
-   {
-       if( CSR_IS_SESSION_VALID( pMac, sessionId ) )
-       {
-          status = csrGetModifyProfileFields(pMac, sessionId, pModifyProfileFields);
-       }
-       else
-       {
-          status = eHAL_STATUS_INVALID_PARAMETER;
-       }
-       sme_ReleaseGlobalLock( &pMac->sme );
-   }
-
-   return (status);
-}
-
 /*--------------------------------------------------------------------------
     \fn sme_SetConfigPowerSave
     \brief  Wrapper fn to change power save configuration in SME (PMC) module.
@@ -5046,12 +5008,36 @@ eHalStatus sme_InitChannels(tHalHandle hHal)
         return status;
     }
 
-    status = sme_AcquireGlobalLock(&pMac->sme);
-    if (HAL_STATUS_SUCCESS(status))
+    status = csrInitChannels(pMac);
+
+    return status;
+}
+
+/*-------------------------------------------------------------------------
+    \fn sme_InitChannelsForCC
+
+    \brief Used to issue regulatory hint to user
+
+    \param hHal - global pMac structure
+
+    \return eHalStatus  SUCCESS.
+
+                         FAILURE or RESOURCES  The API finished and failed.
+--------------------------------------------------------------------------*/
+
+eHalStatus sme_InitChannelsForCC(tHalHandle hHal)
+{
+    eHalStatus          status = eHAL_STATUS_FAILURE;
+    tpAniSirGlobal      pMac = PMAC_STRUCT(hHal);
+
+    if (NULL == pMac)
     {
-        status = csrInitChannels(pMac);
-        sme_ReleaseGlobalLock(&pMac->sme);
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL,
+            "%s: pMac is null", __func__);
+        return status;
     }
+    status = csrInitChannelsForCC(pMac);
+
     return status;
 }
 
