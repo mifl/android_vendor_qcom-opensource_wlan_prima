@@ -5487,6 +5487,9 @@ VOS_STATUS hdd_init_station_mode( hdd_adapter_t *pAdapter )
 #endif
 
    //Set the Connection State to Not Connected
+   hddLog(VOS_TRACE_LEVEL_INFO,
+            "%s: Set HDD connState to eConnectionState_NotConnected",
+                   __func__);
    pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
 
    //Set the default operation channel
@@ -6712,6 +6715,9 @@ VOS_STATUS hdd_reconnect_all_adapters( hdd_context_t *pHddCtx )
          hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
          hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
 
+         hddLog(VOS_TRACE_LEVEL_INFO,
+            "%s: Set HDD connState to eConnectionState_NotConnected",
+                   __func__);
          pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
          init_completion(&pAdapter->disconnect_comp_var);
          sme_RoamDisconnect(pHddCtx->hHal, pAdapter->sessionId,
@@ -7542,7 +7548,7 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
 #endif /* WLAN_KD_READY_NOTIFIER */
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
-   if(pHddCtx->cfg_ini->wlanLoggingEnable)
+   if (pHddCtx->cfg_ini->wlanLoggingEnable)
    {
        wlan_logging_sock_deactivate_svc();
    }
@@ -8840,8 +8846,8 @@ static int hdd_driver_init( void)
    int max_retries = 0;
 #endif
 
-#ifdef WCONN_TRACE_KMSG_LOG_BUFF
-   vos_wconn_trace_init();
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+   wlan_logging_sock_init_svc();
 #endif
 
    ENTER();
@@ -8863,6 +8869,11 @@ static int hdd_driver_init( void)
 #ifdef WLAN_OPEN_SOURCE
       wake_lock_destroy(&wlan_wake_lock);
 #endif
+
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+      wlan_logging_sock_deinit_svc();
+#endif
+
       return -EIO;
    }
 
@@ -8884,6 +8895,11 @@ static int hdd_driver_init( void)
 #ifdef WLAN_OPEN_SOURCE
       wake_lock_destroy(&wlan_wake_lock);
 #endif
+
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+      wlan_logging_sock_deinit_svc();
+#endif
+
       return -ENODEV;
    }
 #endif
@@ -8961,6 +8977,11 @@ static int hdd_driver_init( void)
 #ifdef WLAN_OPEN_SOURCE
       wake_lock_destroy(&wlan_wake_lock);
 #endif
+
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+      wlan_logging_sock_deinit_svc();
+#endif
+
       pr_err("%s: driver load failure\n", WLAN_MODULE_NAME);
    }
    else
@@ -9071,14 +9092,15 @@ static void hdd_driver_exit(void)
    vos_mem_exit();
 #endif
 
-#ifdef WCONN_TRACE_KMSG_LOG_BUFF
-   vos_wconn_trace_exit();
+#ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
+   wlan_logging_sock_deinit_svc();
 #endif
 
 done:
 #ifdef WLAN_OPEN_SOURCE
    wake_lock_destroy(&wlan_wake_lock);
 #endif
+
    pr_info("%s: driver unloaded\n", WLAN_MODULE_NAME);
 }
 

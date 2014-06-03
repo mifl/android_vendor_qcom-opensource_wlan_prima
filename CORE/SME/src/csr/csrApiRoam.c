@@ -4548,7 +4548,7 @@ eHalStatus csrRoamProcessCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand )
         smsLog(pMac, LOGE, FL("  session %d not found "), sessionId);
         return eHAL_STATUS_FAILURE;
     }
-    
+
     switch ( pCommand->u.roamCmd.roamReason )
     {
     case eCsrForcedDisassoc:
@@ -6754,7 +6754,14 @@ eHalStatus csrRoamProcessDisassocDeauth( tpAniSirGlobal pMac, tSmeCmd *pCommand,
     tANI_BOOLEAN fComplete = eANI_BOOLEAN_FALSE;
     eCsrRoamSubState NewSubstate;
     tANI_U32 sessionId = pCommand->sessionId;
-    
+
+    if( CSR_IS_WAIT_FOR_KEY( pMac, sessionId ) )
+    {
+        smsLog(pMac, LOG1, FL(" Stop Wait for key timer and change substate to"
+                              " eCSR_ROAM_SUBSTATE_NONE"));
+        csrRoamStopWaitForKeyTimer( pMac );
+        csrRoamSubstateChange( pMac, eCSR_ROAM_SUBSTATE_NONE, sessionId);
+    }
     // change state to 'Roaming'...
     csrRoamStateChange( pMac, eCSR_ROAMING_STATE_JOINING, sessionId );
 
@@ -15774,8 +15781,15 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
 #endif
     for (i = 0, j = 0; i < pRequestBuf->ConnectedNetwork.ChannelCount; i++)
     {
+        if (j < sizeof(ChannelCacheStr))
+        {
             j += snprintf(ChannelCacheStr + j, sizeof(ChannelCacheStr) - j," %d",
                           pRequestBuf->ConnectedNetwork.ChannelCache[i]);
+        }
+        else
+        {
+            break;
+        }
     }
     VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_DEBUG,
               "ChnlCacheType:%d, No of Chnls:%d,Channels: %s",
