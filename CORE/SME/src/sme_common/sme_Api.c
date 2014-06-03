@@ -9224,8 +9224,15 @@ eHalStatus sme_ChangeRoamScanChannelList(tHalHandle hHal, tANI_U8 *pChannelList,
         {
             for (i = 0; i < pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels; i++)
             {
-                j += snprintf(oldChannelList + j, sizeof(oldChannelList) - j," %d",
-                pNeighborRoamInfo->cfgParams.channelInfo.ChannelList[i]);
+              if (j < sizeof(oldChannelList))
+              {
+                 j += snprintf(oldChannelList + j, sizeof(oldChannelList) - j," %d",
+                 pNeighborRoamInfo->cfgParams.channelInfo.ChannelList[i]);
+              }
+              else
+              {
+                 break;
+              }
             }
         }
         csrFlushCfgBgScanRoamChannelList(pMac);
@@ -9236,8 +9243,15 @@ eHalStatus sme_ChangeRoamScanChannelList(tHalHandle hHal, tANI_U8 *pChannelList,
             j = 0;
             for (i = 0; i < pNeighborRoamInfo->cfgParams.channelInfo.numOfChannels; i++)
             {
-                j += snprintf(newChannelList + j, sizeof(newChannelList) - j," %d",
-                pNeighborRoamInfo->cfgParams.channelInfo.ChannelList[i]);
+              if (j < sizeof(oldChannelList))
+              {
+                 j += snprintf(newChannelList + j, sizeof(newChannelList) - j," %d",
+                 pNeighborRoamInfo->cfgParams.channelInfo.ChannelList[i]);
+              }
+              else
+              {
+                 break;
+              }
             }
         }
 

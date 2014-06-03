@@ -15781,8 +15781,15 @@ eHalStatus csrRoamOffloadScan(tpAniSirGlobal pMac, tANI_U8 command, tANI_U8 reas
 #endif
     for (i = 0, j = 0; i < pRequestBuf->ConnectedNetwork.ChannelCount; i++)
     {
+        if (j < sizeof(ChannelCacheStr))
+        {
             j += snprintf(ChannelCacheStr + j, sizeof(ChannelCacheStr) - j," %d",
                           pRequestBuf->ConnectedNetwork.ChannelCache[i]);
+        }
+        else
+        {
+            break;
+        }
     }
     VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_DEBUG,
               "ChnlCacheType:%d, No of Chnls:%d,Channels: %s",
