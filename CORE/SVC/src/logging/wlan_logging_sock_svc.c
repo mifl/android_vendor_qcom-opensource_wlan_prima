@@ -353,7 +353,6 @@ static int send_filled_buffers_to_user(void)
 			ret = -EINVAL;
 			continue;
 		}
-		spin_unlock_irqrestore(&gwlan_logging.spin_lock, flags);
 
 		wnl = (tAniNlHdr *) nlh;
 		wnl->radio = plog_msg->radio;
@@ -526,7 +525,7 @@ int wlan_logging_sock_activate_svc(int log_fe_to_console, int num_buf)
 	if (IS_ERR(gwlan_logging.thread)) {
 		pr_err("%s: Could not Create LogMsg Thread Controller",
 		       __func__);
-		vos_mem_free(gplog_msg);
+		vfree(gplog_msg);
 		return -ENOMEM;
 	}
 	wake_up_process(gwlan_logging.thread);
