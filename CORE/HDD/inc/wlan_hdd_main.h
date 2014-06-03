@@ -1034,6 +1034,9 @@ struct hdd_adapter_s
    /* UAPSD psb value configured through framework */
    v_U8_t configuredPsb;
    v_BOOL_t internalRoCinProgress;
+#ifdef WLAN_FEATURE_LINK_LAYER_STATS
+   v_BOOL_t isLinkLayerStatsSet;
+#endif
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
