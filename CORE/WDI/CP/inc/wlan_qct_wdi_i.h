@@ -460,6 +460,12 @@ typedef enum
 
   WDI_UPDATE_CHAN_REQ                           = 88,
 
+#ifdef WLAN_FEATURE_LINK_LAYER_STATS
+  WDI_LL_STATS_SET_REQ                          = 89,
+  WDI_LL_STATS_GET_REQ                          = 90,
+  WDI_LL_STATS_CLEAR_REQ                        = 91,
+#endif
+
   WDI_MAX_REQ,
 
   /*Send a suspend Indication down to HAL*/
@@ -761,6 +767,12 @@ typedef enum
   WDI_SET_MAX_TX_POWER_PER_BAND_RSP             = 86,
 
   WDI_UPDATE_CHAN_RESP                          = 87,
+#ifdef WLAN_FEATURE_LINK_LAYER_STATS
+  WDI_LL_STATS_SET_RSP                          = 88,
+  WDI_LL_STATS_GET_RSP                          = 89,
+  WDI_LL_STATS_CLEAR_RSP                        = 90,
+#endif
+
 
   /*-------------------------------------------------------------------------
     Indications
@@ -825,6 +837,9 @@ typedef enum
   WDI_BATCHSCAN_RESULT_IND           =  WDI_HAL_IND_MIN + 17,
 
   WDI_HAL_CH_AVOID_IND                 = WDI_HAL_IND_MIN + 18,
+#ifdef WLAN_FEATURE_LINK_LAYER_STATS
+  WDI_HAL_LL_STATS_RESULTS_IND         = WDI_HAL_IND_MIN + 19,
+#endif
   WDI_MAX_RESP
 }WDI_ResponseEnumType; 
 
@@ -5700,6 +5715,57 @@ WDI_ProcessRateUpdateInd
     WDI_ControlBlockType*  pWDICtx,
     WDI_EventInfoType*     pEventData
 );
+#ifdef WLAN_FEATURE_LINK_LAYER_STATS
+WDI_Status
+WDI_ProcessLLStatsSetRsp
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessLLStatsSetReq
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessLLStatsGetRsp
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessLLStatsGetReq
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessLLStatsClearRsp
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessLLStatsClearReq
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessLinkLayerStatsResultsInd
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+#endif /* WLAN_FEATURE_LINK_LAYER_STATS */
 
 #endif /*WLAN_QCT_WDI_I_H*/
 
