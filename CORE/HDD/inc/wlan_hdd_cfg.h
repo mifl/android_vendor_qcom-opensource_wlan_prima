@@ -2169,6 +2169,17 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_DEFER_IMPS_FOR_TIME_MAX                          (500)
 #define CFG_DEFER_IMPS_FOR_TIME_DEFAULT                      (200)
 
+#ifdef WLAN_FEATURE_11W
+#define CFG_PMF_SA_QUERY_MAX_RETRIES_NAME                    "pmfSaQueryMaxRetries"
+#define CFG_PMF_SA_QUERY_MAX_RETRIES_DEFAULT                 ( 5  )
+#define CFG_PMF_SA_QUERY_MAX_RETRIES_MIN                     ( 0  )
+#define CFG_PMF_SA_QUERY_MAX_RETRIES_MAX                     ( 20 )
+
+#define CFG_PMF_SA_QUERY_RETRY_INTERVAL_NAME                 "pmfSaQueryRetryInterval"
+#define CFG_PMF_SA_QUERY_RETRY_INTERVAL_DEFAULT              ( 200  )
+#define CFG_PMF_SA_QUERY_RETRY_INTERVAL_MIN                  ( 0    )
+#define CFG_PMF_SA_QUERY_RETRY_INTERVAL_MAX                  ( 2000 )
+#endif
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -2617,6 +2628,11 @@ typedef struct
    v_U32_t                     cfgBtcA2dpTxQueueThold;
    v_U32_t                     cfgBtcOppTxQueueThold;
    v_U32_t                     deferImpsTime;
+
+#ifdef WLAN_FEATURE_11W
+   v_U32_t                     pmfSaQueryMaxRetries;
+   v_U32_t                     pmfSaQueryRetryInterval;
+#endif
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
