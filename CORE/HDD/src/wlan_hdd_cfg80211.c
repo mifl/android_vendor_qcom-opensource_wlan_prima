@@ -968,7 +968,6 @@ void wlan_hdd_cfg80211_register_frames(hdd_adapter_t* pAdapter)
                          (v_U8_t*)WNM_NOTIFICATION_FRAME,
                                   WNM_NOTIFICATION_FRAME_SIZE );
 
-
 #ifdef WLAN_FEATURE_11W
     /* SA Query Response Action Frame */
     sme_RegisterMgmtFrame(hHal, pAdapter->sessionId, type,
@@ -1018,7 +1017,6 @@ void wlan_hdd_cfg80211_deregister_frames(hdd_adapter_t* pAdapter)
     sme_DeregisterMgmtFrame(hHal, pAdapter->sessionId, type,
                          (v_U8_t*)WNM_NOTIFICATION_FRAME,
                                   WNM_NOTIFICATION_FRAME_SIZE );
-
 
 #ifdef WLAN_FEATURE_11W
     /* SA Query Response Action Frame */
