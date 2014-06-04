@@ -288,6 +288,8 @@ extern spinlock_t hdd_context_lock;
 #define MIN(a, b) (a > b ? b : a)
 
 #endif
+/* Max PMKSAIDS available in cache */
+#define MAX_PMKSAIDS_IN_CACHE 8
 
 typedef struct hdd_tx_rx_stats_s
 {
@@ -666,6 +668,10 @@ struct hdd_station_ctx
    tCsrRoamSetKey ibss_enc_key;
 
    v_BOOL_t hdd_ReassocScenario;
+
+   /* PMKID Cache */
+   tPmkidCacheInfo PMKIDCache[MAX_PMKSAIDS_IN_CACHE];
+   tANI_U32 PMKIDCacheIndex;
 };
 
 #define BSS_STOP    0 
@@ -853,6 +859,7 @@ typedef enum
 #endif
 
 #define WLAN_HDD_ADAPTER_MAGIC 0x574c414e //ASCII "WLAN"
+
 struct hdd_adapter_s
 {
    void *pHddCtx;
