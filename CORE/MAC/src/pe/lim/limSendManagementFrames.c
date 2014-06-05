@@ -5090,14 +5090,9 @@ tSirRetStatus limSendAddBAReq( tpAniSirGlobal pMac,
     // 0 - indicates no BA timeout
     frmAddBAReq.BATimeout.timeout = pMlmAddBAReq->baTimeout;
 
-  // BA Starting Sequence Number
-  // Fragment number will always be zero
-  if (pMlmAddBAReq->baSSN < LIM_TX_FRAMES_THRESHOLD_ON_CHIP) {
-      pMlmAddBAReq->baSSN = LIM_TX_FRAMES_THRESHOLD_ON_CHIP;
-  }
-  
-  frmAddBAReq.BAStartingSequenceControl.ssn = 
-                pMlmAddBAReq->baSSN - LIM_TX_FRAMES_THRESHOLD_ON_CHIP;
+    /* Send SSN whatever we get from FW.
+     */
+    frmAddBAReq.BAStartingSequenceControl.ssn = pMlmAddBAReq->baSSN;
 
     nStatus = dot11fGetPackedAddBAReqSize( pMac, &frmAddBAReq, &nPayload );
 
@@ -5202,6 +5197,10 @@ tSirRetStatus limSendAddBAReq( tpAniSirGlobal pMac,
     limLog( pMac, LOGW,
       FL( "Sending an ADDBA REQ to " ));
     limPrintMacAddr( pMac, pMlmAddBAReq->peerMacAddr, LOGW );
+
+    limLog( pMac, LOG1, FL( "ssn = %d fragNum = %d" ),
+                          frmAddBAReq.BAStartingSequenceControl.ssn,
+                          frmAddBAReq.BAStartingSequenceControl.fragNumber);
 
     if( ( SIR_BAND_5_GHZ == limGetRFBand(psessionEntry->currentOperChannel))
        || ( psessionEntry->pePersona == VOS_P2P_CLIENT_MODE ) ||
@@ -5620,9 +5619,14 @@ tSirRetStatus limSendDelBAInd( tpAniSirGlobal pMac,
             FL( "There were warnings while packing an DELBA Ind (0x%08x)." ));
       }
 
-      limLog( pMac, LOGW,
-          FL( "Sending a DELBA IND to " ));
-      limPrintMacAddr( pMac, pMlmDelBAReq->peerMacAddr, LOGW );
+      limLog( pMac, LOG1,
+            FL( "Sending a DELBA IND to: "MAC_ADDRESS_STR" with Tid = %d"
+            " initiator = %d reason = %d" ),
+            MAC_ADDR_ARRAY(pMlmDelBAReq->peerMacAddr),
+            frmDelBAInd.DelBAParameterSet.tid,
+            frmDelBAInd.DelBAParameterSet.initiator,
+            frmDelBAInd.Reason.code);
+
 
     if( ( SIR_BAND_5_GHZ == limGetRFBand(psessionEntry->currentOperChannel))
        || ( psessionEntry->pePersona == VOS_P2P_CLIENT_MODE ) ||
