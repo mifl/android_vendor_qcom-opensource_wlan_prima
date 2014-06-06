@@ -363,6 +363,8 @@ typedef struct sPESession           // Added to Support BT-AMP
     /* To hold OBSS Scan IE Parameters */
     tSirOBSSHT40Param obssHT40ScanParam;
     tANI_U8 isCoalesingInIBSSAllowed;
+    /* flag to indicate country code in beacon */
+    tANI_U8  countryInfoPresent;
 }tPESession, *tpPESession;
 
 #define LIM_MAX_ACTIVE_SESSIONS 4
