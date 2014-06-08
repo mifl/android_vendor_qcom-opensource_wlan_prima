@@ -3221,4 +3221,6 @@ eHalStatus sme_AddChAvoidCallback
 );
 #endif /* FEATURE_WLAN_CH_AVOID */
 eHalStatus sme_UpdateConnectDebug(tHalHandle hHal, tANI_U32 set_value);
+
+tANI_BOOLEAN  sme_Is11dCountrycode(tHalHandle hHal);
 #endif //#if !defined( __SME_API_H )
