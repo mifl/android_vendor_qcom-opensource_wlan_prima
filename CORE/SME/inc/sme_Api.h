@@ -3235,4 +3235,5 @@ eHalStatus sme_UpdateConnectDebug(tHalHandle hHal, tANI_U32 set_value);
 
 eHalStatus sme_getBcnMissRate(tHalHandle, tANI_U8, void *, void *);
 
+tANI_BOOLEAN  sme_Is11dCountrycode(tHalHandle hHal);
 #endif //#if !defined( __SME_API_H )

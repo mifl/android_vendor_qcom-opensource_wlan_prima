@@ -10546,3 +10546,18 @@ void activeListCmdTimeoutHandle(void *userData)
     smeGetCommandQStatus((tHalHandle) userData);
 }
 
+
+tANI_BOOLEAN  sme_Is11dCountrycode(tHalHandle hHal)
+{
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+
+    if (VOS_TRUE == vos_mem_compare(pMac->scan.countryCodeCurrent,
+                  pMac->scan.countryCode11d, 2))
+    {
+        return eANI_BOOLEAN_TRUE;
+    }
+    else
+    {
+        return eANI_BOOLEAN_FALSE;
+    }
+}
