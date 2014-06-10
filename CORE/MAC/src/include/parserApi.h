@@ -902,3 +902,8 @@ PopulateDot11fWiderBWChanSwitchAnn(tpAniSirGlobal pMac,
                                    tDot11fIEWiderBWChanSwitchAnn *pDot11f,
                                    tpPESession psessionEntry);
 #endif
+
+tSirRetStatus ValidateAndRectifyIEs(tpAniSirGlobal pMac,
+                                    tANI_U8 *pMgmtFrame,
+                                    tANI_U32 nFrameBytes,
+                                    tANI_U32 *nMissingRsnBytes);
