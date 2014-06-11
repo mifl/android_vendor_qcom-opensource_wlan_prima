@@ -817,7 +817,7 @@ typedef struct
     /*Channel*/
     tANI_U8  ch;
     /*RSSI or Level*/
-    tANI_U8  rssi;
+    tANI_S8  rssi;
     /*Age*/
     tANI_U32 age;
 }tHDDbatchScanRspApInfo;
@@ -1428,5 +1428,7 @@ void hdd_deinit_batch_scan(hdd_adapter_t *pAdapter);
 #endif /*End of FEATURE_WLAN_BATCH_SCAN*/
 
 boolean hdd_is_5g_supported(hdd_context_t * pHddCtx);
+
+int wlan_hdd_scan_abort(hdd_adapter_t *pAdapter);
 
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )
