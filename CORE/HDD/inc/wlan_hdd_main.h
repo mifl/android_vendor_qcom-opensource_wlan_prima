@@ -592,6 +592,7 @@ typedef struct hdd_remain_on_chan_ctx
   vos_timer_t hdd_remain_on_chan_timer;
   action_pkt_buffer_t action_pkt_buff;
   v_U32_t hdd_remain_on_chan_cancel_in_progress;
+  tANI_BOOLEAN is_pending_roc_cancelled;
 }hdd_remain_on_chan_ctx_t;
 
 typedef enum{
@@ -1042,6 +1043,7 @@ struct hdd_adapter_s
    /* UAPSD psb value configured through framework */
    v_U8_t configuredPsb;
    v_BOOL_t is_roc_inprogress;
+   v_U32_t maxRateFlags;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
