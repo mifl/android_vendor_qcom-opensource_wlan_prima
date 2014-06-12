@@ -2052,6 +2052,13 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 
 #define CFG_OVERRIDE_COUNTRY_CODE                "gStaCountryCode"
 #define CFG_OVERRIDE_COUNTRY_CODE_DEFAULT        "000"
+/* If last disconnection was due to HB failure and we reconnect
+ * to same AP next time, send Deauth before starting connection
+ */
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION                  "gSendDeauthBeforeCon"
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_MIN              (0)
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_MAX              (1)
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_DEFAULT          (0)
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -2479,6 +2486,7 @@ typedef struct
 #endif
    v_U32_t                     gEnableDebugLog;
    char                        overrideCountryCode[4];
+   v_BOOL_t                    sendDeauthBeforeCon;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
