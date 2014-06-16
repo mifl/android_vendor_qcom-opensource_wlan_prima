@@ -6907,12 +6907,12 @@ WLANTL_STATxConn
    ------------------------------------------------------------------------*/
 #ifdef FEATURE_WLAN_TDLS
   if ((WLAN_STA_SOFTAP != pClientSTA->wSTADesc.wSTAType) &&
-      (!vos_concurrent_sessions_running()) &&
+      !(vos_concurrent_open_sessions_running()) &&
       !pTLCb->ucTdlsPeerCount)
   {
 #else
   if ((WLAN_STA_SOFTAP != pClientSTA->wSTADesc.wSTAType) &&
-      (!vos_concurrent_sessions_running()))
+      !(vos_concurrent_open_sessions_running()))
   {
 #endif
       ucAC = pClientSTA->ucCurrentAC;
@@ -6968,28 +6968,6 @@ WLANTL_STATxConn
   /*------------------------------------------------------------------------
     Fetch tx packet from HDD
    ------------------------------------------------------------------------*/
-//LTI
-#if 0 
-  if (WLAN_STA_SOFTAP != pTLCb->atlSTAClients[ucSTAId].wSTADesc.wSTAType && 
-     (!vos_concurrent_sessions_running()))
-  {
-    // don't set 0. 
-    //vos_atomic_set_U8( &pTLCb->atlSTAClients[ucSTAId].ucPktPending, 0);
-    vosStatus = pTLCb->atlSTAClients[ucSTAId].pfnSTAFetchPkt( pvosGCtx,
-                                  &ucSTAId,
-                                  pTLCb->atlSTAClients[ucSTAId].ucCurrentAC,
-                                  &vosDataBuff, &tlMetaInfo );
-  }
-  else
-  {
-    //softap case
-    WLANTL_ACEnumType ucAC = pTLCb->uCurServedAC;
-    vosStatus = pTLCb->atlSTAClients[ucSTAId].pfnSTAFetchPkt( pvosGCtx, 
-                               &ucSTAId,
-                               ucAC,
-                                                &vosDataBuff, &tlMetaInfo );
-  }
-#endif
 
   vosStatus = pClientSTA->pfnSTAFetchPkt( pvosGCtx,
                                &ucSTAId,
@@ -7281,12 +7259,12 @@ WLANTL_STATxAuth
    ------------------------------------------------------------------------*/
 #ifdef FEATURE_WLAN_TDLS
   if ((WLAN_STA_SOFTAP != pStaClient->wSTADesc.wSTAType) &&
-      (!vos_concurrent_sessions_running()) &&
+      (!vos_concurrent_open_sessions_running()) &&
       !pTLCb->ucTdlsPeerCount)
   {
 #else
   if ((WLAN_STA_SOFTAP != pStaClient->wSTADesc.wSTAType) &&
-      (!vos_concurrent_sessions_running()))
+      (!vos_concurrent_open_sessions_running()))
   {
 #endif
   ucAC = pStaClient->ucCurrentAC;
@@ -10493,9 +10471,11 @@ WLAN_TLGetNextTxIds
   }
 
 #ifdef FEATURE_WLAN_TDLS
-  if ((eSYSTEM_AP_ROLE == systemRole) || (vos_concurrent_sessions_running()) || pTLCb->ucTdlsPeerCount)
+  if ((eSYSTEM_AP_ROLE == systemRole) ||
+      (vos_concurrent_open_sessions_running()) || pTLCb->ucTdlsPeerCount)
 #else
-  if ((eSYSTEM_AP_ROLE == systemRole) || (vos_concurrent_sessions_running()))
+  if ((eSYSTEM_AP_ROLE == systemRole) ||
+      (vos_concurrent_open_sessions_running()))
 #endif
   {
     return WLAN_TLAPGetNextTxIds(pvosGCtx,pucSTAId);
