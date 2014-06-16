@@ -411,8 +411,8 @@ void hdd_hostapd_inactivity_timer_cb(v_PVOID_t usrDataForCallback)
 
     ENTER();
 
-#ifdef DISABLE_CONCURRENCY_AUTOSAVE    
-    if (vos_concurrent_sessions_running())
+#ifdef DISABLE_CONCURRENCY_AUTOSAVE
+    if (vos_concurrent_open_sessions_running())
     {  
        /*
               This timer routine is going to be called only when AP
@@ -504,9 +504,19 @@ void hdd_clear_all_sta(hdd_adapter_t *pHostapdAdapter, v_PVOID_t usrDataForCallb
 static int hdd_stop_p2p_link(hdd_adapter_t *pHostapdAdapter,v_PVOID_t usrDataForCallback)
 {
     struct net_device *dev;
+    hdd_context_t     *pHddCtx = NULL;
     VOS_STATUS status = VOS_STATUS_SUCCESS;
     dev = (struct net_device *)usrDataForCallback;
     ENTER();
+
+    pHddCtx = WLAN_HDD_GET_CTX(pHostapdAdapter);
+    status = wlan_hdd_validate_context(pHddCtx);
+
+    if (0 != status) {
+        hddLog(VOS_TRACE_LEVEL_ERROR, FL("HDD context is not valid"));
+        return status;
+    }
+
     if(test_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags)) 
     {
         if ( VOS_STATUS_SUCCESS == (status = WLANSAP_StopBss((WLAN_HDD_GET_CTX(pHostapdAdapter))->pvosContext) ) )
@@ -514,6 +524,7 @@ static int hdd_stop_p2p_link(hdd_adapter_t *pHostapdAdapter,v_PVOID_t usrDataFor
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, FL("Deleting P2P link!!!!!!"));
         }
         clear_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags);
+        wlan_hdd_decr_active_session(pHddCtx, pHostapdAdapter->device_mode);
     }
     EXIT();
     return (status == VOS_STATUS_SUCCESS) ? 0 : -EBUSY;
@@ -3063,7 +3074,18 @@ static int iw_softap_stopbss(struct net_device *dev,
 {
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
     VOS_STATUS status = VOS_STATUS_SUCCESS;
+    hdd_context_t *pHddCtx         = NULL;
+
     ENTER();
+
+    pHddCtx = WLAN_HDD_GET_CTX(pHostapdAdapter);
+    status = wlan_hdd_validate_context(pHddCtx);
+
+    if (0 != status) {
+        hddLog(VOS_TRACE_LEVEL_ERROR, FL("HDD context is not valid"));
+        return status;
+    }
+
     if(test_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags)) 
     {
         if ( VOS_STATUS_SUCCESS == (status = WLANSAP_StopBss((WLAN_HDD_GET_CTX(pHostapdAdapter))->pvosContext) ) )
@@ -3080,6 +3102,7 @@ static int iw_softap_stopbss(struct net_device *dev,
             }
         }
         clear_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags);
+        wlan_hdd_decr_active_session(pHddCtx, pHostapdAdapter->device_mode);
     }
     EXIT();
     return (status == VOS_STATUS_SUCCESS) ? 0 : -EBUSY;
