@@ -2738,7 +2738,7 @@ static int wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
 #endif //(LINUX_VERSION_CODE > KERNEL_VERSION(3,3,0))
 
 
-static int wlan_hdd_cfg80211_change_bss (struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_change_bss (struct wiphy *wiphy,
                                       struct net_device *dev,
                                       struct bss_parameters *params)
 {
@@ -2768,6 +2768,18 @@ static int wlan_hdd_cfg80211_change_bss (struct wiphy *wiphy,
     return 0;
 }
 
+static int wlan_hdd_cfg80211_change_bss (struct wiphy *wiphy,
+                                      struct net_device *dev,
+                                      struct bss_parameters *params)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_change_bss(wiphy, dev, params);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
 /* FUNCTION: wlan_hdd_change_country_code_cd
 *  to wait for contry code completion
 */
@@ -3530,18 +3542,18 @@ static int wlan_hdd_change_station(struct wiphy *wiphy,
 }
 
 /*
- * FUNCTION: wlan_hdd_cfg80211_add_key
+ * FUNCTION: __wlan_hdd_cfg80211_add_key
  * This function is used to initialize the key information
  */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
-static int wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                                       struct net_device *ndev,
                                       u8 key_index, bool pairwise,
                                       const u8 *mac_addr,
                                       struct key_params *params
                                       )
 #else
-static int wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                                       struct net_device *ndev,
                                       u8 key_index, const u8 *mac_addr,
                                       struct key_params *params
@@ -3898,12 +3910,41 @@ static int wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
     return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
+static int wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
+                                      struct net_device *ndev,
+                                      u8 key_index, bool pairwise,
+                                      const u8 *mac_addr,
+                                      struct key_params *params
+                                      )
+#else
+static int wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
+                                      struct net_device *ndev,
+                                      u8 key_index, const u8 *mac_addr,
+                                      struct key_params *params
+                                      )
+#endif
+{
+    int ret;
+    vos_ssr_protect(__func__);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
+    ret = __wlan_hdd_cfg80211_add_key(wiphy, ndev, key_index, pairwise,
+                                      mac_addr, params);
+#else
+    ret = __wlan_hdd_cfg80211_add_key(wiphy, ndev, key_index, mac_addr,
+                                       params);
+#endif
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
 /*
- * FUNCTION: wlan_hdd_cfg80211_get_key
+ * FUNCTION: __wlan_hdd_cfg80211_get_key
  * This function is used to get the key information
  */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
-static int wlan_hdd_cfg80211_get_key(
+static int __wlan_hdd_cfg80211_get_key(
                         struct wiphy *wiphy,
                         struct net_device *ndev,
                         u8 key_index, bool pairwise,
@@ -3911,7 +3952,7 @@ static int wlan_hdd_cfg80211_get_key(
                         void (*callback)(void *cookie, struct key_params*)
                         )
 #else
-static int wlan_hdd_cfg80211_get_key(
+static int __wlan_hdd_cfg80211_get_key(
                         struct wiphy *wiphy,
                         struct net_device *ndev,
                         u8 key_index, const u8 *mac_addr, void *cookie,
@@ -3976,6 +4017,38 @@ static int wlan_hdd_cfg80211_get_key(
     params.key = &pRoamProfile->Keys.KeyMaterial[key_index][0];
     callback(cookie, &params);
     return 0;
+}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
+static int wlan_hdd_cfg80211_get_key(
+                        struct wiphy *wiphy,
+                        struct net_device *ndev,
+                        u8 key_index, bool pairwise,
+                        const u8 *mac_addr, void *cookie,
+                        void (*callback)(void *cookie, struct key_params*)
+                        )
+#else
+static int wlan_hdd_cfg80211_get_key(
+                        struct wiphy *wiphy,
+                        struct net_device *ndev,
+                        u8 key_index, const u8 *mac_addr, void *cookie,
+                        void (*callback)(void *cookie, struct key_params*)
+                        )
+#endif
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
+    ret = __wlan_hdd_cfg80211_get_key(wiphy, ndev, key_index, pairwise,
+                                    mac_addr, cookie, callback);
+#else
+    ret = __wlan_hdd_cfg80211_get_key(wiphy, ndev, key_index, mac_addr,
+                                    callback);
+#endif
+    vos_ssr_unprotect(__func__);
+
+    return ret;
 }
 
 /*
@@ -4088,16 +4161,16 @@ static int wlan_hdd_cfg80211_del_key( struct wiphy *wiphy,
 }
 
 /*
- * FUNCTION: wlan_hdd_cfg80211_set_default_key
+ * FUNCTION: __wlan_hdd_cfg80211_set_default_key
  * This function is used to set the default tx key index
  */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
-static int wlan_hdd_cfg80211_set_default_key( struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_set_default_key( struct wiphy *wiphy,
                                               struct net_device *ndev,
                                               u8 key_index,
                                               bool unicast, bool multicast)
 #else
-static int wlan_hdd_cfg80211_set_default_key( struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_set_default_key( struct wiphy *wiphy,
                                               struct net_device *ndev,
                                               u8 key_index)
 #endif
@@ -4234,6 +4307,30 @@ static int wlan_hdd_cfg80211_set_default_key( struct wiphy *wiphy,
     }
 
     return status;
+}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
+static int wlan_hdd_cfg80211_set_default_key( struct wiphy *wiphy,
+                                              struct net_device *ndev,
+                                              u8 key_index,
+                                              bool unicast, bool multicast)
+#else
+static int wlan_hdd_cfg80211_set_default_key( struct wiphy *wiphy,
+                                              struct net_device *ndev,
+                                              u8 key_index)
+#endif
+{
+    int ret;
+    vos_ssr_protect(__func__);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
+    ret = __wlan_hdd_cfg80211_set_default_key(wiphy, ndev, key_index, unicast,
+                                              multicast);
+#else
+    ret = __wlan_hdd_cfg80211_set_default_key(wiphy, ndev, key_index);
+#endif
+    vos_ssr_unprotect(__func__);
+
+    return ret;
 }
 
 /*
@@ -4840,11 +4937,11 @@ allow_suspend:
 }
 
 /*
- * FUNCTION: hdd_isScanAllowed
- * Go through each adapter and check if scan allowed
+ * FUNCTION: hdd_isConnectionInProgress
+ * Go through each adapter and check if Connection is in progress
  *
  */
-v_BOOL_t hdd_isScanAllowed( hdd_context_t *pHddCtx )
+v_BOOL_t hdd_isConnectionInProgress( hdd_context_t *pHddCtx )
 {
     hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
     hdd_station_ctx_t *pHddStaCtx = NULL;
@@ -4856,8 +4953,8 @@ v_BOOL_t hdd_isScanAllowed( hdd_context_t *pHddCtx )
     if (TRUE == pHddCtx->btCoexModeSet)
     {
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-           FL("BTCoex Mode operation in progress, Do not allow scan"));
-        return VOS_FALSE;
+           FL("BTCoex Mode operation in progress"));
+        return VOS_TRUE;
     }
 
     status = hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
@@ -4871,6 +4968,17 @@ v_BOOL_t hdd_isScanAllowed( hdd_context_t *pHddCtx )
             hddLog(VOS_TRACE_LEVEL_INFO,
                     "%s: Adapter with device mode %d exists",
                     __func__, pAdapter->device_mode);
+            if (((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
+                 (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode) ||
+                 (WLAN_HDD_P2P_DEVICE == pAdapter->device_mode)) &&
+                 (eConnectionState_Connecting ==
+                (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState))
+            {
+                hddLog(VOS_TRACE_LEVEL_ERROR,
+                       "%s: %p(%d) Connection is in progress", __func__,
+                       WLAN_HDD_GET_STATION_CTX_PTR(pAdapter), pAdapter->sessionId);
+                return VOS_TRUE;
+            }
             if ((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
                     (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode) ||
                     (WLAN_HDD_P2P_DEVICE == pAdapter->device_mode))
@@ -4884,7 +4992,7 @@ v_BOOL_t hdd_isScanAllowed( hdd_context_t *pHddCtx )
                            "%s: client " MAC_ADDRESS_STR
                            " is in the middle of WPS/EAPOL exchange.", __func__,
                             MAC_ADDR_ARRAY(staMac));
-                    return VOS_FALSE;
+                    return VOS_TRUE;
                 }
             }
             else if ((WLAN_HDD_SOFTAP == pAdapter->device_mode) ||
@@ -4901,7 +5009,7 @@ v_BOOL_t hdd_isScanAllowed( hdd_context_t *pHddCtx )
                                "%s: client " MAC_ADDRESS_STR " of SoftAP/P2P-GO is in the "
                                "middle of WPS/EAPOL exchange.", __func__,
                                 MAC_ADDR_ARRAY(staMac));
-                        return VOS_FALSE;
+                        return VOS_TRUE;
                     }
                 }
             }
@@ -4909,9 +5017,7 @@ v_BOOL_t hdd_isScanAllowed( hdd_context_t *pHddCtx )
         status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
         pAdapterNode = pNext;
     }
-    hddLog(VOS_TRACE_LEVEL_INFO,
-            "%s: Scan allowed", __func__);
-    return VOS_TRUE;
+    return VOS_FALSE;
 }
 
 /*
@@ -4974,16 +5080,6 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
     }
     cfg_param = pHddCtx->cfg_ini;
     pScanInfo = &pHddCtx->scan_info;
-
-    if ((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) &&
-        (eConnectionState_Connecting ==
-           (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState))
-    {
-        hddLog(VOS_TRACE_LEVEL_ERROR,
-                "%s: %p(%d) Connection in progress: Scan request denied (EBUSY)", __func__, \
-                WLAN_HDD_GET_STATION_CTX_PTR(pAdapter), pAdapter->sessionId);
-        return -EBUSY;
-    }
 
 #ifdef WLAN_BTAMP_FEATURE
     //Scan not supported when AMP traffic is on.
@@ -5059,7 +5155,7 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
 
     /* Check if scan is allowed at this point of time.
      */
-    if (!hdd_isScanAllowed(pHddCtx))
+    if (hdd_isConnectionInProgress(pHddCtx))
     {
         hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Scan not allowed", __func__);
         return -EBUSY;
@@ -6815,11 +6911,11 @@ static int wlan_hdd_cfg80211_leave_ibss( struct wiphy *wiphy,
 }
 
 /*
- * FUNCTION: wlan_hdd_cfg80211_set_wiphy_params
+ * FUNCTION: __wlan_hdd_cfg80211_set_wiphy_params
  * This function is used to set the phy parameters
  * (RTS Threshold/FRAG Threshold/Retry Count etc ...)
  */
-static int wlan_hdd_cfg80211_set_wiphy_params(struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_set_wiphy_params(struct wiphy *wiphy,
         u32 changed)
 {
     hdd_context_t *pHddCtx = wiphy_priv(wiphy);
@@ -6945,11 +7041,23 @@ static int wlan_hdd_cfg80211_set_wiphy_params(struct wiphy *wiphy,
     return 0;
 }
 
+static int wlan_hdd_cfg80211_set_wiphy_params(struct wiphy *wiphy,
+                                                                u32 changed)
+{
+     int ret;
+
+     vos_ssr_protect(__func__);
+     ret = __wlan_hdd_cfg80211_set_wiphy_params(wiphy, changed);
+     vos_ssr_unprotect(__func__);
+
+     return ret;
+}
+
 /*
- * FUNCTION: wlan_hdd_cfg80211_set_txpower
+ * FUNCTION: __wlan_hdd_cfg80211_set_txpower
  * This function is used to set the txpower
  */
-static int wlan_hdd_cfg80211_set_txpower(struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_set_txpower(struct wiphy *wiphy,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
         struct wireless_dev *wdev,
 #endif
@@ -7017,6 +7125,34 @@ static int wlan_hdd_cfg80211_set_txpower(struct wiphy *wiphy,
     }
 
     return 0;
+}
+
+static int wlan_hdd_cfg80211_set_txpower(struct wiphy *wiphy,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
+        struct wireless_dev *wdev,
+#endif
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,35)
+        enum tx_power_setting type,
+#else
+        enum nl80211_tx_power_setting type,
+#endif
+        int dbm)
+{
+    int ret;
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_set_txpower(wiphy,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
+                                        wdev,
+#endif
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,35)
+                                        type,
+#else
+                                        type,
+#endif
+                                        dbm);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
 }
 
 /*
