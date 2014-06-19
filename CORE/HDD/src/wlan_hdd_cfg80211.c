@@ -6483,7 +6483,7 @@ int wlan_hdd_disconnect( hdd_adapter_t *pAdapter, u16 reason )
     int status;
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
-
+    long ret;
     status = wlan_hdd_validate_context(pHddCtx);
 
     if (0 != status)
@@ -6512,29 +6512,40 @@ int wlan_hdd_disconnect( hdd_adapter_t *pAdapter, u16 reason )
     /*issue disconnect*/
     status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
                                  pAdapter->sessionId, reason);
+     if(eHAL_STATUS_CMD_NOT_QUEUED == status)
+     {
+        hddLog(VOS_TRACE_LEVEL_INFO,
+             FL("status = %d, already disconnected"),
+                     (int)status );
 
-    if ( 0 != status )
+    }
+    else if ( 0 != status )
     {
         hddLog(VOS_TRACE_LEVEL_ERROR,
                "%s csrRoamDisconnect failure, returned %d",
                __func__, (int)status );
         return -EINVAL;
     }
-    status = wait_for_completion_interruptible_timeout(
+    ret = wait_for_completion_interruptible_timeout(
                 &pAdapter->disconnect_comp_var,
                 msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
-    if (!status)
+
+    if (!ret && ( eHAL_STATUS_CMD_NOT_QUEUED != status ))
     {
         hddLog(VOS_TRACE_LEVEL_ERROR,
               "%s: Failed to disconnect, timed out", __func__);
         return -ETIMEDOUT;
     }
-    else if (status == -ERESTARTSYS)
+    else if (ret == -ERESTARTSYS)
     {
         hddLog(VOS_TRACE_LEVEL_ERROR,
                "%s: Failed to disconnect, wait interrupted", __func__);
-        return status;
+        return ret;
     }
+    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+              FL("Set HDD connState to eConnectionState_NotConnected"));
+    pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
+
     return 0;
 }
 
