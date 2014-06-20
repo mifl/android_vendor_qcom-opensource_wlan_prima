@@ -230,6 +230,9 @@ typedef enum
 #define WFD_OUI_TYPE_SIZE  4
 #endif
 
+#define WMM_OUI_TYPE   "\x00\x50\xf2\x02"
+#define WMM_OUI_TYPE_SIZE  4
+
 typedef enum
 {
     eWEXT_WPS_OFF = 0,
@@ -383,6 +386,9 @@ extern int iw_set_var_ints_getnone(struct net_device *dev, struct iw_request_inf
 
 extern int iw_set_three_ints_getnone(struct net_device *dev, struct iw_request_info *info,
                        union iwreq_data *wrqu, char *extra);
+
+extern int hdd_priv_get_data(struct iw_point *p_priv_data,
+                             union iwreq_data *wrqu);
 
 void hdd_clearRoamProfileIe( hdd_adapter_t *pAdapter);
 void hdd_GetClassA_statisticsCB(void *pStats, void *pContext);
