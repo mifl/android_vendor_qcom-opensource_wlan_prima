@@ -1657,8 +1657,6 @@ static void hdd_RoamIbssIndicationHandler( hdd_adapter_t *pAdapter,
                              bss);
          }
 
-         netif_carrier_on(pAdapter->dev);
-         netif_tx_start_all_queues(pAdapter->dev);
          break;
       }
 
@@ -1720,6 +1718,7 @@ static int roamRemoveIbssStation( hdd_station_ctx_t *pHddStaCtx, v_U8_t staId )
    int idx = 0;
    v_U8_t  valid_idx   = 0;
    v_U8_t  del_idx   = 0;
+   v_U8_t  empty_slots = 0;
 
    for ( idx = 0; idx < HDD_MAX_NUM_IBSS_STA; idx++ )
    {
@@ -1730,8 +1729,11 @@ static int roamRemoveIbssStation( hdd_station_ctx_t *pHddStaCtx, v_U8_t staId )
          vos_zero_macaddr( &pHddStaCtx->conn_info.peerMacAddress[ idx ] );
 
          fSuccess = TRUE;
+
          // Note the deleted Index, if its 0 we need special handling
          del_idx = idx;
+
+         empty_slots++;
       }
       else
       {
@@ -1739,7 +1741,20 @@ static int roamRemoveIbssStation( hdd_station_ctx_t *pHddStaCtx, v_U8_t staId )
          {
             valid_idx = idx;
          }
+         else
+         {
+            // Found an empty slot
+            empty_slots++;
+         }
       }
+   }
+
+   if (HDD_MAX_NUM_IBSS_STA == empty_slots)
+   {
+      // Last peer departed, set the IBSS state appropriately
+      pHddStaCtx->conn_info.connState = eConnectionState_IbssDisconnected;
+      VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                 "Last IBSS Peer Departed!!!" );
    }
 
    // Find next active staId, to have a valid sta trigger for TL.
