@@ -742,6 +742,7 @@ typedef struct tagCsrScanStruct
     v_REGDOMAIN_t domainIdDefault;  //default regulatory domain
     v_REGDOMAIN_t domainIdCurrent;  //current regulatory domain
     tCsrBssid currentCountryBssid;  // Bssid for current country code
+    tANI_S8 currentCountryRSSI;     // RSSI for current country code
     tANI_BOOLEAN f11dInfoApplied;
     tANI_BOOLEAN fCancelIdleScan;
 #ifdef FEATURE_WLAN_WAPI
@@ -925,9 +926,6 @@ typedef struct tagCsrRoamSession
     eCsrRoamingReason roamingReason;
     tANI_BOOLEAN fCancelRoaming;
     vos_timer_t hTimerRoaming;
-    vos_timer_t hTimerIbssJoining;
-    tCsrTimerInfo ibssJoinTimerInfo;
-    tANI_BOOLEAN ibss_join_pending;
     eCsrRoamResult roamResult;  //the roamResult that is used when the roaming timer fires
     tCsrRoamJoinStatus joinFailStatusCode;    //This is the reason code for join(assoc) failure
     //The status code returned from PE for deauth or disassoc (in case of lostlink), or our own dynamic roaming
@@ -1391,6 +1389,7 @@ eHalStatus csrRoamUpdateWPARSNIEs( tpAniSirGlobal pMac, tANI_U32 sessionId, tSir
 void csrSetCfgPrivacy( tpAniSirGlobal pMac, tCsrRoamProfile *pProfile, tANI_BOOLEAN fPrivacy );
 tANI_S8 csrGetInfraSessionId( tpAniSirGlobal pMac );
 tANI_U8 csrGetInfraOperationChannel( tpAniSirGlobal pMac, tANI_U8 sessionId);
+tANI_BOOLEAN csrIsSessionClientAndConnected(tpAniSirGlobal pMac, tANI_U8 sessionId);
 tANI_U8 csrGetConcurrentOperationChannel( tpAniSirGlobal pMac );
 
 eHalStatus csrRoamCopyConnectProfile(tpAniSirGlobal pMac, tANI_U32 sessionId,
