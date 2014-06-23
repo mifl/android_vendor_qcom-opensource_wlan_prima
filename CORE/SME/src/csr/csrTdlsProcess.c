@@ -492,6 +492,11 @@ eHalStatus csrTdlsProcessSendMgmt( tpAniSirGlobal pMac, tSmeCmd *cmd )
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, cmd->sessionId );
     eHalStatus status = eHAL_STATUS_FAILURE;
 
+    if (NULL == pSession)
+    {
+        smsLog( pMac, LOGE, FL("pSession is NULL"));
+        return eHAL_STATUS_FAILURE;
+    }
     if (NULL == pSession->pConnectBssDesc)
     {
         smsLog( pMac, LOGE, FL("BSS Description is not present") );
@@ -554,6 +559,12 @@ eHalStatus csrTdlsProcessAddSta( tpAniSirGlobal pMac, tSmeCmd *cmd )
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, cmd->sessionId );
     eHalStatus status = eHAL_STATUS_FAILURE;
 
+    if (NULL == pSession)
+    {
+        smsLog( pMac, LOGE, FL("pSession is NULL"));
+        return eHAL_STATUS_FAILURE;
+    }
+
     if (NULL == pSession->pConnectBssDesc)
     {
         smsLog( pMac, LOGE, FL("BSS description is not present") );
@@ -614,6 +625,12 @@ eHalStatus csrTdlsProcessDelSta( tpAniSirGlobal pMac, tSmeCmd *cmd )
     tSirTdlsDelStaReq *tdlsDelStaReq = NULL ;
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, cmd->sessionId );
     eHalStatus status = eHAL_STATUS_FAILURE;
+
+    if (NULL == pSession)
+    {
+        smsLog( pMac, LOGE, FL("pSession is NULL"));
+        return eHAL_STATUS_FAILURE;
+    }
 
     if (NULL == pSession->pConnectBssDesc)
     {
@@ -825,6 +842,12 @@ eHalStatus csrTdlsProcessLinkEstablish( tpAniSirGlobal pMac, tSmeCmd *cmd )
     tSirTdlsLinkEstablishReq *tdlsLinkEstablishReq = NULL ;
     eHalStatus status = eHAL_STATUS_FAILURE;
     tCsrRoamSession *pSession = CSR_GET_SESSION( pMac, cmd->sessionId );
+
+    if (NULL == pSession)
+    {
+        smsLog( pMac, LOGE, FL("pSession is NULL"));
+        return eHAL_STATUS_FAILURE;
+    }
 
     status = palAllocateMemory( pMac->hHdd, (void **)&tdlsLinkEstablishReq,
             (sizeof(tSirTdlsLinkEstablishReq) ) );
