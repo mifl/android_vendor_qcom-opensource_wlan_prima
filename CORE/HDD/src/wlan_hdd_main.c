@@ -2320,6 +2320,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            }
 
            /* Set Reassoc threshold to (lookup rssi threshold + 5 dBm) */
+           pHddCtx->cfg_ini->nNeighborReassocRssiThreshold = lookUpThreshold + 5;
            sme_setNeighborReassocRssiThreshold((tHalHandle)(pHddCtx->hHal), lookUpThreshold + 5);
        }
        else if (strncmp(command, "GETROAMTRIGGER", 14) == 0)
