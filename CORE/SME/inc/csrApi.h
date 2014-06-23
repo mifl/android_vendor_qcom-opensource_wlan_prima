@@ -1138,6 +1138,9 @@ typedef struct tagCsrConfigParam
     tANI_U8 isAmsduSupportInAMPDU;
     tANI_U8 nSelect5GHzMargin;
     tANI_BOOLEAN initialScanSkipDFSCh;
+
+    tANI_U8 isCoalesingInIBSSAllowed;
+
 }tCsrConfigParam;
 
 //Tush
