@@ -1509,6 +1509,8 @@ WLANTL_ClearSTAClient
   {
     TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
     "WLAN TL:Station was not previously registered on WLANTL_ClearSTAClient"));
+    /* Clean packets cached for the STA */
+    WLANTL_StartForwarding(ucSTAId,0,0);
     return VOS_STATUS_E_EXISTS;
   }
 
@@ -7523,6 +7525,12 @@ WLANTL_STATxAuth
     ucTxFlag = ucTxFlag | HAL_TDLS_PEER_STA_MASK;
   }
 #endif /* FEATURE_WLAN_TDLS */
+  if( tlMetaInfo.ucIsArp )
+  {
+    /*Send ARP at lowest Phy rate and through WQ5 */
+    ucTxFlag |= HAL_USE_BD_RATE_MASK;
+    ucTxFlag |= HAL_USE_FW_IN_TX_PATH;
+  }
 
   vosStatus = (VOS_STATUS)WDA_DS_BuildTxPacketInfo( pvosGCtx, 
                      vosDataBuff , &vDestMacAddr,
@@ -7843,7 +7851,7 @@ WLANTL_STARxConn
 
         if ( VOS_STATUS_SUCCESS != vosStatus ) 
         {
-          TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+          TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_WARN,
             "WLAN TL:Failed to translate from 802.11 to 802.3 - dropping"));
           /* Drop packet */
           vos_pkt_return_packet(vosDataBuff);
@@ -8304,7 +8312,7 @@ WLANTL_STARxAuth
 
       if ( VOS_STATUS_SUCCESS != vosStatus )
       {
-        TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+        TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_WARN,
                "WLAN TL:Failed to translate from 802.11 to 802.3 - dropping"));
         /* Drop packet */
         vos_pkt_return_packet(vosDataBuff);
@@ -9740,7 +9748,7 @@ WLANTL_Translate80211To8023Header
 
     if ( VOS_STATUS_SUCCESS != vosStatus )
     {
-       TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+       TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_WARN,
                   "WLAN TL: Failed to pop LLC header from packet %d",
                   vosStatus));
 
