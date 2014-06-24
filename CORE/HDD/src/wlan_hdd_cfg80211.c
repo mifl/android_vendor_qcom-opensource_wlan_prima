@@ -3009,11 +3009,40 @@ VOS_STATUS wlan_hdd_validate_operation_channel(hdd_adapter_t *pAdapter,int chann
 
         if (indx >= num_ch)
         {
+            if (WLAN_HDD_P2P_GO == pAdapter->device_mode)
+            {
+                eCsrBand band;
+                unsigned int freq;
+
+                sme_GetFreqBand(hHal, &band);
+
+                if (eCSR_BAND_5G == band)
+                {
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,38))
+                    if (channel <= ARRAY_SIZE(hdd_channels_2_4_GHZ))
+                    {
+                        freq = ieee80211_channel_to_frequency(channel,
+                                                         IEEE80211_BAND_2GHZ);
+                    }
+                    else
+                    {
+                        freq = ieee80211_channel_to_frequency(channel,
+                                                         IEEE80211_BAND_5GHZ);
+                    }
+#else
+                    freq = ieee80211_channel_to_frequency(channel);
+#endif
+                    if(WLAN_HDD_IS_SOCIAL_CHANNEL(freq))
+                        return VOS_STATUS_SUCCESS;
+                }
+            }
+
             hddLog(VOS_TRACE_LEVEL_ERROR,
                 "%s: Invalid Channel [%d]", __func__, channel);
             return VOS_STATUS_E_FAILURE;
         }
     }
+
     return VOS_STATUS_SUCCESS;
 
 }
