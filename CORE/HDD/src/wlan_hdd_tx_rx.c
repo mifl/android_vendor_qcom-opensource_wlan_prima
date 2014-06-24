@@ -574,7 +574,8 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
        return NETDEV_TX_BUSY;
    }
 
-   if (WLAN_HDD_IBSS == pAdapter->device_mode)
+   if (WLAN_HDD_IBSS == pAdapter->device_mode &&
+       eConnectionState_IbssConnected == pHddStaCtx->conn_info.connState)
    {
       v_MACADDR_t *pDestMacAddress = (v_MACADDR_t*)skb->data;
 
@@ -627,9 +628,18 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
             * if it is in the mainline code and if the log level is enabled by someone for debugging
            VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_INFO,"%s:Queue is Filling up.Inform TL again about pending packets", __func__);*/
 
-       WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
-                              STAId, ac
-                             );
+      status = WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
+                                    STAId, ac
+                                    );
+      if ( !VOS_IS_STATUS_SUCCESS( status ) )
+      {
+         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                    "%s: WLANTL_STAPktPending() returned error code %d",
+                    __func__, status);
+         kfree_skb(skb);
+         spin_unlock(&pAdapter->wmm_tx_queue[ac].lock);
+         return NETDEV_TX_OK;
+      }
    }
    //If we have already reached the max queue size, disable the TX queue
    if ( pAdapter->wmm_tx_queue[ac].count == pAdapter->wmm_tx_queue[ac].max_size)
@@ -781,6 +791,10 @@ VOS_STATUS hdd_Ibss_GetStaId(hdd_station_ctx_t *pHddStaCtx, v_MACADDR_t *pMacAdd
   ===========================================================================*/
 void hdd_tx_timeout(struct net_device *dev)
 {
+   hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
+   struct netdev_queue *txq;
+   int i = 0;
+
    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
       "%s: Transmission timeout occurred", __func__);
 
@@ -788,6 +802,30 @@ void hdd_tx_timeout(struct net_device *dev)
    //disabled either because of disassociation or low resource scenarios. In
    //case of disassociation it is ok to ignore this. But if associated, we have
    //do possible recovery here
+
+   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+              "num_bytes AC0: %d AC1: %d AC2: %d AC3: %d",
+              pAdapter->wmm_tx_queue[0].count,
+              pAdapter->wmm_tx_queue[1].count,
+              pAdapter->wmm_tx_queue[2].count,
+              pAdapter->wmm_tx_queue[3].count);
+
+   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+              "tx_suspend AC0: %d AC1: %d AC2: %d AC3: %d",
+              pAdapter->isTxSuspended[0],
+              pAdapter->isTxSuspended[1],
+              pAdapter->isTxSuspended[2],
+              pAdapter->isTxSuspended[3]);
+
+   for (i = 0; i < 8; i++)
+   {
+      txq = netdev_get_tx_queue(dev, i);
+      VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "Queue%d status: %d", i, netif_tx_queue_stopped(txq));
+   }
+
+   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+              "carrier state: %d", netif_carrier_ok(dev));
 } 
 
 

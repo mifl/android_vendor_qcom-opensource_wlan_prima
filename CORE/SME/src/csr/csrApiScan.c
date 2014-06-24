@@ -3074,7 +3074,7 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
 
     tmpSsid.length = 0;
     cand_Bss_rssi = -128; // RSSI coming from PE is -ve
-    rssi_of_current_country = -128;
+    rssi_of_current_country = pMac->scan.currentCountryRSSI;
 
     // remove the BSS descriptions from temporary list
     while( ( pEntry = csrLLRemoveTail( &pMac->scan.tempScanResults, LL_ACCESS_LOCK ) ) != NULL)
@@ -3179,6 +3179,7 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
                                pBssDescription->Result.BssDescriptor.rssi * (-1),
                                pIesLocal->Country.country[0],pIesLocal->Country.country[1] );
             rssi_of_current_country =  pBssDescription->Result.BssDescriptor.rssi ;
+            pMac->scan.currentCountryRSSI = rssi_of_current_country;
         }
 
         
@@ -5363,9 +5364,19 @@ tANI_BOOLEAN csrScanAgeOutBss(tpAniSirGlobal pMac, tCsrScanResult *pResult)
                 smsLog(pMac, LOGW, "Aging out BSS "MAC_ADDRESS_STR" Channel %d",
                        MAC_ADDR_ARRAY(pResult->Result.BssDescriptor.bssId),
                        pResult->Result.BssDescriptor.channelId);
+
                 //No need to hold the spin lock because caller should hold the lock for pMac->scan.scanResultList
                 if( csrLLRemoveEntry(&pMac->scan.scanResultList, &pResult->Link, LL_ACCESS_NOLOCK) )
                 {
+                    if (csrIsMacAddressEqual(pMac,
+                                        (tCsrBssid *) pResult->Result.BssDescriptor.bssId,
+                                        (tCsrBssid *) pMac->scan.currentCountryBssid))
+                    {
+                        smsLog(pMac, LOGW, "Aging out 11d BSS "MAC_ADDRESS_STR,
+                               MAC_ADDR_ARRAY(pResult->Result.BssDescriptor.bssId));
+                        pMac->scan.currentCountryRSSI = -128;
+                    }
+
                     csrFreeScanResultEntry(pMac, pResult);
                     fRet = eANI_BOOLEAN_TRUE;
                 }
@@ -6034,6 +6045,9 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
     tANI_U32 index = 0;
     tANI_U32 new_index = 0;
     eNVChannelEnabledType NVchannel_state;
+    tANI_U8  ch144_support = 0;
+
+    ch144_support = WDA_getFwWlanFeatCaps(WLAN_CH144);
 
     do
     {
@@ -6089,6 +6103,10 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
                     {
                        for ( index = 0; index < pSrcReq->ChannelInfo.numOfChannels ; index++ )
                        {
+                          /* Skip CH 144 if firmware support not present */
+                          if (pSrcReq->ChannelInfo.ChannelList[index] == 144 && !ch144_support)
+                              continue;
+
                           NVchannel_state = vos_nv_getChannelEnabledState(
                                   pSrcReq->ChannelInfo.ChannelList[index]);
                           if ((NV_CHANNEL_ENABLE == NVchannel_state) ||
@@ -6142,8 +6160,12 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
                        for ( index = 0; index < pSrcReq->ChannelInfo.
                                              numOfChannels ; index++ )
                         {
+                            /* Skip CH 144 if firmware support not present */
+                            if (pSrcReq->ChannelInfo.ChannelList[index] == 144 && !ch144_support)
+                                continue;
+
                             /* Allow scan on valid channels only.
-                             * If it is p2p scan and valid channel list doesnt contain 
+                             * If it is p2p scan and valid channel list doesnt contain
                              * social channels, enforce scan on social channels because
                              * that is the only way to find p2p peers.
                              * This can happen only if band is set to 5Ghz mode.

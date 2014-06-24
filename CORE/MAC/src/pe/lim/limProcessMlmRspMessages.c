@@ -421,6 +421,8 @@ limProcessMlmStartCnf(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         /// Start BSS is a failure
         peDeleteSession(pMac,psessionEntry);
         psessionEntry = NULL;
+        PELOGE(limLog(pMac, LOGE,FL("Start BSS Failed "));)
+        return;
     }
     /// Send response to Host
     limSendSmeStartBssRsp(pMac, eWNI_SME_START_BSS_RSP,
@@ -3580,6 +3582,7 @@ void limProcessInitScanRsp(tpAniSirGlobal pMac,  void *body)
                  */
                 pMac->lim.gLimNumOfConsecutiveBkgndScanFailure = 0;
                 pMac->lim.gLimNumOfBackgroundScanSuccess += 1;
+                pMac->lim.probeCounter = 0;
             }
             limContinueChannelScan(pMac);
             break;
