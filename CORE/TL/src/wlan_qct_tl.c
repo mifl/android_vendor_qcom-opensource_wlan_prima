@@ -1002,10 +1002,10 @@ WLANTL_StartForwarding
   vos_mem_zero( &sMessage, sizeof(vos_msg_t) );
 
   uData = ucSTAId | (ucUcastSig << 8 ) | (ucBcastSig << 16); 
-  sMessage.bodyptr = (v_PVOID_t)uData;
-  sMessage.type    = WLANTL_TX_FWD_CACHED;
+  sMessage.bodyval = uData;
+  sMessage.type    = WLANTL_RX_FWD_CACHED;
 
-  return vos_tx_mq_serialize(VOS_MQ_ID_TL, &sMessage);
+  return vos_rx_mq_serialize(VOS_MQ_ID_TL, &sMessage);
 
 } /* WLANTL_StartForwarding() */
 
@@ -5826,6 +5826,16 @@ WLANTL_RxFrames
              * So it will lead to low resource condition in Rx Data Path.*/
           ((WDA_IS_RX_BCAST(pvBDHeader) == 0)))
       {
+        if( WDA_IsSelfSTA(pvosGCtx,ucSTAId))
+        {
+           //drop packet for Self STA index
+           TLLOGW(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_WARN,
+                  "%s: Packet dropped for Self STA with staId %d ", __func__, ucSTAId ));
+
+           vos_pkt_return_packet(vosTempBuff);
+           vosTempBuff = vosDataBuff;
+           continue;
+        }
         uDPUSig = WDA_GET_RX_DPUSIG( pvBDHeader );
           //Station has not yet been registered with TL - cache the frame
         TLLOGW(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_WARN,
@@ -6248,6 +6258,92 @@ WLANTL_RxCachedFrames
 
   return VOS_STATUS_SUCCESS;
 }/* WLANTL_RxCachedFrames */
+
+/*==========================================================================
+  FUNCTION    WLANTL_RxProcessMsg
+
+  DESCRIPTION
+    Called by VOSS when a message was serialized for TL through the
+    rx thread/task.
+
+  DEPENDENCIES
+    The TL must be initialized before this function can be called.
+
+  PARAMETERS
+
+    IN
+    pvosGCtx:       pointer to the global vos context; a handle to TL's
+                    control block can be extracted from its context
+    message:        type and content of the message
+
+
+  RETURN VALUE
+    The result code associated with performing the operation
+
+    VOS_STATUS_E_INVAL:   invalid input parameters
+    VOS_STATUS_E_FAULT:   pointer to TL cb is NULL ; access would cause a
+                          page fault
+    VOS_STATUS_SUCCESS:   Everything is good :)
+
+  Other values can be returned as a result of a function call, please check
+  corresponding API for more info.
+  SIDE EFFECTS
+
+============================================================================*/
+VOS_STATUS
+WLANTL_RxProcessMsg
+(
+  v_PVOID_t        pvosGCtx,
+  vos_msg_t*       message
+)
+{
+   VOS_STATUS      vosStatus = VOS_STATUS_SUCCESS;
+   v_U32_t         uData;
+   v_U8_t          ucSTAId;
+   v_U8_t          ucUcastSig;
+   v_U8_t          ucBcastSig;
+
+  /*------------------------------------------------------------------------
+    Sanity check
+   ------------------------------------------------------------------------*/
+  if ( NULL == message )
+  {
+    TLLOGE(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+               "WLAN TL:Invalid parameter sent on WLANTL_RxProcessMessage"));
+    return VOS_STATUS_E_INVAL;
+  }
+
+  /*------------------------------------------------------------------------
+    Process message
+   ------------------------------------------------------------------------*/
+  TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
+             "WLAN TL:Received message: %d through rx flow", message->type));
+
+  switch( message->type )
+  {
+
+  case WLANTL_RX_FWD_CACHED:
+    /*---------------------------------------------------------------------
+     The data sent with the message has the following structure:
+       | 00 | ucBcastSignature | ucUcastSignature | ucSTAID |
+       each field above is one byte
+    ---------------------------------------------------------------------*/
+    uData       = message->bodyval;
+    ucSTAId     = ( uData & 0x000000FF);
+    ucUcastSig  = ( uData & 0x0000FF00)>>8;
+    ucBcastSig  = (v_U8_t)(( uData & 0x00FF0000)>>16);
+    vosStatus   = WLANTL_ForwardSTAFrames( pvosGCtx, ucSTAId,
+                                           ucUcastSig, ucBcastSig);
+    break;
+
+  default:
+    /*no processing for now*/
+    break;
+  }
+
+  return VOS_STATUS_SUCCESS;
+}
+
 
 /*==========================================================================
   FUNCTION    WLANTL_ResourceCB
@@ -8715,10 +8811,6 @@ WLANTL_TxProcessMsg
 )
 {
    VOS_STATUS      vosStatus = VOS_STATUS_SUCCESS;
-   v_U32_t         uData;
-   v_U8_t          ucSTAId; 
-   v_U8_t          ucUcastSig;
-   v_U8_t          ucBcastSig;
    void (*callbackRoutine) (void *callbackContext);
    void *callbackContext;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -8749,20 +8841,7 @@ WLANTL_TxProcessMsg
   case WLANTL_TX_RES_NEEDED:
     vosStatus = WLANTL_GetTxResourcesCB( pvosGCtx );
      break;
-  
-  case WLANTL_TX_FWD_CACHED:
-    /*---------------------------------------------------------------------
-     The data sent with the message has the following structure: 
-       | 00 | ucBcastSignature | ucUcastSignature | ucSTAID |
-       each field above is one byte
-    ---------------------------------------------------------------------*/
-    uData       = (v_U32_t)message->bodyptr; 
-    ucSTAId     = ( uData & 0x000000FF); 
-    ucUcastSig  = ( uData & 0x0000FF00)>>8; 
-    ucBcastSig  = (v_U8_t)(( uData & 0x00FF0000)>>16); 
-    vosStatus   = WLANTL_ForwardSTAFrames( pvosGCtx, ucSTAId, 
-                                           ucUcastSig, ucBcastSig);
-    break;
+
   case WDA_DS_TX_START_XMIT:
       WLANTL_ClearTxXmitPending(pvosGCtx);
       vosStatus = WDA_DS_TxFrames( pvosGCtx );
