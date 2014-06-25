@@ -1417,6 +1417,8 @@ eHalStatus sme_UpdateConfig(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams)
        }
    }
    pMac->fEnableDebugLog = pSmeConfigParams->fEnableDebugLog;
+   pMac->isCoalesingInIBSSAllowed =
+         pSmeConfigParams->csrConfig.isCoalesingInIBSSAllowed;
    return status;
 }
 
