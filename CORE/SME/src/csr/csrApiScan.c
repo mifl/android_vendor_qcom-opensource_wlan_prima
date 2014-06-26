@@ -2186,6 +2186,7 @@ eHalStatus csrScanGetResult(tpAniSirGlobal pMac, tCsrScanResultFilter *pFilter, 
                     }
                     else
                     {
+#ifdef WLAN_FEATURE_11W
                         fMatch = csrIsSecurityMatch(pMac, &pFilter->authType,
                                                 &pFilter->EncryptionType,
                                                 &pFilter->mcEncryptionType,
@@ -2194,6 +2195,14 @@ eHalStatus csrScanGetResult(tpAniSirGlobal pMac, tCsrScanResultFilter *pFilter, 
                                                 &pFilter->MFPCapable,
                                                 &pBssDesc->Result.BssDescriptor,
                                                 pIes, NULL, NULL, NULL );
+#else
+                        fMatch = csrIsSecurityMatch(pMac, &pFilter->authType,
+                                                &pFilter->EncryptionType,
+                                                &pFilter->mcEncryptionType,
+                                                NULL, NULL, NULL,
+                                                &pBssDesc->Result.BssDescriptor,
+                                                pIes, NULL, NULL, NULL );
+#endif
                     }
                     if ((pBssDesc->Result.pvIes == NULL) && pIes)
                          vos_mem_free(pIes);
