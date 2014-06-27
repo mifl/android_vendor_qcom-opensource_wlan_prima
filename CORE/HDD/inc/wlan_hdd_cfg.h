@@ -2194,6 +2194,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_PMF_SA_QUERY_RETRY_INTERVAL_MAX                  ( 2000 )
 #endif
 
+#define CFG_ENABLE_CH_AVOID                                  "gEnableChannelAvoidance"
+#define CFG_ENABLE_CH_AVOID_MIN                              ( 0 )
+#define CFG_ENABLE_CH_AVOID_MAX                              ( 1 )
+#define CFG_ENABLE_CH_AVOID_DEFAULT                          ( 1 )
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2648,6 +2653,8 @@ typedef struct
    v_U32_t                     pmfSaQueryMaxRetries;
    v_U32_t                     pmfSaQueryRetryInterval;
 #endif
+   v_BOOL_t                    fenableCHAvoidance;
+
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

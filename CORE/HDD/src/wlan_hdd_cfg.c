@@ -3047,6 +3047,13 @@ REG_VARIABLE( CFG_TDLS_SCAN_COEX_SUPPORT_ENABLE, WLAN_PARAM_Integer,
                 CFG_PMF_SA_QUERY_RETRY_INTERVAL_MIN,
                 CFG_PMF_SA_QUERY_RETRY_INTERVAL_MAX ),
 #endif
+
+   REG_VARIABLE(CFG_ENABLE_CH_AVOID, WLAN_PARAM_Integer,
+                 hdd_config_t, fenableCHAvoidance,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_ENABLE_CH_AVOID_DEFAULT,
+                 CFG_ENABLE_CH_AVOID_MIN,
+                 CFG_ENABLE_CH_AVOID_MAX ),
 };
 
 
