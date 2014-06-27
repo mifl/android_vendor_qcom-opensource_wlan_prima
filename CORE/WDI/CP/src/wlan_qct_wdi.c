@@ -189,7 +189,7 @@ static placeHolderInCapBitmap supportEnabledFeatures[] =
 #else
     ,FEATURE_NOT_SUPPORTED          //40
 #endif
-    ,FEATURE_NOT_SUPPORTED          //41
+    ,MU_MIMO                        //41
 #ifdef WLAN_FEATURE_EXTSCAN
     ,EXTENDED_SCAN                  //42
 #else
@@ -1370,6 +1370,9 @@ void WDI_TraceHostFWCapabilities(tANI_U32 *capabilityBitmap)
                           pCapStr += strlen("EXTENDED_SCAN");
                           break;
 #endif
+                     case MU_MIMO: snprintf(pCapStr, sizeof("MU_MIMO"), "%s", "MU_MIMO");
+                          pCapStr += strlen("MU_MIMO");
+                          break;
 
                  }
                  *pCapStr++ = ',';
@@ -8323,6 +8326,7 @@ WDI_ProcessConfigBSSReq
      return WDI_STATUS_E_FAILURE;
   }
 
+  wpalMemoryZero(&halConfigBssReqMsg, sizeof(tConfigBssReqMsg));
   pwdiConfigBSSParams = (WDI_ConfigBSSReqParamsType*)pEventData->pEventData;
   wdiConfigBSSRspCb   = (WDI_ConfigBSSRspCb)pEventData->pCBfnc;
   /*-------------------------------------------------------------------------
@@ -11780,6 +11784,7 @@ WDI_ProcessConfigStaReq
      return WDI_STATUS_E_FAILURE;
   }
 
+  wpalMemoryZero(&halConfigStaReqMsg, sizeof(tConfigStaReqMsg));
   pwdiConfigSTAParams = (WDI_ConfigSTAReqParamsType*)pEventData->pEventData;
   wdiConfigSTARspCb   = (WDI_ConfigSTARspCb)pEventData->pCBfnc;
   /*-------------------------------------------------------------------------
@@ -24354,6 +24359,7 @@ WDI_CopyWDIStaCtxToHALStaCtx
      phalConfigSta_V1->vhtCapable = pwdiConfigSta->ucVhtCapableSta;
      phalConfigSta_V1->vhtTxChannelWidthSet = pwdiConfigSta->ucVhtTxChannelWidthSet;
      phalConfigSta_V1->vhtTxBFEnabled = pwdiConfigSta->ucVhtTxBFEnabled;
+     phalConfigSta_V1->vhtTxMUBformeeCapable = pwdiConfigSta->vhtTxMUBformeeCapable;
      phalConfigSta_V1->htLdpcEnabled = pwdiConfigSta->ucHtLdpcEnabled;
      phalConfigSta_V1->vhtLdpcEnabled = pwdiConfigSta->ucVhtLdpcEnabled;
 
