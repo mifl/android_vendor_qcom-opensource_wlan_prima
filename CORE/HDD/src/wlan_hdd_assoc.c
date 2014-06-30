@@ -1606,6 +1606,9 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                      __func__, MAC_ADDR_ARRAY(pWextState->req_bssId),
                      roamResult, roamStatus);
 
+            /*Clear the roam profile*/
+            hdd_clearRoamProfileIe( pAdapter );
+
             /* inform association failure event to nl80211 */
             if ( eCSR_ROAM_RESULT_ASSOC_FAIL_CON_CHANNEL == roamResult )
             {
@@ -1635,8 +1638,6 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
             }
         }
 
-        /*Clear the roam profile*/
-        hdd_clearRoamProfileIe( pAdapter );
         if (WLAN_HDD_INFRA_STATION == pAdapter->device_mode)
         {
             hdd_wmm_init( pHddCtx, hddWmmDscpToUpMapInfra );
