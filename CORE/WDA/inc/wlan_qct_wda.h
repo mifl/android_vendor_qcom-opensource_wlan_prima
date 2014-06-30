@@ -1183,6 +1183,8 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 
 #define WDA_RATE_UPDATE_IND         SIR_HAL_RATE_UPDATE_IND
 
+#define WDA_GET_BCN_MISS_RATE_REQ        SIR_HAL_BCN_MISS_RATE_REQ
+
 tSirRetStatus wdaPostCtrlMsg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 
 eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
