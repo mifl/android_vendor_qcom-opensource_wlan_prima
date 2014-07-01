@@ -468,6 +468,16 @@ typedef enum
   WDI_LL_STATS_CLEAR_REQ                        = 92,
 #endif
 
+#ifdef WLAN_FEATURE_EXTSCAN
+  WDI_EXTSCAN_START_REQ                          = 93,
+  WDI_EXTSCAN_STOP_REQ                           = 94,
+  WDI_EXTSCAN_GET_CACHED_RESULTS_REQ             = 95,
+  WDI_EXTSCAN_GET_CAPABILITIES_REQ               = 96,
+  WDI_EXTSCAN_SET_BSSID_HOTLIST_REQ              = 97,
+  WDI_EXTSCAN_RESET_BSSID_HOTLIST_REQ            = 98,
+  WDI_EXTSCAN_SET_SIGNF_RSSI_CHANGE_REQ          = 99,
+  WDI_EXTSCAN_RESET_SIGNF_RSSI_CHANGE_REQ        = 100,
+#endif
   WDI_MAX_REQ,
 
   /*Send a suspend Indication down to HAL*/
@@ -782,6 +792,16 @@ typedef enum
   /* channel switch resp v1*/
   WDI_CH_SWITCH_RESP_V1                         = 92,
 
+#ifdef WLAN_FEATURE_EXTSCAN
+  WDI_EXTSCAN_START_RSP                          = 93,
+  WDI_EXTSCAN_STOP_RSP                           = 94,
+  WDI_EXTSCAN_GET_CACHED_RESULTS_RSP             = 95,
+  WDI_EXTSCAN_GET_CAPABILITIES_RSP               = 96,
+  WDI_EXTSCAN_SET_HOTLIST_BSSID_RSP              = 97,
+  WDI_EXTSCAN_RESET_HOTLIST_BSSID_RSP            = 98,
+  WDI_EXTSCAN_SET_SIGNF_RSSI_CHANGE_RSP          = 99,
+  WDI_EXTSCAN_RESET_SIGNF_RSSI_CHANGE_RSP        = 100,
+#endif
   /*-------------------------------------------------------------------------
     Indications
      !! Keep these last in the enum if possible
@@ -850,6 +870,13 @@ typedef enum
   WDI_PRINT_REG_INFO_IND               = WDI_HAL_IND_MIN + 19,
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
   WDI_HAL_LL_STATS_RESULTS_IND         = WDI_HAL_IND_MIN + 20,
+#endif
+#ifdef WLAN_FEATURE_EXTSCAN
+  WDI_HAL_EXTSCAN_PROGRESS_IND       = WDI_HAL_IND_MIN + 21,
+  WDI_HAL_EXTSCAN_SCAN_AVAILABLE_IND = WDI_HAL_IND_MIN + 22,
+  WDI_HAL_EXTSCAN_RESULT_IND         = WDI_HAL_IND_MIN + 23,
+  WDI_HAL_EXTSCAN_BSSID_HOTLIST_RESULT_IND    = WDI_HAL_IND_MIN + 24,
+  WDI_HAL_EXTSCAN_SIG_RSSI_RESULT_IND         = WDI_HAL_IND_MIN + 25,
 #endif
   WDI_MAX_RESP
 }WDI_ResponseEnumType; 
@@ -5792,6 +5819,153 @@ WDI_printRegInfo
   WDI_ControlBlockType*  pWDICtx,
   WDI_EventInfoType*     pEventData
 );
+
+#ifdef WLAN_FEATURE_EXTSCAN
+WDI_Status
+WDI_ProcessEXTScanStartReq
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+WDI_Status
+WDI_ProcessEXTScanStopReq
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+WDI_Status
+WDI_ProcessEXTScanStartRsp
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+WDI_Status
+WDI_ProcessEXTScanStopRsp
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanGetCachedResultsReq
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+WDI_Status
+WDI_ProcessEXTScanGetCachedResultsRsp
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanProgressInd
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanGetCapabilitiesReq
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanGetCapabilitiesRsp
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanSetBSSIDHotlistReq
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanSetHotlistBSSIDRsp
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanResetBSSIDHotlistReq
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanResetHotlistBSSIDRsp
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanSetSignifRSSIChangeReq
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanSetSignfRSSIChangeRsp
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanResetSignfRSSIChangeReq
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanResetSignfRSSIChangeRsp
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanScanAvailableInd
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanResultInd
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanBssidHotListResultInd
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessEXTScanSignfRssiResultInd
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+#endif /* WLAN_FEATURE_EXTSCAN */
+
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 WDI_Status
 WDI_ProcessLLStatsSetRsp
