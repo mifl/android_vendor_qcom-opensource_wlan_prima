@@ -3729,6 +3729,8 @@ static VOS_STATUS wlan_ftm_priv_set_pwr_cntl_mode(hdd_adapter_t *pAdapter,
         goto done;
     }
 
+    ftm_status.powerCtlMode= pwr_mode;
+
  done:
     return status;
 
