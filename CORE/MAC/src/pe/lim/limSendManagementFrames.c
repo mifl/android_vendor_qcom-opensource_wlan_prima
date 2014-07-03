@@ -436,12 +436,12 @@ limSendProbeReqMgmtFrame(tpAniSirGlobal pMac,
        //Include HT Capability IE
        if (psessionEntry->vhtCapability)
        {
-          PopulateDot11fVHTCaps( pMac, &pr.VHTCaps );
+          PopulateDot11fVHTCaps( pMac, &pr.VHTCaps, eSIR_FALSE );
        }
     }  else {
        if (IS_DOT11_MODE_VHT(dot11mode))
        {
-          PopulateDot11fVHTCaps( pMac, &pr.VHTCaps );
+          PopulateDot11fVHTCaps( pMac, &pr.VHTCaps, eSIR_FALSE );
        }
     }
 #endif
@@ -748,7 +748,7 @@ limSendProbeRspMgmtFrame(tpAniSirGlobal pMac,
     if(psessionEntry->vhtCapability)
     {
         limLog( pMac, LOG1, FL("Populate VHT IE in Probe Response"));
-        PopulateDot11fVHTCaps( pMac, &pFrm->VHTCaps );
+        PopulateDot11fVHTCaps( pMac, &pFrm->VHTCaps, eSIR_TRUE );
         PopulateDot11fVHTOperation( pMac, &pFrm->VHTOperation );
         // we do not support multi users yet
         //PopulateDot11fVHTExtBssLoad( pMac, &frm.VHTExtBssLoad );
@@ -1470,7 +1470,7 @@ limSendAssocRspMgmtFrame(tpAniSirGlobal pMac,
             psessionEntry->vhtCapability )
         {
             limLog( pMac, LOG1, FL("Populate VHT IEs in Assoc Response"));
-            PopulateDot11fVHTCaps( pMac, &frm.VHTCaps );
+            PopulateDot11fVHTCaps( pMac, &frm.VHTCaps, eSIR_TRUE );
             PopulateDot11fVHTOperation( pMac, &frm.VHTOperation);
             PopulateDot11fExtCap( pMac, &frm.ExtCap, psessionEntry);
         }
@@ -2388,7 +2388,7 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
         psessionEntry->vhtCapabilityPresentInBeacon)
     {
         limLog( pMac, LOG1, FL("Populate VHT IEs in Assoc Request"));
-        PopulateDot11fVHTCaps( pMac, &pFrm->VHTCaps );
+        PopulateDot11fVHTCaps( pMac, &pFrm->VHTCaps, eSIR_FALSE );
     }
 #endif
     PopulateDot11fExtCap( pMac, &pFrm->ExtCap, psessionEntry);
@@ -2843,7 +2843,7 @@ limSendReassocReqWithFTIEsMgmtFrame(tpAniSirGlobal     pMac,
              psessionEntry->vhtCapabilityPresentInBeacon)
     {
         limLog( pMac, LOG1, FL("Populate VHT IEs in Re-Assoc Request"));
-        PopulateDot11fVHTCaps( pMac, &frm.VHTCaps );
+        PopulateDot11fVHTCaps( pMac, &frm.VHTCaps, eSIR_FALSE );
     }
 #endif
     PopulateDot11fExtCap( pMac, &frm.ExtCap, psessionEntry);
@@ -3263,7 +3263,7 @@ limSendReassocReqMgmtFrame(tpAniSirGlobal     pMac,
              psessionEntry->vhtCapabilityPresentInBeacon)
     {
         limLog( pMac, LOG1, FL("Populate VHT IEs in Re-Assoc Request"));
-        PopulateDot11fVHTCaps( pMac, &frm.VHTCaps );
+        PopulateDot11fVHTCaps( pMac, &frm.VHTCaps, eSIR_FALSE );
         PopulateDot11fExtCap( pMac, &frm.ExtCap, psessionEntry);
     }
 #endif
