@@ -753,43 +753,62 @@ __limHandleSmeStartBssRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                       FL("Unable to retrieve Channel Width from CFG"));
                 }
 
-                if(chanWidth == eHT_CHANNEL_WIDTH_20MHZ || chanWidth == eHT_CHANNEL_WIDTH_40MHZ)
+                if( channelNumber <= RF_CHAN_14 &&
+                                chanWidth != eHT_CHANNEL_WIDTH_20MHZ)
                 {
-                    if (cfgSetInt(pMac, WNI_CFG_VHT_CHANNEL_WIDTH, WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ)
-                                                                     != eSIR_SUCCESS)
+                     chanWidth = eHT_CHANNEL_WIDTH_20MHZ;
+                     limLog(pMac, LOG1, FL("Setting chanWidth to 20Mhz for"
+                                                " channel %d"),channelNumber);
+                }
+
+                if(chanWidth == eHT_CHANNEL_WIDTH_20MHZ ||
+                                chanWidth == eHT_CHANNEL_WIDTH_40MHZ)
+                {
+                    if (cfgSetInt(pMac, WNI_CFG_VHT_CHANNEL_WIDTH,
+                                     WNI_CFG_VHT_CHANNEL_WIDTH_20_40MHZ)
+                                                             != eSIR_SUCCESS)
                     {
-                        limLog(pMac, LOGP, FL("could not set  WNI_CFG_CHANNEL_BONDING_MODE at CFG"));
+                        limLog(pMac, LOGP, FL("could not set "
+                                     " WNI_CFG_CHANNEL_BONDING_MODE at CFG"));
                         retCode = eSIR_LOGP_EXCEPTION;
                          goto free;
                     }
                 }
                 if (chanWidth == eHT_CHANNEL_WIDTH_80MHZ)
                 {
-                    if (cfgSetInt(pMac, WNI_CFG_VHT_CHANNEL_WIDTH, WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ)
-                                                                     != eSIR_SUCCESS)
+                    if (cfgSetInt(pMac, WNI_CFG_VHT_CHANNEL_WIDTH,
+                                           WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ)
+                                                               != eSIR_SUCCESS)
                     {
-                        limLog(pMac, LOGP, FL("could not set  WNI_CFG_CHANNEL_BONDING_MODE at CFG"));
+                        limLog(pMac, LOGP, FL("could not set "
+                                     " WNI_CFG_CHANNEL_BONDING_MODE at CFG"));
                         retCode = eSIR_LOGP_EXCEPTION;
                          goto free;
                     }
 
-                    centerChan = limGetCenterChannel(pMac,channelNumber,pSmeStartBssReq->cbMode,WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ);
+                    centerChan = limGetCenterChannel( pMac, channelNumber,
+                                         pSmeStartBssReq->cbMode,
+                                         WNI_CFG_VHT_CHANNEL_WIDTH_80MHZ);
                     if(centerChan != eSIR_CFG_INVALID_ID)
                     {
-                        limLog(pMac, LOGW, FL("***Center Channel for 80MHZ channel width = %ld"),centerChan);
+                        limLog(pMac, LOGW, FL("***Center Channel for "
+                                     "80MHZ channel width = %d"),centerChan);
                         psessionEntry->apCenterChan = centerChan;
-                        if (cfgSetInt(pMac, WNI_CFG_VHT_CHANNEL_CENTER_FREQ_SEGMENT1, centerChan)
-                                                                     != eSIR_SUCCESS)
+                        if (cfgSetInt(pMac,
+                                      WNI_CFG_VHT_CHANNEL_CENTER_FREQ_SEGMENT1,
+                                      centerChan) != eSIR_SUCCESS)
                         {
-                            limLog(pMac, LOGP, FL("could not set  WNI_CFG_CHANNEL_BONDING_MODE at CFG"));
+                            limLog(pMac, LOGP, FL("could not set  "
+                                      "WNI_CFG_CHANNEL_BONDING_MODE at CFG"));
                             retCode = eSIR_LOGP_EXCEPTION;
                             goto free;
                         }
                     }
                 }
 
-                /* All the translation is done by now for gVhtChannelWidth from .ini file to 
-                 * the actual values as defined in spec. So, grabing the spec value which is 
+                /* All the translation is done by now for gVhtChannelWidth
+                 * from .ini file to the actual values as defined in spec.
+                 * So, grabing the spec value which is
                  * updated in .dat file by the above logic */
                 if (wlan_cfgGetInt(pMac, WNI_CFG_VHT_CHANNEL_WIDTH,
                                    &chanWidth) != eSIR_SUCCESS)
