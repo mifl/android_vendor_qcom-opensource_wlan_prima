@@ -165,6 +165,8 @@ static int   enable_dfs_chan_scan = -1;
 static int wlan_hdd_inited;
 #endif
 
+static int gbcnMissRate = -1;
+
 /*
  * spinlock for synchronizing asynchronous request/response
  * (full description of use in wlan_hdd_main.h)
@@ -204,6 +206,9 @@ static VOS_STATUS wlan_hdd_init_channels_for_cc(hdd_context_t *pHddCtx);
  */
 #define WLAN_HDD_DRIVER_MIRACAST_CFG_MIN_VAL 0
 #define WLAN_HDD_DRIVER_MIRACAST_CFG_MAX_VAL 2
+
+//wait time for beacon miss rate.
+#define BCN_MISS_RATE_TIME 500
 
 #ifdef WLAN_OPEN_SOURCE
 static struct wake_lock wlan_wake_lock;
@@ -1906,6 +1911,36 @@ exit:
 
 
 #endif/*End of FEATURE_WLAN_BATCH_SCAN*/
+
+static void getBcnMissRateCB(VOS_STATUS status, int bcnMissRate, void *data)
+{
+    bcnMissRateContext_t *pCBCtx = (bcnMissRateContext_t *)data;
+
+   /* there is a race condition that exists between this callback
+      function and the caller since the caller could time out either
+      before or while this code is executing.  we use a spinlock to
+      serialize these actions */
+    spin_lock(&hdd_context_lock);
+
+    gbcnMissRate = -1;
+
+    if(pCBCtx->magic != BCN_MISS_RATE_CONTEXT_MAGIC || NULL == data)
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               FL("invalid context magic: %08x data: %p"), pCBCtx->magic, data );
+        spin_unlock(&hdd_context_lock);
+        return ;
+    }
+
+    if (VOS_STATUS_SUCCESS == status)
+    {
+       gbcnMissRate = bcnMissRate;
+    }
+    complete(&(pCBCtx->completion));
+    spin_unlock(&hdd_context_lock);
+
+    return;
+}
 
 int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -3821,6 +3856,65 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            ret = hdd_handle_batch_scan_ioctl(pAdapter, &priv_data, command);
        }
 #endif
+       else if (strncmp(command, "GETBCNMISSRATE", 14) == 0)
+       {
+           eHalStatus status;
+           char buf[32], len;
+           long waitRet;
+           bcnMissRateContext_t getBcnMissRateCtx;
+           hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+
+           if (eConnectionState_Associated != pHddStaCtx->conn_info.connState)
+           {
+               hddLog(VOS_TRACE_LEVEL_WARN,
+                    FL("GETBCNMISSRATE: STA is not in connected state"));
+               ret = -1;
+               goto exit;
+           }
+
+           init_completion(&(getBcnMissRateCtx.completion));
+           getBcnMissRateCtx.magic = BCN_MISS_RATE_CONTEXT_MAGIC;
+
+           status = sme_getBcnMissRate((tHalHandle)(pHddCtx->hHal),
+                                       pAdapter->sessionId,
+                                       (void *)getBcnMissRateCB,
+                                       (void *)(&getBcnMissRateCtx));
+           if( eHAL_STATUS_SUCCESS != status)
+           {
+               hddLog(VOS_TRACE_LEVEL_INFO,
+                    FL("GETBCNMISSRATE: fail to post WDA cmd"));
+                ret = -EINVAL;
+                goto exit;
+           }
+
+           waitRet = wait_for_completion_interruptible_timeout
+                           (&getBcnMissRateCtx.completion, BCN_MISS_RATE_TIME);
+           if(waitRet <= 0)
+           {
+               hddLog(VOS_TRACE_LEVEL_ERROR,
+                         FL("failed to wait on bcnMissRateComp %d"), ret);
+
+               //Make magic number to zero so that callback is not called.
+               spin_lock(&hdd_context_lock);
+               getBcnMissRateCtx.magic = 0x0;
+               spin_unlock(&hdd_context_lock);
+               ret = -EINVAL;
+               goto exit;
+           }
+
+           hddLog(VOS_TRACE_LEVEL_INFO,
+                  FL("GETBCNMISSRATE: bcnMissRate: %d"), gbcnMissRate);
+
+           len = snprintf(buf, sizeof(buf), "GETBCNMISSRATE %d", gbcnMissRate);
+           if (copy_to_user(priv_data.buf, &buf, len + 1))
+           {
+               hddLog(VOS_TRACE_LEVEL_ERROR,
+                     "%s: failed to copy data to user buffer", __func__);
+               ret = -EFAULT;
+               goto exit;
+           }
+           ret = len;
+       }
        else {
            MTRACE(vos_trace(VOS_MODULE_ID_HDD,
                             TRACE_CODE_HDD_UNSUPPORTED_IOCTL,
@@ -7309,6 +7403,7 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    hdd_adapter_t* pAdapter = NULL;
    struct statsContext powerContext;
    long lrc;
+   hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
 
    ENTER();
 
@@ -7316,57 +7411,53 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    {
       // Unloading, restart logic is no more required.
       wlan_hdd_restart_deinit(pHddCtx);
-   }
 
-   if (VOS_STA_SAP_MODE != hdd_get_conparam())
-   {
-      if (VOS_FTM_MODE != hdd_get_conparam())
+      vosStatus = hdd_get_front_adapter ( pHddCtx, &pAdapterNode );
+      while (NULL != pAdapterNode && VOS_STATUS_E_EMPTY != vosStatus)
       {
-         hdd_adapter_t* pAdapter = hdd_get_adapter(pHddCtx,
-                                      WLAN_HDD_INFRA_STATION);
-         if (pAdapter == NULL)
-            pAdapter = hdd_get_adapter(pHddCtx, WLAN_HDD_P2P_CLIENT);
-
-         if (pAdapter != NULL)
+         pAdapter = pAdapterNode->pAdapter;
+         if (NULL != pAdapter)
          {
             wlan_hdd_cfg80211_pre_voss_stop(pAdapter);
             hdd_UnregisterWext(pAdapter->dev);
+
+            if (WLAN_HDD_INFRA_STATION ==  pAdapter->device_mode ||
+                WLAN_HDD_P2P_CLIENT == pAdapter->device_mode)
+            {
+                wlan_hdd_cfg80211_pre_voss_stop(pAdapter);
+                hdd_UnregisterWext(pAdapter->dev);
+            }
+            // Cancel any outstanding scan requests.  We are about to close all
+            // of our adapters, but an adapter structure is what SME passes back
+            // to our callback function. Hence if there are any outstanding scan
+            // requests then there is a race condition between when the adapter
+            // is closed and when the callback is invoked.We try to resolve that
+            // race condition here by canceling any outstanding scans before we
+            // close the adapters.
+            // Note that the scans may be cancelled in an asynchronous manner,
+            // so ideally there needs to be some kind of synchronization. Rather
+            // than introduce a new synchronization here, we will utilize the
+            // fact that we are about to Request Full Power, and since that is
+            // synchronized, the expectation is that by the time Request Full
+            // Power has completed all scans will be cancelled.
+            if (pHddCtx->scan_info.mScanPending)
+            {
+                hddLog(VOS_TRACE_LEVEL_INFO,
+                       FL("abort scan mode: %d sessionId: %d"),
+                           pAdapter->device_mode,
+                           pAdapter->sessionId);
+                hdd_abort_mac_scan(pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
+            }
          }
+         vosStatus = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
+         pAdapterNode = pNext;
       }
    }
-
-   if (VOS_FTM_MODE == hdd_get_conparam())
+   else
    {
       hddLog(VOS_TRACE_LEVEL_INFO,"%s: FTM MODE",__func__);
       wlan_hdd_ftm_close(pHddCtx);
       goto free_hdd_ctx;
-   }
-   //Stop the Interface TX queue.
-   //netif_tx_disable(pWlanDev);
-   //netif_carrier_off(pWlanDev);
-
-   if (VOS_STA_SAP_MODE == hdd_get_conparam())
-   {
-      hddLog(VOS_TRACE_LEVEL_INFO,"%s: SAP MODE",__func__);
-      pAdapter = hdd_get_adapter(pHddCtx,
-                                   WLAN_HDD_SOFTAP);
-   }
-   else
-   {
-      if (VOS_FTM_MODE != hdd_get_conparam())
-      {
-         hddLog(VOS_TRACE_LEVEL_INFO,"%s: STA MODE",__func__);
-         pAdapter = hdd_get_adapter(pHddCtx,
-                                    WLAN_HDD_INFRA_STATION);
-         if (pAdapter == NULL)
-            pAdapter = hdd_get_adapter(pHddCtx, WLAN_HDD_IBSS);
-      }
-   }
-
-   if(NULL == pAdapter)
-   {
-       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: pAdapter is NULL",__func__);
-       goto free_hdd_ctx;
    }
 
    /* DeRegister with platform driver as client for Suspend/Resume */
@@ -7383,28 +7474,6 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: hddDevTmUnregisterNotifyCallback failed",__func__);
    }
 
-   // Cancel any outstanding scan requests.  We are about to close all
-   // of our adapters, but an adapter structure is what SME passes back
-   // to our callback function.  Hence if there are any outstanding scan
-   // requests then there is a race condition between when the adapter
-   // is closed and when the callback is invoked.  We try to resolve that
-   // race condition here by canceling any outstanding scans before we
-   // close the adapters.
-   // Note that the scans may be cancelled in an asynchronous manner, so
-   // ideally there needs to be some kind of synchronization.  Rather than
-   // introduce a new synchronization here, we will utilize the fact that
-   // we are about to Request Full Power, and since that is synchronized,
-   // the expectation is that by the time Request Full Power has completed,
-   // all scans will be cancelled.
-   if (NULL != pAdapter)
-   {
-      hdd_abort_mac_scan(pHddCtx, eCSR_SCAN_ABORT_DEFAULT);
-   }
-   else
-   {
-       hddLog(VOS_TRACE_LEVEL_ERROR,
-           "%s: pAdapter is NULL, cannot Abort scan", __func__);
-   }
    //Stop the traffic monitor timer
    if ( VOS_TIMER_STATE_RUNNING ==
                         vos_timer_getCurrentState(&pHddCtx->tx_rx_trafficTmr))
@@ -8434,6 +8503,16 @@ int hdd_wlan_startup(struct device *dev )
    /* Exchange capability info between Host and FW and also get versioning info from FW */
    hdd_exchange_version_and_caps(pHddCtx);
 
+#ifdef CONFIG_ENABLE_LINUX_REG
+   status = wlan_hdd_init_channels(pHddCtx);
+   if ( !VOS_IS_STATUS_SUCCESS( status ) )
+   {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: wlan_hdd_init_channels failed",
+             __func__);
+      goto err_vosstop;
+   }
+#endif
+
    status = hdd_post_voss_start_config( pHddCtx );
    if ( !VOS_IS_STATUS_SUCCESS( status ) )
    {
@@ -8454,14 +8533,6 @@ int hdd_wlan_startup(struct device *dev )
 #endif
 
 #ifdef CONFIG_ENABLE_LINUX_REG
-   status = wlan_hdd_init_channels(pHddCtx);
-   if ( !VOS_IS_STATUS_SUCCESS( status ) )
-   {
-      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: wlan_hdd_init_channels failed",
-             __func__);
-      goto err_vosstop;
-   }
-
    /* registration of wiphy dev with cfg80211 */
    if (0 > wlan_hdd_cfg80211_register(wiphy))
    {
@@ -8608,10 +8679,6 @@ int hdd_wlan_startup(struct device *dev )
                        pHddCtx->cfg_ini->isRoamOffloadScanEnabled);
    }
 #endif
-#ifdef FEATURE_WLAN_SCAN_PNO
-   /*SME must send channel update configuration to RIVA*/
-   sme_UpdateChannelConfig(pHddCtx->hHal); 
-#endif
 
    sme_Register11dScanDoneCallback(pHddCtx->hHal, hdd_11d_scan_done);
 
@@ -8707,7 +8774,6 @@ int hdd_wlan_startup(struct device *dev )
 
    mutex_init(&pHddCtx->sap_lock);
 
-   pHddCtx->isLoadUnloadInProgress = WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS;
 
 #ifdef WLAN_OPEN_SOURCE
 #ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
@@ -8725,8 +8791,15 @@ int hdd_wlan_startup(struct device *dev )
    vos_event_init(&pHddCtx->scan_info.scan_finished_event);
    pHddCtx->scan_info.scan_pending_option = WEXT_SCAN_PENDING_GIVEUP;
 
+   pHddCtx->isLoadUnloadInProgress = WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS;
    vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    hdd_allow_suspend();
+
+#ifdef FEATURE_WLAN_SCAN_PNO
+   /*SME must send channel update configuration to RIVA*/
+   sme_UpdateChannelConfig(pHddCtx->hHal);
+#endif
+
 #ifndef CONFIG_ENABLE_LINUX_REG
    /*updating wiphy so that regulatory user hints can be processed*/
    if (wiphy)
