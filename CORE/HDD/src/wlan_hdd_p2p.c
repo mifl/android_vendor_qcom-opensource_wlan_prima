@@ -637,11 +637,11 @@ void hdd_remainChanReadyHandler( hdd_adapter_t *pAdapter )
     VOS_STATUS status;
 
     hddLog( LOG1, "Ready on chan ind");
-    MTRACE(vos_trace(VOS_MODULE_ID_HDD,
-                     TRACE_CODE_HDD_REMAINCHANREADYHANDLER,
-                     pAdapter->sessionId, pRemainChanCtx->duration));
     if( pRemainChanCtx != NULL )
     {
+        MTRACE(vos_trace(VOS_MODULE_ID_HDD,
+                         TRACE_CODE_HDD_REMAINCHANREADYHANDLER,
+                         pAdapter->sessionId, pRemainChanCtx->duration));
         //start timer for actual duration
         status = vos_timer_start(&pRemainChanCtx->hdd_remain_on_chan_timer,
                                 (pRemainChanCtx->duration));
