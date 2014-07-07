@@ -460,6 +460,8 @@ typedef enum
   /*WLAN DAL Set Max Tx Power Per band Request*/
   WDI_SET_MAX_TX_POWER_PER_BAND_REQ             = 88,
 
+  WDI_GET_BCN_MISS_RATE_REQ                     = 89,
+
   WDI_MAX_REQ,
 
   /*Send a suspend Indication down to HAL*/
@@ -758,6 +760,8 @@ typedef enum
   WDI_UPDATE_CHAN_RESP                          = 86,
 
   WDI_SET_MAX_TX_POWER_PER_BAND_RSP             = 87,
+
+  WDI_GET_BCN_MISS_RATE_RSP                     = 88,
   /*-------------------------------------------------------------------------
     Indications
      !! Keep these last in the enum if possible
@@ -5620,6 +5624,20 @@ WDI_Status WDI_ProcessLphbCfgRsp
  @return Result of the function call
 */
 WDI_Status WDI_ProcessSetBatchScanRsp
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessGetBcnMissRateReq
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessGetBcnMissRateRsp
 (
   WDI_ControlBlockType*  pWDICtx,
   WDI_EventInfoType*     pEventData
