@@ -4767,7 +4767,7 @@ typedef PACKED_PRE struct PACKED_POST
 typedef struct
 {
   u32 reqId;
-  u8  staId;
+  tSirMacAddr  macAddr;
   u32 mpduSizeThreshold;
   u32 aggressiveStatisticsGathering;
 }tSirLLStatsSetReq, *tpSirLLStatsSetReq;
@@ -4775,14 +4775,14 @@ typedef struct
 typedef struct
 {
   u32 reqId;
-  u8  staId;
+  tSirMacAddr  macAddr;
   u32 paramIdMask;
 }tSirLLStatsGetReq, *tpSirLLStatsGetReq;
 
 typedef struct
 {
   u32  reqId;
-  u8   staId;
+  tSirMacAddr  macAddr;
   u32  statsClearReqMask;
   u8   stopReq;
 }tSirLLStatsClearReq, *tpSirLLStatsClearReq;
