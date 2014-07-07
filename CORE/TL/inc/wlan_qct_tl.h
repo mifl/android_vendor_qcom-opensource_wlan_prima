@@ -1998,6 +1998,44 @@ WLANTL_McProcessMsg
 );
 
 /*==========================================================================
+  FUNCTION    WLANTL_RxProcessMsg
+
+  DESCRIPTION
+    Called by VOSS when a message was serialized for TL through the
+    rx thread/task.
+
+  DEPENDENCIES
+    The TL must be initialized before this function can be called.
+
+  PARAMETERS
+
+    IN
+    pvosGCtx:       pointer to the global vos context; a handle to TL's
+                    control block can be extracted from its context
+    message:        type and content of the message
+
+
+  RETURN VALUE
+    The result code associated with performing the operation
+
+    VOS_STATUS_E_INVAL:   invalid input parameters
+    VOS_STATUS_E_FAULT:   pointer to TL cb is NULL ; access would cause a
+                          page fault
+    VOS_STATUS_SUCCESS:   Everything is good :)
+
+  Other values can be returned as a result of a function call, please check
+  corresponding API for more info.
+  SIDE EFFECTS
+
+============================================================================*/
+VOS_STATUS
+WLANTL_RxProcessMsg
+(
+  v_PVOID_t        pvosGCtx,
+  vos_msg_t*       message
+);
+
+/*==========================================================================
   FUNCTION    WLANTL_McFreeMsg
 
   DESCRIPTION 
@@ -2520,6 +2558,31 @@ VOS_STATUS WLANTL_GetSoftAPStatistics(v_PVOID_t pAdapter, WLANTL_TRANSFER_STA_TY
  }
 #endif 
 
+/*===========================================================================
+
+  FUNCTION    WLANTL_EnableCaching
+
+  DESCRIPTION
+
+    This function is used to enable caching only when assoc/reassoc req is send.
+    that is cache packets only for such STA ID.
+
+
+  DEPENDENCIES
+
+    TL must have been initialized before this gets called.
+
+
+  PARAMETERS
+
+   staId:   station id.
+
+  RETURN VALUE
+
+   none
+
+============================================================================*/
+void WLANTL_EnableCaching(v_U8_t staId);
 
  /*===========================================================================
 
