@@ -620,6 +620,8 @@ typedef struct sSirMbMsgP2p
 #define SIR_HAL_SET_MAX_TX_POWER_PER_BAND_RSP \
         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 215)
 
+#define SIR_HAL_BCN_MISS_RATE_REQ         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 216)
+
 #define SIR_HAL_MSG_TYPES_END              (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 // CFG message types
 #define SIR_CFG_MSG_TYPES_BEGIN        (SIR_CFG_MODULE_ID << 8)
