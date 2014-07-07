@@ -1111,6 +1111,7 @@ static char *WDI_getRespMsgString(wpt_uint16 wdiRespMsgId)
     CASE_RETURN_STRING( WDI_SET_BATCH_SCAN_RESP);
 #endif
     CASE_RETURN_STRING( WDI_UPDATE_CHAN_RESP);
+    CASE_RETURN_STRING( WDI_CH_SWITCH_RESP_V1 );
     CASE_RETURN_STRING( WDI_GET_BCN_MISS_RATE_RSP );
     default:
         return "Unknown WDI MessageId";
@@ -1210,6 +1211,9 @@ void WDI_TraceHostFWCapabilities(tANI_U32 *capabilityBitmap)
                                               sizeof("EXTENDED_NSOFFLOAD_SLOT"),
                                               "%s", "EXTENDED_NSOFFLOAD_SLOT");
                           pCapStr += strlen("EXTENDED_NSOFFLOAD_SLOT");
+                          break;
+                     case CH_SWITCH_V1: snprintf(pCapStr, sizeof("CH_SWITCH_V1"), "%s", "CH_SWITCH_V1");
+                          pCapStr += strlen("CH_SWITCH_V1");
                           break;
                  }
                  *pCapStr++ = ',';
@@ -23523,6 +23527,9 @@ case WLAN_HAL_DEL_STA_SELF_RSP:
 
   case WLAN_HAL_PRINT_REG_INFO_IND:
     return  WDI_PRINT_REG_INFO_IND;
+
+  case WLAN_HAL_CH_SWITCH_V1_RSP:
+    return WDI_CH_SWITCH_RESP_V1;
 
   case WLAN_HAL_GET_BCN_MISS_RATE_RSP:
     return WDI_GET_BCN_MISS_RATE_RSP;
