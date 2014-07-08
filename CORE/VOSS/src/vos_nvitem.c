@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,14 +18,26 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
-
 
 /*============================================================================
   FILE:         vos_nvitem.c
@@ -1226,7 +1238,7 @@ VOS_STATUS vos_nv_open(void)
         }
 
         VOS_TRACE(VOS_MODULE_ID_VOSS,  VOS_TRACE_LEVEL_INFO,
-                  "NV_2: readBufferSize %u, EFSV2DefaultSize %zu",
+                  "NV_2: readBufferSize %zu, EFSV2DefaultSize %zu",
                   nvReadBufSize, sizeof(nvEFSTableV2_t));
 
         /* From here, NV2 will be stored into NV3 structure */
@@ -3554,6 +3566,7 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
             }
 
 
+
         }
     }
 
@@ -3586,16 +3599,15 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
     v_BOOL_t isVHT80Allowed;
 
     VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
-               "cfg80211 reg notifier callback for country for initiator %d", request->initiator);
+               ("cfg80211 reg notifier callback for country"));
 
     if (TRUE == isWDresetInProgress())
     {
-       VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                   ("SSR is in progress") );
+        wiphy_dbg(wiphy, "info: %s: SSR is in progress", __func__);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
-       return;
+        return;
 #else
-       return 0;
+        return 0;
 #endif
     }
 
@@ -3615,9 +3627,9 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                    ("%s Unload is in progress"), __func__ );
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
-       return;
+        return;
 #else
-       return 0;
+        return 0;
 #endif
     }
 
@@ -4101,7 +4113,7 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
        {
           status = wait_for_completion_interruptible_timeout(
                                        &change_country_code,
-                                       msecs_to_jiffies(WLAN_WAIT_TIME_COUNTRY));
+                                       800);
           if(status <= 0)
           {
              wiphy_dbg(wiphy, "info: set country timed out\n");
@@ -4281,13 +4293,12 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
          {
              for (j=0; j<wiphy->bands[IEEE80211_BAND_5GHZ]->n_channels; j++)
              {
-                 // UNII-1 band channels are passive when domain is FCC.
+                 // p2p UNII-1 band channels are passive when domain is FCC.
                  if ((wiphy->bands[IEEE80211_BAND_5GHZ ]->channels[j].center_freq == 5180 ||
                       wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5200 ||
                       wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5220 ||
                       wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5240) &&
-                     ((domainIdCurrent == REGDOMAIN_FCC) &&
-                                       pHddCtx->nEnableStrictRegulatoryForFCC))
+                     ((domainIdCurrent == REGDOMAIN_FCC) && pHddCtx->nEnableStrictRegulatoryForFCC))
                  {
                      wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].flags |= IEEE80211_CHAN_PASSIVE_SCAN;
                  }
@@ -4295,25 +4306,9 @@ int wlan_hdd_crda_reg_notifier(struct wiphy *wiphy,
                            wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5200 ||
                            wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5220 ||
                            wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5240) &&
-                          ((domainIdCurrent != REGDOMAIN_FCC) ||
-                                      !pHddCtx->nEnableStrictRegulatoryForFCC))
+                          ((domainIdCurrent != REGDOMAIN_FCC) || !pHddCtx->nEnableStrictRegulatoryForFCC))
                  {
                      wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
-                 }
-
-                 //Marking channels 52-144 as Radar channels if they are enabled
-                 k = wiphy->bands[IEEE80211_BAND_2GHZ]->n_channels + j;
-
-                 if ((wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5260 ||
-                      wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5280 ||
-                      wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5300 ||
-                      wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5320 ||
-                      wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5500 ||
-                      wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].center_freq == 5520) &&
-                     ((regChannels[k].enabled == NV_CHANNEL_ENABLE) ||
-                      (regChannels[k].enabled == NV_CHANNEL_DFS)))
-                 {
-                     wiphy->bands[IEEE80211_BAND_5GHZ]->channels[j].flags |= IEEE80211_CHAN_RADAR;
                  }
              }
          }

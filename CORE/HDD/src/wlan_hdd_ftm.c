@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,11 +18,25 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
 /**========================================================================
@@ -90,8 +104,6 @@
 #define FTM_CHAIN_SEL_T0_ON         2
 #define FTM_CHAIN_SEL_R0_T0_ON      3
 #define FTM_CHAIN_SEL_MAX           3
-
-#define WCNSS_TXFIR_OFFSET          0x00018000
 
 #ifndef QWLAN_PHYDBG_BASE
 #define QWLAN_PHYDBG_BASE                   0x03004000
@@ -429,6 +441,7 @@ static rateIndex2Preamble_t rate_index_2_preamble_table[] =
 #ifdef WCN_PRONTO
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_NGI_86_5_MBPS,PHYDBG_PREAMBLE_MIXED},
 #endif
+
     /*11AC rate 20MHZ Short GI*/
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_7_2_MBPS, PHYDBG_PREAMBLE_MIXED},
    { HAL_PHY_RATE_VHT_20MHZ_MCS_1NSS_SGI_14_4_MBPS,PHYDBG_PREAMBLE_MIXED},
@@ -611,7 +624,7 @@ static v_U32_t wlan_ftm_postmsg(v_U8_t *cmd_ptr, v_U16_t cmd_len)
        MAC.
 
 
-  \param  devHandle: pointer to the OS specific device handle.
+  \param  hddContextSize: Size of the HDD context to allocate.
 
 
   \return VOS_STATUS_SUCCESS - Scheduler was successfully initialized and
@@ -626,7 +639,7 @@ static v_U32_t wlan_ftm_postmsg(v_U8_t *cmd_ptr, v_U16_t cmd_len)
   \sa wlan_ftm_vos_open()
 
 ---------------------------------------------------------------------------*/
-static VOS_STATUS wlan_ftm_vos_open( v_CONTEXT_t pVosContext, v_PVOID_t devHandle )
+static VOS_STATUS wlan_ftm_vos_open( v_CONTEXT_t pVosContext, v_SIZE_t hddContextSize )
 {
    VOS_STATUS vStatus      = VOS_STATUS_SUCCESS;
    int iter                = 0;
@@ -711,7 +724,7 @@ static VOS_STATUS wlan_ftm_vos_open( v_CONTEXT_t pVosContext, v_PVOID_t devHandl
    /*Open the WDA module */
    vos_mem_set(&macOpenParms, sizeof(macOpenParms), 0);
    macOpenParms.driverType = eDRIVER_TYPE_MFG;
-   vStatus = WDA_open(gpVosContext, devHandle, &macOpenParms);
+   vStatus = WDA_open(gpVosContext, gpVosContext->pHDDContext, &macOpenParms);
    if (!VOS_IS_STATUS_SUCCESS(vStatus))
    {
       /* Critical Error ...  Cannot proceed further */
@@ -1289,7 +1302,7 @@ static VOS_STATUS wlan_ftm_priv_get_status(hdd_adapter_t *pAdapter,char *buf)
     }
 
     lenRes = snprintf(buf, lenBuf, "\n chainSelect: %s\n rxmode: %s\n "
-                                   "txpktgen: %s\n  txifs: %d\n  txrate: ",
+                                   "txpktgen: %s\n  txifs: %ld\n  txrate: ",
                       chain[ftm_status.chainSelect], rx[ftm_status.rxmode],
                       tx[ftm_status.frameGenEnabled],
                       ftm_status.frameParams.interFrameSpace);
@@ -1327,7 +1340,7 @@ static VOS_STATUS wlan_ftm_priv_get_status(hdd_adapter_t *pAdapter,char *buf)
     buf += lenRes;
     lenBuf -= lenRes;
 
-    lenRes = snprintf(buf, lenBuf, "\n  power ctl mode: %d\n  txpktcnt: %d\n  "
+    lenRes = snprintf(buf, lenBuf, "\n  power ctl mode: %d\n  txpktcnt: %ld\n  "
                                    "txpktlen: %d\n", ftm_status.powerCtlMode,
                       ftm_status.frameParams.numTestPackets,
                       ftm_status.frameParams.payloadLength);
@@ -1487,7 +1500,7 @@ int wlan_hdd_ftm_open(hdd_context_t *pHddCtx)
     }
 
    // Open VOSS
-   vStatus = wlan_ftm_vos_open( pVosContext, pHddCtx->parent_dev);
+   vStatus = wlan_ftm_vos_open( pVosContext, 0);
 
    if ( !VOS_IS_STATUS_SUCCESS( vStatus ))
    {
@@ -3716,8 +3729,6 @@ static VOS_STATUS wlan_ftm_priv_set_pwr_cntl_mode(hdd_adapter_t *pAdapter,
         goto done;
     }
 
-    ftm_status.powerCtlMode= pwr_mode;
-
  done:
     return status;
 
@@ -3814,7 +3825,6 @@ static VOS_STATUS wlan_ftm_priv_enable_dpd(hdd_adapter_t *pAdapter,
     tANI_U32 value = 0;
     tANI_U32 reg_addr;
     hdd_context_t *pHddCtx = (hdd_context_t *)pAdapter->pHddCtx;
-
     if (pHddCtx->ftm.ftm_state != WLAN_FTM_STARTED)
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
@@ -3822,8 +3832,11 @@ static VOS_STATUS wlan_ftm_priv_enable_dpd(hdd_adapter_t *pAdapter,
         return VOS_STATUS_E_FAILURE;
     }
 
-    reg_addr = WCNSS_TXFIR_OFFSET;
-
+#ifdef WCN_PRONTO
+    reg_addr = 0xfb018000;
+#else
+    reg_addr = 0x03018000;
+#endif
     wpalReadRegister(reg_addr, &value);
     if (enable)
     {

@@ -26,6 +26,7 @@
  */
 
 /*
+ * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limSendSmeRspMessages.h contains the definitions for
  * sending SME response/notification messages to applications above
  * MAC software.

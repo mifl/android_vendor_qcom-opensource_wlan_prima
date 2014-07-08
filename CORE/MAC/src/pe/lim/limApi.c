@@ -18,16 +18,23 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
  * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  * All Rights Reserved.
  * Qualcomm Atheros Confidential and Proprietary.
  *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-
 /*
+ * Airgo Networks, Inc proprietary. All rights reserved.
  * This file limApi.cc contains the functions that are
  * exported by LIM to other modules.
  *
@@ -1051,12 +1058,6 @@ tSirRetStatus peOpen(tpAniSirGlobal pMac, tMacOpenParameters *pMacOpenParam)
     if( !VOS_IS_STATUS_SUCCESS( vos_lock_init( &pMac->lim.lkPeGlobalLock ) ) )
     {
         PELOGE(limLog(pMac, LOGE, FL("pe lock init failed!"));)
-        vos_mem_free(pMac->lim.limTimers.gpLimCnfWaitTimer);
-        pMac->lim.limTimers.gpLimCnfWaitTimer = NULL;
-        vos_mem_free(pMac->lim.gpSession);
-        pMac->lim.gpSession = NULL;
-        vos_mem_free(pMac->pmm.gPmmTim.pTim);
-        pMac->pmm.gPmmTim.pTim = NULL;
         return eSIR_FAILURE;
     }
     pMac->lim.deauthMsgCnt = 0;
@@ -1708,8 +1709,6 @@ limHandleIBSScoalescing(
 
     pHdr = WDA_GET_RX_MAC_HEADER(pRxPacketInfo);
     if ( (!pBeacon->capabilityInfo.ibss) ||
-         ( psessionEntry->privacy !=
-                  (tANI_U8)pBeacon->capabilityInfo.privacy ) ||
          (limCmpSSid(pMac, &pBeacon->ssId,psessionEntry) != true) ||
          (psessionEntry->currentOperChannel != pBeacon->channelNumber) )
         /* Received SSID does not match => Ignore received Beacon frame. */

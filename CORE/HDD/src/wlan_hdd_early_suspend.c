@@ -18,11 +18,25 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
 /**=============================================================================
@@ -466,7 +480,7 @@ VOS_STATUS hdd_exit_deep_sleep(hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter)
                                 &pAdapter->sessionId);
    if ( !HAL_STATUS_SUCCESS( halStatus ) )
    {
-      hddLog(VOS_TRACE_LEVEL_FATAL,"sme_OpenSession() failed with status code %08d [x%08x]",
+      hddLog(VOS_TRACE_LEVEL_FATAL,"sme_OpenSession() failed with status code %08d [x%08lx]",
                     halStatus, halStatus );
       goto err_voss_stop;
 
@@ -1093,7 +1107,7 @@ VOS_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, int fenable)
    tSirHostOffloadReq  offLoadRequest;
    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 
-   hddLog(VOS_TRACE_LEVEL_ERROR, FL(" fenable = %d \n"), fenable);
+   hddLog(VOS_TRACE_LEVEL_ERROR, FL(" fenable = %d"), fenable);
 
    if(fenable)
    {
@@ -1154,7 +1168,6 @@ VOS_STATUS hdd_conf_arp_offload(hdd_adapter_t *pAdapter, int fenable)
        else
        {
            hddLog(VOS_TRACE_LEVEL_ERROR, FL("IP Address is not assigned"));
-           return VOS_STATUS_E_AGAIN;
        }
 
        if (fenable == 1 && !pAdapter->ipv4_notifier_registered)
@@ -2085,7 +2098,6 @@ VOS_STATUS hdd_wlan_re_init(void)
    WLANBAP_ConfigType btAmpConfig;
 #endif
 
-   struct device *dev = NULL;
    hdd_ssr_timer_del();
    hdd_prevent_suspend();
 
@@ -2105,15 +2117,8 @@ VOS_STATUS hdd_wlan_re_init(void)
    /* The driver should always be initialized in STA mode after SSR */
    hdd_set_conparam(0);
 
-   dev = wcnss_wlan_get_device();
-   if (NULL == dev)
-   {
-      hddLog(VOS_TRACE_LEVEL_FATAL,"%s: wcnss dev is NULL",__func__);
-      goto err_re_init;
-   }
-
    /* Re-open VOSS, it is a re-open b'se control transport was never closed. */
-   vosStatus = vos_open(&pVosContext, dev);
+   vosStatus = vos_open(&pVosContext, 0);
    if (!VOS_IS_STATUS_SUCCESS(vosStatus))
    {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: vos_open failed",__func__);
@@ -2141,6 +2146,15 @@ VOS_STATUS hdd_wlan_re_init(void)
    if ( VOS_STATUS_SUCCESS != vosStatus )
    {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: Failed hdd_set_sme_config",__func__);
+      goto err_vosclose;
+   }
+
+   /* Initialize the WMM module */
+   vosStatus = hdd_wmm_init(pHddCtx, hddWmmDscpToUpMapInfra);
+   vosStatus = hdd_wmm_init(pHddCtx, hddWmmDscpToUpMapP2p);
+   if ( !VOS_IS_STATUS_SUCCESS( vosStatus ))
+   {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: hdd_wmm_init failed", __func__);
       goto err_vosclose;
    }
 

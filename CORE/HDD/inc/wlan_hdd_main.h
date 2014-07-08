@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,14 +18,26 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
-
 
 #if !defined( WLAN_HDD_MAIN_H )
 #define WLAN_HDD_MAIN_H
@@ -176,13 +188,12 @@
 #define WLAN_HDD_IS_SOCIAL_CHANNEL(center_freq) \
 (((center_freq) == 2412) || ((center_freq) == 2437) || ((center_freq) == 2462))
 
-#define WLAN_HDD_CHANNEL_IN_UNII_1_BAND(center_freq) \
-(((center_freq) == 5180 ) || ((center_freq) == 5200) \
-|| ((center_freq) == 5220) || ((center_freq) == 5240))
-
 #ifdef WLAN_FEATURE_11W
 #define WLAN_HDD_SA_QUERY_ACTION_FRAME 8
 #endif
+#define WLAN_HDD_CHANNEL_IN_UNII_1_BAND(center_freq) \
+(((center_freq) == 5180 ) || ((center_freq) == 5200) \
+|| ((center_freq) == 5220) || ((center_freq) == 5240))
 
 #define WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP 14
 #define WLAN_HDD_TDLS_ACTION_FRAME 12
@@ -216,20 +227,6 @@
 #define HDD_MAC_ADDR_LEN    6
 typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
 
-#ifdef FEATURE_WLAN_BATCH_SCAN
-#define HDD_BATCH_SCAN_VERSION (17)
-#define HDD_SET_BATCH_SCAN_DEFAULT_FREQ (30)/*batch scan frequency default 30s*/
-#define HDD_SET_BATCH_SCAN_BEST_NETWORK (16)/*best network default value*/
-#define HDD_SET_BATCH_SCAN_DEFAULT_BAND (0)/*auto means both 2.4GHz and 5GHz*/
-#define HDD_SET_BATCH_SCAN_24GHz_BAND_ONLY (1)/*only 2.4GHz band*/
-#define HDD_SET_BATCH_SCAN_5GHz_BAND_ONLY (2)/*only 5GHz band*/
-#define HDD_SET_BATCH_SCAN_REQ_TIME_OUT (15000) /*Batch scan req timeout in ms*/
-#define HDD_GET_BATCH_SCAN_RSP_TIME_OUT (15000) /*Batch scan req timeout in ms*/
-#define HDD_BATCH_SCAN_AP_META_INFO_SIZE (150) /*AP meta info size in string*/
-
-#define MIN(a, b) (a > b ? b : a)
-
-#endif
 /*
  * Generic asynchronous request/response support
  *
@@ -277,6 +274,20 @@ extern spinlock_t hdd_context_lock;
 #define SNR_CONTEXT_MAGIC   0x534E5200   //SNR
 #define BCN_MISS_RATE_CONTEXT_MAGIC 0x513F5753
 
+#ifdef FEATURE_WLAN_BATCH_SCAN
+#define HDD_BATCH_SCAN_VERSION (17)
+#define HDD_SET_BATCH_SCAN_DEFAULT_FREQ (30)/*batch scan frequency default 30s*/
+#define HDD_SET_BATCH_SCAN_BEST_NETWORK (16)/*best network default value*/
+#define HDD_SET_BATCH_SCAN_DEFAULT_BAND (0)/*auto means both 2.4GHz and 5GHz*/
+#define HDD_SET_BATCH_SCAN_24GHz_BAND_ONLY (1)/*only 2.4GHz band*/
+#define HDD_SET_BATCH_SCAN_5GHz_BAND_ONLY (2)/*only 5GHz band*/
+#define HDD_SET_BATCH_SCAN_REQ_TIME_OUT (15000) /*Batch scan req timeout in ms*/
+#define HDD_GET_BATCH_SCAN_RSP_TIME_OUT (15000) /*Batch scan req timeout in ms*/
+#define HDD_BATCH_SCAN_AP_META_INFO_SIZE (150) /*AP meta info size in string*/
+
+#define MIN(a, b) (a > b ? b : a)
+
+#endif
 /* Max PMKSAIDS available in cache */
 #define MAX_PMKSAIDS_IN_CACHE 8
 
@@ -317,9 +328,6 @@ typedef struct hdd_tx_rx_stats_s
    __u32    rxRefused;
    __u32    pkt_tx_count; //TX pkt Counter used for dynamic splitscan
    __u32    pkt_rx_count; //RX pkt Counter used for dynamic splitscan
-   // tx timeout stats
-   __u32    txTimeoutCount;
-   __u32    continuousTxTimeoutCount;
 } hdd_tx_rx_stats_t;
 
 typedef struct hdd_chip_reset_stats_s
@@ -611,7 +619,6 @@ typedef enum {
     WLAN_HDD_DEV_DIS_RESP,
     WLAN_HDD_PROV_DIS_REQ,
     WLAN_HDD_PROV_DIS_RESP,
-    WLAN_HDD_ACTION_FRM_TYPE_MAX = 255,
 }tActionFrmType;
 
 typedef struct hdd_cfg80211_state_s 
@@ -706,7 +713,7 @@ typedef struct {
    /**Track whether OS TX queue has been disabled.*/
    v_BOOL_t txSuspended[NUM_TX_QUEUES];
 
-   /**Track whether 3/4th of resources are used */
+   /**Track whether 3/4th of resources are used on softAP/P2P GO side. */
    v_BOOL_t vosLowResource;
 
    /** Track QoS status of station */
@@ -770,10 +777,6 @@ typedef struct hdd_scaninfo_s
 
    /* The scan pending  */
    v_U32_t mScanPending;
-
-  /* Counter for mScanPending so that the scan pending
-     error log is not printed for more than 5 times    */
-   v_U32_t mScanPendingCounter;
 
    /* Client Wait Scan Result */
    v_U32_t waitScanResult;
@@ -854,7 +857,6 @@ typedef enum
 } eHDD_BATCH_SCAN_STATE;
 
 #endif
-
 
 #define WLAN_HDD_ADAPTER_MAGIC 0x574c414e //ASCII "WLAN"
 
@@ -962,7 +964,7 @@ struct hdd_adapter_s
    /**Track whether VOS is in a low resource state*/
    v_BOOL_t isVosOutOfResource;
 
-   /**Track whether 3/4th of resources are used */
+   /**Track whether 3/4th of resources are used on STA/p2p client side */
    v_BOOL_t isVosLowResource;
   
    /**Track whether OS TX queue has been disabled.*/
@@ -1012,7 +1014,6 @@ struct hdd_adapter_s
    v_U32_t magic;
    v_BOOL_t higherDtimTransition;
    v_BOOL_t survey_idx;
-
 #ifdef FEATURE_WLAN_BATCH_SCAN
    /*Completion variable for set batch scan request*/
    struct completion hdd_set_batch_scan_req_var;
@@ -1045,7 +1046,6 @@ struct hdd_adapter_s
    /*Batch scan state*/
    eHDD_BATCH_SCAN_STATE batchScanState;
 #endif
-
 #if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
    tAniTrafStrmMetrics tsmStats;
 #endif
@@ -1058,8 +1058,6 @@ struct hdd_adapter_s
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
    v_BOOL_t isLinkLayerStatsSet;
 #endif
-   /* DSCP to UP QoS Mapping */
-   sme_QosWmmUpType hddWmmDscpToUpMap[WLAN_HDD_MAX_DSCP+1];
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
@@ -1262,8 +1260,8 @@ struct hdd_context_s
     /* TDLS peer connected count */
     tANI_U16 connected_peer_count;
     tdls_scan_context_t tdls_scan_ctxt;
-    /* Lock to avoid race condition during TDLS operations*/
-    struct mutex tdls_lock;
+   /* Lock to avoid race condition during TDLS operations*/
+   struct mutex tdls_lock;
 #endif
 
     hdd_traffic_monitor_t traffic_monitor;
@@ -1308,8 +1306,8 @@ struct hdd_context_s
    v_U16_t safeChannelList[NUM_20MHZ_RF_CHANNELS];
 #endif /* FEATURE_WLAN_CH_AVOID */
 
-    v_BOOL_t btCoexModeSet;
-    v_BOOL_t isPnoEnable;
+   v_BOOL_t btCoexModeSet;
+   v_BOOL_t isPnoEnable;
 };
 
 
@@ -1361,8 +1359,7 @@ hdd_adapter_t * hdd_get_mon_adapter( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_init_station_mode( hdd_adapter_t *pAdapter );
 hdd_adapter_t * hdd_get_adapter( hdd_context_t *pHddCtx, device_mode_t mode );
 void hdd_deinit_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
-VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
-                             const v_BOOL_t bCloseSession );
+VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
 void hdd_set_station_ops( struct net_device *pWlanDev );
 tANI_U8* wlan_hdd_get_intf_addr(hdd_context_t* pHddCtx);
 void wlan_hdd_release_intf_addr(hdd_context_t* pHddCtx, tANI_U8* releaseAddr);
@@ -1374,8 +1371,7 @@ tVOS_CON_MODE hdd_get_conparam( void );
 void wlan_hdd_enable_deepsleep(v_VOID_t * pVosContext);
 v_BOOL_t hdd_is_apps_power_collapse_allowed(hdd_context_t* pHddCtx);
 v_BOOL_t hdd_is_suspend_notify_allowed(hdd_context_t* pHddCtx);
-void hdd_abort_mac_scan(hdd_context_t* pHddCtx, tANI_U8 sessionId,
-                        eCsrAbortReason reason);
+void hdd_abort_mac_scan(hdd_context_t* pHddCtx, eCsrAbortReason reason);
 void wlan_hdd_set_monitor_tx_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
 void hdd_cleanup_actionframe( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
 
@@ -1398,8 +1394,8 @@ void hdd_exchange_version_and_caps(hdd_context_t *pHddCtx);
 void hdd_set_pwrparams(hdd_context_t *pHddCtx);
 void hdd_reset_pwrparams(hdd_context_t *pHddCtx);
 int wlan_hdd_validate_context(hdd_context_t *pHddCtx);
-v_BOOL_t hdd_is_valid_mac_address(const tANI_U8* pMacAddr);
 VOS_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx);
+v_BOOL_t hdd_is_valid_mac_address(const tANI_U8* pMacAddr);
 void hdd_ipv4_notifier_work_queue(struct work_struct *work);
 v_BOOL_t hdd_isConnectionInProgress( hdd_context_t *pHddCtx );
 #ifdef WLAN_FEATURE_PACKET_FILTERING

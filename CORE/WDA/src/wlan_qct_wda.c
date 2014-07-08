@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,14 +18,26 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
-
 
 /*===========================================================================
                        W L A N _ Q C T _ WDA . C
@@ -83,6 +95,7 @@
 #define WDA_2_4_GHZ_MAX_FREQ  3000
 #define VOS_GET_WDA_CTXT(a)            vos_get_context(VOS_MODULE_ID_WDA, a)
 #define VOS_GET_MAC_CTXT(a)            vos_get_context(VOS_MODULE_ID_PE, a)
+#define OFFSET_OF(structType,fldName)   (&((structType*)0)->fldName)
 #define WDA_BA_TX_FRM_THRESHOLD (5)
 #define  CONVERT_WDI2SIR_STATUS(x) \
    ((WDI_STATUS_SUCCESS != (x)) ? eSIR_FAILURE : eSIR_SUCCESS)
@@ -146,7 +159,8 @@ VOS_STATUS WDA_ProcessSetTxPerTrackingReq(tWDA_CbContext *pWDA, tSirTxPerTrackin
 
 extern v_BOOL_t sys_validateStaConfig( void *pImage, unsigned long cbFile,
                                void **ppStaConfig, v_SIZE_t *pcbStaConfig ) ;
-void processCfgDownloadReq(tpAniSirGlobal pMac) ;
+void processCfgDownloadReq(tpAniSirGlobal pMac, tANI_U16 length, 
+                                                         tANI_U32 *pConfig) ;
 void WDA_UpdateBSSParams(tWDA_CbContext *pWDA, 
         WDI_ConfigBSSReqInfoType *wdiBssParams, tAddBssParams *wdaBssParams) ;
 void WDA_UpdateSTAParams(tWDA_CbContext *pWDA, 
@@ -255,7 +269,7 @@ VOS_STATUS WDA_ProcessLLStatsClearReq(tWDA_CbContext *pWDA,
  * FUNCTION: WDA_open
  * Allocate the WDA context 
  */ 
-VOS_STATUS WDA_open(v_PVOID_t pVosContext, v_PVOID_t devHandle,
+VOS_STATUS WDA_open(v_PVOID_t pVosContext, v_PVOID_t pOSContext,
                                                 tMacOpenParameters *pMacParams )
 {
    tWDA_CbContext *wdaContext;
@@ -308,7 +322,7 @@ VOS_STATUS WDA_open(v_PVOID_t pVosContext, v_PVOID_t devHandle,
    }
    vos_trace_setLevel(VOS_MODULE_ID_WDA,VOS_TRACE_LEVEL_ERROR);
    wdaContext->driverMode = pMacParams->driverType;
-   if(WDI_STATUS_SUCCESS != WDI_Init(devHandle, &wdaContext->pWdiContext,
+   if(WDI_STATUS_SUCCESS != WDI_Init(pOSContext, &wdaContext->pWdiContext, 
                                      &wdiDevCapability, pMacParams->driverType))
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
@@ -1684,26 +1698,27 @@ VOS_STATUS WDA_prepareConfigTLV(v_PVOID_t pVosContext,
    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
                             + sizeof(tHalCfg) + tlvStruct->length) ;
 
-   /* QWLAN_HAL_CFG_GO_LINK_MONITOR_TIMEOUT   */
-   tlvStruct->type = QWLAN_HAL_CFG_GO_LINK_MONITOR_TIMEOUT  ;
-   tlvStruct->length = sizeof(tANI_U32);
-   configDataValue = (tANI_U32 *)(tlvStruct + 1);
-   if(wlan_cfgGetInt(pMac, WNI_CFG_GO_LINK_MONITOR_TIMEOUT,
+    /* QWLAN_HAL_CFG_GO_LINK_MONITOR_TIMEOUT */
+    tlvStruct->type = QWLAN_HAL_CFG_GO_LINK_MONITOR_TIMEOUT ;
+    tlvStruct->length = sizeof(tANI_U32);
+    configDataValue = (tANI_U32 *)(tlvStruct + 1);
+    if(wlan_cfgGetInt(pMac, WNI_CFG_GO_LINK_MONITOR_TIMEOUT,
                                             configDataValue ) != eSIR_SUCCESS)
-   {
+    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-               "Failed to get value for WNI_CFG_GO_LINK_MONITOR_TIMEOUT");
+                "Failed to get value for WNI_CFG_GO_LINK_MONITOR_TIMEOUT");
       goto handle_failure;
-   }
-   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
-                            + sizeof(tHalCfg) + tlvStruct->length) ;
+    }
+
+    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
+                              + sizeof(tHalCfg) + tlvStruct->length) ;
 
    /* QWLAN_HAL_CFG_ATH_DISABLE */
    tlvStruct->type = QWLAN_HAL_CFG_ATH_DISABLE ;
    tlvStruct->length = sizeof(tANI_U32);
    configDataValue = (tANI_U32 *)(tlvStruct + 1);
    if(wlan_cfgGetInt(pMac, WNI_CFG_ATH_DISABLE,
-                                            configDataValue ) != eSIR_SUCCESS)
+                           configDataValue ) != eSIR_SUCCESS)
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                "Failed to get value for WNI_CFG_ATH_DISABLE");
@@ -1768,62 +1783,6 @@ VOS_STATUS WDA_prepareConfigTLV(v_PVOID_t pVosContext,
    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
                            + sizeof(tHalCfg) + tlvStruct->length) ;
 
-  /* QWLAN_HAL_CFG_ASD_PROBE_INTERVAL */
-   tlvStruct->type = QWLAN_HAL_CFG_ASD_PROBE_INTERVAL  ;
-   tlvStruct->length = sizeof(tANI_U32);
-   configDataValue = (tANI_U32 *)(tlvStruct + 1);
-   if(wlan_cfgGetInt(pMac, WNI_CFG_ASD_PROBE_INTERVAL,
-                                            configDataValue ) != eSIR_SUCCESS)
-   {
-      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-               "Failed to get value for WNI_CFG_ASD_PROBE_INTERVAL");
-      goto handle_failure;
-   }
-   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
-                            + sizeof(tHalCfg) + tlvStruct->length) ;
-
-   /* QWLAN_HAL_CFG_ASD_TRIGGER_THRESHOLD */
-   tlvStruct->type = QWLAN_HAL_CFG_ASD_TRIGGER_THRESHOLD  ;
-   tlvStruct->length = sizeof(tANI_U32);
-   configDataValue = (tANI_U32 *)(tlvStruct + 1);
-   if(wlan_cfgGetInt(pMac, WNI_CFG_ASD_TRIGGER_THRESHOLD,
-                                            configDataValue ) != eSIR_SUCCESS)
-   {
-      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-               "Failed to get value for WNI_CFG_ASD_TRIGGER_THRESHOLD");
-      goto handle_failure;
-   }
-   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
-                            + sizeof(tHalCfg) + tlvStruct->length) ;
-
-   /* QWLAN_HAL_CFG_ASD_RTT_RSSI_HYST_THRESHOLD */
-   tlvStruct->type = QWLAN_HAL_CFG_ASD_RTT_RSSI_HYST_THRESHOLD ;
-   tlvStruct->length = sizeof(tANI_U32);
-   configDataValue = (tANI_U32 *)(tlvStruct + 1);
-   if(wlan_cfgGetInt(pMac, WNI_CFG_ASD_RTT_RSSI_HYST_THRESHOLD,
-                                            configDataValue ) != eSIR_SUCCESS)
-   {
-      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-               "Failed to get value for WNI_CFG_ASD_RTT_RSSI_HYST_THRESHOLD");
-      goto handle_failure;
-   }
-   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
-                            + sizeof(tHalCfg) + tlvStruct->length) ;
-
-   /* QWLAN_HAL_CFG_BTC_CTS2S_ON_STA_DURING_SCO  */
-   tlvStruct->type = QWLAN_HAL_CFG_BTC_CTS2S_ON_STA_DURING_SCO ;
-   tlvStruct->length = sizeof(tANI_U32);
-   configDataValue = (tANI_U32 *)(tlvStruct + 1);
-   if (wlan_cfgGetInt(pMac, WNI_CFG_BTC_CTS2S_DURING_SCO,
-                                            configDataValue ) != eSIR_SUCCESS)
-   {
-      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-               "Failed to get value for WNI_CFG_BTC_CTS2S_DURING_SCO");
-      goto handle_failure;
-   }
-   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
-                           + sizeof(tHalCfg) + tlvStruct->length) ;
-
    /* QWLAN_HAL_CFG_RA_FILTER_ENABLE  */
    tlvStruct->type = QWLAN_HAL_CFG_RA_FILTER_ENABLE ;
    tlvStruct->length = sizeof(tANI_U32);
@@ -1836,6 +1795,7 @@ VOS_STATUS WDA_prepareConfigTLV(v_PVOID_t pVosContext,
                "Failed to get value for WNI_CFG_RA_FILTER_ENABLE");
       goto handle_failure;
    }
+
    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
                            + sizeof(tHalCfg) + tlvStruct->length) ;
 
@@ -1849,6 +1809,21 @@ VOS_STATUS WDA_prepareConfigTLV(v_PVOID_t pVosContext,
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                "Failed to get value for WNI_CFG_RA_RATE_LIMIT_INTERVAL");
+      goto handle_failure;
+   }
+
+   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
+                           + sizeof(tHalCfg) + tlvStruct->length) ;
+
+   /* QWLAN_HAL_CFG_BTC_CTS2S_ON_STA_DURING_SCO  */
+   tlvStruct->type = QWLAN_HAL_CFG_BTC_CTS2S_ON_STA_DURING_SCO ;
+   tlvStruct->length = sizeof(tANI_U32);
+   configDataValue = (tANI_U32 *)(tlvStruct + 1);
+   if (wlan_cfgGetInt(pMac, WNI_CFG_BTC_CTS2S_DURING_SCO,
+                                            configDataValue ) != eSIR_SUCCESS)
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+               "Failed to get value for WNI_CFG_BTC_CTS2S_DURING_SCO");
       goto handle_failure;
    }
    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
@@ -1911,6 +1886,7 @@ VOS_STATUS WDA_prepareConfigTLV(v_PVOID_t pVosContext,
                "Failed to get value for WNI_CFG_BTC_DYN_OPP_TX_QUEUE_THOLD");
       goto handle_failure;
    }
+
    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
                            + sizeof(tHalCfg) + tlvStruct->length) ;
 
@@ -2100,8 +2076,8 @@ VOS_STATUS WDA_stop(v_PVOID_t pVosContext, tANI_U8 reason)
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                    "%s: FTM Stop Timepoout", __func__);
          VOS_ASSERT(0);
+         vos_event_reset(&pWDA->ftmStopDoneEvent);
       }
-      vos_event_destroy(&pWDA->ftmStopDoneEvent);
    }
    return status;
 }
@@ -2329,7 +2305,12 @@ VOS_STATUS WDA_GetWcnssHardwareVersion(v_PVOID_t pvosGCtx,
 VOS_STATUS WDA_WniCfgDnld(tWDA_CbContext *pWDA) 
 {
    tpAniSirGlobal pMac = (tpAniSirGlobal )VOS_GET_MAC_CTXT(pWDA->pVosContext);
-   VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
+   VOS_STATUS vosStatus = VOS_STATUS_E_FAILURE;
+   v_VOID_t *pFileImage = NULL;
+   v_SIZE_t cbFileImageSize = 0;
+   v_VOID_t *pCfgBinary = NULL;
+   v_SIZE_t cbCfgBinarySize = 0;
+   v_BOOL_t bStatus = VOS_FALSE;
 
    if (NULL == pMac )
    {
@@ -2338,7 +2319,61 @@ VOS_STATUS WDA_WniCfgDnld(tWDA_CbContext *pWDA)
       VOS_ASSERT(0);
       return VOS_STATUS_E_FAILURE;
    }
-   processCfgDownloadReq(pMac);
+   /* get the number of bytes in the CFG Binary... */
+   vosStatus = vos_get_binary_blob( VOS_BINARY_ID_CONFIG, NULL, 
+                                                &cbFileImageSize );
+   if ( VOS_STATUS_E_NOMEM != vosStatus )
+   {
+      VOS_TRACE( VOS_MODULE_ID_SYS, VOS_TRACE_LEVEL_ERROR,
+                 "Error obtaining binary size" );
+      goto fail;
+   }
+   // malloc a buffer to read in the Configuration binary file.
+   pFileImage = vos_mem_malloc( cbFileImageSize );
+   if ( NULL == pFileImage )
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+              "Unable to allocate memory for the CFG binary [size= %d bytes]",
+                 cbFileImageSize );
+      vosStatus = VOS_STATUS_E_NOMEM;
+      goto fail;
+   }
+   
+   /* Get the entire CFG file image... */
+   vosStatus = vos_get_binary_blob( VOS_BINARY_ID_CONFIG, pFileImage, 
+                                                         &cbFileImageSize );
+   if ( !VOS_IS_STATUS_SUCCESS( vosStatus ) )
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+         "Error: Cannot retrieve CFG file image from vOSS. [size= %d bytes]",
+                                                             cbFileImageSize );
+      goto fail;
+   }
+   
+   /* 
+    * Validate the binary image.  This function will return a pointer 
+    * and length where the CFG binary is located within the binary image file.
+    */
+   bStatus = sys_validateStaConfig( pFileImage, cbFileImageSize,
+                                   &pCfgBinary, &cbCfgBinarySize );
+   if ( VOS_FALSE == bStatus )
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                 "Error: Cannot find STA CFG in binary image file" );
+      vosStatus = VOS_STATUS_E_FAILURE;
+      goto fail;
+   }
+   /*
+    * TODO: call the config download function 
+    * for now calling the existing cfg download API 
+    */
+   processCfgDownloadReq(pMac,cbCfgBinarySize,pCfgBinary);
+   vosStatus = VOS_STATUS_SUCCESS;
+
+   /* fall through to clean up and return success */
+   
+fail:
+   vos_mem_free( pFileImage );
    return vosStatus;
 }
 /* -----------------------------------------------------------------
@@ -5920,7 +5955,7 @@ VOS_STATUS WDA_ProcessAddBASessionReq(tWDA_CbContext *pWDA,
     ((WLANTL_STA_CONNECTED != tlSTAState) && (WLANTL_STA_AUTHENTICATED != tlSTAState)))
    {
        VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-        "Peer staIdx %d hasn't established yet(%d). Send ADD BA failure to PE.", pAddBAReqParams->staIdx, tlSTAState );
+        "Peer staIdx %d hasn't established yet(%d). Send ADD BA failure to PE.\n", pAddBAReqParams->staIdx, tlSTAState );
        status = WDI_STATUS_E_NOT_ALLOWED;
        pAddBAReqParams->status =
              CONVERT_WDI2SIR_STATUS(status) ;
@@ -11677,7 +11712,7 @@ VOS_STATUS WDA_ProcessRateUpdateInd(tWDA_CbContext *pWDA,
             pRateUpdateParams->bssid, sizeof(tSirMacAddr));
 
    rateUpdateParams.ucastDataRateTxFlag =
-                     pRateUpdateParams->ucastDataRateTxFlag;
+                    pRateUpdateParams->ucastDataRateTxFlag;
    rateUpdateParams.reliableMcastDataRateTxFlag =
                      pRateUpdateParams->reliableMcastDataRateTxFlag;
    rateUpdateParams.mcastDataRate24GHzTxFlag =
@@ -11753,7 +11788,7 @@ VOS_STATUS WDA_TxComplete( v_PVOID_t pVosContext, vos_pkt_t *pData,
    if( NULL!=wdaContext->pTxCbFunc) 
    {
       /*check if packet is freed already*/
-      if(vos_atomic_set((uintptr_t*)&wdaContext->VosPacketToFree, (uintptr_t)WDA_TX_PACKET_FREED) == (uintptr_t)pData)
+      if(vos_atomic_set_U32(&wdaContext->VosPacketToFree, (v_U32_t)WDA_TX_PACKET_FREED) == (v_U32_t)pData)
       {
          wdaContext->pTxCbFunc(pMac, pData); 
       }
@@ -11924,7 +11959,7 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
           txFlag |= HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME;
        }
    }
-   vos_atomic_set((uintptr_t*)&pWDA->VosPacketToFree, (uintptr_t)pFrmBuf);/*set VosPacket_freed to pFrmBuf*/
+   vos_atomic_set_U32(&pWDA->VosPacketToFree, (v_U32_t)pFrmBuf);/*set VosPacket_freed to pFrmBuf*/
 
    /*Set frame tag to 0 
      We will use the WDA user data in order to tag a frame as expired*/
@@ -11939,7 +11974,7 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR, 
                        "Sending Mgmt Frame failed - status = %d", status);
       pCompFunc(VOS_GET_MAC_CTXT(pWDA->pVosContext), (vos_pkt_t *)pFrmBuf);
-      vos_atomic_set((uintptr_t*)&pWDA->VosPacketToFree, (v_U32_t)WDA_TX_PACKET_FREED);/*reset the VosPacket_freed*/
+      vos_atomic_set_U32(&pWDA->VosPacketToFree, (v_U32_t)WDA_TX_PACKET_FREED);/*reset the VosPacket_freed*/
       if( pAckTxComp )
       {
          pWDA->pAckTxCbFunc = NULL;
@@ -11976,8 +12011,8 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
       /* check whether the packet was freed already,so need not free again when 
       * TL calls the WDA_Txcomplete routine
       */
-      vos_atomic_set((uintptr_t*)&pWDA->VosPacketToFree, (uintptr_t)WDA_TX_PACKET_FREED);
-      /*if(vos_atomic_set(uintptr_t *)&pWDA->VosPacketToFree, (uintptr_t)WDA_TX_PACKET_FREED) == (v_U32_t)pFrmBuf)
+      vos_atomic_set_U32(&pWDA->VosPacketToFree, (v_U32_t)WDA_TX_PACKET_FREED);
+      /*if(vos_atomic_set_U32(&pWDA->VosPacketToFree, (v_U32_t)WDA_TX_PACKET_FREED) == (v_U32_t)pFrmBuf) 
       {
          pCompFunc(VOS_GET_MAC_CTXT(pWDA->pVosContext), (vos_pkt_t *)pFrmBuf);
       } */
@@ -12842,17 +12877,17 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
             (tSirDelPeriodicTxPtrn *)pMsg->bodyptr);
          break;
       }
+      case WDA_RATE_UPDATE_IND:
+      {
+          WDA_ProcessRateUpdateInd(pWDA, (tSirRateUpdateInd *)pMsg->bodyptr);
+          break;
+      }
 
 #ifdef FEATURE_WLAN_BATCH_SCAN
       case WDA_SET_BATCH_SCAN_REQ:
       {
           WDA_ProcessSetBatchScanReq(pWDA,
             (tSirSetBatchScanReq *)pMsg->bodyptr);
-          break;
-      }
-      case WDA_RATE_UPDATE_IND:
-      {
-          WDA_ProcessRateUpdateInd(pWDA, (tSirRateUpdateInd *)pMsg->bodyptr);
           break;
       }
       case WDA_TRIGGER_BATCH_SCAN_RESULT_IND:
@@ -12867,10 +12902,6 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
             (tSirStopBatchScanInd *)pMsg->bodyptr);
           break;
       }
-      case WDA_GET_BCN_MISS_RATE_REQ:
-          WDA_ProcessGetBcnMissRateReq(pWDA,
-                                      (tSirBcnMissRateReq *)pMsg->bodyptr);
-          break;
 #endif
 
       case WDA_HT40_OBSS_SCAN_IND:
@@ -12885,6 +12916,10 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
             (tANI_U8*)pMsg->bodyptr);
           break;
       }
+      case WDA_GET_BCN_MISS_RATE_REQ:
+          WDA_ProcessGetBcnMissRateReq(pWDA,
+                                      (tSirBcnMissRateReq *)pMsg->bodyptr);
+          break;
       default:
       {
          VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
@@ -14807,7 +14842,7 @@ VOS_STATUS WDA_ProcessUpdateScanParams(tWDA_CbContext *pWDA,
           "Update Scan Parameters b11dEnabled %d b11dResolved %d "
           "ucChannelCount %d usPassiveMinChTime %d usPassiveMaxChTime"
           " %d usActiveMinChTime %d usActiveMaxChTime %d sizeof "
-          "sir struct %zu wdi struct %zu",
+          "sir struct %d wdi struct %d",
               pUpdateScanParams->b11dEnabled,
               pUpdateScanParams->b11dResolved,
               pUpdateScanParams->ucChannelCount, 
@@ -14920,7 +14955,7 @@ void WDA_RoamOffloadScanReqCallback(WDI_Status status, void* pUserData)
    {
       /* free the mem and return */
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                 "%s: Failed to post the rsp to UMAC", __func__);
+                 "Failed to post the rsp to UMAC" ,__func__);
    }
 
    return ;

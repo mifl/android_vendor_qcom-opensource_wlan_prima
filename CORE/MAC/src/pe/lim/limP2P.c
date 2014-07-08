@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,13 +18,26 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*===========================================================================
                         L I M _ P 2 P . C
 
@@ -33,9 +46,6 @@
   This software unit holds the implementation of the WLAN Protocol Engine for
   P2P.
 
-  Copyright (c) 2011 QUALCOMM Incorporated.
-  All Rights Reserved.
-  Qualcomm Confidential and Proprietary
 ===========================================================================*/
 
 /*===========================================================================
@@ -205,7 +215,7 @@ eHalStatus limPrepareAndSendStartRemainOnChannelMsg(tpAniSirGlobal pMac,
     }
 
     snprintf(startRemainOnChannelMsg, REMAIN_ON_CHANNEL_MSG_SIZE,
-            "START-REMAIN-ON-CHANNEL%d-CHN=%d-FOR-DUR=%d-SEQ=%d",
+            "START-REMAIN-ON-CHANNEL%d-CHN=%d-FOR-DUR=%ld-SEQ=%ld",
             id, MsgRemainonChannel->chnNum, MsgRemainonChannel->duration,
             pMac->lim.remOnChnSeqNum);
 
@@ -247,7 +257,7 @@ eHalStatus limPrepareAndSendCancelRemainOnChannelMsg(tpAniSirGlobal pMac,
     }
 
     snprintf(cancelRemainOnChannelMsg, REMAIN_ON_CHANNEL_MSG_SIZE,
-            "CANCEL-REMAIN-ON-CHANNEL%d-SEQ=%d",
+            "CANCEL-REMAIN-ON-CHANNEL%d-SEQ=%ld",
             id, pMac->lim.remOnChnSeqNum);
     if( eSIR_FAILURE == limSendRemainOnChannelDebugMarkerFrame(pMac,
                                                  cancelRemainOnChannelMsg) )
@@ -288,7 +298,7 @@ void limSetLinkStateP2PCallback(tpAniSirGlobal pMac, void *callbackArg)
             {
                 limLog( pMac, LOGE,
                         "%s: Successfully sent 2nd Marker frame "
-                        "seq num = %d on start ROC", __func__,
+                        "seq num = %ld on start ROC", __func__,
                         pMac->lim.remOnChnSeqNum);
             }
         }
@@ -866,8 +876,8 @@ void limSetHtCaps(tpAniSirGlobal pMac, tpPESession psessionEntry, tANI_U8 *pIeSt
     PopulateDot11fHTCaps(pMac, psessionEntry, &dot11HtCap);
     pIe = limGetIEPtr(pMac,pIeStartPtr, nBytes,
                                        DOT11F_EID_HTCAPS,ONE_BYTE);
-    limLog( pMac, LOG2, FL("pIe %p dot11HtCap.supportedMCSSet[0]=0x%x"),
-            pIe, dot11HtCap.supportedMCSSet[0]);
+   limLog( pMac, LOG2, FL("pIe 0x%x dot11HtCap.supportedMCSSet[0]=0x%x"),
+        (tANI_U32)pIe,dot11HtCap.supportedMCSSet[0]);
     if(pIe)
     {
         tHtCaps *pHtcap = (tHtCaps *)&pIe[2]; //convert from unpacked to packed structure
@@ -1080,10 +1090,10 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
                 }
                 nBytes += noaLen;
                 limLog( pMac, LOGE,
-                        FL("noaLen=%d origLen=%d pP2PIe=%p"
-                           " nBytes=%d nBytesToCopy=%zu"),
-                        noaLen,origLen, pP2PIe, nBytes,
-                        ((pP2PIe + origLen + 2) - (v_U8_t *)pMbMsg->data));
+                        FL("noaLen=%d origLen=%d pP2PIe=0x%x"
+                        " nBytes=%d nBytesToCopy=%d "),
+                                   noaLen,origLen,pP2PIe,nBytes,
+                   ((pP2PIe + origLen + 2) - (v_U8_t *)pMbMsg->data));
             }
         }
 
@@ -1238,7 +1248,7 @@ void limSendP2PActionFrame(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
         else
         {
              pMac->lim.mgmtFrameSessionId = pMbMsg->sessionId;
-             limLog( pMac, LOG2, FL("lim.actionFrameSessionId = %u" ),
+             limLog( pMac, LOG2, FL("lim.actionFrameSessionId = %lu" ),
                      pMac->lim.mgmtFrameSessionId);
 
         }
