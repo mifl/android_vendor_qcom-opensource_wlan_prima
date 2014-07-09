@@ -4685,9 +4685,12 @@ static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *i
 
         case WE_GET_STATS:
         {
+            tHalHandle hHal = NULL;
+            tpAniSirGlobal pMac = NULL;
             hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
             hdd_tx_rx_stats_t *pStats = &pAdapter->hdd_stats.hddTxRxStats;
             hdd_chip_reset_stats_t *pResetStats = &pHddCtx->hddChipResetStats;
+
 
             snprintf(extra, WE_MAX_STR_LEN,
                      "\nTransmit"
@@ -4782,6 +4785,33 @@ static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *i
                      pResetStats->totalFWHearbeatFailures,
                      pResetStats->totalUnknownExceptions
                      );
+            wrqu->data.length = strlen(extra);
+
+            hHal = WLAN_HDD_GET_HAL_CTX( pAdapter );
+
+            if (hHal)
+                pMac = PMAC_STRUCT( hHal );
+
+            if (pMac && (wrqu->data.length < WE_MAX_STR_LEN)) {
+                __u32 pmmStatsLength = WE_MAX_STR_LEN - wrqu->data.length;
+                snprintf(extra+wrqu->data.length, pmmStatsLength,
+                        "\n BMPS sleepcnt %lld, BMPS awakecnt %lld"
+                        "\n BMPS sleepreqfailcnt %lld, BMPS wakeupreqfailcnt %lld"
+                        "\n IMPS sleepcnt %lld, IMPS awakecnt %lld"
+                        "\n IMPS sleepreqfailcnt %lld, IMPS wakeupreqfailcnt %lld, IMPS lasterr %lld"
+                        "\n",
+                        pMac->pmm.BmpscntSleep,
+                        pMac->pmm.BmpscntAwake,
+                        pMac->pmm.BmpsSleeReqFailCnt,
+                        pMac->pmm.BmpsWakeupReqFailCnt,
+                        pMac->pmm.ImpsCntSleep,
+                        pMac->pmm.ImpsCntAwake,
+                        pMac->pmm.ImpsSleepErrCnt,
+                        pMac->pmm.ImpsWakeupErrCnt,
+                        pMac->pmm.ImpsLastErr
+                        );
+            }
+
             wrqu->data.length = strlen(extra)+1;
             break;
         }
