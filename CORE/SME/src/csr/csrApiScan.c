@@ -6712,6 +6712,14 @@ eHalStatus csrScanTriggerIdleScan(tpAniSirGlobal pMac, tANI_U32 *pTimeInterval)
 
         return status;
     }
+    if ( !pMac->deferImps && pMac->fDeferIMPSTime )
+    {
+        smsLog( pMac, LOG1, FL("Defer IMPS for %dms as command processed"),
+                pMac->fDeferIMPSTime);
+        *pTimeInterval = pMac->fDeferIMPSTime * 1000; //usec
+        pMac->deferImps = eANI_BOOLEAN_TRUE;
+        return status;
+    }
     if((pMac->scan.fScanEnable) && (eANI_BOOLEAN_FALSE == pMac->scan.fCancelIdleScan) 
     /*&& pMac->roam.configParam.impsSleepTime*/)
     {
@@ -6832,6 +6840,11 @@ void csrScanIdleScanTimerHandler(void *pv)
         {
             csrScanStartIdleScanTimer(pMac, nTime);
         }
+    }
+    if(pMac->deferImps)
+    {
+        pMac->scan.fRestartIdleScan = eANI_BOOLEAN_TRUE;
+        pMac->deferImps = eANI_BOOLEAN_FALSE;
     }
 }
 
