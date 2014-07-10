@@ -2881,7 +2881,7 @@ static int wlan_hdd_cfg80211_extscan_get_capabilities(struct wiphy *wiphy,
                                         struct wireless_dev *wdev,
                                         void *data, int dataLen)
 {
-    tpSirGetEXTScanCapabilitiesReqParams pReqMsg = NULL;
+    tSirGetEXTScanCapabilitiesReqParams reqMsg;
     struct net_device *dev                     = wdev->netdev;
     hdd_adapter_t *pAdapter                    = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_context_t *pHddCtx                     = wiphy_priv(wiphy);
@@ -2897,6 +2897,15 @@ static int wlan_hdd_cfg80211_extscan_get_capabilities(struct wiphy *wiphy,
                FL("HDD context is not valid"));
         return -EINVAL;
     }
+    /* check the EXTScan Capability */
+    if ( (TRUE != pHddCtx->cfg_ini->fEnableEXTScan) ||
+         (TRUE != sme_IsFeatureSupportedByFW(EXTENDED_SCAN)))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               FL("EXTScan not enabled/supported by Firmware"));
+        return -EINVAL;
+    }
+
     if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
                     data, dataLen,
                     wlan_hdd_extscan_config_policy)) {
@@ -2910,25 +2919,18 @@ static int wlan_hdd_cfg80211_extscan_get_capabilities(struct wiphy *wiphy,
         return -EINVAL;
     }
 
-    pReqMsg = (tpSirGetEXTScanCapabilitiesReqParams)
-                                     vos_mem_malloc(sizeof(*pReqMsg));
-    if (!pReqMsg) {
-        hddLog(VOS_TRACE_LEVEL_ERROR, FL("vos_mem_malloc failed"));
-        return -ENOMEM;
-    }
 
-    pReqMsg->requestId = nla_get_u32(
+    reqMsg.requestId = nla_get_u32(
               tb[QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_REQUEST_ID]);
-    hddLog(VOS_TRACE_LEVEL_INFO, FL("Req Id (%d)"), pReqMsg->requestId);
+    hddLog(VOS_TRACE_LEVEL_INFO, FL("Req Id (%d)"), reqMsg.requestId);
 
-    pReqMsg->sessionId = pAdapter->sessionId;
-    hddLog(VOS_TRACE_LEVEL_INFO, FL("Session Id (%d)"), pReqMsg->sessionId);
+    reqMsg.sessionId = pAdapter->sessionId;
+    hddLog(VOS_TRACE_LEVEL_INFO, FL("Session Id (%d)"), reqMsg.sessionId);
 
-    status = sme_EXTScanGetCapabilities(pHddCtx->hHal, pReqMsg);
+    status = sme_EXTScanGetCapabilities(pHddCtx->hHal, &reqMsg);
     if (!HAL_STATUS_SUCCESS(status)) {
         hddLog(VOS_TRACE_LEVEL_ERROR,
                FL("sme_EXTScanGetCapabilities failed(err=%d)"), status);
-        vos_mem_free(pReqMsg);
         return -EINVAL;
     }
 
@@ -2940,7 +2942,7 @@ static int wlan_hdd_cfg80211_extscan_get_cached_results(struct wiphy *wiphy,
                                         struct wireless_dev *wdev,
                                         void *data, int dataLen)
 {
-    tpSirEXTScanGetCachedResultsReqParams pReqMsg = NULL;
+    tSirEXTScanGetCachedResultsReqParams reqMsg;
     struct net_device *dev                      = wdev->netdev;
     hdd_adapter_t *pAdapter                     = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_context_t *pHddCtx                      = wiphy_priv(wiphy);
@@ -2955,6 +2957,15 @@ static int wlan_hdd_cfg80211_extscan_get_cached_results(struct wiphy *wiphy,
                FL("HDD context is not valid"));
         return -EINVAL;
     }
+    /* check the EXTScan Capability */
+    if ( (TRUE != pHddCtx->cfg_ini->fEnableEXTScan) ||
+         (TRUE != sme_IsFeatureSupportedByFW(EXTENDED_SCAN)))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               FL("EXTScan not enabled/supported by Firmware"));
+        return -EINVAL;
+    }
+
     if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
                     data, dataLen,
                     wlan_hdd_extscan_config_policy)) {
@@ -2966,20 +2977,14 @@ static int wlan_hdd_cfg80211_extscan_get_cached_results(struct wiphy *wiphy,
         hddLog(VOS_TRACE_LEVEL_ERROR, FL("attr request id failed"));
         return -EINVAL;
     }
-    pReqMsg = (tpSirEXTScanGetCachedResultsReqParams)
-                                  vos_mem_malloc(sizeof(*pReqMsg));
-    if (!pReqMsg) {
-        hddLog(VOS_TRACE_LEVEL_ERROR, FL("vos_mem_malloc failed"));
-        return -ENOMEM;
-    }
 
-    pReqMsg->requestId = nla_get_u32(
+    reqMsg.requestId = nla_get_u32(
               tb[QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_REQUEST_ID]);
 
-    hddLog(VOS_TRACE_LEVEL_INFO, FL("Req Id (%d)"), pReqMsg->requestId);
+    hddLog(VOS_TRACE_LEVEL_INFO, FL("Req Id (%d)"), reqMsg.requestId);
 
-    pReqMsg->sessionId = pAdapter->sessionId;
-    hddLog(VOS_TRACE_LEVEL_INFO, FL("Session Id (%d)"), pReqMsg->sessionId);
+    reqMsg.sessionId = pAdapter->sessionId;
+    hddLog(VOS_TRACE_LEVEL_INFO, FL("Session Id (%d)"), reqMsg.sessionId);
 
     /* Parse and fetch flush parameter */
     if (!tb
@@ -2988,22 +2993,20 @@ static int wlan_hdd_cfg80211_extscan_get_cached_results(struct wiphy *wiphy,
         hddLog(VOS_TRACE_LEVEL_ERROR, FL("attr flush failed"));
         goto failed;
     }
-    pReqMsg->flush = nla_get_u8(
+    reqMsg.flush = nla_get_u8(
     tb[QCA_WLAN_VENDOR_ATTR_EXTSCAN_GET_CACHED_SCAN_RESULTS_CONFIG_PARAM_FLUSH]);
 
-    hddLog(VOS_TRACE_LEVEL_INFO, FL("Flush (%d)"), pReqMsg->flush);
+    hddLog(VOS_TRACE_LEVEL_INFO, FL("Flush (%d)"), reqMsg.flush);
 
-    status = sme_getCachedResults(pHddCtx->hHal, pReqMsg);
+    status = sme_getCachedResults(pHddCtx->hHal, &reqMsg);
     if (!HAL_STATUS_SUCCESS(status)) {
         hddLog(VOS_TRACE_LEVEL_ERROR,
                FL("sme_getCachedResults failed(err=%d)"), status);
-        vos_mem_free(pReqMsg);
         return -EINVAL;
     }
     return 0;
 
 failed:
-    vos_mem_free(pReqMsg);
     return -EINVAL;
 }
 
@@ -3031,6 +3034,15 @@ static int wlan_hdd_cfg80211_extscan_set_bssid_hotlist(struct wiphy *wiphy,
                FL("HDD context is not valid"));
         return -EINVAL;
     }
+    /* check the EXTScan Capability */
+    if ( (TRUE != pHddCtx->cfg_ini->fEnableEXTScan) ||
+         (TRUE != sme_IsFeatureSupportedByFW(EXTENDED_SCAN)))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               FL("EXTScan not enabled/supported by Firmware"));
+        return -EINVAL;
+    }
+
     if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
                     data, dataLen,
                     wlan_hdd_extscan_config_policy)) {
@@ -3043,13 +3055,13 @@ static int wlan_hdd_cfg80211_extscan_set_bssid_hotlist(struct wiphy *wiphy,
         hddLog(VOS_TRACE_LEVEL_ERROR, FL("attr request id failed"));
         return -EINVAL;
     }
-
     pReqMsg = (tpSirEXTScanSetBssidHotListReqParams)
                                      vos_mem_malloc(sizeof(*pReqMsg));
     if (!pReqMsg) {
         hddLog(VOS_TRACE_LEVEL_ERROR, FL("vos_mem_malloc failed"));
         return -ENOMEM;
     }
+
 
     pReqMsg->requestId = nla_get_u32(
               tb[QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_REQUEST_ID]);
@@ -3125,6 +3137,8 @@ static int wlan_hdd_cfg80211_extscan_set_bssid_hotlist(struct wiphy *wiphy,
         return -EINVAL;
     }
 
+    vos_mem_free(pReqMsg);
+
     return 0;
 
 fail:
@@ -3156,6 +3170,15 @@ static int wlan_hdd_cfg80211_extscan_set_significant_change(struct wiphy *wiphy,
                FL("HDD context is not valid"));
         return -EINVAL;
     }
+    /* check the EXTScan Capability */
+    if ( (TRUE != pHddCtx->cfg_ini->fEnableEXTScan) ||
+         (TRUE != sme_IsFeatureSupportedByFW(EXTENDED_SCAN)))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               FL("EXTScan not enabled/supported by Firmware"));
+        return -EINVAL;
+    }
+
     if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
                     data, dataLen,
                     wlan_hdd_extscan_config_policy)) {
@@ -3168,13 +3191,14 @@ static int wlan_hdd_cfg80211_extscan_set_significant_change(struct wiphy *wiphy,
         hddLog(VOS_TRACE_LEVEL_ERROR, FL("attr request id failed"));
         return -EINVAL;
     }
-
     pReqMsg = (tpSirEXTScanSetSignificantChangeReqParams)
-                                 vos_mem_malloc(sizeof(*pReqMsg));
+                                     vos_mem_malloc(sizeof(*pReqMsg));
     if (!pReqMsg) {
-        hddLog(VOS_TRACE_LEVEL_ERROR, FL("vos_mem_malloc failed"));
-        return -ENOMEM;
+       hddLog(VOS_TRACE_LEVEL_ERROR, FL("vos_mem_malloc failed"));
+       return -ENOMEM;
     }
+
+
 
     pReqMsg->requestId = nla_get_u32(
               tb[QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_REQUEST_ID]);
@@ -3280,7 +3304,7 @@ static int wlan_hdd_cfg80211_extscan_set_significant_change(struct wiphy *wiphy,
         vos_mem_free(pReqMsg);
         return -EINVAL;
     }
-
+    vos_mem_free(pReqMsg);
     hddLog(VOS_TRACE_LEVEL_ERROR, FL(" Exiting"));
     return 0;
 
@@ -3311,6 +3335,15 @@ static int wlan_hdd_cfg80211_extscan_get_valid_channels(struct wiphy *wiphy,
                FL("HDD context is not valid"));
         return -EINVAL;
     }
+    /* check the EXTScan Capability */
+    if ( (TRUE != pHddCtx->cfg_ini->fEnableEXTScan) ||
+         (TRUE != sme_IsFeatureSupportedByFW(EXTENDED_SCAN)))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               FL("EXTScan not enabled/supported by Firmware"));
+        return -EINVAL;
+    }
+
     if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
                   data, dataLen,
                   wlan_hdd_extscan_config_policy)) {
@@ -3376,7 +3409,7 @@ static int wlan_hdd_cfg80211_extscan_start(struct wiphy *wiphy,
                                         struct wireless_dev *wdev,
                                         void *data, int dataLen)
 {
-    tpSirEXTScanStartReqParams pReqMsg       = NULL;
+    tpSirEXTScanStartReqParams pReqMsg = NULL;
     struct net_device *dev                  = wdev->netdev;
     hdd_adapter_t *pAdapter                 = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_context_t *pHddCtx                  = wiphy_priv(wiphy);
@@ -3398,6 +3431,15 @@ static int wlan_hdd_cfg80211_extscan_start(struct wiphy *wiphy,
                FL("HDD context is not valid"));
         return -EINVAL;
     }
+    /* check the EXTScan Capability */
+    if ( (TRUE != pHddCtx->cfg_ini->fEnableEXTScan) ||
+         (TRUE != sme_IsFeatureSupportedByFW(EXTENDED_SCAN)))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               FL("EXTScan not enabled/supported by Firmware"));
+        return -EINVAL;
+    }
+
     if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
                     data, dataLen,
                     wlan_hdd_extscan_config_policy)) {
@@ -3411,10 +3453,11 @@ static int wlan_hdd_cfg80211_extscan_start(struct wiphy *wiphy,
         return -EINVAL;
     }
 
-    pReqMsg = (tpSirEXTScanStartReqParams) vos_mem_malloc(sizeof(*pReqMsg));
+    pReqMsg = (tpSirEXTScanStartReqParams)
+                                     vos_mem_malloc(sizeof(*pReqMsg));
     if (!pReqMsg) {
-        hddLog(VOS_TRACE_LEVEL_ERROR, FL("vos_mem_malloc failed"));
-        return -ENOMEM;
+       hddLog(VOS_TRACE_LEVEL_ERROR, FL("vos_mem_malloc failed"));
+       return -ENOMEM;
     }
 
     pReqMsg->requestId = nla_get_u32(
@@ -3590,6 +3633,7 @@ static int wlan_hdd_cfg80211_extscan_start(struct wiphy *wiphy,
         return -EINVAL;
     }
 
+    vos_mem_free(pReqMsg);
     return 0;
 
 fail:
@@ -3601,7 +3645,7 @@ static int wlan_hdd_cfg80211_extscan_stop(struct wiphy *wiphy,
                                         struct wireless_dev *wdev,
                                         void *data, int dataLen)
 {
-    tpSirEXTScanStopReqParams pReqMsg         = NULL;
+    tSirEXTScanStopReqParams reqMsg;
     struct net_device *dev                  = wdev->netdev;
     hdd_adapter_t *pAdapter                 = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_context_t *pHddCtx                  = wiphy_priv(wiphy);
@@ -3615,6 +3659,15 @@ static int wlan_hdd_cfg80211_extscan_stop(struct wiphy *wiphy,
                FL("HDD context is not valid"));
         return -EINVAL;
     }
+    /* check the EXTScan Capability */
+    if ( (TRUE != pHddCtx->cfg_ini->fEnableEXTScan) ||
+         (TRUE != sme_IsFeatureSupportedByFW(EXTENDED_SCAN)))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               FL("EXTScan not enabled/supported by Firmware"));
+        return -EINVAL;
+    }
+
     if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
                     data, dataLen,
                     wlan_hdd_extscan_config_policy)) {
@@ -3628,24 +3681,17 @@ static int wlan_hdd_cfg80211_extscan_stop(struct wiphy *wiphy,
         return -EINVAL;
     }
 
-    pReqMsg = (tpSirEXTScanStopReqParams) vos_mem_malloc(sizeof(*pReqMsg));
-    if (!pReqMsg) {
-        hddLog(VOS_TRACE_LEVEL_ERROR, FL("vos_mem_malloc failed"));
-        return -ENOMEM;
-    }
-
-    pReqMsg->requestId = nla_get_u32(
+    reqMsg.requestId = nla_get_u32(
               tb[QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_REQUEST_ID]);
-    hddLog(VOS_TRACE_LEVEL_INFO, FL("Req Id (%d)"), pReqMsg->requestId);
+    hddLog(VOS_TRACE_LEVEL_INFO, FL("Req Id (%d)"), reqMsg.requestId);
 
-    pReqMsg->sessionId = pAdapter->sessionId;
-    hddLog(VOS_TRACE_LEVEL_INFO, FL("Session Id (%d)"), pReqMsg->sessionId);
+    reqMsg.sessionId = pAdapter->sessionId;
+    hddLog(VOS_TRACE_LEVEL_INFO, FL("Session Id (%d)"), reqMsg.sessionId);
 
-    status = sme_EXTScanStop(pHddCtx->hHal, pReqMsg);
+    status = sme_EXTScanStop(pHddCtx->hHal, &reqMsg);
     if (!HAL_STATUS_SUCCESS(status)) {
         hddLog(VOS_TRACE_LEVEL_ERROR,
                     FL("sme_EXTScanStop failed(err=%d)"), status);
-        vos_mem_free(pReqMsg);
         return -EINVAL;
     }
 
@@ -3656,7 +3702,7 @@ static int wlan_hdd_cfg80211_extscan_reset_bssid_hotlist(struct wiphy *wiphy,
                                         struct wireless_dev *wdev,
                                         void *data, int dataLen)
 {
-    tpSirEXTScanResetBssidHotlistReqParams pReqMsg = NULL;
+    tSirEXTScanResetBssidHotlistReqParams reqMsg;
     struct net_device *dev                       = wdev->netdev;
     hdd_adapter_t *pAdapter                      = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_context_t *pHddCtx                       = wiphy_priv(wiphy);
@@ -3670,6 +3716,15 @@ static int wlan_hdd_cfg80211_extscan_reset_bssid_hotlist(struct wiphy *wiphy,
                FL("HDD context is not valid"));
         return -EINVAL;
     }
+    /* check the EXTScan Capability */
+    if ( (TRUE != pHddCtx->cfg_ini->fEnableEXTScan) ||
+         (TRUE != sme_IsFeatureSupportedByFW(EXTENDED_SCAN)))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               FL("EXTScan not enabled/supported by Firmware"));
+        return -EINVAL;
+    }
+
     if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
                     data, dataLen,
                     wlan_hdd_extscan_config_policy)) {
@@ -3683,25 +3738,17 @@ static int wlan_hdd_cfg80211_extscan_reset_bssid_hotlist(struct wiphy *wiphy,
         return -EINVAL;
     }
 
-    pReqMsg = (tpSirEXTScanResetBssidHotlistReqParams)
-                                 vos_mem_malloc(sizeof(*pReqMsg));
-    if (!pReqMsg) {
-        hddLog(VOS_TRACE_LEVEL_ERROR, FL("vos_mem_malloc failed"));
-        return -ENOMEM;
-    }
-
-    pReqMsg->requestId = nla_get_u32(
+    reqMsg.requestId = nla_get_u32(
               tb[QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_REQUEST_ID]);
-    hddLog(VOS_TRACE_LEVEL_INFO, FL("Req Id (%d)"), pReqMsg->requestId);
+    hddLog(VOS_TRACE_LEVEL_INFO, FL("Req Id (%d)"), reqMsg.requestId);
 
-    pReqMsg->sessionId = pAdapter->sessionId;
-    hddLog(VOS_TRACE_LEVEL_INFO, FL("Session Id (%d)"), pReqMsg->sessionId);
+    reqMsg.sessionId = pAdapter->sessionId;
+    hddLog(VOS_TRACE_LEVEL_INFO, FL("Session Id (%d)"), reqMsg.sessionId);
 
-    status = sme_ResetBssHotlist(pHddCtx->hHal, pReqMsg);
+    status = sme_ResetBssHotlist(pHddCtx->hHal, &reqMsg);
     if (!HAL_STATUS_SUCCESS(status)) {
         hddLog(VOS_TRACE_LEVEL_ERROR,
                           FL("sme_ResetBssHotlist failed(err=%d)"), status);
-        vos_mem_free(pReqMsg);
         return -EINVAL;
     }
 
@@ -3713,7 +3760,7 @@ static int wlan_hdd_cfg80211_extscan_reset_significant_change(
                                         struct wireless_dev *wdev,
                                         void *data, int dataLen)
 {
-    tpSirEXTScanResetSignificantChangeReqParams pReqMsg = NULL;
+    tSirEXTScanResetSignificantChangeReqParams reqMsg;
     struct net_device *dev                       = wdev->netdev;
     hdd_adapter_t *pAdapter                      = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_context_t *pHddCtx                       = wiphy_priv(wiphy);
@@ -3728,6 +3775,15 @@ static int wlan_hdd_cfg80211_extscan_reset_significant_change(
                FL("HDD context is not valid"));
         return -EINVAL;
     }
+    /* check the EXTScan Capability */
+    if ( (TRUE != pHddCtx->cfg_ini->fEnableEXTScan) ||
+         (TRUE != sme_IsFeatureSupportedByFW(EXTENDED_SCAN)))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               FL("EXTScan not enabled/supported by Firmware"));
+        return -EINVAL;
+    }
+
     if (nla_parse(tb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
                     data, dataLen,
                     wlan_hdd_extscan_config_policy)) {
@@ -3741,25 +3797,18 @@ static int wlan_hdd_cfg80211_extscan_reset_significant_change(
         return -EINVAL;
     }
 
-    pReqMsg = (tpSirEXTScanResetSignificantChangeReqParams)
-                          vos_mem_malloc(sizeof(*pReqMsg));
-    if (!pReqMsg) {
-        hddLog(VOS_TRACE_LEVEL_ERROR, FL("vos_mem_malloc failed"));
-        return -ENOMEM;
-    }
 
-    pReqMsg->requestId = nla_get_u32(
+    reqMsg.requestId = nla_get_u32(
               tb[QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_REQUEST_ID]);
-    hddLog(VOS_TRACE_LEVEL_INFO, FL("Req Id (%d)"), pReqMsg->requestId);
+    hddLog(VOS_TRACE_LEVEL_INFO, FL("Req Id (%d)"), reqMsg.requestId);
 
-    pReqMsg->sessionId = pAdapter->sessionId;
-    hddLog(VOS_TRACE_LEVEL_INFO, FL("Session Id (%d)"), pReqMsg->sessionId);
+    reqMsg.sessionId = pAdapter->sessionId;
+    hddLog(VOS_TRACE_LEVEL_INFO, FL("Session Id (%d)"), reqMsg.sessionId);
 
-    status = sme_ResetSignificantChange(pHddCtx->hHal, pReqMsg);
+    status = sme_ResetSignificantChange(pHddCtx->hHal, &reqMsg);
     if (!HAL_STATUS_SUCCESS(status)) {
         hddLog(VOS_TRACE_LEVEL_ERROR,
                    FL("sme_ResetSignificantChange failed(err=%d)"), status);
-        vos_mem_free(pReqMsg);
         return -EINVAL;
     }
 
