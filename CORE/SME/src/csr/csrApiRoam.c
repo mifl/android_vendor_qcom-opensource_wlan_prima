@@ -1837,6 +1837,7 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         pMac->roam.configParam.isAmsduSupportInAMPDU = pParam->isAmsduSupportInAMPDU;
         pMac->roam.configParam.nSelect5GHzMargin = pParam->nSelect5GHzMargin;
         pMac->roam.configParam.allowDFSChannelRoam = pParam->allowDFSChannelRoam;
+        pMac->roam.configParam.sendDeauthBeforeCon = pParam->sendDeauthBeforeCon;
     }
     
     return status;
@@ -1965,6 +1966,8 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
         pParam->nSelect5GHzMargin = pMac->roam.configParam.nSelect5GHzMargin;
         pParam->allowDFSChannelRoam =
                                     pMac->roam.configParam.allowDFSChannelRoam;
+
+        pParam->sendDeauthBeforeCon = pMac->roam.configParam.sendDeauthBeforeCon;
         csrSetChannels(pMac, pParam);
 
         status = eHAL_STATUS_SUCCESS;
