@@ -6746,7 +6746,8 @@ eHalStatus csrScanTriggerIdleScan(tpAniSirGlobal pMac, tANI_U32 *pTimeInterval)
     eHalStatus status = eHAL_STATUS_CSR_WRONG_STATE;
 
     //Do not trigger IMPS in case of concurrency
-    if (vos_concurrent_sessions_running() && csrIsAnySessionInConnectState(pMac))
+    if (vos_concurrent_open_sessions_running() &&
+        csrIsAnySessionInConnectState(pMac))
     {
         smsLog( pMac, LOG1, FL("Cannot request IMPS because Concurrent Sessions Running") );
         return (status);
@@ -6881,7 +6882,7 @@ void csrScanCancelIdleScan(tpAniSirGlobal pMac)
 {
     if(eANI_BOOLEAN_FALSE == pMac->scan.fCancelIdleScan)
     {
-        if (vos_concurrent_sessions_running()) {
+        if (vos_concurrent_open_sessions_running()) {
             return;
         }
         smsLog(pMac, LOG1, "  csrScanCancelIdleScan");
