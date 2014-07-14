@@ -5792,10 +5792,10 @@ VOS_STATUS hdd_init_station_mode( hdd_adapter_t *pAdapter )
    set_bit(WMM_INIT_DONE, &pAdapter->event_flags);
 
 #ifdef FEATURE_WLAN_TDLS
-   if(0 != wlan_hdd_tdls_init(pAdapter))
+   if(0 != wlan_hdd_sta_tdls_init(pAdapter))
    {
        status = VOS_STATUS_E_FAILURE;
-       hddLog(VOS_TRACE_LEVEL_ERROR,"%s: wlan_hdd_tdls_init failed",__func__);
+       hddLog(VOS_TRACE_LEVEL_ERROR,"%s: wlan_hdd_sta_tdls_init failed",__func__);
        goto error_tdls_init;
    }
    set_bit(TDLS_INIT_DONE, &pAdapter->event_flags);
@@ -8883,6 +8883,8 @@ int hdd_wlan_startup(struct device *dev )
                        pHddCtx->cfg_ini->isRoamOffloadScanEnabled);
    }
 #endif
+
+   wlan_hdd_tdls_init(pHddCtx);
 
    sme_Register11dScanDoneCallback(pHddCtx->hHal, hdd_11d_scan_done);
 
