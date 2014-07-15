@@ -1,5 +1,25 @@
 /*
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -19,13 +39,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * Copyright (c) 2012-2013 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
- *
- */
-
 
 #ifndef WLAN_QCT_WDI_I_H
 #define WLAN_QCT_WDI_I_H
@@ -39,7 +52,11 @@
                    
 DESCRIPTION
   This file contains the internal API exposed by the DAL Control Path Core 
-  module to be used by the DAL Data Path Core.
+  module to be used by the DAL Data Path Core. 
+  
+      
+  Copyright (c) 2010 Qualcomm Technologies, Inc. All Rights Reserved.
+  Qualcomm Technologies Confidential and Proprietary
 ===========================================================================*/
 
 
@@ -764,25 +781,26 @@ typedef enum
   WDI_SET_MAX_TX_POWER_PER_BAND_RSP             = 86,
 
   WDI_UPDATE_CHAN_RESP                          = 87,
-  /* channel switch resp v1*/
-  WDI_CH_SWITCH_RESP_V1                         = 88,
 
-  WDI_GET_BCN_MISS_RATE_RSP                     = 89,
+  WDI_GET_BCN_MISS_RATE_RSP                     = 88,
+
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
-  WDI_LL_STATS_SET_RSP                          = 90,
-  WDI_LL_STATS_GET_RSP                          = 91,
-  WDI_LL_STATS_CLEAR_RSP                        = 92,
+  WDI_LL_STATS_SET_RSP                          = 89,
+  WDI_LL_STATS_GET_RSP                          = 90,
+  WDI_LL_STATS_CLEAR_RSP                        = 91,
 #endif
+  /* channel switch resp v1*/
+  WDI_CH_SWITCH_RESP_V1                         = 92,
 
 #ifdef WLAN_FEATURE_EXTSCAN
-  WDI_EXTSCAN_START_RSP                          = 95,
-  WDI_EXTSCAN_STOP_RSP                           = 96,
-  WDI_EXTSCAN_GET_CACHED_RESULTS_RSP             = 97,
-  WDI_EXTSCAN_GET_CAPABILITIES_RSP               = 98,
-  WDI_EXTSCAN_SET_HOTLIST_BSSID_RSP              = 99,
-  WDI_EXTSCAN_RESET_HOTLIST_BSSID_RSP            = 100,
-  WDI_EXTSCAN_SET_SIGNF_RSSI_CHANGE_RSP          = 101,
-  WDI_EXTSCAN_RESET_SIGNF_RSSI_CHANGE_RSP        = 102,
+  WDI_EXTSCAN_START_RSP                          = 93,
+  WDI_EXTSCAN_STOP_RSP                           = 94,
+  WDI_EXTSCAN_GET_CACHED_RESULTS_RSP             = 95,
+  WDI_EXTSCAN_GET_CAPABILITIES_RSP               = 96,
+  WDI_EXTSCAN_SET_HOTLIST_BSSID_RSP              = 97,
+  WDI_EXTSCAN_RESET_HOTLIST_BSSID_RSP            = 98,
+  WDI_EXTSCAN_SET_SIGNF_RSSI_CHANGE_RSP          = 99,
+  WDI_EXTSCAN_RESET_SIGNF_RSSI_CHANGE_RSP        = 100,
 #endif
   /*-------------------------------------------------------------------------
     Indications
@@ -854,11 +872,11 @@ typedef enum
   WDI_HAL_LL_STATS_RESULTS_IND         = WDI_HAL_IND_MIN + 20,
 #endif
 #ifdef WLAN_FEATURE_EXTSCAN
-  WDI_HAL_EXTSCAN_PROGRESS_IND       = WDI_HAL_IND_MIN + 23,
-  WDI_HAL_EXTSCAN_SCAN_AVAILABLE_IND = WDI_HAL_IND_MIN + 24,
-  WDI_HAL_EXTSCAN_RESULT_IND         = WDI_HAL_IND_MIN + 25,
-  WDI_HAL_EXTSCAN_BSSID_HOTLIST_RESULT_IND    = WDI_HAL_IND_MIN + 26,
-  WDI_HAL_EXTSCAN_SIG_RSSI_RESULT_IND         = WDI_HAL_IND_MIN + 27,
+  WDI_HAL_EXTSCAN_PROGRESS_IND       = WDI_HAL_IND_MIN + 21,
+  WDI_HAL_EXTSCAN_SCAN_AVAILABLE_IND = WDI_HAL_IND_MIN + 22,
+  WDI_HAL_EXTSCAN_RESULT_IND         = WDI_HAL_IND_MIN + 23,
+  WDI_HAL_EXTSCAN_BSSID_HOTLIST_RESULT_IND    = WDI_HAL_IND_MIN + 24,
+  WDI_HAL_EXTSCAN_SIG_RSSI_RESULT_IND         = WDI_HAL_IND_MIN + 25,
 #endif
   WDI_MAX_RESP
 }WDI_ResponseEnumType; 
@@ -5704,22 +5722,6 @@ WDI_Status WDI_ProcessLphbCfgRsp
 );
 #endif /* FEATURE_WLAN_LPHB */
 
-/**
- @brief Process Rate Update Indication and post it to HAL
-
- @param  pWDICtx:    pointer to the WLAN DAL context
-         pEventData: pointer to the event information structure
-
- @see
- @return Result of the function call
-*/
-WDI_Status
-WDI_ProcessRateUpdateInd
-(
-    WDI_ControlBlockType*  pWDICtx,
-    WDI_EventInfoType*     pEventData
-);
-
 #ifdef FEATURE_WLAN_BATCH_SCAN
 /**
  @brief WDI_ProcessSetBatchScanRsp -
@@ -5788,8 +5790,23 @@ WDI_ProcessChAvoidInd
 #endif /* FEATURE_WLAN_CH_AVOID */
 
 /**
- @brief v -
+ @brief Process Rate Update Indication and post it to HAL
 
+ @param  pWDICtx:    pointer to the WLAN DAL context
+         pEventData: pointer to the event information structure
+
+ @see
+ @return Result of the function call
+*/
+WDI_Status
+WDI_ProcessRateUpdateInd
+(
+    WDI_ControlBlockType*  pWDICtx,
+    WDI_EventInfoType*     pEventData
+);
+
+/**
+ @brief v -
 
  @param  pWDICtx : wdi context
          pEventData : indication data

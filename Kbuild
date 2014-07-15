@@ -7,6 +7,9 @@ else
 endif
 
 ifeq ($(KERNEL_BUILD),1)
+	#Flag to enable TDLS feature
+	CONFIG_QCOM_TDLS := y
+
 	# These are provided in Android-based builds
 	# Need to explicitly define for Kernel-based builds
 	MODNAME := wlan
@@ -64,8 +67,6 @@ PANIC_ON_BUG := 1
 #Re-enable wifi on WDI timeout
 RE_ENABLE_WIFI_ON_WDI_TIMEOUT := 0
 
-#Measure Roam Delay
-MEASURE_ROAM_TIME_DELAY := 0
 
 ifeq ($(CONFIG_CFG80211),y)
 HAVE_CFG80211 := 1
@@ -546,15 +547,13 @@ CDEFINES :=	-DANI_BUS_TYPE_PLATFORM=1 \
 		-DWLAN_FEATURE_GTK_OFFLOAD \
 		-DWLAN_WAKEUP_EVENTS \
 	        -DWLAN_KD_READY_NOTIFIER \
-		-DWLAN_NL80211_TESTMODE \
 		-DFEATURE_WLAN_BATCH_SCAN \
-		-DFEATURE_WLAN_LPHB \
-                -DFEATURE_WLAN_PAL_TIMER_DISABLE \
-                -DFEATURE_WLAN_PAL_MEM_DISABLE \
                 -DFEATURE_WLAN_CH144 \
                 -DWLAN_BUG_ON_SKB_ERROR \
                 -DWLAN_DXE_LOW_RESOURCE_TIMER \
                 -DWLAN_LOGGING_SOCK_SVC_ENABLE \
+		-DWLAN_NL80211_TESTMODE \
+		-DFEATURE_WLAN_LPHB \
                 -DWLAN_FEATURE_LINK_LAYER_STATS \
                 -DWLAN_FEATURE_EXTSCAN
 
@@ -657,22 +656,7 @@ ifeq ($(CONFIG_ENABLE_LINUX_REG), y)
 CDEFINES += -DCONFIG_ENABLE_LINUX_REG
 endif
 
-ifeq ($(MEASURE_ROAM_TIME_DELAY),1)
-CDEFINES += -DDEBUG_ROAM_DELAY
-endif
-
-CDEFINES += -DFEATURE_WLAN_CH_AVOID
-
-# Some kernel include files are being moved.  Check to see if
-# the old version of the files are present
-
-ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/mach-msm/include/mach/msm_smd.h),)
-CDEFINES += -DEXISTS_MSM_SMD
-endif
-
-ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/mach-msm/include/mach/msm_smsm.h),)
-CDEFINES += -DEXISTS_MSM_SMSM
-endif
+#CDEFINES += -DFEATURE_WLAN_CH_AVOID
 
 # Fix build for GCC 4.7
 EXTRA_CFLAGS += -Wno-maybe-uninitialized -Wno-unused-function

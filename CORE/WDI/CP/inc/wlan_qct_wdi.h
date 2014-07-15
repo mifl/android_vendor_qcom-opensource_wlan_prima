@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,14 +18,26 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
-
 
 #ifndef WLAN_QCT_WDI_H
 #define WLAN_QCT_WDI_H
@@ -734,6 +746,22 @@ typedef struct
    wpt_macAddr staMacAddr;
 }WDI_IbssPeerInactivityIndType;
 
+#ifdef FEATURE_WLAN_CH_AVOID
+#define WDI_CH_AVOID_MAX_RANGE   4
+
+typedef struct
+{
+   wpt_uint32 startFreq;
+   wpt_uint32 endFreq;
+} WDI_ChAvoidFreqType;
+
+typedef struct
+{
+   wpt_uint32          avoidRangeCount;
+   WDI_ChAvoidFreqType avoidFreqRange[WDI_CH_AVOID_MAX_RANGE];
+} WDI_ChAvoidIndType;
+#endif /* FEATURE_WLAN_CH_AVOID */
+
 /*---------------------------------------------------------------------------
  WDI_TxRateFlags
 -----------------------------------------------------------------------------*/
@@ -807,22 +835,6 @@ typedef struct
     void   *pUserData;
 
 } WDI_RateUpdateIndParams;
-
-#ifdef FEATURE_WLAN_CH_AVOID
-#define WDI_CH_AVOID_MAX_RANGE   4
-
-typedef struct
-{
-   wpt_uint32 startFreq;
-   wpt_uint32 endFreq;
-} WDI_ChAvoidFreqType;
-
-typedef struct
-{
-   wpt_uint32          avoidRangeCount;
-   WDI_ChAvoidFreqType avoidFreqRange[WDI_CH_AVOID_MAX_RANGE];
-} WDI_ChAvoidIndType;
-#endif /* FEATURE_WLAN_CH_AVOID */
 
 /*---------------------------------------------------------------------------
   WDI_LowLevelIndType
@@ -7703,7 +7715,8 @@ typedef void  (*WDI_LLStatsClearRspCb)(void *pEventData,
  open both the data and the control transport which in their turn will open
  DXE/SMD or any other drivers that they need. 
  
- @param devHandle: pointer to the OS specific device handle
+ @param pOSContext: pointer to the OS context provided by the UMAC
+                    will be passed on to PAL on Open
         ppWDIGlobalCtx: output pointer of Global Context
         pWdiDevCapability: output pointer of device capability
 
@@ -7712,7 +7725,7 @@ typedef void  (*WDI_LLStatsClearRspCb)(void *pEventData,
 WDI_Status 
 WDI_Init
 ( 
-  void*                      devHandle,
+  void*                      pOSContext,
   void**                     ppWDIGlobalCtx,
   WDI_DeviceCapabilityType*  pWdiDevCapability,
   unsigned int               driverType

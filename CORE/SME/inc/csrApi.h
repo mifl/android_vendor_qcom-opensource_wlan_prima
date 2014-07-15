@@ -18,20 +18,34 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
 /*
  * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  * All Rights Reserved.
  * Qualcomm Atheros Confidential and Proprietary.
  *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
-
 
 /** ------------------------------------------------------------------------- *
     ------------------------------------------------------------------------- *
     \file csrApi.h
 
     Exports and types for the Common Scan and Roaming Module interfaces.
+
+    Copyright (C) 2006 Airgo Networks, Incorporated
    ========================================================================== */
 #ifndef CSRAPI_H__
 #define CSRAPI_H__
@@ -464,12 +478,6 @@ typedef enum
 #ifdef FEATURE_WLAN_LFR
     eCSR_ROAM_PMK_NOTIFY,
 #endif
-#ifdef FEATURE_WLAN_LFR_METRICS
-    eCSR_ROAM_PREAUTH_INIT_NOTIFY,
-    eCSR_ROAM_PREAUTH_STATUS_SUCCESS,
-    eCSR_ROAM_PREAUTH_STATUS_FAILURE,
-    eCSR_ROAM_HANDOVER_SUCCESS,
-#endif
 #ifdef FEATURE_WLAN_TDLS
     eCSR_ROAM_TDLS_STATUS_UPDATE,
     eCSR_ROAM_RESULT_MGMT_TX_COMPLETE_IND,
@@ -479,6 +487,10 @@ typedef enum
                                  // beacon interval
 #ifdef WLAN_FEATURE_11W
     eCSR_ROAM_UNPROT_MGMT_FRAME_IND,
+#endif
+
+#ifdef FEATURE_CESIUM_PROPRIETARY
+    eCSR_ROAM_IBSS_PEER_INFO_COMPLETE,
 #endif
 
 #if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
@@ -1139,10 +1151,9 @@ typedef struct tagCsrConfigParam
 
     tANI_U8 isAmsduSupportInAMPDU;
     tANI_U8 nSelect5GHzMargin;
-
-    tANI_U8 isCoalesingInIBSSAllowed;
     tANI_U8 allowDFSChannelRoam;
     tANI_BOOLEAN initialScanSkipDFSCh;
+    tANI_U8 isCoalesingInIBSSAllowed;
     tANI_BOOLEAN sendDeauthBeforeCon;
 }tCsrConfigParam;
 

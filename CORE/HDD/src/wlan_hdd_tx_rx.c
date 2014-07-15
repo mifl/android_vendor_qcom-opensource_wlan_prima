@@ -1,5 +1,25 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -19,20 +39,11 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 /**===========================================================================
   
   \file  wlan_hdd_tx_rx.c
   
   \brief Linux HDD Tx/RX APIs
-         Copyright 2008 (c) Qualcomm, Incorporated.
-         All Rights Reserved.
-         Qualcomm Confidential and Proprietary.
   
   ==========================================================================*/
   
@@ -46,12 +57,6 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
-#include <linux/ratelimit.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
-#include <soc/qcom/subsystem_restart.h>
-#else
-#include <mach/subsystem_restart.h>
-#endif
 
 #include <wlan_hdd_p2p.h>
 #include <linux/wireless.h>
@@ -81,14 +86,6 @@ const v_U8_t hdd_QdiscAcToTlAC[] = {
    WLANTL_AC_BE,
    WLANTL_AC_BK,
 };
-
-#define HDD_TX_TIMEOUT_RATELIMIT_INTERVAL 20*HZ
-#define HDD_TX_TIMEOUT_RATELIMIT_BURST    1
-#define HDD_TX_STALL_SSR_THRESHOLD        5
-
-static DEFINE_RATELIMIT_STATE(hdd_tx_timeout_rs,                 \
-                              HDD_TX_TIMEOUT_RATELIMIT_INTERVAL, \
-                              HDD_TX_TIMEOUT_RATELIMIT_BURST);
 
 static struct sk_buff* hdd_mon_tx_fetch_pkt(hdd_adapter_t* pAdapter);
 
@@ -246,14 +243,6 @@ void hdd_flush_ibss_tx_queues( hdd_adapter_t *pAdapter, v_U8_t STAId)
    struct netdev_queue *txq;
    struct sk_buff *skb = NULL;
 
-   if (NULL == pAdapter)
-   {
-       VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
-              FL("pAdapter is NULL %u"), STAId);
-       VOS_ASSERT(0);
-       return;
-   }
-
    for (i = 0; i < NUM_TX_QUEUES; i++)
    {
       spin_lock_bh(&pAdapter->wmm_tx_queue[i].lock);
@@ -314,10 +303,8 @@ static struct sk_buff* hdd_mon_tx_fetch_pkt(hdd_adapter_t* pAdapter)
    VOS_STATUS status = VOS_STATUS_E_FAILURE;
    hdd_list_node_t *anchor = NULL;
 
-   if (NULL == pAdapter)
+   if( NULL == pAdapter )
    {
-      VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-       FL("pAdapter is NULL"));
       VOS_ASSERT(0);
       return NULL;
    }
@@ -418,7 +405,7 @@ void hdd_mon_tx_mgmt_pkt(hdd_adapter_t* pAdapter)
    vos_mem_copy( cfgState->buf, skb->data, skb->len);
 
    cfgState->skb = skb; //buf;
-   cfgState->action_cookie = (uintptr_t)cfgState->buf;
+   cfgState->action_cookie = (tANI_U32)cfgState->buf;
 
    hdr = (struct ieee80211_hdr *)skb->data;
    if( (hdr->frame_control & HDD_FRAME_TYPE_MASK)
@@ -891,32 +878,22 @@ void hdd_tx_timeout(struct net_device *dev)
    struct netdev_queue *txq;
    int i = 0;
 
-   VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
       "%s: Transmission timeout occurred", __func__);
-
-   if ( NULL == pAdapter )
-   {
-      VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
-              FL("pAdapter is NULL"));
-      VOS_ASSERT(0);
-      return;
-   }
-
-   ++pAdapter->hdd_stats.hddTxRxStats.txTimeoutCount;
 
    //Getting here implies we disabled the TX queues for too long. Queues are 
    //disabled either because of disassociation or low resource scenarios. In
    //case of disassociation it is ok to ignore this. But if associated, we have
    //do possible recovery here
 
-   VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
               "num_bytes AC0: %d AC1: %d AC2: %d AC3: %d",
               pAdapter->wmm_tx_queue[0].count,
               pAdapter->wmm_tx_queue[1].count,
               pAdapter->wmm_tx_queue[2].count,
               pAdapter->wmm_tx_queue[3].count);
 
-   VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
               "tx_suspend AC0: %d AC1: %d AC2: %d AC3: %d",
               pAdapter->isTxSuspended[0],
               pAdapter->isTxSuspended[1],
@@ -926,42 +903,13 @@ void hdd_tx_timeout(struct net_device *dev)
    for (i = 0; i < 8; i++)
    {
       txq = netdev_get_tx_queue(dev, i);
-      VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+      VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "Queue%d status: %d", i, netif_tx_queue_stopped(txq));
    }
 
-   VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
               "carrier state: %d", netif_carrier_ok(dev));
-
-   /* continuousTxTimeoutCount will be reset whenever TL fetches packet
-    * from HDD
-    */
-   ++pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount;
-
-   if (pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount >
-       HDD_TX_STALL_SSR_THRESHOLD)
-   {
-       // Driver could not recover, issue SSR
-       VOS_TRACE(VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
-                 "%s: Cannot recover from Data stall Issue SSR",
-                   __func__);
-       subsystem_restart("wcnss");
-       return;
-   }
-
-   /* If Tx stalled for a long time then *hdd_tx_timeout* is called
-    * every 5sec. The TL debug spits out a lot of information on the
-    * serial console, if it is called every time *hdd_tx_timeout* is
-    * called then we may get a watchdog bite on the Application
-    * processor, so ratelimit the TL debug logs.
-    */
-   if (__ratelimit(&hdd_tx_timeout_rs))
-   {
-      hdd_wmm_tx_snapshot(pAdapter);
-      WLANTL_TLDebugMessage(VOS_TRUE);
-   }
-
-}
+} 
 
 
 /**============================================================================
@@ -1557,7 +1505,6 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    ++pAdapter->stats.tx_packets;
    ++pAdapter->hdd_stats.hddTxRxStats.txFetchDequeued;
    ++pAdapter->hdd_stats.hddTxRxStats.txFetchDequeuedAC[ac];
-   pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount = 0;
 
    if((pHddCtx->cfg_ini->thermalMitigationEnable) &&
       (WLAN_HDD_INFRA_STATION == pAdapter->device_mode))

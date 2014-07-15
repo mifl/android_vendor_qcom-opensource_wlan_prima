@@ -1,5 +1,25 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ *
+ * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
+ *
+ *
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all
+ * copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+/*
+ * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -20,14 +40,7 @@
  */
 
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
- * All Rights Reserved.
- * Qualcomm Atheros Confidential and Proprietary.
- *
- */
-
-
-/*
+ * Airgo Networks, Inc proprietary. All rights reserved.
  * This file sirApi.h contains definitions exported by
  * Sirius software.
  * Author:        Chandra Modumudi
@@ -679,7 +692,7 @@ typedef struct sSirSmeStartBssReq
 } tSirSmeStartBssReq, *tpSirSmeStartBssReq;
 
 #define GET_IE_LEN_IN_BSS(lenInBss) ( lenInBss + sizeof(lenInBss) - \
-              ((uintptr_t)OFFSET_OF( tSirBssDescription, ieFields)))
+              ((int) OFFSET_OF( tSirBssDescription, ieFields)))
 
 #define WSCIE_PROBE_RSP_LEN (317 + 2)
 
@@ -906,21 +919,6 @@ typedef struct sSirSmeScanReq
       up to uIEFieldLen (can be 0)
       -----------------------------*/
 } tSirSmeScanReq, *tpSirSmeScanReq;
-
-typedef struct sSirSmeScanAbortReq
-{
-    tANI_U16        type;
-    tANI_U16        msgLen;
-    tANI_U8         sessionId;
-} tSirSmeScanAbortReq, *tpSirSmeScanAbortReq;
-
-typedef struct sSirSmeScanChanReq
-{
-    tANI_U16        type;
-    tANI_U16        msgLen;
-    tANI_U8         sessionId;
-    tANI_U16        transcationId;
-} tSirSmeGetScanChanReq, *tpSirSmeGetScanChanReq;
 
 #ifdef FEATURE_OEM_DATA_SUPPORT
 
@@ -4618,48 +4616,6 @@ typedef struct sSirDelPeriodicTxPtrn
     tANI_U32 ucPatternIdBitmap;
 } tSirDelPeriodicTxPtrn, *tpSirDelPeriodicTxPtrn;
 
-typedef struct sSirRateUpdateInd
-{
-    /* 0 implies RA, positive value implies fixed rate, -1 implies ignore this
-     * param.
-     */
-    tANI_S32 ucastDataRate;
-
-    /* TX flag to differentiate between HT20, HT40 etc */
-    tTxrateinfoflags ucastDataRateTxFlag;
-
-    /* BSSID - Optional. 00-00-00-00-00-00 implies apply to all BCAST STAs */
-    tSirMacAddr bssid;
-
-    /*
-     * 0 implies MCAST RA, positive value implies fixed rate,
-     * -1 implies ignore this param
-     */
-    tANI_S32 reliableMcastDataRate;//unit Mbpsx10
-
-    /* TX flag to differentiate between HT20, HT40 etc */
-    tTxrateinfoflags reliableMcastDataRateTxFlag;
-
-    /*
-     * MCAST(or BCAST) fixed data rate in 2.4 GHz, unit Mbpsx10,
-     * 0 implies ignore
-     */
-    tANI_U32 mcastDataRate24GHz;
-
-    /* TX flag to differentiate between HT20, HT40 etc */
-    tTxrateinfoflags mcastDataRate24GHzTxFlag;
-
-    /*
-     * MCAST(or BCAST) fixed data rate in 5 GHz,
-     * unit Mbpsx10, 0 implies ignore
-     */
-    tANI_U32 mcastDataRate5GHz;
-
-    /* TX flag to differentiate between HT20, HT40 etc */
-    tTxrateinfoflags mcastDataRate5GHzTxFlag;
-
-} tSirRateUpdateInd, *tpSirRateUpdateInd;
-
 #ifdef FEATURE_WLAN_BATCH_SCAN
 // Set batch scan resposne from FW
 typedef struct
@@ -4745,6 +4701,48 @@ typedef struct sSirChAvoidIndType
    tSirChAvoidFreqType avoidFreqRange[SIR_CH_AVOID_MAX_RANGE];
 } tSirChAvoidIndType;
 #endif /* FEATURE_WLAN_CH_AVOID */
+
+typedef struct sSirRateUpdateInd
+{
+    /* 0 implies RA, positive value implies fixed rate, -1 implies ignore this
+     * param.
+     */
+    tANI_S32 ucastDataRate;
+
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags ucastDataRateTxFlag;
+
+    /* BSSID - Optional. 00-00-00-00-00-00 implies apply to all BCAST STAs */
+    tSirMacAddr bssid;
+
+    /*
+     * 0 implies MCAST RA, positive value implies fixed rate,
+     * -1 implies ignore this param
+     */
+    tANI_S32 reliableMcastDataRate;//unit Mbpsx10
+
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags reliableMcastDataRateTxFlag;
+
+    /*
+     * MCAST(or BCAST) fixed data rate in 2.4 GHz, unit Mbpsx10,
+     * 0 implies ignore
+     */
+    tANI_U32 mcastDataRate24GHz;
+
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags mcastDataRate24GHzTxFlag;
+
+    /*
+     * MCAST(or BCAST) fixed data rate in 5 GHz,
+     * unit Mbpsx10, 0 implies ignore
+     */
+    tANI_U32 mcastDataRate5GHz;
+
+    /* TX flag to differentiate between HT20, HT40 etc */
+    tTxrateinfoflags mcastDataRate5GHzTxFlag;
+
+} tSirRateUpdateInd, *tpSirRateUpdateInd;
 
 typedef void (*pGetBcnMissRateCB)( tANI_S32 bcnMissRate,
                                    VOS_STATUS status, void *data);

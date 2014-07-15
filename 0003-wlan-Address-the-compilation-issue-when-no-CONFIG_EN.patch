@@ -1,0 +1,31 @@
+From bb4ea41f4860f883cc72acc8a0982fa6fd0f03bb Mon Sep 17 00:00:00 2001
+From: pratik Bhalgat <pratik_bit@codeaurora.org>
+Date: Mon, 7 Jul 2014 19:41:27 +0530
+Subject: [PATCH 3/4] wlan: Address the compilation issue when no
+ CONFIG_ENABLE_LINUX_REG
+
+This commit addresses the compilation issue caused when
+CONFIG_ENABLE_LINUX_REG is not defined.
+
+Change-Id: I228fd4da5d7d82b584d504b6354725f92e986456
+---
+ CORE/HDD/src/wlan_hdd_main.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/CORE/HDD/src/wlan_hdd_main.c b/CORE/HDD/src/wlan_hdd_main.c
+index 8f16ec3..d6f40ec 100644
+--- a/CORE/HDD/src/wlan_hdd_main.c
++++ b/CORE/HDD/src/wlan_hdd_main.c
+@@ -9000,7 +9000,9 @@ err_bap_close:
+ 
+ err_close_adapter:
+    hdd_close_all_adapters( pHddCtx );
++#ifdef CONFIG_ENABLE_LINUX_REG
+ err_unregister_wiphy:
++#endif
+    wiphy_unregister(wiphy) ;
+ err_vosstop:
+    vos_stop(pVosContext);
+-- 
+1.8.2.1
+

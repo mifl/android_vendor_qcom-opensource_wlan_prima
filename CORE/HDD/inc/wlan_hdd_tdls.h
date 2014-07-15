@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -18,13 +18,6 @@
  * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/*
- * This file was originally distributed by Qualcomm Atheros, Inc.
- * under proprietary terms before Copyright ownership was assigned
- * to the Linux Foundation.
- */
-
 #ifndef __HDD_TDSL_H
 #define __HDD_TDSL_H
 /**===========================================================================
@@ -32,6 +25,10 @@
 \file         wlan_hdd_tdls.h
 
 \brief       Linux HDD TDLS include file
+
+Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+All Rights Reserved.
+Qualcomm Atheros Confidential and Proprietary.
 ==========================================================================*/
 
 #define MAX_NUM_TDLS_PEER           3
@@ -185,9 +182,7 @@ typedef struct {
     v_MACADDR_t peerMac;
 } tdlsConnInfo_t;
 
-int wlan_hdd_sta_tdls_init(hdd_adapter_t *pAdapter);
-
-void wlan_hdd_tdls_init(hdd_context_t * pHddCtx);
+int wlan_hdd_tdls_init(hdd_adapter_t *pAdapter);
 
 void wlan_hdd_tdls_exit(hdd_adapter_t *pAdapter);
 
