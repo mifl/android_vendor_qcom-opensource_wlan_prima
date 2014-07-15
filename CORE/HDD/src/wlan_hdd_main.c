@@ -1914,7 +1914,13 @@ exit:
 
 static void getBcnMissRateCB(VOS_STATUS status, int bcnMissRate, void *data)
 {
-    bcnMissRateContext_t *pCBCtx = (bcnMissRateContext_t *)data;
+    bcnMissRateContext_t *pCBCtx;
+
+    if (NULL == data)
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR, FL("argument data is NULL"));
+        return;
+    }
 
    /* there is a race condition that exists between this callback
       function and the caller since the caller could time out either
@@ -1922,20 +1928,26 @@ static void getBcnMissRateCB(VOS_STATUS status, int bcnMissRate, void *data)
       serialize these actions */
     spin_lock(&hdd_context_lock);
 
+    pCBCtx = (bcnMissRateContext_t *)data;
     gbcnMissRate = -1;
 
-    if(pCBCtx->magic != BCN_MISS_RATE_CONTEXT_MAGIC || NULL == data)
+    if (pCBCtx->magic != BCN_MISS_RATE_CONTEXT_MAGIC)
     {
         hddLog(VOS_TRACE_LEVEL_ERROR,
-               FL("invalid context magic: %08x data: %p"), pCBCtx->magic, data );
+               FL("invalid context magic: %08x"), pCBCtx->magic);
         spin_unlock(&hdd_context_lock);
         return ;
     }
 
     if (VOS_STATUS_SUCCESS == status)
     {
-       gbcnMissRate = bcnMissRate;
+        gbcnMissRate = bcnMissRate;
     }
+    else
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR, FL("failed to get bcnMissRate"));
+    }
+
     complete(&(pCBCtx->completion));
     spin_unlock(&hdd_context_lock);
 
@@ -9119,6 +9131,7 @@ static void hdd_driver_exit(void)
 {
    hdd_context_t *pHddCtx = NULL;
    v_CONTEXT_t pVosContext = NULL;
+   v_REGDOMAIN_t regId;
    unsigned long rc = 0;
 
    pr_info("%s: unloading driver v%s\n", WLAN_MODULE_NAME, QWLAN_VERSIONSTR);
@@ -9159,6 +9172,12 @@ static void hdd_driver_exit(void)
 
       pHddCtx->isLoadUnloadInProgress = WLAN_HDD_UNLOAD_IN_PROGRESS;
       vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
+
+      if (eANI_BOOLEAN_TRUE == sme_Is11dCountrycode(pHddCtx->hHal) &&
+              pHddCtx->cfg_ini->fSupplicantCountryCodeHasPriority )
+      {
+          vos_nv_getRegDomainFromCountryCode(&regId , "00", COUNTRY_USER);
+      }
 
       //Do all the cleanup before deregistering the driver
       hdd_wlan_exit(pHddCtx);
