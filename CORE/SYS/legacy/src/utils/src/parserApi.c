@@ -969,10 +969,12 @@ PopulateDot11fExtCap(tpAniSirGlobal      pMac,
 {
     tANI_U32            val;
 
-    pDot11f->present = 1;
 #ifdef WLAN_FEATURE_11AC
     if (psessionEntry->vhtCapability)
+    {
         pDot11f->operModeNotification = 1;
+        pDot11f->present = 1;
+    }
 #endif
        /* while operating in 2.4GHz only then STA need to advertize
                the bss co-ex capability*/
@@ -983,7 +985,10 @@ PopulateDot11fExtCap(tpAniSirGlobal      pMac,
             PELOGE(limLog(pMac, LOGE, FL("could not retrieve "
                                          "24G Chan bond Length \n"));)
        if (TRUE == val)
+       {
            pDot11f->bssCoexistMgmtSupport = 1;
+           pDot11f->present = 1;
+       }
     }
     return eSIR_SUCCESS;
 }
