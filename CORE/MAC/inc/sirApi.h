@@ -4828,6 +4828,7 @@ typedef PACKED_PRE enum PACKED_POST
 
 typedef PACKED_PRE enum PACKED_POST
 {
+    WIFI_INTERFACE_UNKNOWN = -1,
     WIFI_INTERFACE_STA = 0,
     WIFI_INTERFACE_SOFTAP = 1,
     WIFI_INTERFACE_IBSS = 2,
@@ -4854,7 +4855,7 @@ typedef PACKED_PRE struct PACKED_POST
 {
     /*tSirWifiInterfaceMode*/
     // interface mode
-    tANI_U8                  mode;
+    tANI_S8                  mode;
     // interface mac address (self)
     tSirMacAddr              macAddr;
     /*tSirWifiConnectionState*/

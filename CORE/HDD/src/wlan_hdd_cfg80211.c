@@ -764,7 +764,7 @@ static v_BOOL_t put_wifi_wmm_ac_stat( tpSirWifiWmmAcStat stats,
 static v_BOOL_t put_wifi_interface_info(tpSirWifiInterfaceInfo stats,
                                     struct sk_buff *vendor_event)
 {
-    if (nla_put_u32(vendor_event,
+    if (nla_put_s32(vendor_event,
                 QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_INFO_MODE, stats->mode ) ||
             nla_put(vendor_event,
                     QCA_WLAN_VENDOR_ATTR_LL_STATS_IFACE_INFO_MAC_ADDR,
@@ -878,8 +878,7 @@ static tSirWifiInterfaceMode
     case  WLAN_HDD_IBSS:
         return WIFI_INTERFACE_IBSS;
     default:
-        /* Return Interface Mode as STA for all the unsupported modes */
-        return WIFI_INTERFACE_STA;
+        return WIFI_INTERFACE_UNKNOWN;
     }
 }
 
@@ -2572,7 +2571,7 @@ static void wlan_hdd_cfg80211_extscan_signif_wifi_change_results_ind(void *ctx,
 
             hddLog(VOS_TRACE_LEVEL_INFO,
                     " [%d]",
-                    pData->sigRssiResult[i].rssi[0]);
+                    pData->sigRssiResult[i].rssi[j]);
 
         }
     }
