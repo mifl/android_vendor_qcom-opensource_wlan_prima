@@ -1836,6 +1836,11 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         pMac->roam.configParam.txBFEnable= pParam->enableTxBF;
         pMac->roam.configParam.txBFCsnValue = pParam->txBFCsnValue;
         pMac->roam.configParam.enableVhtFor24GHz = pParam->enableVhtFor24GHz;
+        /* Consider Mu-beamformee only if SU-beamformee is enabled */
+        if ( pParam->enableTxBF )
+            pMac->roam.configParam.txMuBformee= pParam->enableMuBformee;
+        else
+            pMac->roam.configParam.txMuBformee= 0;
 #endif
         pMac->roam.configParam.txLdpcEnable = pParam->enableTxLdpc;
 
@@ -1928,6 +1933,11 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
         pParam->nVhtChannelWidth = pMac->roam.configParam.nVhtChannelWidth;
         pParam->enableTxBF = pMac->roam.configParam.txBFEnable;
         pParam->txBFCsnValue = pMac->roam.configParam.txBFCsnValue;
+        /* Consider Mu-beamformee only if SU-beamformee is enabled */
+        if ( pParam->enableTxBF )
+            pParam->enableMuBformee = pMac->roam.configParam.txMuBformee;
+        else
+            pParam->enableMuBformee = 0;
 #endif
 #ifdef WLAN_FEATURE_VOWIFI_11R
         palCopyMemory( pMac->hHdd, &pMac->roam.configParam.csr11rConfig, &pParam->csr11rConfig, sizeof(tCsr11rConfigParams) );
@@ -12896,6 +12906,20 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
         // txBFCsnValue
         *pBuf = (tANI_U8)pMac->roam.configParam.txBFCsnValue;
         pBuf++;
+
+        /* Only enable MuBf if no other MuBF session exist
+         * and FW and HOST is MuBF capable.
+         */
+        if ( IS_MUMIMO_BFORMEE_CAPABLE && (FALSE == pMac->isMuBfsessionexist) )
+        {
+           *pBuf = (tANI_U8)pMac->roam.configParam.txMuBformee;
+           pBuf++;
+        }
+        else
+        {
+           *pBuf = 0;
+           pBuf++;
+        }
 #endif
         *pBuf = (tANI_U8)pMac->roam.configParam.isAmsduSupportInAMPDU;
         pBuf++;
