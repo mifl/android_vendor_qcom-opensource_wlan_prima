@@ -1867,7 +1867,7 @@ eHalStatus sme_getBcnMissRate(tHalHandle hHal, tANI_U8 sessionId, void *callback
             return eHAL_STATUS_FAILURE;
         }
 
-        pMsg = (tSirBcnMissRateReq *) vos_mem_malloc(sizeof(tSirTxPerTrackingParam));
+        pMsg = (tSirBcnMissRateReq *) vos_mem_malloc(sizeof(tSirBcnMissRateReq));
         if (NULL == pMsg)
         {
             smsLog(pMac, LOGE, FL("failed to allocated memory"));
@@ -10608,20 +10608,26 @@ eHalStatus sme_LLStatsSetReq(tHalHandle hHal,
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
     vos_msg_t msg;
     eHalStatus status = eHAL_STATUS_FAILURE;
+    tSirLLStatsSetReq *plinkLayerSetReq;
 
-    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-      "%s:  pLinkLayerStatsSetReq.mpdu_size = %u", __func__,
-        pLinkLayerStatsSetReq->mpduSizeThreshold);
+    plinkLayerSetReq = vos_mem_malloc(sizeof(*plinkLayerSetReq));
+    if ( !plinkLayerSetReq)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for "
+                "WDA_LINK_LAYER_STATS_SET_REQ",
+                __func__);
+        return eHAL_STATUS_FAILURE;
+    }
 
-    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-      " pLinkLayerStatsSetReq->mpdu_size = %u",
-      pLinkLayerStatsSetReq->mpduSizeThreshold);
+    *plinkLayerSetReq = *pLinkLayerStatsSetReq;
+
 
     if ( eHAL_STATUS_SUCCESS == ( status = sme_AcquireGlobalLock( &pMac->sme )))
     {
         msg.type = WDA_LINK_LAYER_STATS_SET_REQ;
         msg.reserved = 0;
-        msg.bodyptr = pLinkLayerStatsSetReq;
+        msg.bodyptr = plinkLayerSetReq;
 
         if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
         {
@@ -10656,13 +10662,24 @@ eHalStatus sme_LLStatsGetReq(tHalHandle hHal,
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
     vos_msg_t msg;
     eHalStatus status = eHAL_STATUS_FAILURE;
+    tSirLLStatsGetReq *pGetStatsReq;
 
+    pGetStatsReq = vos_mem_malloc(sizeof(*pGetStatsReq));
+    if ( !pGetStatsReq)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for "
+                "WDA_LINK_LAYER_STATS_GET_REQ",
+                __func__);
+        return eHAL_STATUS_FAILURE;
+    }
+    *pGetStatsReq = *pLinkLayerStatsGetReq;
 
     if ( eHAL_STATUS_SUCCESS == ( status = sme_AcquireGlobalLock( &pMac->sme )))
     {
         msg.type = WDA_LINK_LAYER_STATS_GET_REQ;
         msg.reserved = 0;
-        msg.bodyptr = pLinkLayerStatsGetReq;
+        msg.bodyptr = pGetStatsReq;
         if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
         {
             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR, "%s: "
@@ -10696,23 +10713,27 @@ eHalStatus sme_LLStatsClearReq(tHalHandle hHal,
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
     vos_msg_t msg;
     eHalStatus status = eHAL_STATUS_FAILURE;
+    tSirLLStatsClearReq *pClearStatsReq;
 
 
-    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-                  "reqId = %u", pLinkLayerStatsClear->reqId);
-    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-              "staId = %u", pLinkLayerStatsClear->staId);
-    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-              "statsClearReqMask = 0x%X",
-              pLinkLayerStatsClear->statsClearReqMask);
-    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-              "stopReq = %u", pLinkLayerStatsClear->stopReq);
+
+    pClearStatsReq = vos_mem_malloc(sizeof(*pClearStatsReq));
+    if ( !pClearStatsReq)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for "
+                "WDA_LINK_LAYER_STATS_CLEAR_REQ",
+                __func__);
+        return eHAL_STATUS_FAILURE;
+    }
+
+    *pClearStatsReq = *pLinkLayerStatsClear;
 
     if ( eHAL_STATUS_SUCCESS == ( status = sme_AcquireGlobalLock( &pMac->sme )))
     {
         msg.type = WDA_LINK_LAYER_STATS_CLEAR_REQ;
         msg.reserved = 0;
-        msg.bodyptr = pLinkLayerStatsClear;
+        msg.bodyptr = pClearStatsReq;
 
         if(VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg))
         {
@@ -10743,9 +10764,9 @@ eHalStatus sme_LLStatsClearReq(tHalHandle hHal,
   ---------------------------------------------------------------------------*/
 eHalStatus sme_SetLinkLayerStatsIndCB
 (
-    tHalHandle hHal, tANI_U8 sessionId,
-    void (*callbackRoutine) (void *callbackCtx, int indType, void *pRsp),
-    void *callbackContext
+    tHalHandle hHal,
+    void (*callbackRoutine) (void *callbackCtx, int indType, void *pRsp,
+        tSirMacAddr macAddr)
 )
 {
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
@@ -10756,7 +10777,6 @@ eHalStatus sme_SetLinkLayerStatsIndCB
         if (NULL != callbackRoutine)
         {
            pMac->sme.pLinkLayerStatsIndCallback = callbackRoutine;
-           pMac->sme.pLinkLayerStatsCallbackContext = callbackContext;
         }
         sme_ReleaseGlobalLock( &pMac->sme );
     }
@@ -10784,15 +10804,47 @@ void activeListCmdTimeoutHandle(void *userData)
 }
 
 VOS_STATUS sme_UpdateDSCPtoUPMapping( tHalHandle hHal,
-                                      sme_QosWmmUpType  *dscpmapping)
+                                      sme_QosWmmUpType  *dscpmapping,
+                                      v_U8_t sessionId )
 {
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-    eHalStatus status    = eHAL_STATUS_SUCCESS;
-    v_U8_t i, j;
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    v_U8_t i, j, peSessionId;
+    tCsrRoamSession *pCsrSession = NULL;
+    tpPESession pSession = NULL;
+
     status = sme_AcquireGlobalLock( &pMac->sme );
     if ( HAL_STATUS_SUCCESS( status ) )
     {
-        if ( !pMac->QosMapSet.present )
+        if (!CSR_IS_SESSION_VALID( pMac, sessionId ))
+        {
+            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Invalid session Id %u", __func__, sessionId);
+            sme_ReleaseGlobalLock( &pMac->sme);
+            return eHAL_STATUS_FAILURE;
+        }
+        pCsrSession = CSR_GET_SESSION( pMac, sessionId );
+
+        if (pCsrSession == NULL)
+        {
+            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: CSR Session lookup fails %u", __func__, sessionId);
+            sme_ReleaseGlobalLock( &pMac->sme);
+            return eHAL_STATUS_FAILURE;
+        }
+
+        pSession = peFindSessionByBssid( pMac,
+            pCsrSession->connectedProfile.bssid, &peSessionId );
+
+        if (pSession == NULL)
+        {
+            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Session lookup fails for BSSID", __func__);
+            sme_ReleaseGlobalLock( &pMac->sme);
+            return eHAL_STATUS_FAILURE;
+        }
+
+        if ( !pSession->QosMapSet.present )
         {
             VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                      "%s: QOS Mapping IE not present", __func__);
@@ -10801,13 +10853,13 @@ VOS_STATUS sme_UpdateDSCPtoUPMapping( tHalHandle hHal,
         }
         else
         {
-            for (i=0; i < 8; i++)
+            for (i = 0; i < SME_QOS_WMM_UP_MAX; i++)
             {
-                for (j = pMac->QosMapSet.dscp_range[i][0];
-                               j <= pMac->QosMapSet.dscp_range[i][1]; j++)
+                for (j = pSession->QosMapSet.dscp_range[i][0];
+                               j <= pSession->QosMapSet.dscp_range[i][1]; j++)
                 {
-                   if ((pMac->QosMapSet.dscp_range[i][0] == 255) &&
-                                (pMac->QosMapSet.dscp_range[i][1] == 255))
+                   if ((pSession->QosMapSet.dscp_range[i][0] == 255) &&
+                                (pSession->QosMapSet.dscp_range[i][1] == 255))
                    {
                        dscpmapping[j]= 0;
                        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
@@ -10821,12 +10873,12 @@ VOS_STATUS sme_UpdateDSCPtoUPMapping( tHalHandle hHal,
                    }
                 }
             }
-            for (i=0; i< pMac->QosMapSet.num_dscp_exceptions; i++)
+            for (i = 0; i< pSession->QosMapSet.num_dscp_exceptions; i++)
             {
-                if (pMac->QosMapSet.dscp_exceptions[i][0] != 255)
+                if (pSession->QosMapSet.dscp_exceptions[i][0] != 255)
                 {
-                    dscpmapping[pMac->QosMapSet.dscp_exceptions[i][0] ] =
-                                         pMac->QosMapSet.dscp_exceptions[i][1];
+                    dscpmapping[pSession->QosMapSet.dscp_exceptions[i][0] ] =
+                                         pSession->QosMapSet.dscp_exceptions[i][1];
                 }
             }
         }
@@ -10981,12 +11033,26 @@ eHalStatus sme_EXTScanGetCapabilities (tHalHandle hHal,
     VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
     tpAniSirGlobal pMac  = PMAC_STRUCT(hHal);
     vos_msg_t vosMessage;
+    tSirGetEXTScanCapabilitiesReqParams *pGetEXTScanCapabilitiesReq;
+
+    pGetEXTScanCapabilitiesReq =
+        vos_mem_malloc(sizeof(*pGetEXTScanCapabilitiesReq));
+    if ( !pGetEXTScanCapabilitiesReq)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for "
+                "WDA_EXTSCAN_GET_CAPABILITIES_REQ",
+                __func__);
+        return eHAL_STATUS_FAILURE;
+    }
+
+    *pGetEXTScanCapabilitiesReq = *pReq;
 
     MTRACE(vos_trace(VOS_MODULE_ID_SME,
                TRACE_CODE_SME_RX_HDD_EXTSCAN_GET_CAPABILITIES, NO_SESSION, 0));
     if (eHAL_STATUS_SUCCESS == (status = sme_AcquireGlobalLock(&pMac->sme))) {
         /* Serialize the req through MC thread */
-        vosMessage.bodyptr = pReq;
+        vosMessage.bodyptr = pGetEXTScanCapabilitiesReq;
         vosMessage.type    = WDA_EXTSCAN_GET_CAPABILITIES_REQ;
         vosStatus = vos_mq_post_message(VOS_MQ_ID_WDA, &vosMessage);
         if (!VOS_IS_STATUS_SUCCESS(vosStatus))
@@ -11011,12 +11077,26 @@ eHalStatus sme_EXTScanStart (tHalHandle hHal,
     VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
     tpAniSirGlobal pMac  = PMAC_STRUCT(hHal);
     vos_msg_t vosMessage;
+    tSirEXTScanStartReqParams *pextScanStartReq;
+
+    pextScanStartReq = vos_mem_malloc(sizeof(*pextScanStartReq));
+    if ( !pextScanStartReq)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for "
+                "WDA_EXTSCAN_START_REQ",
+                __func__);
+        return eHAL_STATUS_FAILURE;
+    }
+
+    *pextScanStartReq = *pStartCmd;
+
 
     MTRACE(vos_trace(VOS_MODULE_ID_SME,
                  TRACE_CODE_SME_RX_HDD_EXTSCAN_START, NO_SESSION, 0));
     if (eHAL_STATUS_SUCCESS == (status = sme_AcquireGlobalLock(&pMac->sme))) {
         /* Serialize the req through MC thread */
-        vosMessage.bodyptr = pStartCmd;
+        vosMessage.bodyptr = pextScanStartReq;
         vosMessage.type    = WDA_EXTSCAN_START_REQ;
         vosStatus = vos_mq_post_message(VOS_MQ_ID_WDA, &vosMessage);
         if (!VOS_IS_STATUS_SUCCESS(vosStatus))
@@ -11040,13 +11120,26 @@ eHalStatus sme_EXTScanStop(tHalHandle hHal, tSirEXTScanStopReqParams *pStopReq)
     VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
     tpAniSirGlobal pMac  = PMAC_STRUCT(hHal);
     vos_msg_t vosMessage;
+    tSirEXTScanStopReqParams *pEXTScanStopReq;
+
+    pEXTScanStopReq = vos_mem_malloc(sizeof(*pEXTScanStopReq));
+    if ( !pEXTScanStopReq)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for "
+                "WDA_EXTSCAN_STOP_REQ",
+                __func__);
+        return eHAL_STATUS_FAILURE;
+    }
+
+    *pEXTScanStopReq = *pStopReq;
 
     MTRACE(vos_trace(VOS_MODULE_ID_SME,
                  TRACE_CODE_SME_RX_HDD_EXTSCAN_STOP, NO_SESSION, 0));
     if (eHAL_STATUS_SUCCESS == (status = sme_AcquireGlobalLock(&pMac->sme)))
     {
         /* Serialize the req through MC thread */
-        vosMessage.bodyptr = pStopReq;
+        vosMessage.bodyptr = pEXTScanStopReq;
         vosMessage.type    = WDA_EXTSCAN_STOP_REQ;
         vosStatus = vos_mq_post_message(VOS_MQ_ID_WDA, &vosMessage);
         if (!VOS_IS_STATUS_SUCCESS(vosStatus))
@@ -11072,12 +11165,26 @@ eHalStatus sme_SetBssHotlist (tHalHandle hHal,
     VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
     tpAniSirGlobal pMac  = PMAC_STRUCT(hHal);
     vos_msg_t vosMessage;
+    tSirEXTScanSetBssidHotListReqParams *pEXTScanSetBssidHotlistReq;
+
+    pEXTScanSetBssidHotlistReq =
+        vos_mem_malloc(sizeof(*pEXTScanSetBssidHotlistReq));
+    if ( !pEXTScanSetBssidHotlistReq)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for "
+                "WDA_EXTSCAN_SET_BSSID_HOTLIST_REQ",
+                __func__);
+        return eHAL_STATUS_FAILURE;
+    }
+
+    *pEXTScanSetBssidHotlistReq = *pSetHotListReq;
 
     MTRACE(vos_trace(VOS_MODULE_ID_SME,
                TRACE_CODE_SME_RX_HDD_EXTSCAN_SET_BSS_HOTLIST, NO_SESSION, 0));
     if (eHAL_STATUS_SUCCESS == (status = sme_AcquireGlobalLock(&pMac->sme))) {
         /* Serialize the req through MC thread */
-        vosMessage.bodyptr = pSetHotListReq;
+        vosMessage.bodyptr = pEXTScanSetBssidHotlistReq;
         vosMessage.type    = WDA_EXTSCAN_SET_BSSID_HOTLIST_REQ;
         vosStatus = vos_mq_post_message(VOS_MQ_ID_WDA, &vosMessage);
         if (!VOS_IS_STATUS_SUCCESS(vosStatus))
@@ -11103,12 +11210,26 @@ eHalStatus sme_ResetBssHotlist (tHalHandle hHal,
     VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
     tpAniSirGlobal pMac  = PMAC_STRUCT(hHal);
     vos_msg_t vosMessage;
+    tSirEXTScanResetBssidHotlistReqParams *pEXTScanHotlistResetReq;
+
+    pEXTScanHotlistResetReq = vos_mem_malloc(sizeof(*pEXTScanHotlistResetReq));
+    if ( !pEXTScanHotlistResetReq)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for "
+                "WDA_EXTSCAN_RESET_BSSID_HOTLIST_REQ",
+                __func__);
+        return eHAL_STATUS_FAILURE;
+    }
+
+    *pEXTScanHotlistResetReq = *pResetReq;
+
 
     MTRACE(vos_trace(VOS_MODULE_ID_SME,
               TRACE_CODE_SME_RX_HDD_EXTSCAN_RESET_BSS_HOTLIST, NO_SESSION, 0));
     if (eHAL_STATUS_SUCCESS == (status = sme_AcquireGlobalLock(&pMac->sme))) {
         /* Serialize the req through MC thread */
-        vosMessage.bodyptr = pResetReq;
+        vosMessage.bodyptr = pEXTScanHotlistResetReq;
         vosMessage.type    = WDA_EXTSCAN_RESET_BSSID_HOTLIST_REQ;
         vosStatus = vos_mq_post_message(VOS_MQ_ID_WDA, &vosMessage);
         if (!VOS_IS_STATUS_SUCCESS(vosStatus))
@@ -11133,12 +11254,27 @@ eHalStatus sme_SetSignificantChange (tHalHandle hHal,
     VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
     tpAniSirGlobal pMac  = PMAC_STRUCT(hHal);
     vos_msg_t vosMessage;
+    tSirEXTScanSetSignificantChangeReqParams *pEXTScanSetSignificantReq;
+
+    pEXTScanSetSignificantReq = vos_mem_malloc(sizeof(*pEXTScanSetSignificantReq));
+    if ( !pEXTScanSetSignificantReq)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for "
+                "WDA_EXTSCAN_SET_SIGNF_RSSI_CHANGE_REQ",
+                __func__);
+        return eHAL_STATUS_FAILURE;
+    }
+
+    *pEXTScanSetSignificantReq = *pSetSignificantChangeReq;
+
+
 
     MTRACE(vos_trace(VOS_MODULE_ID_SME,
            TRACE_CODE_SME_RX_HDD_EXTSCAN_SET_SIGNF_CHANGE, NO_SESSION, 0));
     if (eHAL_STATUS_SUCCESS == (status = sme_AcquireGlobalLock(&pMac->sme))) {
         /* Serialize the req through MC thread */
-        vosMessage.bodyptr = pSetSignificantChangeReq;
+        vosMessage.bodyptr = pEXTScanSetSignificantReq;
         vosMessage.type    = WDA_EXTSCAN_SET_SIGNF_RSSI_CHANGE_REQ;
         vosStatus = vos_mq_post_message(VOS_MQ_ID_WDA, &vosMessage);
         if (!VOS_IS_STATUS_SUCCESS(vosStatus))
@@ -11163,12 +11299,26 @@ eHalStatus sme_ResetSignificantChange (tHalHandle hHal,
     VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
     tpAniSirGlobal pMac  = PMAC_STRUCT(hHal);
     vos_msg_t vosMessage;
+    tSirEXTScanResetSignificantChangeReqParams *pEXTScanResetSignificantReq;
+
+    pEXTScanResetSignificantReq =
+        vos_mem_malloc(sizeof(*pEXTScanResetSignificantReq));
+    if ( !pEXTScanResetSignificantReq)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for "
+                "WDA_EXTSCAN_RESET_SIGNF_RSSI_CHANGE_REQ",
+                __func__);
+        return eHAL_STATUS_FAILURE;
+    }
+
+    *pEXTScanResetSignificantReq = *pResetReq;
 
     MTRACE(vos_trace(VOS_MODULE_ID_SME,
            TRACE_CODE_SME_RX_HDD_EXTSCAN_RESET_SIGNF_CHANGE, NO_SESSION, 0));
     if (eHAL_STATUS_SUCCESS == (status = sme_AcquireGlobalLock(&pMac->sme))) {
         /* Serialize the req through MC thread */
-        vosMessage.bodyptr = pResetReq;
+        vosMessage.bodyptr = pEXTScanResetSignificantReq;
         vosMessage.type    = WDA_EXTSCAN_RESET_SIGNF_RSSI_CHANGE_REQ;
         vosStatus = vos_mq_post_message(VOS_MQ_ID_WDA, &vosMessage);
         if (!VOS_IS_STATUS_SUCCESS(vosStatus))
@@ -11193,12 +11343,27 @@ eHalStatus sme_getCachedResults (tHalHandle hHal,
     VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
     tpAniSirGlobal pMac  = PMAC_STRUCT(hHal);
     vos_msg_t vosMessage;
+    tSirEXTScanGetCachedResultsReqParams *pEXTScanCachedResultsReq;
+
+    pEXTScanCachedResultsReq =
+            vos_mem_malloc(sizeof(*pEXTScanCachedResultsReq));
+    if ( !pEXTScanCachedResultsReq)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for "
+                "WDA_EXTSCAN_GET_CACHED_RESULTS_REQ",
+                __func__);
+        return eHAL_STATUS_FAILURE;
+    }
+
+    *pEXTScanCachedResultsReq = *pCachedResultsReq;
+
 
     MTRACE(vos_trace(VOS_MODULE_ID_SME,
            TRACE_CODE_SME_RX_HDD_EXTSCAN_GET_CACHED_RESULTS, NO_SESSION, 0));
     if (eHAL_STATUS_SUCCESS == (status = sme_AcquireGlobalLock(&pMac->sme))) {
         /* Serialize the req through MC thread */
-        vosMessage.bodyptr = pCachedResultsReq;
+        vosMessage.bodyptr = pEXTScanCachedResultsReq;
         vosMessage.type    = WDA_EXTSCAN_GET_CACHED_RESULTS_REQ;
         vosStatus = vos_mq_post_message(VOS_MQ_ID_WDA, &vosMessage);
         if (!VOS_IS_STATUS_SUCCESS(vosStatus))

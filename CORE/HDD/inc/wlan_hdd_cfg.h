@@ -1206,7 +1206,7 @@ typedef enum
 #define CFG_SAR_POWER_BACKOFF_NAME           "SARPowerBackoff"
 #define CFG_SAR_POWER_BACKOFF_MIN            ( 0 )
 #define CFG_SAR_POWER_BACKOFF_MAX            ( 0xFFFFFFFF )
-#define CFG_SAR_POWER_BACKOFF_DEFAULT        ( 0 )
+#define CFG_SAR_POWER_BACKOFF_DEFAULT        ( 13 )
 
 #if defined WLAN_FEATURE_VOWIFI_11R
 #define CFG_FT_RESOURCE_REQ_NAME                        "gFTResourceReqSupported"
@@ -1830,6 +1830,20 @@ static __inline tANI_U32 defHddRateToDefCfgRate( tANI_U32 defRateIndex )
 #define CFG_TDLS_SCAN_COEX_SUPPORT_ENABLE_DEFAULT    (0)
 #endif
 
+#ifdef WLAN_FEATURE_LINK_LAYER_STATS
+#define CFG_LINK_LAYER_STATS_ENABLE                  "gEnableLLStats"
+#define CFG_LINK_LAYER_STATS_ENABLE_MIN              (0)
+#define CFG_LINK_LAYER_STATS_ENABLE_MAX              (1)
+#define CFG_LINK_LAYER_STATS_ENABLE_DEFAULT          (0)
+#endif
+
+#ifdef WLAN_FEATURE_EXTSCAN
+#define CFG_EXTSCAN_ENABLE                  "gEnableEXTScan"
+#define CFG_EXTSCAN_ENABLE_MIN              (0)
+#define CFG_EXTSCAN_ENABLE_MAX              (1)
+#define CFG_EXTSCAN_ENABLE_DEFAULT          (0)
+#endif
+
 #ifdef WLAN_ACTIVEMODE_OFFLOAD_FEATURE
 #define CFG_ACTIVEMODE_OFFLOAD_ENABLE         "gEnableActiveModeOffload"
 #define CFG_ACTIVEMODE_OFFLOAD_ENABLE_MIN     ( 0 )
@@ -2193,6 +2207,16 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_PMF_SA_QUERY_RETRY_INTERVAL_MIN                  ( 0    )
 #define CFG_PMF_SA_QUERY_RETRY_INTERVAL_MAX                  ( 2000 )
 #endif
+
+#define CFG_ENABLE_CH_AVOID                                  "gEnableChannelAvoidance"
+#define CFG_ENABLE_CH_AVOID_MIN                              ( 0 )
+#define CFG_ENABLE_CH_AVOID_MAX                              ( 1 )
+#define CFG_ENABLE_CH_AVOID_DEFAULT                          ( 1 )
+
+#define CFG_MAX_CONCURRENT_CONNECTIONS_NAME       "gMaxConcurrentActiveSessions"
+#define CFG_MAX_CONCURRENT_CONNECTIONS_DEFAULT    ( 2 )
+#define CFG_MAX_CONCURRENT_CONNECTIONS_MIN        ( 1 )
+#define CFG_MAX_CONCURRENT_CONNECTIONS_MAX        ( 4 )
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -2560,13 +2584,19 @@ typedef struct
    v_U32_t                     fEnableTDLSWmmMode;
    v_BOOL_t                    fEnableTDLSScanCoexSupport;
 #endif
-   v_U32_t                     enableLpwrImgTransition;
+#ifdef WLAN_FEATURE_LINK_LAYER_STATS
+   v_BOOL_t                    fEnableLLStats;
+#endif
+#ifdef WLAN_FEATURE_EXTSCAN
+   v_BOOL_t                    fEnableEXTScan;
+#endif
 #ifdef WLAN_SOFTAP_VSTA_FEATURE
    v_BOOL_t                    fEnableVSTASupport;
 #endif
 #ifdef WLAN_ACTIVEMODE_OFFLOAD_FEATURE
    v_BOOL_t                    fEnableActiveModeOffload;
 #endif
+   v_U32_t                     enableLpwrImgTransition;
    v_U8_t                      scanAgingTimeout;
    v_BOOL_t                    enableTxLdpc;
    v_U8_t                      disableLDPCWithTxbfAP;
@@ -2648,6 +2678,8 @@ typedef struct
    v_U32_t                     pmfSaQueryMaxRetries;
    v_U32_t                     pmfSaQueryRetryInterval;
 #endif
+   v_BOOL_t                    fenableCHAvoidance;
+   v_U8_t                      gMaxConcurrentActiveSessions;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

@@ -160,7 +160,7 @@ typedef struct tagSmeStruct
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
    /* HDD callback to be called after receiving Link Layer Stats Results IND from FW */
    void(*pLinkLayerStatsIndCallback)(void *callbackContext,
-                                     int indType, void *pRsp);
+                                     int indType, void *pRsp, tANI_U8 macAddr[6] );
    void *pLinkLayerStatsCallbackContext;
 #endif
 #ifdef WLAN_FEATURE_EXTSCAN

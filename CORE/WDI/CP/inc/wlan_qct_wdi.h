@@ -836,6 +836,14 @@ typedef struct
 
 } WDI_RateUpdateIndParams;
 
+#ifdef WLAN_FEATURE_LINK_LAYER_STATS
+typedef struct
+{
+    void *pLinkLayerStatsResults;
+    wpt_uint8  macAddr[6];
+}  WDI_LinkLayerStatsResults;
+
+#endif
 /*---------------------------------------------------------------------------
   WDI_LowLevelIndType
     Inidcation type and information about the indication being carried
@@ -907,7 +915,7 @@ typedef struct
 
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
     /*Link Layer Statistics from FW*/
-    void *pLinkLayerStatsResults;
+    WDI_LinkLayerStatsResults   wdiLinkLayerStatsResults;
 #endif
 #ifdef WLAN_FEATURE_EXTSCAN
     /*EXTSCAN Results from FW*/
@@ -5791,7 +5799,7 @@ typedef struct
 typedef struct
 {
    wpt_uint32  reqId;
-   wpt_uint8   staId;
+   wpt_macAddr macAddr;
    wpt_uint32  mpduSizeThreshold;
    wpt_uint32  aggressiveStatisticsGathering;
 }WDI_LLStatsSetReqType;
@@ -5799,17 +5807,18 @@ typedef struct
 typedef struct
 {
    wpt_uint32  reqId;
-   wpt_uint8   staId;
+   wpt_macAddr macAddr;
    wpt_uint32  paramIdMask;
 }WDI_LLStatsGetReqType;
 
 typedef struct
 {
    wpt_uint32  reqId;
-   wpt_uint8   staId;
+   wpt_macAddr macAddr;
    wpt_uint32  statsClearReqMask;
    wpt_uint8   stopReq;
 }WDI_LLStatsClearReqType;
+
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
 
 

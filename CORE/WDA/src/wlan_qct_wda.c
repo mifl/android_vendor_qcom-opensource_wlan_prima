@@ -2076,8 +2076,8 @@ VOS_STATUS WDA_stop(v_PVOID_t pVosContext, tANI_U8 reason)
          VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                    "%s: FTM Stop Timepoout", __func__);
          VOS_ASSERT(0);
-         vos_event_reset(&pWDA->ftmStopDoneEvent);
       }
+      vos_event_destroy(&pWDA->ftmStopDoneEvent);
    }
    return status;
 }
@@ -13563,7 +13563,6 @@ void WDA_lowLevelIndCallback(WDI_LowLevelIndType *wdiLowLevelInd,
      case  WDI_LL_STATS_RESULTS_IND:
      {
          void *pLinkLayerStatsInd;
-         void *pCallbackContext;
          tpAniSirGlobal pMac;
 
          VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
@@ -13579,7 +13578,8 @@ void WDA_lowLevelIndCallback(WDI_LowLevelIndType *wdiLowLevelInd,
          }
 
          pLinkLayerStatsInd =
-            (void *)wdiLowLevelInd->wdiIndicationData.pLinkLayerStatsResults;
+            (void *)wdiLowLevelInd->
+            wdiIndicationData.wdiLinkLayerStatsResults.pLinkLayerStatsResults;
          if (NULL == pLinkLayerStatsInd)
          {
             VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
@@ -13598,13 +13598,17 @@ void WDA_lowLevelIndCallback(WDI_LowLevelIndType *wdiLowLevelInd,
             return;
          }
 
-         pCallbackContext = pMac->sme.pLinkLayerStatsCallbackContext;
-         /*call hdd callback with Link Layer Statistics*/
+         /* call hdd callback with Link Layer Statistics
+          * vdev_id/ifacId in link_stats_results will be
+          * used to retrieve the correct HDD context
+          */
          if (pMac->sme.pLinkLayerStatsIndCallback)
          {
-            pMac->sme.pLinkLayerStatsIndCallback(pCallbackContext,
+            pMac->sme.pLinkLayerStatsIndCallback(pMac->pAdapter,
                 WDA_LINK_LAYER_STATS_RESULTS_RSP,
-               pLinkLayerStatsInd);
+               pLinkLayerStatsInd,
+               wdiLowLevelInd->
+               wdiIndicationData.wdiLinkLayerStatsResults.macAddr);
          }
          else
          {

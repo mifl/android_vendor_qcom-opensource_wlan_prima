@@ -2149,15 +2149,6 @@ VOS_STATUS hdd_wlan_re_init(void)
       goto err_vosclose;
    }
 
-   /* Initialize the WMM module */
-   vosStatus = hdd_wmm_init(pHddCtx, hddWmmDscpToUpMapInfra);
-   vosStatus = hdd_wmm_init(pHddCtx, hddWmmDscpToUpMapP2p);
-   if ( !VOS_IS_STATUS_SUCCESS( vosStatus ))
-   {
-      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: hdd_wmm_init failed", __func__);
-      goto err_vosclose;
-   }
-
    vosStatus = vos_preStart( pHddCtx->pvosContext );
    if ( !VOS_IS_STATUS_SUCCESS( vosStatus ) )
    {
@@ -2240,7 +2231,7 @@ VOS_STATUS hdd_wlan_re_init(void)
    vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    pHddCtx->hdd_mcastbcast_filter_set = FALSE;
    hdd_register_mcast_bcast_filter(pHddCtx);
-
+   wlan_hdd_tdls_init(pHddCtx);
    /* Register with platform driver as client for Suspend/Resume */
    vosStatus = hddRegisterPmOps(pHddCtx);
    if ( !VOS_IS_STATUS_SUCCESS( vosStatus ) )

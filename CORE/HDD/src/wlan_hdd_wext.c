@@ -4790,6 +4790,7 @@ static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *i
                      pResetStats->totalFWHearbeatFailures,
                      pResetStats->totalUnknownExceptions
                      );
+
             wrqu->data.length = strlen(extra);
 
             hHal = WLAN_HDD_GET_HAL_CTX( pAdapter );
@@ -4800,10 +4801,10 @@ static int iw_get_char_setnone(struct net_device *dev, struct iw_request_info *i
             if (pMac && (wrqu->data.length < WE_MAX_STR_LEN)) {
                 __u32 pmmStatsLength = WE_MAX_STR_LEN - wrqu->data.length;
                 snprintf(extra+wrqu->data.length, pmmStatsLength,
-                        "\n BMPS sleepcnt %llx, BMPS awakecnt %llx"
-                        "\n BMPS sleepreqfailcnt %llx, BMPS wakeupreqfailcnt %llx"
-                        "\n IMPS sleepcnt %llx, IMPS awakecnt %llx"
-                        "\n IMPS sleeperrcnt %llx, IMPS wakeuperrcnt %llx, IMPS lasterr %llx"
+                        "\n BMPS sleepcnt %lld, BMPS awakecnt %lld"
+                        "\n BMPS sleepreqfailcnt %lld, BMPS wakeupreqfailcnt %lld"
+                        "\n IMPS sleepcnt %lld, IMPS awakecnt %lld"
+                        "\n IMPS sleepreqfailcnt %lld, IMPS wakeupreqfailcnt %lld, IMPS lasterr %lld"
                         "\n",
                         pMac->pmm.BmpscntSleep,
                         pMac->pmm.BmpscntAwake,
@@ -5202,7 +5203,7 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
                }
 
                /*Make sure that pAdapter cleaned properly*/
-               hdd_stop_adapter( pHddCtx, pAdapter_to_stop );
+               hdd_stop_adapter( pHddCtx, pAdapter_to_stop, VOS_TRUE );
                hdd_deinit_adapter( pHddCtx, pAdapter_to_stop );
                memset(&pAdapter_to_stop->sessionCtx, 0, sizeof(pAdapter_to_stop->sessionCtx));
 
