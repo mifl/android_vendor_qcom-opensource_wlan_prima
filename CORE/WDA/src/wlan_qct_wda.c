@@ -13508,7 +13508,6 @@ void WDA_lowLevelIndCallback(WDI_LowLevelIndType *wdiLowLevelInd,
      case  WDI_LL_STATS_RESULTS_IND:
      {
          void *pLinkLayerStatsInd;
-         void *pCallbackContext;
          tpAniSirGlobal pMac;
 
          VOS_TRACE(VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
@@ -13524,7 +13523,8 @@ void WDA_lowLevelIndCallback(WDI_LowLevelIndType *wdiLowLevelInd,
          }
 
          pLinkLayerStatsInd =
-            (void *)wdiLowLevelInd->wdiIndicationData.pLinkLayerStatsResults;
+            (void *)wdiLowLevelInd->
+            wdiIndicationData.wdiLinkLayerStatsResults.pLinkLayerStatsResults;
          if (NULL == pLinkLayerStatsInd)
          {
             VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
@@ -13543,13 +13543,17 @@ void WDA_lowLevelIndCallback(WDI_LowLevelIndType *wdiLowLevelInd,
             return;
          }
 
-         pCallbackContext = pMac->sme.pLinkLayerStatsCallbackContext;
-         /*call hdd callback with Link Layer Statistics*/
+         /* call hdd callback with Link Layer Statistics.
+          * vdev_id/ifacId in link_stats_results will be
+          * used to retrieve the correct HDD context
+          */
          if (pMac->sme.pLinkLayerStatsIndCallback)
          {
-            pMac->sme.pLinkLayerStatsIndCallback(pCallbackContext,
+            pMac->sme.pLinkLayerStatsIndCallback(pMac->pAdapter,
                 WDA_LINK_LAYER_STATS_RESULTS_RSP,
-               pLinkLayerStatsInd);
+               pLinkLayerStatsInd,
+               wdiLowLevelInd->
+               wdiIndicationData.wdiLinkLayerStatsResults.macAddr);
          }
          else
          {
