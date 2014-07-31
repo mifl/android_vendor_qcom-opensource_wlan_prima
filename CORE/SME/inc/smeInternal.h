@@ -92,6 +92,7 @@ typedef enum eSmeCommandType
     eSmeCommandTdlsAddPeer, 
     eSmeCommandTdlsDelPeer, 
     eSmeCommandTdlsLinkEstablish,
+    eSmeCommandTdlsChannelSwitch, // tdlsoffchan
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
     eSmeCommandTdlsDiscovery,
     eSmeCommandTdlsLinkSetup,
