@@ -4780,10 +4780,10 @@ LIM
 WNI_CFG_RA_FILTER_ENABLE    I    4    7
 V    RW    NP
 HAL
-0    1     1
+0    1     0
 V    RW    NP
 HAL
-0    1     1
+0    1     0
 *
 *
 
