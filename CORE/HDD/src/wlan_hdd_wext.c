@@ -1325,9 +1325,9 @@ static int iw_get_name(struct net_device *dev,
     return 0;
 }
 
-static int iw_set_mode(struct net_device *dev,
-                             struct iw_request_info *info,
-                             union iwreq_data *wrqu, char *extra)
+static int __iw_set_mode(struct net_device *dev,
+                         struct iw_request_info *info,
+                         union iwreq_data *wrqu, char *extra)
 {
     hdd_wext_state_t         *pWextState;
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
@@ -1420,11 +1420,23 @@ static int iw_set_mode(struct net_device *dev,
     return 0;
 }
 
+static int iw_set_mode(struct net_device *dev,
+                       struct iw_request_info *info,
+                       union iwreq_data *wrqu, char *extra)
+{
+    int ret;
 
-static int iw_get_mode(struct net_device *dev,
-                             struct iw_request_info *info,
-                             union iwreq_data *wrqu,
-                             char *extra)
+    vos_ssr_protect(__func__);
+    ret = __iw_set_mode(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_get_mode(struct net_device *dev,
+                         struct iw_request_info *info,
+                         union iwreq_data *wrqu,
+                         char *extra)
 {
 
     hdd_wext_state_t *pWextState;
@@ -1475,8 +1487,23 @@ static int iw_get_mode(struct net_device *dev,
     return 0;
 }
 
-static int iw_set_freq(struct net_device *dev, struct iw_request_info *info,
-             union iwreq_data *wrqu, char *extra)
+static int iw_get_mode(struct net_device *dev,
+                       struct iw_request_info *info,
+                       union iwreq_data *wrqu,
+                       char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_get_mode(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_set_freq(struct net_device *dev,
+                         struct iw_request_info *info,
+                         union iwreq_data *wrqu, char *extra)
 {
     v_U32_t numChans = 0;
     v_U8_t validChan[WNI_CFG_VALID_CHANNEL_LIST_LEN];
@@ -1574,8 +1601,22 @@ static int iw_set_freq(struct net_device *dev, struct iw_request_info *info,
     return status;
 }
 
-static int iw_get_freq(struct net_device *dev, struct iw_request_info *info,
-             struct iw_freq *fwrq, char *extra)
+static int iw_set_freq(struct net_device *dev,
+                       struct iw_request_info *info,
+                       union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_set_freq(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+
+static int __iw_get_freq(struct net_device *dev,
+                         struct iw_request_info *info,
+                         struct iw_freq *fwrq, char *extra)
 {
    v_U32_t status = FALSE, channel = 0, freq = 0;
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
@@ -1628,9 +1669,22 @@ static int iw_get_freq(struct net_device *dev, struct iw_request_info *info,
    return 0;
 }
 
-static int iw_get_tx_power(struct net_device *dev,
-                           struct iw_request_info *info,
-                           union iwreq_data *wrqu, char *extra)
+static int iw_get_freq(struct net_device *dev,
+                       struct iw_request_info *info,
+                       struct iw_freq *fwrq, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_get_freq(dev, info, fwrq, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_get_tx_power(struct net_device *dev,
+                             struct iw_request_info *info,
+                             union iwreq_data *wrqu, char *extra)
 {
 
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
@@ -1655,9 +1709,22 @@ static int iw_get_tx_power(struct net_device *dev,
    return 0;
 }
 
-static int iw_set_tx_power(struct net_device *dev,
+static int iw_get_tx_power(struct net_device *dev,
                            struct iw_request_info *info,
                            union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_get_tx_power(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_set_tx_power(struct net_device *dev,
+                             struct iw_request_info *info,
+                             union iwreq_data *wrqu, char *extra)
 {
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
@@ -1682,9 +1749,22 @@ static int iw_set_tx_power(struct net_device *dev,
     return 0;
 }
 
-static int iw_get_bitrate(struct net_device *dev,
-                          struct iw_request_info *info,
-                          union iwreq_data *wrqu, char *extra)
+static int iw_set_tx_power(struct net_device *dev,
+                           struct iw_request_info *info,
+                           union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_set_tx_power(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_get_bitrate(struct net_device *dev,
+                            struct iw_request_info *info,
+                            union iwreq_data *wrqu, char *extra)
 {
    VOS_STATUS vos_status = VOS_STATUS_SUCCESS;
    eHalStatus status = eHAL_STATUS_SUCCESS;
@@ -1740,12 +1820,27 @@ static int iw_get_bitrate(struct net_device *dev,
 
    return vos_status;
 }
+
+static int iw_get_bitrate(struct net_device *dev,
+                          struct iw_request_info *info,
+                          union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_get_bitrate(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+
 /* ccm call back function */
 
-static int iw_set_bitrate(struct net_device *dev,
-                          struct iw_request_info *info,
-                          union iwreq_data *wrqu,
-                          char *extra)
+static int __iw_set_bitrate(struct net_device *dev,
+                            struct iw_request_info *info,
+                            union iwreq_data *wrqu,
+                            char *extra)
 {
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_wext_state_t *pWextState;
@@ -1818,11 +1913,24 @@ static int iw_set_bitrate(struct net_device *dev,
     return 0;
 }
 
+static int iw_set_bitrate(struct net_device *dev,
+                          struct iw_request_info *info,
+                          union iwreq_data *wrqu,
+                          char *extra)
+{
+    int ret;
 
-static int iw_set_genie(struct net_device *dev,
-        struct iw_request_info *info,
-        union iwreq_data *wrqu,
-        char *extra)
+    vos_ssr_protect(__func__);
+    ret = __iw_set_bitrate(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_set_genie(struct net_device *dev,
+                          struct iw_request_info *info,
+                          union iwreq_data *wrqu,
+                          char *extra)
 {
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
@@ -1948,10 +2056,24 @@ static int iw_set_genie(struct net_device *dev,
     return 0;
 }
 
-static int iw_get_genie(struct net_device *dev,
+static int iw_set_genie(struct net_device *dev,
                         struct iw_request_info *info,
                         union iwreq_data *wrqu,
                         char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_set_genie(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_get_genie(struct net_device *dev,
+                          struct iw_request_info *info,
+                          union iwreq_data *wrqu,
+                          char *extra)
 {
     hdd_wext_state_t *pWextState;
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
@@ -2005,9 +2127,24 @@ static int iw_get_genie(struct net_device *dev,
     return 0;
 }
 
-static int iw_get_encode(struct net_device *dev,
-                       struct iw_request_info *info,
-                       struct iw_point *dwrq, char *extra)
+static int iw_get_genie(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu,
+                        char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_get_genie(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+
+static int __iw_get_encode(struct net_device *dev,
+                           struct iw_request_info *info,
+                           struct iw_point *dwrq, char *extra)
 {
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
@@ -2076,6 +2213,19 @@ static int iw_get_encode(struct net_device *dev,
     return 0;
 }
 
+static int iw_get_encode(struct net_device *dev,
+                         struct iw_request_info *info,
+                         struct iw_point *dwrq, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_get_encode(dev, info, dwrq, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
 #define PAE_ROLE_AUTHENTICATOR 1 // =1 for authenticator,
 #define PAE_ROLE_SUPPLICANT 0 // =0 for supplicant
 
@@ -2084,9 +2234,9 @@ static int iw_get_encode(struct net_device *dev,
  * This function sends a single 'key' to LIM at all time.
  */
 
-static int iw_get_rts_threshold(struct net_device *dev,
-            struct iw_request_info *info,
-            union iwreq_data *wrqu, char *extra)
+static int __iw_get_rts_threshold(struct net_device *dev,
+                                  struct iw_request_info *info,
+                                  union iwreq_data *wrqu, char *extra)
 {
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
    v_U32_t status = 0;
@@ -2096,9 +2246,22 @@ static int iw_get_rts_threshold(struct net_device *dev,
    return status;
 }
 
-static int iw_set_rts_threshold(struct net_device *dev,
+static int iw_get_rts_threshold(struct net_device *dev,
                                 struct iw_request_info *info,
                                 union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_get_rts_threshold(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+
+static int __iw_set_rts_threshold(struct net_device *dev,
+                                  struct iw_request_info *info,
+                                  union iwreq_data *wrqu, char *extra)
 {
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
@@ -2128,9 +2291,22 @@ static int iw_set_rts_threshold(struct net_device *dev,
     return 0;
 }
 
-static int iw_get_frag_threshold(struct net_device *dev,
-                                 struct iw_request_info *info,
-                                 union iwreq_data *wrqu, char *extra)
+static int iw_set_rts_threshold(struct net_device *dev,
+                                struct iw_request_info *info,
+                                union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_set_rts_threshold(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_get_frag_threshold(struct net_device *dev,
+                                   struct iw_request_info *info,
+                                   union iwreq_data *wrqu, char *extra)
 {
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     v_U32_t status = 0;
@@ -2140,9 +2316,22 @@ static int iw_get_frag_threshold(struct net_device *dev,
     return status;
 }
 
-static int iw_set_frag_threshold(struct net_device *dev,
-             struct iw_request_info *info,
-                 union iwreq_data *wrqu, char *extra)
+static int iw_get_frag_threshold(struct net_device *dev,
+                                 struct iw_request_info *info,
+                                 union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_get_frag_threshold(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_set_frag_threshold(struct net_device *dev,
+                                   struct iw_request_info *info,
+                                   union iwreq_data *wrqu, char *extra)
 {
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
    tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
@@ -2172,6 +2361,19 @@ static int iw_set_frag_threshold(struct net_device *dev,
    return 0;
 }
 
+static int iw_set_frag_threshold(struct net_device *dev,
+                                 struct iw_request_info *info,
+                                 union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_set_frag_threshold(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+
 static int iw_get_power_mode(struct net_device *dev,
                              struct iw_request_info *info,
                              union iwreq_data *wrqu, char *extra)
@@ -2188,8 +2390,9 @@ static int iw_set_power_mode(struct net_device *dev,
     return -EOPNOTSUPP;
 }
 
-static int iw_get_range(struct net_device *dev, struct iw_request_info *info,
-                        union iwreq_data *wrqu, char *extra)
+static int __iw_get_range(struct net_device *dev,
+                          struct iw_request_info *info,
+                          union iwreq_data *wrqu, char *extra)
 {
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
    tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
@@ -2336,6 +2539,19 @@ static int iw_get_range(struct net_device *dev, struct iw_request_info *info,
 
    EXIT();
    return 0;
+}
+
+static int iw_get_range(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_get_range(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
 }
 
 /* Callback function registered with PMC to know status of PMC request */
@@ -3032,7 +3248,7 @@ void* wlan_hdd_change_country_code_callback(void *pAdapter)
     return NULL;
 }
 
-static int iw_set_priv(struct net_device *dev,
+static int __iw_set_priv(struct net_device *dev,
                        struct iw_request_info *info,
                        union iwreq_data *wrqu, char *extra)
 {
@@ -3379,6 +3595,18 @@ done:
     return rc;
 }
 
+static int iw_set_priv(struct net_device *dev,
+                       struct iw_request_info *info,
+                       union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+   vos_ssr_protect(__func__);
+   ret = __iw_set_priv(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+
 static int iw_set_nick(struct net_device *dev,
                        struct iw_request_info *info,
                        union iwreq_data *wrqu, char *extra)
@@ -3401,8 +3629,9 @@ static struct iw_statistics *get_wireless_stats(struct net_device *dev)
    return NULL;
 }
 
-static int iw_set_encode(struct net_device *dev,struct iw_request_info *info,
-                        union iwreq_data *wrqu,char *extra)
+static int __iw_set_encode(struct net_device *dev,
+                         struct iw_request_info *info,
+                         union iwreq_data *wrqu,char *extra)
 
 {
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
@@ -3558,7 +3787,20 @@ static int iw_set_encode(struct net_device *dev,struct iw_request_info *info,
    return 0;
 }
 
-static int iw_get_encodeext(struct net_device *dev,
+static int iw_set_encode(struct net_device *dev,
+                         struct iw_request_info *info,
+                         union iwreq_data *wrqu,char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_set_encode(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_get_encodeext(struct net_device *dev,
                struct iw_request_info *info,
                struct iw_point *dwrq,
                char *extra)
@@ -3643,7 +3885,20 @@ static int iw_get_encodeext(struct net_device *dev,
 
 }
 
-static int iw_set_encodeext(struct net_device *dev,
+static int iw_get_encodeext(struct net_device *dev,
+               struct iw_request_info *info,
+               struct iw_point *dwrq,
+               char *extra)
+{
+    int ret;
+    vos_ssr_protect(__func__);
+    ret = __iw_get_encodeext(dev, info, dwrq, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_set_encodeext(struct net_device *dev,
                         struct iw_request_info *info,
                         union iwreq_data *wrqu, char *extra)
 {
@@ -3844,8 +4099,22 @@ static int iw_set_encodeext(struct net_device *dev,
    return halStatus;
 }
 
-static int iw_set_retry(struct net_device *dev, struct iw_request_info *info,
-           union iwreq_data *wrqu, char *extra)
+static int iw_set_encodeext(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_set_encodeext(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+
+static int __iw_set_retry(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu, char *extra)
 {
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
    tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
@@ -3901,8 +4170,22 @@ static int iw_set_retry(struct net_device *dev, struct iw_request_info *info,
 
 }
 
-static int iw_get_retry(struct net_device *dev, struct iw_request_info *info,
-           union iwreq_data *wrqu, char *extra)
+static int iw_set_retry(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_set_retry(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+
+static int __iw_get_retry(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu, char *extra)
 {
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
    tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
@@ -3954,7 +4237,20 @@ static int iw_get_retry(struct net_device *dev, struct iw_request_info *info,
    return 0;
 }
 
-static int iw_set_mlme(struct net_device *dev,
+static int iw_get_retry(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_get_retry(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+
+static int __iw_set_mlme(struct net_device *dev,
                        struct iw_request_info *info,
                        union iwreq_data *wrqu,
                        char *extra)
@@ -4023,6 +4319,20 @@ static int iw_set_mlme(struct net_device *dev,
 
     return status;
 
+}
+
+static int iw_set_mlme(struct net_device *dev,
+                       struct iw_request_info *info,
+                       union iwreq_data *wrqu,
+                       char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_set_mlme(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
 }
 
 /* set param sub-ioctls */
