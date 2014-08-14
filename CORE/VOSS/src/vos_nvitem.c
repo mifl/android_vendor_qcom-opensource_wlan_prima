@@ -1232,9 +1232,9 @@ VOS_STATUS vos_nv_open(void)
         {
             pnvEFSTable->nvValidityBitmap = DEFAULT_NV_VALIDITY_BITMAP;
             VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
-                      "!!!WARNING: INVALID NV FILE, DRIVER IS USING DEFAULT CAL VALUES %d %d!!!",
+                      "Size  mismatch INVALID NV FILE %d %d!!!",
                       nvReadBufSize, bufSize);
-            return VOS_STATUS_SUCCESS;
+            return VOS_STATUS_E_FAILURE;
         }
 
         VOS_TRACE(VOS_MODULE_ID_VOSS,  VOS_TRACE_LEVEL_INFO,
@@ -3447,12 +3447,18 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
             if (0 == err)
 #endif
             {
-                if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
-                {
-                    VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
-                              "%s: Remove passive scan restriction for %u",
-                              __func__, wiphy->bands[i]->channels[j].center_freq);
-                    wiphy->bands[i]->channels[j].flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+                if  (wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY) {
+
+                    if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
+                    {
+                        VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+                                  "%s: Remove passive scan restriction for %u",
+                                  __func__, wiphy->bands[i]->channels[j].center_freq);
+                        wiphy->bands[i]->channels[j].flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+                    }
+
+                    wiphy->bands[i]->channels[j].max_power =
+                        (int) MBM_TO_DBM(reg_rule->power_rule.max_eirp);
                 }
             }
 
@@ -3658,6 +3664,20 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
 
         /* first lookup the country in the local database */
 
+        if (!(pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[0] == '0' &&
+             pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[1] == '0') &&
+            (vos_is_load_unload_in_progress( VOS_MODULE_ID_VOSS, NULL)))
+        {
+           VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+                      (" Default Country in nv is non Zero  and Driver load/unload"
+                       "is in progress; avoid updating country from kernel\n"));
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
+           return;
+#else
+           return 0;
+#endif
+        }
+
         country_code[0] = request->alpha2[0];
         country_code[1] = request->alpha2[1];
 
@@ -3699,7 +3719,7 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
         if (request->alpha2[0] == '0' && request->alpha2[1] == '0')
         {
            sme_GenericChangeCountryCode(pHddCtx->hHal, country_code,
-                                        REGDOMAIN_COUNT);
+                                           REGDOMAIN_COUNT);
         }
         else
         {
