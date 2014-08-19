@@ -1081,6 +1081,8 @@ typedef struct sAniSirGlobal
     v_BOOL_t isMuBfsessionexist;
 #endif
 
+    v_BOOL_t isCoexScoIndSet;
+
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS
