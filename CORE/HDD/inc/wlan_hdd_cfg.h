@@ -2065,6 +2065,10 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_DEFER_IMPS_FOR_TIME_MAX                          (500)
 #define CFG_DEFER_IMPS_FOR_TIME_DEFAULT                      (200)
 
+#define CFG_INITIAL_SCAN_SKIP_DFS_CH_NAME      "gInitialScanSkipDFSCh"
+#define CFG_INITIAL_SCAN_SKIP_DFS_CH_DEFAULT   (1)
+#define CFG_INITIAL_SCAN_SKIP_DFS_CH_MIN       (0)
+#define CFG_INITIAL_SCAN_SKIP_DFS_CH_MAX       (1)
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -2494,6 +2498,7 @@ typedef struct
    char                        overrideCountryCode[4];
    v_BOOL_t                    sendDeauthBeforeCon;
    v_U32_t                     deferImpsTime;
+   v_BOOL_t                    initialScanSkipDFSCh;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
