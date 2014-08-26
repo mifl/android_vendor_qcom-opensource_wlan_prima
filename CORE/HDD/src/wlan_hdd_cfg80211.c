@@ -6472,6 +6472,9 @@ static int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                     //Fail to Exit BMPS
                     VOS_ASSERT(0);
                 }
+
+                hdd_stop_adapter( pHddCtx, pAdapter, VOS_TRUE );
+
 #ifdef FEATURE_WLAN_TDLS
 
                 /* A Mutex Lock is introduced while changing the mode to
@@ -6481,7 +6484,6 @@ static int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                 mutex_lock(&pHddCtx->tdls_lock);
 #endif
                 //De-init the adapter.
-                hdd_stop_adapter( pHddCtx, pAdapter, VOS_TRUE );
                 hdd_deinit_adapter( pHddCtx, pAdapter );
                 memset(&pAdapter->sessionCtx, 0, sizeof(pAdapter->sessionCtx));
                 pAdapter->device_mode = (type == NL80211_IFTYPE_AP) ?
@@ -6591,6 +6593,8 @@ static int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
            case NL80211_IFTYPE_STATION:
            case NL80211_IFTYPE_P2P_CLIENT:
            case NL80211_IFTYPE_ADHOC:
+
+                hdd_stop_adapter( pHddCtx, pAdapter, VOS_TRUE );
 #ifdef FEATURE_WLAN_TDLS
 
                 /* A Mutex Lock is introduced while changing the mode to
@@ -6599,7 +6603,6 @@ static int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                  */
                 mutex_lock(&pHddCtx->tdls_lock);
 #endif
-                hdd_stop_adapter( pHddCtx, pAdapter, VOS_TRUE );
                 hdd_deinit_adapter( pHddCtx, pAdapter );
                 wdev->iftype = type;
                 //Check for sub-string p2p to confirm its a p2p interface
