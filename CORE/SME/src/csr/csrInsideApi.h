@@ -295,6 +295,9 @@ void csrRemoveCmdFromPendingList(tpAniSirGlobal pMac, tDblLinkList *pList,
                                               eSmeCommandType commandType );
 eHalStatus csrScanAbortMacScanNotForConnect(tpAniSirGlobal pMac);
 eHalStatus csrScanGetScanChannelInfo(tpAniSirGlobal pMac);
+eHalStatus csrScanAbortScanForSSID(tpAniSirGlobal pMac, tANI_U32 sessionId);
+void csrRemoveScanForSSIDFromPendingList(tpAniSirGlobal pMac, tDblLinkList *pList, tANI_U32 sessionId);
+
 //To age out scan results base. tSmeGetScanChnRsp is a pointer returned by LIM that
 //has the information regarding scanned channels.
 //The logic is that whenever CSR add a BSS to scan result, it set the age count to
