@@ -5142,6 +5142,12 @@ void limUpdateStaRunTimeHTSwitchChnlParams( tpAniSirGlobal   pMac,
     }
 #endif
 
+    if (pMac->ft.ftPEContext.pFTPreAuthReq)
+    {
+        limLog( pMac, LOGE, FL( "FT PREAUTH channel change is in progress"));
+        return;
+    }
+
     /*
      * Do not try to switch channel if RoC is in progress. RoC code path uses
      * pMac->lim.gpLimRemainOnChanReq to notify the upper layers that the device
