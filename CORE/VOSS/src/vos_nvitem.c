@@ -3447,8 +3447,14 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
             if (0 == err)
 #endif
             {
-                if  (wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY) {
+                /* When Country code in nv.bin file is Non Zero  and Reg Domain
+                 * is world; it's neither CUSTOM nor STRICT. In this Case
+                 * if country code is Non-Zero and domain is world; driver
+                 * will not change channel to active.
+                 */
 
+                if  (!(wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY ))
+                {
                     if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
                     {
                         VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
@@ -3576,6 +3582,21 @@ static int create_linux_regulatory_entry(struct wiphy *wiphy,
     return 0;
 }
 
+/* function to tell about if Default country is Non-Zero */
+v_BOOL_t vos_is_nv_country_non_zero()
+{
+    v_BOOL_t  status = VOS_FALSE;
+    if (!(pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[0] == '0' &&
+        pnvEFSTable->halnv.tables.defaultCountryTable.countryCode[1] == '0'))
+    {
+        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+               "Default Country is Non-Zero\n");
+        return VOS_TRUE;
+    }
+
+    return status ;
+}
+
 
 /*
  * Function: wlan_hdd_linux_reg_notifier
@@ -3654,6 +3675,8 @@ int wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
         {
            hdd_checkandupdate_phymode( pHddCtx);
         }
+        linux_reg_cc[0] =  request->alpha2[0];
+        linux_reg_cc[1] =  request->alpha2[1];
 
         complete(&pHddCtx->linux_reg_req);
     }
