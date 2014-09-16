@@ -3449,4 +3449,6 @@ VOS_STATUS sme_SendTdlsChanSwitchReq(tHalHandle hHal,
                                      tANI_S32 tdlsOffChBwOffset,
                                      tANI_U8 tdlsSwMode);
 
+void sme_resetCoexEevent(tHalHandle hHal);
+
 #endif //#if !defined( __SME_API_H )
