@@ -3714,6 +3714,8 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        else if (strncmp(command, "BTCOEXMODE", 10) == 0 )
        {
            char *dhcpPhase;
+           int ret;
+
            dhcpPhase = command + 11;
            if ('1' == *dhcpPhase)
            {
@@ -3721,6 +3723,13 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
                         FL("send DHCP START indication"));
 
                pHddCtx->btCoexModeSet = TRUE;
+
+               ret = wlan_hdd_scan_abort(pAdapter);
+               if (ret < 0)
+               {
+                   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      FL("failed to abort existing scan %d"), ret);
+               }
 
                sme_DHCPStartInd(pHddCtx->hHal, pAdapter->device_mode,
                                 pAdapter->sessionId);
