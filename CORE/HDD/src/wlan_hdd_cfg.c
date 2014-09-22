@@ -3091,6 +3091,14 @@ REG_VARIABLE( CFG_EXTSCAN_ENABLE, WLAN_PARAM_Integer,
                 CFG_MAX_CONCURRENT_CONNECTIONS_DEFAULT,
                 CFG_MAX_CONCURRENT_CONNECTIONS_MIN,
                 CFG_MAX_CONCURRENT_CONNECTIONS_MAX ),
+
+   REG_VARIABLE( CFG_BURST_MODE_BE_TXOP_VALUE, WLAN_PARAM_Integer,
+                  hdd_config_t, burstModeTXOPValue,
+                  VAR_FLAGS_OPTIONAL |
+                  VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                  CFG_BURST_MODE_BE_TXOP_VALUE_DEFAULT,
+                  CFG_BURST_MODE_BE_TXOP_VALUE_MIN,
+                  CFG_BURST_MODE_BE_TXOP_VALUE_MAX ),
 };
 
 
@@ -4883,6 +4891,14 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
       hddLog(LOGE, "Could not pass on WNI_CFG_SA_QUERY_RETRY_INTERVAL to CCM");
    }
 #endif
+
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_BURST_MODE_BE_TXOP_VALUE,
+                    pConfig->burstModeTXOPValue, NULL,
+                    eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+      fStatus = FALSE;
+      hddLog(LOGE, "Could not pass on WNI_CFG_BURST_MODE_BE_TXOP_VALUE ");
+   }
 
    return fStatus;
 }
