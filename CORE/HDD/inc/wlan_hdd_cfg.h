@@ -2229,6 +2229,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_MAX_CONCURRENT_CONNECTIONS_MIN        ( 1 )
 #define CFG_MAX_CONCURRENT_CONNECTIONS_MAX        ( 4 )
 
+#define CFG_BURST_MODE_BE_TXOP_VALUE           "gBurstModeTXOPValue"
+#define CFG_BURST_MODE_BE_TXOP_VALUE_MIN       ( 0 )
+#define CFG_BURST_MODE_BE_TXOP_VALUE_MAX       ( 12288 )
+#define CFG_BURST_MODE_BE_TXOP_VALUE_DEFAULT   ( 0 )
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2693,6 +2698,7 @@ typedef struct
 #endif
    v_BOOL_t                    fenableCHAvoidance;
    v_U8_t                      gMaxConcurrentActiveSessions;
+   v_U32_t                     burstModeTXOPValue;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
