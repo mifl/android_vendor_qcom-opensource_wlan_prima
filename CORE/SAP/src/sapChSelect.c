@@ -449,6 +449,7 @@ v_BOOL_t sapChanSelInit(tHalHandle halHandle, tSapChSelSpectInfo *pSpectInfoPara
         if(*pChans == 14 ) //OFDM rates are not supported on channel 14
         {
             pChans++;
+            pSpectCh++;
             continue;
         }
 #ifdef FEATURE_WLAN_CH_AVOID
@@ -464,10 +465,10 @@ v_BOOL_t sapChanSelInit(tHalHandle halHandle, tSapChSelSpectInfo *pSpectInfoPara
            pSpectCh->rssiAgr = SOFTAP_MIN_RSSI;
            // Initialise 20MHz for all the Channels
            pSpectCh->channelWidth = SOFTAP_HT20_CHANNELWIDTH;
-           pSpectCh++;
 #ifdef FEATURE_WLAN_CH_AVOID
         }
 #endif /* FEATURE_WLAN_CH_AVOID */
+        pSpectCh++;
         pChans++;
     }
     return eSAP_TRUE;
