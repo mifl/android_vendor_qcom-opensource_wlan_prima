@@ -344,6 +344,7 @@ unsigned char *gCfgParamName[] = {
     (unsigned char *)"RA_FILTER_ENABLE",
     (unsigned char *)"RA_RATE_LIMIT_INTERVAL",
     (unsigned char *)"BTC_CTS2S_DURING_SCO",
+    (unsigned char *)"BURST_MODE_BE_TXOP_VALUE",
 };
 
 
