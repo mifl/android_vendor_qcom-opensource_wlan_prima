@@ -5270,7 +5270,7 @@ eHalStatus sme_InitChannels(tHalHandle hHal)
                          FAILURE or RESOURCES  The API finished and failed.
 --------------------------------------------------------------------------*/
 
-eHalStatus sme_InitChannelsForCC(tHalHandle hHal)
+eHalStatus sme_InitChannelsForCC(tHalHandle hHal, driver_load_type init)
 {
     eHalStatus          status = eHAL_STATUS_FAILURE;
     tpAniSirGlobal      pMac = PMAC_STRUCT(hHal);
@@ -5281,7 +5281,7 @@ eHalStatus sme_InitChannelsForCC(tHalHandle hHal)
             "%s: pMac is null", __func__);
         return status;
     }
-    status = csrInitChannelsForCC(pMac);
+    status = csrInitChannelsForCC(pMac, init);
 
     return status;
 }

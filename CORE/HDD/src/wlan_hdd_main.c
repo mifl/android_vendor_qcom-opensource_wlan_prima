@@ -207,8 +207,6 @@ static VOS_STATUS hdd_parse_ese_beacon_req(tANI_U8 *pValue,
 
 #define WLAN_PRIV_DATA_MAX_LEN 4096
 
-static VOS_STATUS wlan_hdd_init_channels_for_cc(hdd_context_t *pHddCtx);
-
 /*
  * Driver miracast parameters 0-Disabled
  * 1-Source, 2-Sink
@@ -8867,7 +8865,7 @@ int hdd_wlan_startup(struct device *dev )
        goto err_vosstop;
    }
 
-   status = wlan_hdd_init_channels_for_cc(pHddCtx);
+   status = wlan_hdd_init_channels_for_cc(pHddCtx, INIT);
    if ( !VOS_IS_STATUS_SUCCESS( status ) )
    {
       hddLog(VOS_TRACE_LEVEL_FATAL, "%s: wlan_hdd_init_channels_for_cc failed",
@@ -10203,11 +10201,11 @@ static VOS_STATUS wlan_hdd_init_channels(hdd_context_t *pHddCtx)
    }
 }
 
-static VOS_STATUS wlan_hdd_init_channels_for_cc(hdd_context_t *pHddCtx)
+VOS_STATUS wlan_hdd_init_channels_for_cc(hdd_context_t *pHddCtx, driver_load_type init )
 {
    eHalStatus status;
 
-   status = sme_InitChannelsForCC(pHddCtx->hHal);
+   status = sme_InitChannelsForCC(pHddCtx->hHal, init);
    if (HAL_STATUS_SUCCESS(status))
    {
       return VOS_STATUS_SUCCESS;
