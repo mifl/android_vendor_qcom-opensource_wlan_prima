@@ -1077,6 +1077,7 @@ typedef struct sAniSirGlobal
     tANI_U32 fEnableDebugLog;
     tANI_U32 fDeferIMPSTime;
     tANI_BOOLEAN deferImps;
+    v_BOOL_t isCoexScoIndSet;
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS
