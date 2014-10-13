@@ -9100,6 +9100,7 @@ int hdd_wlan_startup(struct device *dev )
    }
 
    mutex_init(&pHddCtx->sap_lock);
+   mutex_init(&pHddCtx->roc_lock);
 
 
 #ifdef WLAN_OPEN_SOURCE
