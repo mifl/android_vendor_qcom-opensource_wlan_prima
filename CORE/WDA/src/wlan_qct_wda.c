@@ -3421,6 +3421,8 @@ void WDA_ConfigBssReqCallback(WDI_ConfigBSSRspParamsType *wdiConfigBssRsp
       configBssReqParam->txMgmtPower = wdiConfigBssRsp->ucTxMgmtPower;
 #endif
    }
+   vos_mem_zero(pWdaParams->wdaWdiApiMsgParam,
+                 sizeof(WDI_ConfigBSSReqParamsType));
    vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
    vos_mem_free(pWdaParams) ;
    WDA_SendMsg(pWDA, WDA_ADD_BSS_RSP, (void *)configBssReqParam , 0) ;
@@ -3533,6 +3535,7 @@ void WDA_PostAssocReqCallback(WDI_PostAssocRspParamsType *wdiPostAssocRsp,
       staPostAssocParam->bssIdx = wdiPostAssocRsp->bssParams.ucBSSIdx;
       selfStaPostAssocParam->staIdx = wdiPostAssocRsp->staParams.ucSTAIdx;
    }
+   vos_mem_zero(pWDA->wdaWdiApiMsgParam, sizeof(WDI_PostAssocReqParamsType));
    vos_mem_free(pWDA->wdaWdiApiMsgParam) ;
    pWDA->wdaWdiApiMsgParam = NULL;
    pWDA->wdaMsgParam = NULL;
@@ -4717,6 +4720,8 @@ void WDA_SetBssKeyReqCallback(WDI_Status status, void* pUserData)
    }
    pWDA = (tWDA_CbContext *)pWdaParams->pWdaContext;
    setBssKeyParams = (tSetBssKeyParams *)pWdaParams->wdaMsgParam;
+   vos_mem_zero(pWdaParams->wdaWdiApiMsgParam,
+                 sizeof(WDI_SetBSSKeyReqParamsType));
    vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
    vos_mem_free(pWdaParams) ;
    setBssKeyParams->status = status ;
@@ -4917,6 +4922,8 @@ void WDA_SetStaKeyReqCallback(WDI_Status status, void* pUserData)
    }
    pWDA = (tWDA_CbContext *)pWdaParams->pWdaContext;
    setStaKeyParams = (tSetStaKeyParams *)pWdaParams->wdaMsgParam;
+   vos_mem_zero(pWdaParams->wdaWdiApiMsgParam,
+                 sizeof(WDI_SetSTAKeyReqParamsType));
    vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
    vos_mem_free(pWdaParams) ;
    setStaKeyParams->status = status ;
@@ -10967,6 +10974,10 @@ void WDA_GTKOffloadReqCallback(WDI_Status wdiStatus, void* pUserData)
 
    if(IS_WDI_STATUS_FAILURE(wdiStatus))
    {
+      vos_mem_zero(pWdaParams->wdaWdiApiMsgParam,
+                    sizeof(WDI_GtkOffloadReqMsg));
+      vos_mem_zero(pWdaParams->wdaMsgParam,
+                    sizeof(tSirGtkOffloadParams));
       vos_mem_free(pWdaParams->wdaWdiApiMsgParam);
       vos_mem_free(pWdaParams->wdaMsgParam);
       vos_mem_free(pWdaParams);
@@ -11041,6 +11052,8 @@ VOS_STATUS WDA_ProcessGTKOffloadReq(tWDA_CbContext *pWDA,
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
               "Failure in WDA_ProcessGTKOffloadReq(), free all the memory " );
+      vos_mem_zero(wdiGtkOffloadReqMsg, sizeof(WDI_GtkOffloadReqMsg));
+      vos_mem_zero(pGtkOffloadParams, sizeof(tSirGtkOffloadParams));
       vos_mem_free(pWdaParams->wdaWdiApiMsgParam) ;
       vos_mem_free(pWdaParams->wdaMsgParam);
       vos_mem_free(pWdaParams);
@@ -11109,6 +11122,8 @@ void WDA_GtkOffloadGetInfoRespCallback( WDI_GtkOffloadGetInfoRspParams *pwdiGtkO
    if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MQ_ID_SME, (vos_msg_t*)&vosMsg))
    {
       /* free the mem and return */
+      vos_mem_zero(pGtkOffloadGetInfoRsp,
+                   sizeof(tSirGtkOffloadGetInfoRspParams));
       vos_mem_free((v_VOID_t *) pGtkOffloadGetInfoRsp);
    }
 

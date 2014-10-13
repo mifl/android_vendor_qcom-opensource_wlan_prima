@@ -2523,6 +2523,7 @@ limProcessApMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ)
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given sessionId"));)
         if( NULL != pAddBssParams )
         {
+            vos_mem_zero(pAddBssParams, sizeof(tAddBssParams));
             vos_mem_free(pAddBssParams);
             limMsgQ->bodyptr = NULL;
         }
@@ -2592,6 +2593,7 @@ limProcessApMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ)
     end:
     if( 0 != limMsgQ->bodyptr )
     {
+        vos_mem_zero(pAddBssParams, sizeof(tAddBssParams));
         vos_mem_free(pAddBssParams);
         limMsgQ->bodyptr = NULL;
     }
@@ -2705,6 +2707,7 @@ limProcessIbssMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ ,tpPESession 
     end:
     if( 0 != limMsgQ->bodyptr )
     {
+        vos_mem_zero(pAddBssParams, sizeof(tAddBssParams));
         vos_mem_free(pAddBssParams);
         limMsgQ->bodyptr = NULL;
     }
@@ -3010,6 +3013,7 @@ limProcessStaMlmAddBssRspFT(tpAniSirGlobal pMac, tpSirMsgQ limMsgQ, tpPESession 
 
     if (pAddBssParams != NULL)
     {
+        vos_mem_zero(pAddBssParams, sizeof(tAddBssParams));
         vos_mem_free(pAddBssParams);
         pAddBssParams = NULL;
         limMsgQ->bodyptr = NULL;
@@ -3027,6 +3031,7 @@ end:
 
     if (pAddBssParams != NULL)
     {
+        vos_mem_zero(pAddBssParams, sizeof(tAddBssParams));
         vos_mem_free(pAddBssParams);
         pAddBssParams = NULL;
         limMsgQ->bodyptr = NULL;
@@ -3184,6 +3189,7 @@ limProcessStaMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPESession ps
     end:
     if( 0 != limMsgQ->bodyptr )
     {
+        vos_mem_zero(pAddBssParams, sizeof(tAddBssParams));
         vos_mem_free(pAddBssParams);
         limMsgQ->bodyptr = NULL;
     }
@@ -3245,6 +3251,7 @@ void limProcessMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
                 pAddBssParams->sessionId);
         if( NULL != pAddBssParams )
         {
+            vos_mem_zero(pAddBssParams, sizeof(tAddBssParams));
             vos_mem_free(pAddBssParams);
             limMsgQ->bodyptr = NULL;
         }
@@ -3267,6 +3274,7 @@ void limProcessMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
                 mlmStartCnf.resultCode = eSIR_SME_BSS_ALREADY_STARTED_OR_JOINED;
                 if( 0 != limMsgQ->bodyptr )
                 {
+                    vos_mem_zero(pAddBssParams, sizeof(tAddBssParams));
                     vos_mem_free(pAddBssParams);
                     limMsgQ->bodyptr = NULL;
                 }
@@ -3354,6 +3362,7 @@ void limProcessMlmSetStaKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     if((psessionEntry = peFindSessionBySessionId(pMac, sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given sessionId"));)
+        vos_mem_zero(limMsgQ->bodyptr, sizeof(tSetStaKeyParams));
         vos_mem_free(limMsgQ->bodyptr);
         limMsgQ->bodyptr = NULL;
         return;
@@ -3368,6 +3377,7 @@ void limProcessMlmSetStaKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     else
       mlmSetKeysCnf.resultCode = (tANI_U16) (((tpSetStaKeyParams) limMsgQ->bodyptr)->status);
 
+    vos_mem_zero(limMsgQ->bodyptr, sizeof(tSetStaKeyParams));
     vos_mem_free(limMsgQ->bodyptr);
     limMsgQ->bodyptr = NULL;
     // Restore MLME state
@@ -3383,6 +3393,8 @@ void limProcessMlmSetStaKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
                          (tANI_U8 *) lpLimMlmSetKeysReq->peerMacAddr,
                           sizeof(tSirMacAddr));
             // Free the buffer cached for the global pMac->lim.gpLimMlmSetKeysReq
+            vos_mem_zero(pMac->lim.gpLimMlmSetKeysReq,
+                          sizeof(tLimMlmSetKeysReq));
             vos_mem_free(pMac->lim.gpLimMlmSetKeysReq);
             pMac->lim.gpLimMlmSetKeysReq = NULL;
         }
@@ -3409,6 +3421,7 @@ void limProcessMlmSetBssKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     if((psessionEntry = peFindSessionBySessionId(pMac, sessionId))== NULL)
     {
         PELOGE(limLog(pMac, LOGE,FL("session does not exist for given sessionId"));)
+        vos_mem_zero(limMsgQ->bodyptr, sizeof(tSetBssKeyParams));
         vos_mem_free( limMsgQ->bodyptr );
         limMsgQ->bodyptr = NULL;
         return;
@@ -3437,6 +3450,7 @@ void limProcessMlmSetBssKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     else
       mlmSetKeysCnf.resultCode = resultCode;
 
+    vos_mem_zero(limMsgQ->bodyptr, sizeof(tSetBssKeyParams));
     vos_mem_free(limMsgQ->bodyptr);
     limMsgQ->bodyptr = NULL;
     // Restore MLME state
@@ -3455,6 +3469,8 @@ void limProcessMlmSetBssKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
                          (tANI_U8 *) lpLimMlmSetKeysReq->peerMacAddr,
                          sizeof(tSirMacAddr));
             // Free the buffer cached for the global pMac->lim.gpLimMlmSetKeysReq
+            vos_mem_zero(pMac->lim.gpLimMlmSetKeysReq,
+                          sizeof(tLimMlmSetKeysReq));
             vos_mem_free(pMac->lim.gpLimMlmSetKeysReq);
             pMac->lim.gpLimMlmSetKeysReq = NULL;
         }
@@ -3527,7 +3543,7 @@ void limProcessMlmRemoveKeyRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
     // TODO & FIXME_GEN4
     // Need to inspect tSirMsgQ.reserved for a valid Dialog token!
     //
-
+    vos_mem_zero(limMsgQ->bodyptr, sizeof(tRemoveStaKeyParams));
     vos_mem_free(limMsgQ->bodyptr);
     limMsgQ->bodyptr = NULL;
 
@@ -4746,6 +4762,7 @@ limProcessBtampAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ ,tpPESession ps
     end:
     if( 0 != limMsgQ->bodyptr )
     {
+        vos_mem_zero(pAddBssParams, sizeof(tAddBssParams));
         vos_mem_free(pAddBssParams);
         limMsgQ->bodyptr = NULL;
     }

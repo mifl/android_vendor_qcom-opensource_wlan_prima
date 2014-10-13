@@ -4504,6 +4504,11 @@ void wlan_hdd_cfg80211_set_key_wapi(hdd_adapter_t* pAdapter, u8 key_index,
                                                 __LINE__, status );
         pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
     }
+    /* Need to clear any trace of key value in the memory.
+     * Thus zero out the memory even though it is local
+     * variable.
+     */
+    vos_mem_zero(&setKey, sizeof(setKey));
 }
 #endif /* FEATURE_WLAN_WAPI*/
 
@@ -7246,7 +7251,8 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
         default:
             hddLog(VOS_TRACE_LEVEL_ERROR, "%s: unsupported cipher type %lu",
                     __func__, params->cipher);
-            return -EOPNOTSUPP;
+            status = -EOPNOTSUPP;
+            goto end;
     }
 
     hddLog(VOS_TRACE_LEVEL_INFO_MED, "%s: encryption type %d",
@@ -7287,13 +7293,14 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
         {
             hddLog(VOS_TRACE_LEVEL_ERROR,
                     "%s: sme_RoamSetKey failed, returned %d", __func__, status);
-            return -EINVAL;
+            status = -EINVAL;
+            goto end;
         }
         /*Save the keys here and call sme_RoamSetKey for setting
           the PTK after peer joins the IBSS network*/
         vos_mem_copy(&pAdapter->sessionCtx.station.ibss_enc_key,
                                     &setKey, sizeof(tCsrRoamSetKey));
-        return status;
+        goto end;
     }
     if ((pAdapter->device_mode == WLAN_HDD_SOFTAP) ||
            (pAdapter->device_mode == WLAN_HDD_P2P_GO))
@@ -7312,7 +7319,8 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
 
                 pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
 
-                return -EINVAL;
+                status = -EINVAL;
+                goto end;
             }
 
             status = WLANSAP_SetKeySta( pVosContext, &setKey);
@@ -7322,6 +7330,8 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                 VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                         "[%4d] WLANSAP_SetKeySta returned ERROR status= %d",
                         __LINE__, status );
+                status = -EINVAL;
+                goto end;
             }
         }
 
@@ -7390,7 +7400,8 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
 
             pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
 
-            return -EINVAL;
+            status = -EINVAL;
+            goto end;
 
         }
 
@@ -7403,13 +7414,15 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
         {
            hddLog(VOS_TRACE_LEVEL_INFO_MED,
                   "%s: Update PreAuth Key success", __func__);
-           return 0;
+           status = 0;
+           goto end;
         }
         else if ( halStatus == eHAL_STATUS_FT_PREAUTH_KEY_FAILED )
         {
            hddLog(VOS_TRACE_LEVEL_ERROR,
                   "%s: Update PreAuth Key failed", __func__);
-           return -EINVAL;
+           status = -EINVAL;
+           goto end;
         }
 #endif /* WLAN_FEATURE_VOWIFI_11R */
 
@@ -7422,7 +7435,8 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
             hddLog(VOS_TRACE_LEVEL_ERROR,
                     "%s: sme_RoamSetKey failed, returned %d", __func__, status);
             pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
-            return -EINVAL;
+            status = -EINVAL;
+            goto end;
         }
 
 
@@ -7459,12 +7473,20 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                         "%s: sme_RoamSetKey failed for group key (IBSS), returned %d",
                         __func__, status);
                 pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
-                return -EINVAL;
+                status = -EINVAL;
+                goto end;
             }
         }
     }
 
-    return 0;
+end:
+    /* Need to clear any trace of key value in the memory.
+     * Thus zero out the memory even though it is local
+     * variable.
+     */
+    vos_mem_zero(&setKey, sizeof(setKey));
+
+    return status;
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
@@ -13295,6 +13317,13 @@ int __wlan_hdd_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *d
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                     "%s: sme_SetGTKOffload failed, returned %d",
                     __func__, status);
+
+           /* Need to clear any trace of key value in the memory.
+            * Thus zero out the memory even though it is local
+            * variable.
+            */
+            vos_mem_zero(&hddGtkOffloadReqParams,
+                          sizeof(hddGtkOffloadReqParams));
             return status;
         }
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
@@ -13306,6 +13335,13 @@ int __wlan_hdd_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *d
                 "%s: wlan not suspended GTKOffload request is stored",
                 __func__);
     }
+
+    /* Need to clear any trace of key value in the memory.
+     * Thus zero out the memory even though it is local
+     * variable.
+     */
+    vos_mem_zero(&hddGtkOffloadReqParams,
+                  sizeof(hddGtkOffloadReqParams));
 
     return eHAL_STATUS_SUCCESS;
 }
