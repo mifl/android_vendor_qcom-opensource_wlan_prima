@@ -161,7 +161,7 @@ void limUpdateExtCapIEtoStruct(tpAniSirGlobal pMac,
     if ( DOT11F_EID_EXTCAP != pBuf[0] ||
          pBuf[1] > DOT11F_IE_EXTCAP_MAX_LEN )
     {
-        limLog( pMac, LOGE,
+        limLog( pMac, LOG1,
                FL("Invalid IEs eid = %d elem_len=%d "),
                                                pBuf[0],pBuf[1]);
         return;
@@ -1549,6 +1549,7 @@ limSendAssocRspMgmtFrame(tpAniSirGlobal pMac,
 
                     vos_mem_set(( tANI_U8* )&extractedExtCap,
                         sizeof( tDot11fIEExtCap ), 0);
+                    addStripoffIELen = addnIELen;
                     nSirStatus = limStripOffExtCapIEAndUpdateStruct(pMac,
                                       &addIE[0],
                                       &addStripoffIELen,
