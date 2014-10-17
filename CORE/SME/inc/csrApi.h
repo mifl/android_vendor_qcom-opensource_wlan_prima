@@ -796,6 +796,12 @@ typedef enum
    eCSR_HDD
 } eCsrStatsRequesterType;
 
+typedef enum
+{
+    INIT = 0,
+    REINIT,
+} driver_load_type;
+
 typedef struct tagPmkidCandidateInfo
 {
     tCsrBssid BSSID;
@@ -1646,6 +1652,7 @@ eHalStatus csrSetBand(tHalHandle hHal, eCsrBand eBand);
 
 ---------------------------------------------------------------------------*/
 eCsrBand csrGetCurrentBand (tHalHandle hHal);
+
 
 #endif
 
