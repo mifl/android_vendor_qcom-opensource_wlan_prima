@@ -8530,6 +8530,16 @@ int hdd_wlan_startup(struct device *dev )
    /* Exchange capability info between Host and FW and also get versioning info from FW */
    hdd_exchange_version_and_caps(pHddCtx);
 
+#ifdef CONFIG_ENABLE_LINUX_REG
+   status = wlan_hdd_init_channels(pHddCtx);
+   if ( !VOS_IS_STATUS_SUCCESS( status ) )
+   {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: wlan_hdd_init_channels failed",
+             __func__);
+      goto err_vosstop;
+   }
+#endif
+
    status = hdd_post_voss_start_config( pHddCtx );
    if ( !VOS_IS_STATUS_SUCCESS( status ) )
    {
@@ -8550,14 +8560,6 @@ int hdd_wlan_startup(struct device *dev )
 #endif
 
 #ifdef CONFIG_ENABLE_LINUX_REG
-   status = wlan_hdd_init_channels(pHddCtx);
-   if ( !VOS_IS_STATUS_SUCCESS( status ) )
-   {
-      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: wlan_hdd_init_channels failed",
-             __func__);
-      goto err_vosstop;
-   }
-
    /* registration of wiphy dev with cfg80211 */
    if (0 > wlan_hdd_cfg80211_register(wiphy))
    {
@@ -9157,9 +9159,33 @@ static void hdd_driver_exit(void)
       pHddCtx->isLoadUnloadInProgress = WLAN_HDD_UNLOAD_IN_PROGRESS;
       vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
 
-      if (eANI_BOOLEAN_TRUE == sme_Is11dCountrycode(pHddCtx->hHal) &&
-              pHddCtx->cfg_ini->fSupplicantCountryCodeHasPriority )
+      /* Driver Need to send country code 00 in below condition
+       * 1) If gCountryCodePriority is set to 1; and last country
+       * code set is through 11d. This needs to be done in case
+       * when NV country code is 00.
+       * This Needs to be done as when kernel store last country
+       * code and if stored  country code is not through 11d,
+       * in sme_HandleChangeCountryCodeByUser we will disable 11d
+       * in next load/unload as soon as we get any country through
+       * 11d. In sme_HandleChangeCountryCodeByUser
+       * pMsg->countryCode will be last countryCode and
+       * pMac->scan.countryCode11d will be country through 11d so
+       * due to mismatch driver will disable 11d.
+       *
+       * 2) When NV country Code is non-zero ;
+       * There are chances that kernel last country and default
+       * country can be same. In this case if Driver doesn't pass 00 to
+       * kernel, at the time of driver loading next timer, driver will not
+       * call any hint to kernel as country is same. This can add 3 sec
+       * delay in driver loading.
+       */
+
+      if ((eANI_BOOLEAN_TRUE == sme_Is11dCountrycode(pHddCtx->hHal) &&
+              pHddCtx->cfg_ini->fSupplicantCountryCodeHasPriority  &&
+              sme_Is11dSupported(pHddCtx->hHal)) || (vos_is_nv_country_non_zero() ))
       {
+          hddLog(VOS_TRACE_LEVEL_INFO,
+                     FL("CountryCode 00 is being set while unloading driver"));
           vos_nv_getRegDomainFromCountryCode(&regId , "00", COUNTRY_USER);
       }
 

@@ -142,6 +142,9 @@ int diagAuthTypeFromCSRType(eCsrAuthType authType)
         n = AUTH_WPA_PSK;
         break;
     case eCSR_AUTH_TYPE_RSN:
+#ifdef WLAN_FEATURE_11W
+    case eCSR_AUTH_TYPE_RSN_8021X_SHA256:
+#endif
         n = AUTH_WPA2_EAP;
         break;
     case eCSR_AUTH_TYPE_RSN_PSK:
@@ -431,6 +434,11 @@ eHalStatus csrInitChannelsForCC(tpAniSirGlobal pMac)
     vos_mem_copy(pMac->scan.countryCodeCurrent, pMac->scan.countryCodeDefault,
                  WNI_CFG_COUNTRY_CODE_LEN);
     status = csrInitGetChannels( pMac );
+
+    /* reset info based on new cc, and we are done */
+    csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
+    csrScanFilterResults(pMac);
+
     return status;
 }
 
@@ -1725,7 +1733,12 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         {
             pMac->roam.configParam.scanAgeTimeCPS = pParam->scanAgeTimeCPS;   
         }
-        
+        if (pParam->initialScanSkipDFSCh)
+        {
+            pMac->roam.configParam.initialScanSkipDFSCh =
+                  pParam->initialScanSkipDFSCh;
+        }
+
         csrAssignRssiForCategory(pMac, CSR_BEST_RSSI_VALUE, pParam->bCatRssiOffset);
         pMac->roam.configParam.nRoamingTime = pParam->nRoamingTime;
         pMac->roam.configParam.fEnforce11dChannels = pParam->fEnforce11dChannels;
@@ -4814,7 +4827,8 @@ static eHalStatus csrRoamSaveSecurityRspIE(tpAniSirGlobal pMac, tANI_U32 session
 #endif /* FEATURE_WLAN_WAPI */
 #ifdef WLAN_FEATURE_11W
       ||
-       (eCSR_AUTH_TYPE_RSN_PSK_SHA256 == authType)
+       (eCSR_AUTH_TYPE_RSN_PSK_SHA256 == authType) ||
+       (eCSR_AUTH_TYPE_RSN_8021X_SHA256 == authType)
 #endif /* FEATURE_WLAN_WAPI */
         )
     {
@@ -4833,6 +4847,7 @@ static eHalStatus csrRoamSaveSecurityRspIE(tpAniSirGlobal pMac, tANI_U32 session
 #endif /* WLAN_FEATURE_VOWIFI_11R */
 #if defined WLAN_FEATURE_11W
                 (eCSR_AUTH_TYPE_RSN_PSK_SHA256 == authType) ||
+                (eCSR_AUTH_TYPE_RSN_8021X_SHA256 == authType) ||
 #endif
                 (eCSR_AUTH_TYPE_RSN_PSK == authType))
             {
