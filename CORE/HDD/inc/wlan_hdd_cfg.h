@@ -2115,7 +2115,7 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_NAME     "wlanLoggingFEToConsole"
 #define CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_ENABLE   ( 1 )
 #define CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_DISABLE  ( 0 )
-#define CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_DEFAULT  ( 0 )
+#define CFG_WLAN_LOGGING_FE_CONSOLE_SUPPORT_DEFAULT  ( 1 )
 
 //Number of buffers to be used for WLAN logging
 #define CFG_WLAN_LOGGING_NUM_BUF_NAME     "wlanLoggingNumBuf"
@@ -2128,6 +2128,14 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_CTS2S_DURING_BTC_SCO_DEFAULT        WNI_CFG_BTC_CTS2S_DURING_SCO_STADEF
 #define CFG_CTS2S_DURING_BTC_SCO_MIN            WNI_CFG_BTC_CTS2S_DURING_SCO_STAMIN
 #define CFG_CTS2S_DURING_BTC_SCO_MAX            WNI_CFG_BTC_CTS2S_DURING_SCO_STAMAX
+
+/* If last disconnection was due to HB failure and we reconnect
+ * to same AP next time, send Deauth before starting connection
+ */
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION                  "gSendDeauthBeforeCon"
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_MIN              (0)
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_MAX              (1)
+#define CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_DEFAULT          (0)
 
 #ifdef WLAN_FEATURE_11W
 #define CFG_PMF_SA_QUERY_MAX_RETRIES_NAME                    "pmfSaQueryMaxRetries"
@@ -2163,6 +2171,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ROAMING_DFS_CHANNEL_MIN                 (0)
 #define CFG_ROAMING_DFS_CHANNEL_MAX                 (1)
 #define CFG_ROAMING_DFS_CHANNEL_DEFAULT             (0)
+
+#define CFG_BURST_MODE_BE_TXOP_VALUE           "gBurstModeTXOPValue"
+#define CFG_BURST_MODE_BE_TXOP_VALUE_MIN       ( 0 )
+#define CFG_BURST_MODE_BE_TXOP_VALUE_MAX       ( 12288 )
+#define CFG_BURST_MODE_BE_TXOP_VALUE_DEFAULT   ( 0 )
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -2604,6 +2617,7 @@ typedef struct
    v_U32_t                     gEnableDebugLog;
    v_U32_t                     cfgBtcCTS2SduringSCO;
    v_U32_t                     defaultRateIndex24Ghz;
+   v_BOOL_t                    sendDeauthBeforeCon;
 
 #ifdef WLAN_FEATURE_11W
    v_U32_t                     pmfSaQueryMaxRetries;
@@ -2614,6 +2628,7 @@ typedef struct
    char                        overrideCountryCode[4];
    v_BOOL_t                    advertiseConcurrentOperation;
    v_U8_t                      allowDFSChannelRoam;
+   v_U32_t                     burstModeTXOPValue;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

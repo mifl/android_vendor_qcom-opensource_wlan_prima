@@ -1140,6 +1140,7 @@ typedef struct tagCsrConfigParam
     tANI_BOOLEAN initialScanSkipDFSCh;
     tANI_U8 allowDFSChannelRoam;
 
+    tANI_BOOLEAN sendDeauthBeforeCon;
 }tCsrConfigParam;
 
 //Tush
