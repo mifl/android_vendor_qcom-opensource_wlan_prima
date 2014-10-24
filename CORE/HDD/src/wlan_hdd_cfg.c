@@ -2970,6 +2970,13 @@ REG_VARIABLE( CFG_TDLS_WMM_MODE_ENABLE, WLAN_PARAM_Integer,
                 CFG_DEFAULT_RATE_INDEX_24GH_MIN,
                 CFG_DEFAULT_RATE_INDEX_24GH_MAX ),
 
+   REG_VARIABLE(CFG_ENABLE_DEAUTH_BEFORE_CONNECTION, WLAN_PARAM_Integer,
+                hdd_config_t, sendDeauthBeforeCon,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_DEFAULT,
+                CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_MIN,
+                CFG_ENABLE_DEAUTH_BEFORE_CONNECTION_MAX),
+
 #ifdef WLAN_FEATURE_11W
    REG_VARIABLE(CFG_PMF_SA_QUERY_MAX_RETRIES_NAME, WLAN_PARAM_Integer,
                 hdd_config_t, pmfSaQueryMaxRetries,
@@ -3011,6 +3018,14 @@ REG_VARIABLE( CFG_TDLS_WMM_MODE_ENABLE, WLAN_PARAM_Integer,
                  CFG_ROAMING_DFS_CHANNEL_DEFAULT,
                  CFG_ROAMING_DFS_CHANNEL_MIN,
                  CFG_ROAMING_DFS_CHANNEL_MAX ),
+
+   REG_VARIABLE( CFG_BURST_MODE_BE_TXOP_VALUE, WLAN_PARAM_Integer,
+                  hdd_config_t, burstModeTXOPValue,
+                  VAR_FLAGS_OPTIONAL |
+                  VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                  CFG_BURST_MODE_BE_TXOP_VALUE_DEFAULT,
+                  CFG_BURST_MODE_BE_TXOP_VALUE_MIN,
+                  CFG_BURST_MODE_BE_TXOP_VALUE_MAX ),
 };
 
 
@@ -4731,6 +4746,14 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
    }
 #endif
 
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_BURST_MODE_BE_TXOP_VALUE,
+                    pConfig->burstModeTXOPValue, NULL,
+                    eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+      fStatus = FALSE;
+      hddLog(LOGE, "Could not pass on WNI_CFG_BURST_MODE_BE_TXOP_VALUE ");
+   }
+
    return fStatus;
 }
 
@@ -4940,6 +4963,7 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig.fScanOffload =  pHddCtx->cfg_ini->fScanOffload;
 
    smeConfig.fEnableDebugLog = pHddCtx->cfg_ini->gEnableDebugLog;
+   smeConfig.csrConfig.sendDeauthBeforeCon = pConfig->sendDeauthBeforeCon;
 
    smeConfig.fDeferIMPSTime = pHddCtx->cfg_ini->deferImpsTime;
 
