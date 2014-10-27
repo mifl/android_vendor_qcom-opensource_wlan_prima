@@ -8826,6 +8826,7 @@ int hdd_wlan_startup(struct device *dev )
    }
 
    mutex_init(&pHddCtx->sap_lock);
+   mutex_init(&pHddCtx->roc_lock);
 
    pHddCtx->isLoadUnloadInProgress = WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS;
 
