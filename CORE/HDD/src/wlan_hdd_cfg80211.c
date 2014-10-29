@@ -4395,6 +4395,7 @@ static eHalStatus hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
     hdd_scaninfo_t *pScanInfo = &pHddCtx->scan_info;
     struct cfg80211_scan_request *req = NULL;
     int ret = 0;
+    bool aborted = false;
 
     ENTER();
 
@@ -4486,7 +4487,11 @@ static eHalStatus hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
      * cfg80211_scan_done informing NL80211 about completion
      * of scanning
      */
-    cfg80211_scan_done(req, false);
+    if (status == eCSR_SCAN_ABORT || status == eCSR_SCAN_FAILURE)
+    {
+         aborted = true;
+    }
+    cfg80211_scan_done(req, aborted);
     complete(&pScanInfo->abortscan_event_var);
 
 allow_suspend:
@@ -4990,7 +4995,6 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
     hdd_wext_state_t *pWextState;
     v_U32_t roamId;
     tCsrRoamProfile *pRoamProfile;
-    eMib_dot11DesiredBssType connectedBssType;
     eCsrAuthType RSNAuthType;
 
     ENTER();
@@ -5007,41 +5011,8 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
 
     if (pRoamProfile)
     {
-        int ret = 0;
         hdd_station_ctx_t *pHddStaCtx;
         pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-        hdd_connGetConnectedBssType(pHddStaCtx,&connectedBssType );
-
-        if((eMib_dot11DesiredBssType_independent == connectedBssType) ||
-           (eConnectionState_Associated == pHddStaCtx->conn_info.connState) ||
-           (eConnectionState_IbssConnected == pHddStaCtx->conn_info.connState))
-        {
-            /* Issue disconnect to CSR */
-            INIT_COMPLETION(pAdapter->disconnect_comp_var);
-            if( eHAL_STATUS_SUCCESS ==
-                  sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
-                            pAdapter->sessionId,
-                            eCSR_DISCONNECT_REASON_UNSPECIFIED ) )
-            {
-                ret = wait_for_completion_interruptible_timeout(
-                             &pAdapter->disconnect_comp_var,
-                             msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
-                if (0 == ret)
-                {
-                    VOS_ASSERT(0);
-                }
-            }
-        }
-        else if(eConnectionState_Disconnecting == pHddStaCtx->conn_info.connState)
-        {
-            ret = wait_for_completion_interruptible_timeout(
-                         &pAdapter->disconnect_comp_var,
-                         msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
-            if (0 == ret)
-            {
-                VOS_ASSERT(0);
-            }
-        }
 
         if (HDD_WMM_USER_MODE_NO_QOS ==
                         (WLAN_HDD_GET_CTX(pAdapter))->cfg_ini->WmmMode)
@@ -5155,9 +5126,13 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
          */
         if (WLAN_HDD_INFRA_STATION == pAdapter->device_mode ||
             WLAN_HDD_P2P_CLIENT == pAdapter->device_mode)
+        {
+            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                   "%s: Set HDD connState to eConnectionState_Connecting",
+                   __func__);
             hdd_connSetConnectionState(WLAN_HDD_GET_STATION_CTX_PTR(pAdapter),
                                                  eConnectionState_Connecting);
-
+        }
         status = sme_RoamConnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
                             pAdapter->sessionId, pRoamProfile, &roamId);
 
@@ -5784,6 +5759,57 @@ int wlan_hdd_cfg80211_set_privacy( hdd_adapter_t *pAdapter,
 }
 
 /*
+ * FUNCTION: wlan_hdd_try_disconnect
+ * This function is used to disconnect from previous
+ * connection
+ */
+static int wlan_hdd_try_disconnect( hdd_adapter_t *pAdapter )
+{
+    long ret = 0;
+    hdd_station_ctx_t *pHddStaCtx;
+    eMib_dot11DesiredBssType connectedBssType;
+
+    pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+
+    hdd_connGetConnectedBssType(pHddStaCtx,&connectedBssType );
+
+    if((eMib_dot11DesiredBssType_independent == connectedBssType) ||
+      (eConnectionState_Associated == pHddStaCtx->conn_info.connState) ||
+      (eConnectionState_IbssConnected == pHddStaCtx->conn_info.connState))
+    {
+        /* Issue disconnect to CSR */
+        INIT_COMPLETION(pAdapter->disconnect_comp_var);
+        if( eHAL_STATUS_SUCCESS ==
+              sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
+                        pAdapter->sessionId,
+                        eCSR_DISCONNECT_REASON_UNSPECIFIED ) )
+        {
+            ret = wait_for_completion_interruptible_timeout(
+                         &pAdapter->disconnect_comp_var,
+                         msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+            if (0 >=  ret)
+            {
+                hddLog(LOGE, FL("Failed to receive disconnect event"));
+                return -EALREADY;
+            }
+        }
+    }
+    else if(eConnectionState_Disconnecting == pHddStaCtx->conn_info.connState)
+    {
+        ret = wait_for_completion_interruptible_timeout(
+                     &pAdapter->disconnect_comp_var,
+                     msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+        if (0 >= ret)
+        {
+            hddLog(LOGE, FL("Failed to receive disconnect event"));
+            return -EALREADY;
+        }
+    }
+
+    return 0;
+}
+
+/*
  * FUNCTION: wlan_hdd_cfg80211_set_privacy
  * This function is used to initialize the security
  * parameters during connect operation.
@@ -5822,6 +5848,24 @@ static int wlan_hdd_cfg80211_connect( struct wiphy *wiphy,
         return -ECONNREFUSED;
     }
 #endif
+
+    //If Device Mode is Station Concurrent Sessions Exit BMps
+    //P2P Mode will be taken care in Open/close adapter
+    if((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) &&
+        (vos_concurrent_sessions_running()))
+    {
+        exitbmpsStatus = hdd_disable_bmps_imps(pHddCtx, WLAN_HDD_INFRA_STATION);
+    }
+
+    /*Try disconnecting if already in connected state*/
+    status = wlan_hdd_try_disconnect(pAdapter);
+    if ( 0 > status)
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR, FL("Failed to disconnect the existing"
+                " connection"));
+        return -EALREADY;
+    }
+
     /*initialise security parameters*/
     status = wlan_hdd_cfg80211_set_privacy(pAdapter, req);
 
@@ -5830,14 +5874,6 @@ static int wlan_hdd_cfg80211_connect( struct wiphy *wiphy,
         hddLog(VOS_TRACE_LEVEL_ERROR, "%s: failed to set security params",
                 __func__);
         return status;
-    }
-
-    //If Device Mode is Station Concurrent Sessions Exit BMps
-    //P2P Mode will be taken care in Open/close adapter
-    if((WLAN_HDD_INFRA_STATION == pAdapter->device_mode) &&
-        (vos_concurrent_sessions_running()))
-    {
-        exitbmpsStatus = hdd_disable_bmps_imps(pHddCtx, WLAN_HDD_INFRA_STATION);
     }
 
     if ( req->channel )
@@ -5895,27 +5931,53 @@ int wlan_hdd_disconnect( hdd_adapter_t *pAdapter, u16 reason )
     }
 
     pHddCtx->isAmpAllowed = VOS_TRUE;
-    pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
+
+    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                   "%s: Set HDD connState to eConnectionState_Disconnecting",
+                   __func__);
+    pHddStaCtx->conn_info.connState = eConnectionState_Disconnecting;
     INIT_COMPLETION(pAdapter->disconnect_comp_var);
 
     /*issue disconnect*/
     status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
                                  pAdapter->sessionId, reason);
+     if(eHAL_STATUS_CMD_NOT_QUEUED == status)
+     {
+        hddLog(VOS_TRACE_LEVEL_INFO,
+             FL("status = %d, already disconnected"),
+                     (int)status );
 
-    if ( 0 != status )
+    }
+    else if ( 0 != status )
     {
         hddLog(VOS_TRACE_LEVEL_ERROR,
                "%s csrRoamDisconnect failure, returned %d \n",
                __func__, (int)status );
         return -EINVAL;
     }
-    wait_for_completion_interruptible_timeout(
+    status = wait_for_completion_interruptible_timeout(
                 &pAdapter->disconnect_comp_var,
                 msecs_to_jiffies(WLAN_WAIT_TIME_DISCONNECT));
+    if (!status && ( eHAL_STATUS_CMD_NOT_QUEUED != status ))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+              "%s: Failed to disconnect, timed out", __func__);
+        return -ETIMEDOUT;
+    }
+    else if (status == -ERESTARTSYS)
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               "%s: Failed to disconnect, wait interrupted", __func__);
+        return status;
+    }
+    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+              FL("Set HDD connState to eConnectionState_NotConnected"));
+    pHddStaCtx->conn_info.connState = eConnectionState_NotConnected;
+
     /*stop tx queues*/
     netif_tx_disable(pAdapter->dev);
     netif_carrier_off(pAdapter->dev);
-    return status;
+    return 0;
 }
 
 
@@ -6160,6 +6222,15 @@ static int wlan_hdd_cfg80211_join_ibss( struct wiphy *wiphy,
         hddLog (VOS_TRACE_LEVEL_ERROR, "%s ERROR: Data Storage Corruption\n",
                 __func__);
         return -EIO;
+    }
+
+    /*Try disconnecting if already in connected state*/
+    status = wlan_hdd_try_disconnect(pAdapter);
+    if ( 0 > status)
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR, FL("Failed to disconnect the existing"
+                " IBSS connection"));
+        return -EALREADY;
     }
 
     pRoamProfile = &pWextState->roamProfile;
