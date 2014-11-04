@@ -922,6 +922,8 @@ tLimMlmOemDataRsp       *gpLimMlmOemDataRsp;
     tSirDFSChannelList    dfschannelList;
     tANI_U8 deauthMsgCnt;
     tANI_U8 gLimIbssStaLimit;
+    tANI_U8 retryPacketCnt;
+
     // Flag to debug remain on channel
     tANI_BOOLEAN gDebugP2pRemainOnChannel;
     /* Sequence number to keep track of
