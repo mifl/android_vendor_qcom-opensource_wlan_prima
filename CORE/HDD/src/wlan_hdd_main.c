@@ -9264,9 +9264,6 @@ static int hdd_driver_init( void)
 #ifdef HAVE_WCNSS_CAL_DOWNLOAD
    int max_retries = 0;
 #endif
-#ifdef HAVE_CBC_DONE
-   int max_cbc_retries = 0;
-#endif
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
    wlan_logging_sock_init_svc();
@@ -9312,7 +9309,6 @@ static int hdd_driver_init( void)
    while (!wcnss_device_ready() && 5 >= ++max_retries) {
        msleep(1000);
    }
-
    if (max_retries >= 5) {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: WCNSS driver not ready", __func__);
 #ifdef WLAN_OPEN_SOURCE
@@ -9324,15 +9320,6 @@ static int hdd_driver_init( void)
 #endif
 
       return -ENODEV;
-   }
-#endif
-
-#ifdef HAVE_CBC_DONE
-   while (!wcnss_cbc_complete() && 10 >= ++max_cbc_retries) {
-       msleep(1000);
-   }
-   if (max_cbc_retries >= 10) {
-      hddLog(VOS_TRACE_LEVEL_FATAL, "%s:CBC not completed", __func__);
    }
 #endif
 
