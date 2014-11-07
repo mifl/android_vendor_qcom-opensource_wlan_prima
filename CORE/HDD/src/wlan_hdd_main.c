@@ -1960,6 +1960,7 @@ int __hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
    hdd_priv_data_t priv_data;
    tANI_U8 *command = NULL;
    long ret = 0;
+   hdd_context_t *pHddCtx;
 
    if (NULL == pAdapter)
    {
@@ -1977,10 +1978,11 @@ int __hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        goto exit; 
    }
 
-   if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
+   pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   if (0 != (wlan_hdd_validate_context(pHddCtx)))
    {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                                  "%s:LOGP in Progress. Ignore!!!", __func__);
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "%s: invalid context", __func__);
        ret = -EBUSY;
        goto exit;
    }
@@ -7717,11 +7719,6 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
 
    //Clean up HDD Nlink Service
    send_btc_nlink_msg(WLAN_MODULE_DOWN_IND, 0);
-#ifdef WLAN_KD_READY_NOTIFIER
-   nl_srv_exit(pHddCtx->ptt_pid);
-#else
-   nl_srv_exit();
-#endif /* WLAN_KD_READY_NOTIFIER */
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
    if (pHddCtx->cfg_ini->wlanLoggingEnable)
@@ -7729,6 +7726,13 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
        wlan_logging_sock_deactivate_svc();
    }
 #endif
+
+#ifdef WLAN_KD_READY_NOTIFIER
+   nl_srv_exit(pHddCtx->ptt_pid);
+#else
+   nl_srv_exit();
+#endif /* WLAN_KD_READY_NOTIFIER */
+
 
    /* Cancel the vote for XO Core ON. 
     * This is done here to ensure there is no race condition since MC, TX and WD threads have
