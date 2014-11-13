@@ -124,6 +124,7 @@ extern void hdd_resume_wlan(struct early_suspend *wlan_suspend);
 static int tdlsOffCh = 1;
 static int tdlsOffChBwOffset = 0;
 #endif
+
 static int ioctl_debug;
 module_param(ioctl_debug, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
@@ -6268,6 +6269,10 @@ static int __iw_add_tspec(struct net_device *dev,
 
    tSpec.ts_info.burst_size_defn = params[HDD_WLAN_WMM_PARAM_BURST_SIZE_DEFN];
 
+   // Save the expected UAPSD settings by application, this will be needed
+   // when re-negotiating UAPSD settings during BT Coex cases.
+   tSpec.expec_psb_byapp = params[HDD_WLAN_WMM_PARAM_APSD];
+
    // validate the ts info ack policy
    switch (params[HDD_WLAN_WMM_PARAM_ACK_POLICY])
    {
@@ -7959,8 +7964,13 @@ int hdd_setBand(struct net_device *dev, u8 ui_band)
         }
         else
         {
+#ifdef CONFIG_ENABLE_LINUX_REG
            vos_update_nv_table_from_wiphy_band((void *)pHddCtx,
                      (void *)pHddCtx->wiphy, (eCsrBand)band);
+#else
+           wlan_hdd_cfg80211_update_band( pHddCtx->wiphy, (eCsrBand)band );
+#endif
+
         }
         pScanInfo =  &pHddCtx->scan_info;
         if ((pScanInfo != NULL) && pHddCtx->scan_info.mScanPending)

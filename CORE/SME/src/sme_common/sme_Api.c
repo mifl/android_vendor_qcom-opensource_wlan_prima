@@ -2575,6 +2575,27 @@ tANI_BOOLEAN csrIsScanAllowed(tpAniSirGlobal pMac)
 #endif
 }
 #endif
+
+/* ---------------------------------------------------------------------------
+    \fn sco_isScanAllowed
+    \brief check for scan interface connection status
+    \param pMac     - Pointer to the global MAC parameter structure
+    \param pScanReq - scan request structure.
+
+    \return tANI_BOOLEAN TRUE to allow scan otherwise FALSE
+  ---------------------------------------------------------------------------*/
+tANI_BOOLEAN sco_isScanAllowed(tpAniSirGlobal pMac, tCsrScanRequest *pscanReq)
+{
+    tANI_BOOLEAN ret;
+
+    if (pscanReq->p2pSearch)
+        ret = csrIsP2pSessionConnected(pMac);
+    else
+        ret = csrIsStaSessionConnected(pMac);
+
+    return !ret;
+}
+
 /* ---------------------------------------------------------------------------
     \fn sme_ScanRequest
     \brief a wrapper function to Request a 11d or full scan from CSR.
@@ -2597,7 +2618,7 @@ eHalStatus sme_ScanRequest(tHalHandle hHal, tANI_U8 sessionId, tCsrScanRequest *
     do
     {
         if(pMac->scan.fScanEnable &&
-           ((FALSE == pMac->isCoexScoIndSet) || (TRUE == pscanReq->p2pSearch)))
+           (pMac->isCoexScoIndSet ? sco_isScanAllowed(pMac, pscanReq) : TRUE))
         {
             status = sme_AcquireGlobalLock( &pMac->sme );
             if ( HAL_STATUS_SUCCESS( status ) )
@@ -9035,6 +9056,32 @@ eHalStatus sme_UpdateIsFastRoamIniFeatureEnabled(tHalHandle hHal,
   pMac->roam.configParam.isFastRoamIniFeatureEnabled = isFastRoamIniFeatureEnabled;
   csrNeighborRoamUpdateFastRoamingEnabled(pMac, isFastRoamIniFeatureEnabled);
 
+  return eHAL_STATUS_SUCCESS;
+}
+
+/*--------------------------------------------------------------------------
+  \brief sme_ConfigFwrRoaming() - enable/disable LFR support at runtime
+  When Supplicant issue enabled / disable fwr based roaming on the basis
+  of the Bssid modification in network block ( e.g. AutoJoin mody N/W block)
+
+  This is a synchronous call
+  \param hHal - The handle returned by macOpen.
+  \return eHAL_STATUS_SUCCESS - SME (enabled/disabled) offload scan successfully.
+          Other status means SME is failed to (enabled/disabled) offload scan.
+  \sa
+  --------------------------------------------------------------------------*/
+
+eHalStatus sme_ConfigFwrRoaming(tHalHandle hHal,
+        const v_BOOL_t isFastRoamEnabled)
+{
+  tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+  if (!pMac->roam.configParam.isFastRoamIniFeatureEnabled)
+  {
+      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
+                 "%s: FastRoam is disabled through ini", __func__);
+      return  eHAL_STATUS_FAILURE;
+  }
+  csrNeighborRoamUpdateFastRoamingEnabled(pMac, isFastRoamEnabled);
   return eHAL_STATUS_SUCCESS;
 }
 
