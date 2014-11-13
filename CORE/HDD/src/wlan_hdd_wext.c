@@ -5170,7 +5170,7 @@ static int iw_setnone_getnone(struct net_device *dev, struct iw_request_info *in
         {
             hddLog(LOGE, "%s: called %d",__func__, sub_cmd);
             hdd_wmm_tx_snapshot(pAdapter);
-            WLANTL_TLDebugMessage(VOS_TRUE);
+            WLANTL_TLDebugMessage(WLANTL_DEBUG_TX_SNAPSHOT);
             break;
         }
         case  WE_SET_REASSOC_TRIGGER:
