@@ -2052,6 +2052,7 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
    hdd_priv_data_t priv_data;
    tANI_U8 *command = NULL;
    long ret = 0;
+   hdd_context_t *pHddCtx;
 
    if (NULL == pAdapter)
    {
@@ -2069,10 +2070,11 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
        goto exit; 
    }
 
-   if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
+   pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   if (0 != (wlan_hdd_validate_context(pHddCtx)))
    {
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                                  "%s:LOGP in Progress. Ignore!!!", __func__);
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "%s: invalid context", __func__);
        ret = -EBUSY;
        goto exit;
    }
@@ -8726,10 +8728,6 @@ int hdd_wlan_startup(struct device *dev )
                        pHddCtx->cfg_ini->isRoamOffloadScanEnabled);
    }
 #endif
-#ifdef FEATURE_WLAN_SCAN_PNO
-   /*SME must send channel update configuration to RIVA*/
-   sme_UpdateChannelConfig(pHddCtx->hHal); 
-#endif
 
    sme_Register11dScanDoneCallback(pHddCtx->hHal, hdd_11d_scan_done);
 
@@ -8824,8 +8822,8 @@ int hdd_wlan_startup(struct device *dev )
    }
 
    mutex_init(&pHddCtx->sap_lock);
+   mutex_init(&pHddCtx->roc_lock);
 
-   pHddCtx->isLoadUnloadInProgress = WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS;
 
 #ifdef WLAN_OPEN_SOURCE
 #ifdef WLAN_FEATURE_HOLD_RX_WAKELOCK
@@ -8843,8 +8841,15 @@ int hdd_wlan_startup(struct device *dev )
    vos_event_init(&pHddCtx->scan_info.scan_finished_event);
    pHddCtx->scan_info.scan_pending_option = WEXT_SCAN_PENDING_GIVEUP;
 
+   pHddCtx->isLoadUnloadInProgress = WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS;
    vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, FALSE);
    hdd_allow_suspend();
+
+#ifdef FEATURE_WLAN_SCAN_PNO
+   /*SME must send channel update configuration to RIVA*/
+   sme_UpdateChannelConfig(pHddCtx->hHal);
+#endif
+
 #ifndef CONFIG_ENABLE_LINUX_REG
    /*updating wiphy so that regulatory user hints can be processed*/
    if (wiphy)
