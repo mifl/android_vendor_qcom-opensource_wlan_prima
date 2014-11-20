@@ -114,6 +114,10 @@
 #include "vos_trace.h"
 #include "wlan_hdd_assoc.h"
 
+#ifdef DEBUG_ROAM_DELAY
+#include "vos_utils.h"
+#endif
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 extern void hdd_suspend_wlan(struct early_suspend *wlan_suspend);
 extern void hdd_resume_wlan(struct early_suspend *wlan_suspend);
@@ -237,6 +241,11 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WE_SET_REASSOC_TRIGGER     8
 #define WE_DISPLAY_DATAPATH_SNAP_SHOT    9
 #define WE_STOP_OBSS_SCAN    11
+
+#ifdef DEBUG_ROAM_DELAY
+#define WE_DUMP_ROAM_TIMER_LOG     12
+#define WE_RESET_ROAM_TIMER_LOG    13
+#endif
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_VAR_INT_GET_NONE   (SIOCIWFIRSTPRIV + 7)
@@ -5753,6 +5762,19 @@ static int __iw_setnone_getnone(struct net_device *dev,
         }
         break;
 
+#ifdef DEBUG_ROAM_DELAY
+        case WE_DUMP_ROAM_TIMER_LOG:
+        {
+            vos_dump_roam_time_log_service();
+            break;
+        }
+
+        case WE_RESET_ROAM_TIMER_LOG:
+        {
+            vos_reset_roam_timer_log();
+            break;
+        }
+#endif
         default:
         {
             hddLog(LOGE, "%s: unknown ioctl %d", __func__, sub_cmd);
@@ -8931,6 +8953,18 @@ static const struct iw_priv_args we_private_args[] = {
         0,
         "stopOBSSScan" },
 
+#ifdef DEBUG_ROAM_DELAY
+    {
+        WE_DUMP_ROAM_TIMER_LOG,
+        0,
+        0,
+        "dumpRoamDelay" },
+    {
+        WE_RESET_ROAM_TIMER_LOG,
+        0,
+        0,
+        "resetRoamDelay" },
+#endif
     /* handlers for main ioctl */
     {   WLAN_PRIV_SET_VAR_INT_GET_NONE,
         IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
