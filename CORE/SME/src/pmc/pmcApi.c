@@ -2208,7 +2208,6 @@ eHalStatus pmcWowlAddBcastPattern (
     }
 
     WLAN_VOS_DIAG_LOG_REPORT(log_ptr);
-    WLAN_VOS_DIAG_LOG_FREE(log_ptr);
 #endif
 
 
