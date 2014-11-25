@@ -114,6 +114,7 @@ typedef enum {
    EXTENDED_SCAN          = 42,
 #endif
 
+   WPS_PRBRSP_TMPL       = 48,
    BCN_IE_FLT_DELTA      = 49,
    //MAX_FEATURE_SUPPORTED = 128
 } placeHolderInCapBitmap;
