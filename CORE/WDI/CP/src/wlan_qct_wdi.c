@@ -175,6 +175,21 @@ static placeHolderInCapBitmap supportEnabledFeatures[] =
     ,FEATURE_NOT_SUPPORTED          //32
     ,CH_SWITCH_V1                   //33
     ,HT40_OBSS_SCAN                 //34
+    ,FEATURE_NOT_SUPPORTED          //35
+    ,FEATURE_NOT_SUPPORTED          //36
+    ,FEATURE_NOT_SUPPORTED          //37
+    ,FEATURE_NOT_SUPPORTED          //38
+    ,FEATURE_NOT_SUPPORTED          //39
+    ,FEATURE_NOT_SUPPORTED          //40
+    ,FEATURE_NOT_SUPPORTED          //41
+    ,FEATURE_NOT_SUPPORTED          //42
+    ,FEATURE_NOT_SUPPORTED          //43
+    ,FEATURE_NOT_SUPPORTED          //44
+    ,FEATURE_NOT_SUPPORTED          //45
+    ,FEATURE_NOT_SUPPORTED          //46
+    ,FEATURE_NOT_SUPPORTED          //47
+    ,FEATURE_NOT_SUPPORTED          //48
+    ,BCN_IE_FLT_DELTA               //49
 };
 
 /*-------------------------------------------------------------------------- 
@@ -1219,6 +1234,10 @@ void WDI_TraceHostFWCapabilities(tANI_U32 *capabilityBitmap)
                      case CH_SWITCH_V1: snprintf(pCapStr, sizeof("CH_SWITCH_V1"), "%s", "CH_SWITCH_V1");
                           pCapStr += strlen("CH_SWITCH_V1");
                           break;
+                     case BCN_IE_FLT_DELTA: snprintf(pCapStr, sizeof("BCN_IE_FLT_DELTA"), "%s", "BCN_IE_FLT_DELTA");
+                          pCapStr += strlen("BCN_IE_FLT_DELTA");
+                          break;
+
                  }
                  *pCapStr++ = ',';
                  *pCapStr++ = ' ';
