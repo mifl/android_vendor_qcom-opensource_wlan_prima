@@ -6545,6 +6545,7 @@ typedef enum {
     LINK_LAYER_STATS_MEAS  = 40,
     MU_MIMO                = 41,
     EXTENDED_SCAN          = 42,
+    BCN_IE_FLT_DELTA       = 49,
     MAX_FEATURE_SUPPORTED  = 128,
 } placeHolderInCapBitmap;
 
