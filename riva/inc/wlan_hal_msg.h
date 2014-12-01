@@ -6232,6 +6232,7 @@ typedef enum {
     WLAN_MCADDR_FLT        = 36,
     WLAN_CH144             = 37,
     NAN                    = 38,
+    BCN_IE_FLT_DELTA       = 49,
     MAX_FEATURE_SUPPORTED  = 128,
 } placeHolderInCapBitmap;
 
