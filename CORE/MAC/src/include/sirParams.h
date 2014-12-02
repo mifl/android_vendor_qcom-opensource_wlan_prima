@@ -102,6 +102,7 @@ typedef enum {
    HT40_OBSS_SCAN         = 34,
    UPDATE_CHANNEL_LIST    = 35,
    WLAN_MCADDR_FLT        = 36,
+   WPS_PRBRSP_TMPL       = 48,
    BCN_IE_FLT_DELTA      = 49,
    //MAX_FEATURE_SUPPORTED = 128
 } placeHolderInCapBitmap;
