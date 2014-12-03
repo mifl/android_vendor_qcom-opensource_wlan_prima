@@ -172,6 +172,24 @@ static placeHolderInCapBitmap supportEnabledFeatures[] =
 #endif
     ,FEATURE_NOT_SUPPORTED          //30
     ,FW_IN_TX_PATH                  //31
+    ,FEATURE_NOT_SUPPORTED          //32
+    ,FEATURE_NOT_SUPPORTED          //33
+    ,FEATURE_NOT_SUPPORTED          //34
+    ,FEATURE_NOT_SUPPORTED          //35
+    ,FEATURE_NOT_SUPPORTED          //36
+    ,FEATURE_NOT_SUPPORTED          //37
+    ,FEATURE_NOT_SUPPORTED          //38
+    ,FEATURE_NOT_SUPPORTED          //39
+    ,FEATURE_NOT_SUPPORTED          //40
+    ,FEATURE_NOT_SUPPORTED          //41
+    ,FEATURE_NOT_SUPPORTED          //42
+    ,FEATURE_NOT_SUPPORTED          //43
+    ,FEATURE_NOT_SUPPORTED          //44
+    ,FEATURE_NOT_SUPPORTED          //45
+    ,FEATURE_NOT_SUPPORTED          //46
+    ,FEATURE_NOT_SUPPORTED          //47
+    ,FEATURE_NOT_SUPPORTED          //48
+    ,BCN_IE_FLT_DELTA               //49
 };
 
 /*-------------------------------------------------------------------------- 
@@ -1197,6 +1215,10 @@ void WDI_TraceHostFWCapabilities(tANI_U32 *capabilityBitmap)
                                               "%s", "EXTENDED_NSOFFLOAD_SLOT");
                           pCapStr += strlen("EXTENDED_NSOFFLOAD_SLOT");
                           break;
+                     case BCN_IE_FLT_DELTA: snprintf(pCapStr, sizeof("BCN_IE_FLT_DELTA"), "%s", "BCN_IE_FLT_DELTA");
+                          pCapStr += strlen("BCN_IE_FLT_DELTA");
+                          break;
+
               }
               *pCapStr++ = ',';
               *pCapStr++ = ' ';
