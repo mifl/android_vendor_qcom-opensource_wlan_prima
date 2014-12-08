@@ -2135,6 +2135,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_DEFER_IMPS_FOR_TIME_MAX                          (500)
 #define CFG_DEFER_IMPS_FOR_TIME_DEFAULT                      (200)
 
+#define CFG_BURST_MODE_BE_TXOP_VALUE           "gBurstModeTXOPValue"
+#define CFG_BURST_MODE_BE_TXOP_VALUE_MIN       ( 0 )
+#define CFG_BURST_MODE_BE_TXOP_VALUE_MAX       ( 12288 )
+#define CFG_BURST_MODE_BE_TXOP_VALUE_DEFAULT   ( 0 )
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2576,6 +2581,7 @@ typedef struct
    v_U8_t                      isCoalesingInIBSSAllowed;
    v_BOOL_t                    sendDeauthBeforeCon;
    v_U32_t                     deferImpsTime;
+   v_U32_t                     burstModeTXOPValue;
 
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
