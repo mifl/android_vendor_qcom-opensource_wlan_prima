@@ -2960,6 +2960,14 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                 CFG_DEFER_IMPS_FOR_TIME_MIN,
                 CFG_DEFER_IMPS_FOR_TIME_MAX),
 
+   REG_VARIABLE( CFG_BURST_MODE_BE_TXOP_VALUE, WLAN_PARAM_Integer,
+                  hdd_config_t, burstModeTXOPValue,
+                  VAR_FLAGS_OPTIONAL |
+                  VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                  CFG_BURST_MODE_BE_TXOP_VALUE_DEFAULT,
+                  CFG_BURST_MODE_BE_TXOP_VALUE_MIN,
+                  CFG_BURST_MODE_BE_TXOP_VALUE_MAX ),
+
 };
 
 /*
@@ -4638,6 +4646,15 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
        fStatus = FALSE;
        hddLog(LOGE, "Could not pass on WNI_CFG_DEFAULT_RATE_INDEX_24GHZ to CCM");
    }
+
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_BURST_MODE_BE_TXOP_VALUE,
+                    pConfig->burstModeTXOPValue, NULL,
+                    eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+      fStatus = FALSE;
+      hddLog(LOGE, "Could not pass on WNI_CFG_BURST_MODE_BE_TXOP_VALUE ");
+   }
+
    return fStatus;
 }
 
