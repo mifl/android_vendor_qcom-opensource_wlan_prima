@@ -6218,6 +6218,7 @@ typedef enum {
     CH_SWITCH_V1           = 33,
     HT40_OBSS_SCAN         = 34,
     UPDATE_CHANNEL_LIST    = 35,
+    BCN_IE_FLT_DELTA       = 49,
     MAX_FEATURE_SUPPORTED  = 128,
 } placeHolderInCapBitmap;
 
