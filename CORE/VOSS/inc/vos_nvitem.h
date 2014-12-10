@@ -755,4 +755,16 @@ eNvVersionType vos_nv_getNvVersion
   \sa
   -------------------------------------------------------------------------*/
 v_U16_t vos_chan_to_freq(v_U8_t chanNum);
+
+/**------------------------------------------------------------------------
+  \brief vos_getCurrentCountryCode -
+  \param   countrycode
+  \return None
+  \sa
+  -------------------------------------------------------------------------*/
+
+void vos_getCurrentCountryCode
+(
+   tANI_U8 *cc
+);
 #endif // __VOS_NVITEM_H
