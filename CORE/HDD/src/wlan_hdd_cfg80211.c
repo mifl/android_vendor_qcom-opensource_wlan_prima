@@ -5792,7 +5792,7 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
 }
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
-static int wlan_hdd_cfg80211_add_beacon(struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_add_beacon(struct wiphy *wiphy,
                                         struct net_device *dev,
                                         struct beacon_parameters *params)
 {
@@ -5859,7 +5859,20 @@ static int wlan_hdd_cfg80211_add_beacon(struct wiphy *wiphy,
     return status;
 }
 
-static int wlan_hdd_cfg80211_set_beacon(struct wiphy *wiphy,
+static int wlan_hdd_cfg80211_add_beacon(struct wiphy *wiphy,
+                                        struct net_device *dev,
+                                        struct beacon_parameters *params)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_add_beacon(wiphy, dev, params);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __wlan_hdd_cfg80211_set_beacon(struct wiphy *wiphy,
                                         struct net_device *dev,
                                         struct beacon_parameters *params)
 {
@@ -5919,13 +5932,26 @@ static int wlan_hdd_cfg80211_set_beacon(struct wiphy *wiphy,
     return status;
 }
 
+static int wlan_hdd_cfg80211_set_beacon(struct wiphy *wiphy,
+                                        struct net_device *dev,
+                                        struct beacon_parameters *params)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_set_beacon(wiphy, dev, params);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
 #endif //(LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
-static int wlan_hdd_cfg80211_del_beacon(struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_del_beacon(struct wiphy *wiphy,
                                         struct net_device *dev)
 #else
-static int wlan_hdd_cfg80211_stop_ap (struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_stop_ap (struct wiphy *wiphy,
                                       struct net_device *dev)
 #endif
 {
@@ -6078,9 +6104,35 @@ static int wlan_hdd_cfg80211_stop_ap (struct wiphy *wiphy,
     return status;
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))
+static int wlan_hdd_cfg80211_del_beacon(struct wiphy *wiphy,
+                                        struct net_device *dev)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_del_beacon(wiphy, dev);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+#else
+static int wlan_hdd_cfg80211_stop_ap(struct wiphy *wiphy,
+                                      struct net_device *dev)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_stop_ap(wiphy, dev);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+#endif
+
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(3,3,0))
 
-static int wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
+static int __wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
                                       struct net_device *dev,
                                       struct cfg80211_ap_settings *params)
 {
@@ -6170,8 +6222,20 @@ static int wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
     return status;
 }
 
+static int wlan_hdd_cfg80211_start_ap(struct wiphy *wiphy,
+                                      struct net_device *dev,
+                                      struct cfg80211_ap_settings *params)
+{
+    int ret;
 
-static int wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_start_ap(wiphy, dev, params);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
                                         struct net_device *dev,
                                         struct cfg80211_beacon_data *params)
 {
@@ -6230,8 +6294,20 @@ static int wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
     return status;
 }
 
-#endif //(LINUX_VERSION_CODE > KERNEL_VERSION(3,3,0))
+static int wlan_hdd_cfg80211_change_beacon(struct wiphy *wiphy,
+                                        struct net_device *dev,
+                                        struct cfg80211_beacon_data *params)
+{
+    int ret;
 
+    vos_ssr_protect(__func__);
+    ret = __wlan_hdd_cfg80211_change_beacon(wiphy, dev, params);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+#endif //(LINUX_VERSION_CODE > KERNEL_VERSION(3,3,0))
 
 static int __wlan_hdd_cfg80211_change_bss (struct wiphy *wiphy,
                                       struct net_device *dev,
