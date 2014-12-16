@@ -1839,6 +1839,14 @@ typedef enum
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MAX                 ( 1 )
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_DEFAULT             ( 0 )
 
+/*
+ * SCAN Offload
+ */
+#define CFG_SCAN_OFFLOAD_NAME                     "gEnableDirectedScanOffload"
+#define CFG_SCAN_OFFLOAD_DISABLE                  ( 0 )
+#define CFG_SCAN_OFFLOAD_ENABLE                   ( 1 )
+#define CFG_SCAN_OFFLOAD_DEFAULT                  ( CFG_SCAN_OFFLOAD_DISABLE )
+
 /*---------------------------------------------------------------------------
   Type declarations
   -------------------------------------------------------------------------*/
@@ -2232,6 +2240,7 @@ v_U16_t                     configMccParam;
    v_U8_t                      isAmsduSupportInAMPDU;
    v_U8_t                      allowDFSChannelRoam;
    v_BOOL_t                    gEnableStrictRegulatoryForFCC;
+   v_U8_t                      fScanOffload;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
