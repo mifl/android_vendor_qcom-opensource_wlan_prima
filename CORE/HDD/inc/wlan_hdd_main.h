@@ -322,6 +322,7 @@ typedef struct hdd_tx_rx_stats_s
    // tx timeout stats
    __u32    txTimeoutCount;
    __u32    continuousTxTimeoutCount;
+   v_ULONG_t    jiffiesLastTxTimeOut;//Store time when last txtime out occur
 } hdd_tx_rx_stats_t;
 
 typedef struct hdd_chip_reset_stats_s
@@ -1448,5 +1449,7 @@ void hdd_deinit_batch_scan(hdd_adapter_t *pAdapter);
 boolean hdd_is_5g_supported(hdd_context_t * pHddCtx);
 
 int wlan_hdd_scan_abort(hdd_adapter_t *pAdapter);
+
+VOS_STATUS wlan_hdd_cancel_remain_on_channel(hdd_context_t *pHddCtx);
 
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )
