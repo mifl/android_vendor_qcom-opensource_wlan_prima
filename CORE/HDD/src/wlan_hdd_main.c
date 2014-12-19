@@ -443,7 +443,9 @@ int wlan_hdd_validate_context(hdd_context_t *pHddCtx)
     if (pHddCtx->isLogpInProgress)
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                  "%s: LOGP in Progress. Ignore!!!", __func__);
+                  "%s: LOGP %s. Ignore!!", __func__,
+                    vos_is_wlan_in_badState(VOS_MODULE_ID_HDD, NULL)
+                    ?"failed":"in Progress");
         return -EAGAIN;
     }
 
@@ -6565,18 +6567,19 @@ static void hdd_driver_exit(void)
    {
        INIT_COMPLETION(pHddCtx->ssr_comp_var);
 
-       if (pHddCtx->isLogpInProgress)
+       if ((pHddCtx->isLogpInProgress) &&
+           (FALSE == vos_is_wlan_in_badState(VOS_MODULE_ID_HDD, NULL)))
        {
-         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-              "%s:SSR in Progress; block rmmod !!!", __func__);
-         rc = wait_for_completion_timeout(&pHddCtx->ssr_comp_var,
-                                          msecs_to_jiffies(30000));
-         if(!rc)
-         {
-              VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-              "%s:SSR timedout, fatal error", __func__);
-              VOS_BUG(0);
-         }
+           VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
+                     "%s:SSR in Progress; block rmmod !!!", __func__);
+           rc = wait_for_completion_timeout(&pHddCtx->ssr_comp_var,
+                                             msecs_to_jiffies(30000));
+           if(!rc)
+           {
+               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
+                         "%s:SSR timedout, fatal error", __func__);
+               VOS_BUG(0);
+           }
        }
 
       pHddCtx->isLoadUnloadInProgress = TRUE;
