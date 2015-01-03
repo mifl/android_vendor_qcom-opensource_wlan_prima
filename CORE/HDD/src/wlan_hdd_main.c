@@ -2255,6 +2255,13 @@ int __hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
            tANI_U8 *ptr = command;
            ret = hdd_wmmps_helper(pAdapter, ptr);
        }
+
+       else if(strncmp(command, "TDLSSCAN", 8) == 0)
+       {
+           tANI_U8 *ptr  = command;
+           ret = hdd_set_tdls_scan_type(pAdapter, ptr);
+       }
+
        else if ( strncasecmp(command, "COUNTRY", 7) == 0 )
        {
            char *country_code;
