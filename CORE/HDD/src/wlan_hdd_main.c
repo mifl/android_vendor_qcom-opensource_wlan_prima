@@ -10117,7 +10117,8 @@ v_BOOL_t hdd_is_apps_power_collapse_allowed(hdd_context_t* pHddCtx)
         {
             if (((pConfig->fIsImpsEnabled || pConfig->fIsBmpsEnabled)
                  && (pmcState != IMPS && pmcState != BMPS && pmcState != UAPSD
-                  &&  pmcState != STOPPED && pmcState != STANDBY)) ||
+                  &&  pmcState != STOPPED && pmcState != STANDBY &&
+                      pmcState != WOWL)) ||
                  (eANI_BOOLEAN_TRUE == scanRspPending) ||
                  (eANI_BOOLEAN_TRUE == inMiddleOfRoaming))
             {
