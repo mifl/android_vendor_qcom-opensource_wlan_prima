@@ -1319,7 +1319,7 @@ v_U8_t* wlan_hdd_get_vendor_oui_ie_ptr(v_U8_t *oui, v_U8_t oui_size, v_U8_t *ie,
     return NULL;
 }
 
-static int iw_set_commit(struct net_device *dev, struct iw_request_info *info,
+static int __iw_set_commit(struct net_device *dev, struct iw_request_info *info,
                          union iwreq_data *wrqu, char *extra)
 {
     hddLog( LOG1, "In %s", __func__);
@@ -1327,7 +1327,19 @@ static int iw_set_commit(struct net_device *dev, struct iw_request_info *info,
     return 0;
 }
 
-static int iw_get_name(struct net_device *dev,
+static int iw_set_commit(struct net_device *dev, struct iw_request_info *info,
+                         union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_set_commit(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_get_name(struct net_device *dev,
                        struct iw_request_info *info,
                        char *wrqu, char *extra)
 {
@@ -1336,6 +1348,19 @@ static int iw_get_name(struct net_device *dev,
     strlcpy(wrqu, "Qcom:802.11n", IFNAMSIZ);
     EXIT();
     return 0;
+}
+
+static int iw_get_name(struct net_device *dev,
+                       struct iw_request_info *info,
+                       char *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_get_name(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
 }
 
 static int __iw_set_mode(struct net_device *dev,
@@ -2387,7 +2412,7 @@ static int iw_set_frag_threshold(struct net_device *dev,
    return ret;
 }
 
-static int iw_get_power_mode(struct net_device *dev,
+static int __iw_get_power_mode(struct net_device *dev,
                              struct iw_request_info *info,
                              union iwreq_data *wrqu, char *extra)
 {
@@ -2395,12 +2420,37 @@ static int iw_get_power_mode(struct net_device *dev,
    return -EOPNOTSUPP;
 }
 
-static int iw_set_power_mode(struct net_device *dev,
+static int iw_get_power_mode(struct net_device *dev,
+                             struct iw_request_info *info,
+                             union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_get_power_mode(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+static int __iw_set_power_mode(struct net_device *dev,
                              struct iw_request_info *info,
                              union iwreq_data *wrqu, char *extra)
 {
     ENTER();
     return -EOPNOTSUPP;
+}
+
+static int iw_set_power_mode(struct net_device *dev,
+                             struct iw_request_info *info,
+                             union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_set_power_mode(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
 }
 
 static int __iw_get_range(struct net_device *dev,
@@ -3633,7 +3683,28 @@ static int iw_set_priv(struct net_device *dev,
    return ret;
 }
 
+static int __iw_set_nick(struct net_device *dev,
+                       struct iw_request_info *info,
+                       union iwreq_data *wrqu, char *extra)
+{
+   ENTER();
+   return 0;
+}
+
 static int iw_set_nick(struct net_device *dev,
+                       struct iw_request_info *info,
+                       union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_set_nick(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+
+static int __iw_get_nick(struct net_device *dev,
                        struct iw_request_info *info,
                        union iwreq_data *wrqu, char *extra)
 {
@@ -3645,14 +3716,31 @@ static int iw_get_nick(struct net_device *dev,
                        struct iw_request_info *info,
                        union iwreq_data *wrqu, char *extra)
 {
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_get_nick(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+
+static struct iw_statistics * __get_wireless_stats(struct net_device *dev)
+{
    ENTER();
-   return 0;
+   return NULL;
 }
 
 static struct iw_statistics *get_wireless_stats(struct net_device *dev)
 {
-   ENTER();
-   return NULL;
+
+       struct iw_statistics *stats;
+
+       vos_ssr_protect(__func__);
+       stats = __get_wireless_stats(dev);
+       vos_ssr_unprotect(__func__);
+
+       return stats;
 }
 
 static int __iw_set_encode(struct net_device *dev,

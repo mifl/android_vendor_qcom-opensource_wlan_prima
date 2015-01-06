@@ -5052,7 +5052,7 @@ done:
 }
 
 /* set param sub-ioctls */
-static int iw_ftm_setchar_getnone(struct net_device *dev, struct iw_request_info *info,
+static int __iw_ftm_setchar_getnone(struct net_device *dev, struct iw_request_info *info,
                        union iwreq_data *wrqu, char *extra)
 {
     int ret,sub_cmd;
@@ -5138,7 +5138,19 @@ OUT:
     return ret;
 }
 
-static int iw_ftm_setint_getnone(struct net_device *dev, struct iw_request_info *info,
+static int iw_ftm_setchar_getnone(struct net_device *dev, struct iw_request_info *info,
+                       union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_ftm_setchar_getnone(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+
+static int __iw_ftm_setint_getnone(struct net_device *dev, struct iw_request_info *info,
                        union iwreq_data *wrqu, char *extra)
 {
     hdd_adapter_t *pAdapter = (netdev_priv(dev));
@@ -5314,8 +5326,19 @@ static int iw_ftm_setint_getnone(struct net_device *dev, struct iw_request_info 
     return ret;
 }
 
+static int iw_ftm_setint_getnone(struct net_device *dev, struct iw_request_info *info,
+                       union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_ftm_setint_getnone(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
 /* get param sub-ioctls */
-static int iw_ftm_setnone_getint(struct net_device *dev, struct iw_request_info *info,
+static int __iw_ftm_setnone_getint(struct net_device *dev, struct iw_request_info *info,
                        union iwreq_data *wrqu, char *extra)
 {
     hdd_adapter_t *pAdapter = (netdev_priv(dev));
@@ -5368,7 +5391,19 @@ static int iw_ftm_setnone_getint(struct net_device *dev, struct iw_request_info 
     return ret;
 }
 
-static int iw_ftm_get_char_setnone(struct net_device *dev, struct iw_request_info *info,
+static int iw_ftm_setnone_getint(struct net_device *dev, struct iw_request_info *info,
+                       union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_ftm_setnone_getint(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_ftm_get_char_setnone(struct net_device *dev, struct iw_request_info *info,
                        union iwreq_data *wrqu, char *extra)
 {
     int sub_cmd = wrqu->data.flags;
@@ -5450,6 +5485,19 @@ static int iw_ftm_get_char_setnone(struct net_device *dev, struct iw_request_inf
     return 0;
 }
 
+static int iw_ftm_get_char_setnone(struct net_device *dev, struct iw_request_info *info,
+                       union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_ftm_get_char_setnone(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+
+    return ret;
+}
+
 VOS_STATUS wlan_write_to_efs (v_U8_t *pData, v_U16_t data_len)
 {
 #if defined(MSM_PLATFORM)
@@ -5510,7 +5558,7 @@ VOS_STATUS wlan_write_to_efs (v_U8_t *pData, v_U16_t data_len)
 }
 
 /*  action sub-ioctls */
-static int iw_ftm_setnone_getnone(struct net_device *dev, struct iw_request_info *info,
+static int __iw_ftm_setnone_getnone(struct net_device *dev, struct iw_request_info *info,
                        union iwreq_data *wrqu, char *extra)
 {
     int sub_cmd = wrqu->data.flags;
@@ -5550,7 +5598,19 @@ static int iw_ftm_setnone_getnone(struct net_device *dev, struct iw_request_info
     return ret;
 }
 
-static int iw_ftm_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info,
+static int iw_ftm_setnone_getnone(struct net_device *dev, struct iw_request_info *info,
+                       union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_ftm_setnone_getnone(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
+static int __iw_ftm_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info,
         union iwreq_data *wrqu, char *extra)
 {
     hdd_adapter_t *pAdapter = (netdev_priv(dev));
@@ -5593,6 +5653,18 @@ static int iw_ftm_set_var_ints_getnone(struct net_device *dev, struct iw_request
     return 0;
 }
 
+
+static int iw_ftm_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info,
+        union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_ftm_set_var_ints_getnone(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
 
 static const iw_handler we_ftm_private[] = {
 

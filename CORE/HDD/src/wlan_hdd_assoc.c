@@ -74,6 +74,7 @@
 #include "wlan_hdd_cfg80211.h"
 #include "csrInsideApi.h"
 #include "wlan_hdd_p2p.h"
+#include <vos_sched.h>
 #ifdef FEATURE_WLAN_TDLS
 #include "wlan_hdd_tdls.h"
 #endif
@@ -3472,7 +3473,7 @@ int hdd_set_csr_auth_type ( hdd_adapter_t  *pAdapter, eCsrAuthType RSNAuthType)
 
 /**---------------------------------------------------------------------------
 
-  \brief iw_set_essid() -
+  \brief __iw_set_essid() -
    This function sets the ssid received from wpa_supplicant
    to the CSR roam profile.
 
@@ -3484,9 +3485,9 @@ int hdd_set_csr_auth_type ( hdd_adapter_t  *pAdapter, eCsrAuthType RSNAuthType)
 
   --------------------------------------------------------------------------*/
 
-int iw_set_essid(struct net_device *dev,
-                        struct iw_request_info *info,
-                        union iwreq_data *wrqu, char *extra)
+int __iw_set_essid(struct net_device *dev,
+                   struct iw_request_info *info,
+                   union iwreq_data *wrqu, char *extra)
 {
     v_U32_t status = 0;
     hdd_wext_state_t *pWextState;
@@ -3640,9 +3641,22 @@ int iw_set_essid(struct net_device *dev,
     return status;
 }
 
+int iw_set_essid(struct net_device *dev,
+                 struct iw_request_info *info,
+                 union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_set_essid(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
 /**---------------------------------------------------------------------------
 
-  \brief iw_get_essid() -
+  \brief __iw_get_essid() -
    This function returns the essid to the wpa_supplicant.
 
   \param  - dev - Pointer to the net device.
@@ -3652,9 +3666,9 @@ int iw_set_essid(struct net_device *dev,
   \return - 0 for success, non zero for failure
 
   --------------------------------------------------------------------------*/
-int iw_get_essid(struct net_device *dev,
-                       struct iw_request_info *info,
-                       struct iw_point *dwrq, char *extra)
+int __iw_get_essid(struct net_device *dev,
+                   struct iw_request_info *info,
+                   struct iw_point *dwrq, char *extra)
 {
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
    hdd_wext_state_t *wextBuf = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
@@ -3678,9 +3692,22 @@ int iw_get_essid(struct net_device *dev,
    EXIT();
    return 0;
 }
+
+int iw_get_essid(struct net_device *dev,
+                 struct iw_request_info *info,
+                 struct iw_point *dwrq, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_get_essid(dev, info, dwrq, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
 /**---------------------------------------------------------------------------
 
-  \brief iw_set_auth() -
+  \brief __iw_set_auth() -
    This function sets the auth type received from the wpa_supplicant.
 
   \param  - dev - Pointer to the net device.
@@ -3690,8 +3717,8 @@ int iw_get_essid(struct net_device *dev,
   \return - 0 for success, non zero for failure
 
   --------------------------------------------------------------------------*/
-int iw_set_auth(struct net_device *dev,struct iw_request_info *info,
-                        union iwreq_data *wrqu,char *extra)
+int __iw_set_auth(struct net_device *dev,struct iw_request_info *info,
+                  union iwreq_data *wrqu,char *extra)
 {
    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
    hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
@@ -3904,9 +3931,22 @@ int iw_set_auth(struct net_device *dev,struct iw_request_info *info,
    EXIT();
    return 0;
 }
+
+int iw_set_auth(struct net_device *dev, struct iw_request_info *info,
+                union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_set_auth(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
+}
+
 /**---------------------------------------------------------------------------
 
-  \brief iw_get_auth() -
+  \brief __iw_get_auth() -
    This function returns the auth type to the wpa_supplicant.
 
   \param  - dev - Pointer to the net device.
@@ -3916,8 +3956,8 @@ int iw_set_auth(struct net_device *dev,struct iw_request_info *info,
   \return - 0 for success, non zero for failure
 
   --------------------------------------------------------------------------*/
-int iw_get_auth(struct net_device *dev,struct iw_request_info *info,
-                         union iwreq_data *wrqu,char *extra)
+int __iw_get_auth(struct net_device *dev,struct iw_request_info *info,
+                  union iwreq_data *wrqu,char *extra)
 {
     hdd_adapter_t* pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_wext_state_t *pWextState= WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
@@ -4042,9 +4082,22 @@ int iw_get_auth(struct net_device *dev,struct iw_request_info *info,
     EXIT();
     return 0;
 }
+
+int iw_get_auth(struct net_device *dev,struct iw_request_info *info,
+                union iwreq_data *wrqu,char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_get_auth(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
 /**---------------------------------------------------------------------------
 
-  \brief iw_set_ap_address() -
+  \brief __iw_set_ap_address() -
    This function calls the sme_RoamConnect function to associate
    to the AP with the specified BSSID received from the wpa_supplicant.
 
@@ -4055,9 +4108,9 @@ int iw_get_auth(struct net_device *dev,struct iw_request_info *info,
   \return - 0 for success, non zero for failure
 
   --------------------------------------------------------------------------*/
-int iw_set_ap_address(struct net_device *dev,
-        struct iw_request_info *info,
-        union iwreq_data *wrqu, char *extra)
+int __iw_set_ap_address(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu, char *extra)
 {
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(WLAN_HDD_GET_PRIV_PTR(dev));
     v_U8_t  *pMacAddress=NULL;
@@ -4070,9 +4123,23 @@ int iw_set_ap_address(struct net_device *dev,
 
     return 0;
 }
+
+int iw_set_ap_address(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_set_ap_address(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
+
 /**---------------------------------------------------------------------------
 
-  \brief iw_get_ap_address() -
+  \brief __iw_get_ap_address() -
    This function returns the BSSID to the wpa_supplicant
   \param  - dev - Pointer to the net device.
               - info - Pointer to the iw_request_info.
@@ -4081,9 +4148,9 @@ int iw_set_ap_address(struct net_device *dev,
   \return - 0 for success, non zero for failure
 
   --------------------------------------------------------------------------*/
-int iw_get_ap_address(struct net_device *dev,
-                             struct iw_request_info *info,
-                             union iwreq_data *wrqu, char *extra)
+int __iw_get_ap_address(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu, char *extra)
 {
     //hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(WLAN_HDD_GET_PRIV_PTR(dev));
@@ -4101,6 +4168,19 @@ int iw_get_ap_address(struct net_device *dev,
     }
     EXIT();
     return 0;
+}
+
+int iw_get_ap_address(struct net_device *dev,
+                        struct iw_request_info *info,
+                        union iwreq_data *wrqu, char *extra)
+{
+   int ret;
+
+   vos_ssr_protect(__func__);
+   ret = __iw_get_ap_address(dev, info, wrqu, extra);
+   vos_ssr_unprotect(__func__);
+
+   return ret;
 }
 
 #ifdef WLAN_FEATURE_11W
