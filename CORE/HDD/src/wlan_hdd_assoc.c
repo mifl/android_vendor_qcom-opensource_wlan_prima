@@ -766,6 +766,7 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
     struct net_device *dev = pAdapter->dev;
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+    v_BOOL_t sendDisconInd = TRUE;
 
     // Sanity check
     if(dev == NULL)
@@ -780,6 +781,16 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
     netif_carrier_off(dev);
 
     INIT_COMPLETION(pAdapter->disconnect_comp_var);
+    /* HDD has initiated disconnect, do not send disconnect indication
+     * to kernel as it will be handled by __cfg80211_disconnect.
+     */
+    if ( eConnectionState_Disconnecting == pHddStaCtx->conn_info.connState )
+    {
+       VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                   FL(" HDD has initiated a disconnect, no need to send"
+                   " disconnect indication to kernel"));
+       sendDisconInd = FALSE;
+    }
     VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                    "%s: Set HDD connState to eConnectionState_Disconnecting",
                    __func__);
@@ -820,17 +831,19 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
                 }
             }
 #endif
-
-            /* To avoid wpa_supplicant sending "HANGED" CMD to ICS UI */
-            if( eCSR_ROAM_LOSTLINK == roamStatus )
+            /*Only send indication to kernel if not initiated by kernel*/
+            if ( sendDisconInd )
             {
-                cfg80211_disconnected(dev, pRoamInfo->reasonCode, NULL, 0, GFP_KERNEL);
+               /* To avoid wpa_supplicant sending "HANGED" CMD to ICS UI */
+               if ( eCSR_ROAM_LOSTLINK == roamStatus )
+               {
+                   cfg80211_disconnected(dev, pRoamInfo->reasonCode, NULL, 0, GFP_KERNEL);
+               }
+               else
+               {
+                   cfg80211_disconnected(dev, WLAN_REASON_UNSPECIFIED, NULL, 0, GFP_KERNEL);
+               }
             }
-            else
-            {
-                cfg80211_disconnected(dev, WLAN_REASON_UNSPECIFIED, NULL, 0, GFP_KERNEL);
-            }
-
             //If the Device Mode is Station
             // and the P2P Client is Connected
             //Enable BMPS
@@ -1167,13 +1180,29 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
     int ft_carrier_on = FALSE;
 #endif
     int status;
+    v_BOOL_t hddDisconInProgress = FALSE;
+
+    /* HDD has initiated disconnect, do not send connect result indication
+     * to kernel as it will be handled by __cfg80211_disconnect.
+     */
+    if(( eConnectionState_Disconnecting == pHddStaCtx->conn_info.connState) &&
+        (( eCSR_ROAM_RESULT_ASSOCIATED == roamResult) ||
+        ( eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus)) )
+    {
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+               FL(" Disconnect from HDD in progress "));
+        hddDisconInProgress  = TRUE;
+    }
 
     if ( eCSR_ROAM_RESULT_ASSOCIATED == roamResult )
     {
-        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+        if ( !hddDisconInProgress )
+        {
+             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                    "%s: Set HDD connState to eConnectionState_Associated",
                    __func__);
-        hdd_connSetConnectionState( pHddStaCtx, eConnectionState_Associated );
+             hdd_connSetConnectionState( pHddStaCtx, eConnectionState_Associated );
+        }
 
         // Save the connection info from CSR...
         hdd_connSaveConnectInfo( pAdapter, pRoamInfo, eCSR_BSS_TYPE_INFRASTRUCTURE );
@@ -1315,15 +1344,18 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
 
                 if(ft_carrier_on)
                 {
-                    hddLog(LOG1, "%s ft_carrier_on is %d, sending roamed "
+                    if ( !hddDisconInProgress )
+                    {
+                        hddLog(LOG1, "%s ft_carrier_on is %d, sending roamed "
                                  "indication", __FUNCTION__, ft_carrier_on);
-                    chan = ieee80211_get_channel(pAdapter->wdev.wiphy,
+                        chan = ieee80211_get_channel(pAdapter->wdev.wiphy,
                                          (int)pRoamInfo->pBssDesc->channelId);
-                    hddLog(LOG1, "assocReqlen %d assocRsplen %d", assocReqlen,
+                        hddLog(LOG1, "assocReqlen %d assocRsplen %d", assocReqlen,
                                          assocRsplen);
-                    cfg80211_roamed(dev,chan, pRoamInfo->bssid,
+                        cfg80211_roamed(dev,chan, pRoamInfo->bssid,
                                     pFTAssocReq, assocReqlen, pFTAssocRsp, assocRsplen,
                                     GFP_KERNEL);
+                    }
                     if (sme_GetFTPTKState(WLAN_HDD_GET_HAL_CTX(pAdapter)))
                     {
                         sme_SetFTPTKState(WLAN_HDD_GET_HAL_CTX(pAdapter), FALSE);
@@ -1340,7 +1372,7 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                         pHddStaCtx->roam_info.deferKeyComplete = TRUE;
                     }
                 }
-                else
+                else if ( !hddDisconInProgress )
                 {
                     hddLog(LOG1, "%s ft_carrier_on is %d, sending connect "
                                  "indication", __FUNCTION__, ft_carrier_on);
@@ -1364,39 +1396,45 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                         pAdapter->sessionId,
                         &rspRsnLength,
                         rspRsnIe);
-#if  defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
-                if(ft_carrier_on)
-                    hdd_SendReAssocEvent(dev, pAdapter, pRoamInfo, reqRsnIe, reqRsnLength);
-                else
-#endif /* FEATURE_WLAN_CCX */
 
+                if ( !hddDisconInProgress )
                 {
-                    hddLog(VOS_TRACE_LEVEL_INFO,
+#if  defined (FEATURE_WLAN_CCX) || defined(FEATURE_WLAN_LFR)
+                    if(ft_carrier_on)
+                        hdd_SendReAssocEvent(dev, pAdapter, pRoamInfo, reqRsnIe, reqRsnLength);
+                    else
+#endif /* FEATURE_WLAN_CCX */
+                    {
+                         hddLog(VOS_TRACE_LEVEL_INFO,
                             "%s: sending connect indication to nl80211:"
                             " for bssid " MAC_ADDRESS_STR
                             " reason:%d and Status:%d\n",
                             __func__, MAC_ADDR_ARRAY(pRoamInfo->bssid),
                             roamResult, roamStatus);
 
-                    /* inform connect result to nl80211 */
-                    cfg80211_connect_result(dev, pRoamInfo->bssid,
+                         /* inform connect result to nl80211 */
+                         cfg80211_connect_result(dev, pRoamInfo->bssid,
                             reqRsnIe, reqRsnLength,
                             rspRsnIe, rspRsnLength,
                             WLAN_STATUS_SUCCESS,
                             GFP_KERNEL);
+                    }
                 }
             }
-            cfg80211_put_bss(
+            if ( !hddDisconInProgress )
+            {
+                cfg80211_put_bss(
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
-                             pHddCtx->wiphy,
+                           pHddCtx->wiphy,
 #endif
                              bss);
-            // Register the Station with TL after associated...
-            vosStatus = hdd_roamRegisterSTA( pAdapter,
+                // Register the Station with TL after associated...
+                vosStatus = hdd_roamRegisterSTA( pAdapter,
                     pRoamInfo,
                     pHddStaCtx->conn_info.staId[ 0 ],
                     NULL,
                     pRoamInfo->pBssDesc );
+            }
         }
         else
         {
@@ -1465,7 +1503,7 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
         /* Set connection state to eConnectionState_NotConnected only when CSR
          * has completed operation - with a ASSOCIATION_FAILURE status
          */
-        if ( eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus )
+        if ( eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus &&  !hddDisconInProgress )
         {
             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                    "%s: Set HDD connState to eConnectionState_NotConnected",
@@ -1513,7 +1551,7 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
 
         /* CR465478: Only send up a connection failure result when CSR has
          * completed operation - with a ASSOCIATION_FAILURE status.*/
-        if ( eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus )
+        if ( eCSR_ROAM_ASSOCIATION_FAILURE == roamStatus &&  !hddDisconInProgress )
         {
             if (pRoamInfo)
                 hddLog(VOS_TRACE_LEVEL_ERROR,
@@ -2675,33 +2713,13 @@ eHalStatus hdd_smeRoamCallback( void *pContext, tCsrRoamInfo *pRoamInfo, tANI_U3
         case eCSR_ROAM_ASSOCIATION_COMPLETION:
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                     "****eCSR_ROAM_ASSOCIATION_COMPLETION****");
-            if ( (roamResult != eCSR_ROAM_RESULT_ASSOCIATED) &&
-                 ( (pWextState->roamProfile.EncryptionType.encryptionType[0] ==
-                       eCSR_ENCRYPT_TYPE_WEP40) ||
-                   (pWextState->roamProfile.EncryptionType.encryptionType[0] ==
-                       eCSR_ENCRYPT_TYPE_WEP104)
-                 ) &&
-                 (eCSR_AUTH_TYPE_SHARED_KEY != pWextState->roamProfile.AuthType.authType[0])
-               )
+            // To Do - address probable memory leak with WEP encryption upon successful association
+            if (eCSR_ROAM_RESULT_ASSOCIATED != roamResult)
             {
-                v_U32_t roamId = 0;
-                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
-                        "****WEP open authentication failed, trying with shared authentication****");
-                (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.authType = eCSR_AUTH_TYPE_SHARED_KEY;
-                pWextState->roamProfile.AuthType.authType[0] = (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.authType;
-                pWextState->roamProfile.csrPersona = pAdapter->device_mode;
-                halStatus = sme_RoamConnect( WLAN_HDD_GET_HAL_CTX(pAdapter), pAdapter->sessionId, &(pWextState->roamProfile), &roamId);
+               //Clear saved connection information in HDD
+               hdd_connRemoveConnectInfo( WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) );
             }
-            else
-            {
-                // To Do - address probable memory leak with WEP encryption upon successful association
-                if (eCSR_ROAM_RESULT_ASSOCIATED != roamResult)
-                {
-                  //Clear saved connection information in HDD
-                  hdd_connRemoveConnectInfo( WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) );
-                }
-                halStatus = hdd_AssociationCompletionHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
-            }
+            halStatus = hdd_AssociationCompletionHandler( pAdapter, pRoamInfo, roamId, roamStatus, roamResult );
 
             break;
         case eCSR_ROAM_ASSOCIATION_FAILURE:
