@@ -191,8 +191,8 @@ static placeHolderInCapBitmap supportEnabledFeatures[] =
 
    ,MAC_SPOOFED_SCAN               //44
    ,FEATURE_NOT_SUPPORTED          //45
-   ,FEATURE_NOT_SUPPORTED          //46
-   ,FEATURE_NOT_SUPPORTED          //47
+   ,DISA                           //46
+   ,FW_STATS                       //47
    ,WPS_PRBRSP_TMPL                //48
    ,BCN_IE_FLT_DELTA               //49
 };
@@ -458,6 +458,8 @@ WDI_ReqProcFuncType  pfnReqProcTbl[WDI_MAX_UMAC_IND] =
   NULL,
 #endif /* WLAN_FEATURE_EXTSCAN */
   WDI_ProcessSpoofMacAddrReq,       /* WDI_SPOOF_MAC_ADDR_REQ */
+  WDI_ProcessEncryptMsgReq,         /* WDI_ENCRYPT_MSG_REQ*/
+
   /*-------------------------------------------------------------------------
     Indications
   -------------------------------------------------------------------------*/
@@ -718,6 +720,8 @@ WDI_RspProcFuncType  pfnRspProcTbl[WDI_MAX_RESP] =
     NULL,
 #endif /* WLAN_FEATURE_EXTSCAN */
     WDI_ProcessSpoofMacAddrRsp,                /* WDI_SPOOF_MAC_ADDR_RSP */
+    WDI_ProcessEncryptMsgRsp,                  /* WDI_ENCRYPT_MSG_RSP*/
+
   /*---------------------------------------------------------------------
     Indications
   ---------------------------------------------------------------------*/
@@ -1136,6 +1140,7 @@ static char *WDI_getReqMsgString(wpt_uint16 wdiReqMsgId)
     CASE_RETURN_STRING( WDI_EXTSCAN_RESET_SIGNF_RSSI_CHANGE_REQ);
 #endif /* WLAN_FEATURE_EXTSCAN */
     CASE_RETURN_STRING( WDI_SPOOF_MAC_ADDR_REQ);
+    CASE_RETURN_STRING( WDI_ENCRYPT_MSG_REQ);
     default:
         return "Unknown WDI MessageId";
   }
@@ -1267,6 +1272,7 @@ static char *WDI_getRespMsgString(wpt_uint16 wdiRespMsgId)
     CASE_RETURN_STRING( WDI_HAL_EXTSCAN_SIG_RSSI_RESULT_IND);
 
 #endif /* WLAN_FEATURE_EXTSCAN */
+    CASE_RETURN_STRING( WDI_ENCRYPT_MSG_RSP);
     default:
         return "Unknown WDI MessageId";
   }
@@ -1408,6 +1414,10 @@ void WDI_TraceHostFWCapabilities(tANI_U32 *capabilityBitmap)
 
                      case BMU_ERROR_GENERIC_RECOVERY: snprintf(pCapStr, sizeof("BMU_ERROR_GENERIC_RECOVERY"), "%s", "BMU_ERROR_GENERIC_RECOVERY");
                           pCapStr += strlen("BMU_ERROR_GENERIC_RECOVERY");
+                          break;
+
+                     case DISA: snprintf(pCapStr, sizeof("DISA"), "%s", "DISA");
+                          pCapStr += strlen("DISA");
                           break;
 
                  }
@@ -23876,6 +23886,8 @@ WDI_2_HAL_REQ_TYPE
 #endif /* WLAN_FEATURE_EXTSCAN */
   case WDI_SPOOF_MAC_ADDR_REQ:
        return WLAN_HAL_MAC_SPOOFED_SCAN_REQ;
+  case WDI_ENCRYPT_MSG_REQ:
+       return WLAN_HAL_ENCRYPT_DATA_REQ;
   default:
     return WLAN_HAL_MSG_MAX;
   }
@@ -24189,6 +24201,8 @@ case WLAN_HAL_DEL_STA_SELF_RSP:
 #endif /* WLAN_FEATURE_EXTSCAN */
   case WLAN_HAL_MAC_SPOOFED_SCAN_RSP:
        return WDI_SPOOF_MAC_ADDR_RSP;
+  case WLAN_HAL_ENCRYPT_DATA_RSP:
+       return WDI_ENCRYPT_MSG_RSP;
 
   default:
     return eDRIVER_TYPE_MAX;
@@ -33486,5 +33500,168 @@ WDI_ProcessSpoofMacAddrRsp
   wdiSpoofMacAddrRspCb(
           &wdiSpoofMacAddrRsp, pWDICtx->pRspCBUserData);
 
+  return WDI_STATUS_SUCCESS;
+}
+
+/**
+ @brief WDI_EncryptMsgReq
+
+ @param pwdiEncryptMsgParams: Req parameter for the FW
+        wdiEncryptMsgCbRsp: callback for passing back the response
+        of the Req operation received from the device
+        pUserData: user data will be passed back with the callback
+
+ @return SUCCESS or FAIL
+*/
+WDI_Status
+WDI_EncryptMsgReq(void* pwdiEncryptMsgParams,
+        WDI_EncryptMsgRspCb wdiEncryptMsgCbRsp,
+        void*                   pUserData)
+{
+  WDI_EventInfoType      wdiEventData;
+
+  VOS_TRACE( VOS_MODULE_ID_WDI, VOS_TRACE_LEVEL_INFO,
+          "%s: %d Enter" ,__func__, __LINE__);
+  /*------------------------------------------------------------------------
+    Sanity Check
+    ------------------------------------------------------------------------*/
+  if ( eWLAN_PAL_FALSE == gWDIInitialized )
+  {
+      VOS_TRACE( VOS_MODULE_ID_WDI, VOS_TRACE_LEVEL_ERROR,
+              "WDI API call before module is initialized - Fail request");
+
+      return WDI_STATUS_E_NOT_ALLOWED;
+  }
+
+  wdiEventData.wdiRequest      = WDI_ENCRYPT_MSG_REQ;
+  wdiEventData.pEventData      = pwdiEncryptMsgParams;
+  wdiEventData.uEventDataSize  = sizeof(wpt_pkt80211);
+  wdiEventData.pCBfnc          = wdiEncryptMsgCbRsp;
+  wdiEventData.pUserData       = pUserData;
+
+  return WDI_PostMainEvent(&gWDICb, WDI_REQUEST_EVENT, &wdiEventData);
+}
+
+/*
+ * FUNCTION: WDI_ProcessEncryptMsgReq
+ * Request to WDI to encrypt the given message.
+ *
+ * @param  pWDICtx:         pointer to the WLAN DAL context
+ *         pEventData:      pointer to the event information structure
+ *
+ * @return Result of the function call
+ */
+
+WDI_Status
+WDI_ProcessEncryptMsgReq
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+)
+{
+  wpt_uint8*                   pSendBuffer         = NULL;
+  wpt_uint16                   usDataOffset        = 0;
+  wpt_uint16                   usSendSize          = 0;
+  WDI_EncryptMsgRspCb*         wdiEncMsgCb;
+  tSetEncryptedDataParams     *pHalEncryptDataReq;
+  wpt_pkt80211 *pkt = NULL;
+
+  /*-------------------------------------------------------------------------
+    Sanity check
+  -------------------------------------------------------------------------*/
+  if (( NULL == pEventData ) || ( NULL == pEventData->pEventData) ||
+      ( NULL == pEventData->pCBfnc ) )
+  {
+     WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
+                 "%s: Invalid parameters", __func__);
+     WDI_ASSERT(0);
+     return WDI_STATUS_E_FAILURE;
+  }
+
+  wdiEncMsgCb = (WDI_EncryptMsgRspCb*)pEventData->pCBfnc;
+
+  /*-----------------------------------------------------------------------
+    Get message buffer
+  -----------------------------------------------------------------------*/
+  if (( WDI_STATUS_SUCCESS != WDI_GetMessageBuffer(
+                                  pWDICtx, WDI_ENCRYPT_MSG_REQ,
+                                  sizeof(tSetEncryptedDataReqMsg),
+                                 &pSendBuffer, &usDataOffset, &usSendSize)) ||
+      ( usSendSize < (usDataOffset + sizeof(tSetEncryptedDataReqMsg))))
+  {
+     WPAL_TRACE(eWLAN_MODULE_DAL_CTRL,  eWLAN_PAL_TRACE_LEVEL_WARN,
+                "Unable to get send buffer in get WDI_ENCRYPT_MSG_REQ %p",
+                pEventData);
+     WDI_ASSERT(0);
+     return WDI_STATUS_E_FAILURE;
+  }
+
+  pWDICtx->wdiReqStatusCB = NULL;
+  pWDICtx->pReqStatusUserData = pEventData->pUserData;
+  pkt = (wpt_pkt80211 *)pEventData->pEventData;
+
+  pHalEncryptDataReq = &((tSetEncryptedDataReqMsg *)(pSendBuffer))->encryptedDataParams;
+  wpalMemoryZero(pHalEncryptDataReq, sizeof(tSetEncryptedDataParams));
+
+  wpalMemoryCopy(&pHalEncryptDataReq->macHeader, &pkt->macHeader, 32);
+
+  pHalEncryptDataReq->encParams.keyParams.key[0].keyId =
+      pkt->encParams.keyParams.key[0].keyId;
+
+  wpalMemoryCopy(&pHalEncryptDataReq->encParams.keyParams.key[0].key[0],
+          &pkt->encParams.keyParams.key[0].key[0], 16);
+
+  wpalMemoryCopy(&pHalEncryptDataReq->encParams.pn, &pkt->encParams.pn, 6);
+
+  pHalEncryptDataReq->data.length = pkt->data.length;
+  wpalMemoryCopy(&pHalEncryptDataReq->data.data[0], &pkt->data.data[0], pkt->data.length);
+
+  /*-------------------------------------------------------------------------
+    Send Get STA Request to HAL
+  -------------------------------------------------------------------------*/
+  return  WDI_SendMsg( pWDICtx, pSendBuffer, usSendSize, wdiEncMsgCb,
+                       pEventData->pUserData, WDI_ENCRYPT_MSG_RSP);
+}
+
+/*
+ * FUNCTION: WDI_ProcessEncryptMsgRsp
+ * Receives the encrypted message from the firmware
+ * @param  pWDICtx:         pointer to the WLAN DAL context
+ *         pEventData:      pointer to the event information structure
+ *
+ * @return Result of the function call
+ */
+WDI_Status
+WDI_ProcessEncryptMsgRsp
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+)
+{
+  tpSetEncryptedDataRspParams pSetEncryptedDataRsp;
+  WDI_EncryptMsgRspCb wdiEncryptMsgRspCb;
+
+  WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_INFO,
+                 "In %s",__func__);
+
+  /*-------------------------------------------------------------------------
+    Sanity check
+  -------------------------------------------------------------------------*/
+  if (( NULL == pWDICtx ) || ( NULL == pEventData ) ||
+      ( NULL == pEventData->pEventData))
+  {
+     WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_WARN,
+                 "%s: Invalid parameters", __func__);
+     WDI_ASSERT(0);
+     return WDI_STATUS_E_FAILURE;
+  }
+
+  pSetEncryptedDataRsp = (tpSetEncryptedDataRspParams)pEventData->pEventData;
+
+  wdiEncryptMsgRspCb = (WDI_EncryptMsgRspCb)pWDICtx->pfncRspCB;
+
+  wdiEncryptMsgRspCb(WDI_STATUS_SUCCESS,
+          pEventData->pEventData,
+          pWDICtx->pRspCBUserData);
   return WDI_STATUS_SUCCESS;
 }
