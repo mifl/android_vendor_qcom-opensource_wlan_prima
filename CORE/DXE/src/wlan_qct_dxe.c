@@ -587,7 +587,7 @@ void dxeErrChannelDebug
       }
 
    }
-   wpalFwDumpReq(17, 0, 0, 0, 0);
+   wpalFwDumpReq(17, 0, 0, 0, 0, 0);
 }
 /*==========================================================================
   @  Function Name
