@@ -44,9 +44,6 @@
   \file  wlan_hdd_softap_tx_rx.c
   
   \brief Linux HDD Tx/RX APIs
-         Copyright 2008 (c) Qualcomm, Incorporated.
-         All Rights Reserved.
-         Qualcomm Confidential and Proprietary.
   
   ==========================================================================*/
 
@@ -66,6 +63,12 @@
 #include <aniGlobal.h>
 #include <halTypes.h>
 #include <net/ieee80211_radiotap.h>
+#include <linux/ratelimit.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
+#include <soc/qcom/subsystem_restart.h>
+#else
+#include <mach/subsystem_restart.h>
+#endif
 
 
 /*--------------------------------------------------------------------------- 
@@ -100,6 +103,14 @@ static void hdd_softap_dump_sk_buff(struct sk_buff * skb)
 #endif
 
 extern void hdd_set_wlan_suspend_mode(bool suspend);
+
+#define HDD_SAP_TX_TIMEOUT_RATELIMIT_INTERVAL 20*HZ
+#define HDD_SAP_TX_TIMEOUT_RATELIMIT_BURST    1
+#define HDD_SAP_TX_STALL_SSR_THRESHOLD        5
+
+static DEFINE_RATELIMIT_STATE(hdd_softap_tx_timeout_rs,                 \
+                              HDD_SAP_TX_TIMEOUT_RATELIMIT_INTERVAL,    \
+                              HDD_SAP_TX_TIMEOUT_RATELIMIT_BURST);
 
 /**============================================================================
   @brief hdd_softap_traffic_monitor_timeout_handler() -
@@ -607,12 +618,58 @@ xmit_end:
   ===========================================================================*/
 void hdd_softap_tx_timeout(struct net_device *dev)
 {
-   VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
+   hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
+   struct netdev_queue *txq;
+   int i = 0;
+
+   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
       "%s: Transmission timeout occurred", __func__);
-   //Getting here implies we disabled the TX queues for too long. Queues are 
-   //disabled either because of disassociation or low resource scenarios. In
-   //case of disassociation it is ok to ignore this. But if associated, we have
-   //do possible recovery here
+
+   if ( NULL == pAdapter )
+   {
+      VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+              FL("pAdapter is NULL"));
+      VOS_ASSERT(0);
+      return;
+   }
+
+   ++pAdapter->hdd_stats.hddTxRxStats.txTimeoutCount;
+
+   for (i = 0; i < 8; i++)
+   {
+      txq = netdev_get_tx_queue(dev, i);
+      VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "Queue%d status: %d", i, netif_tx_queue_stopped(txq));
+   }
+
+   VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+              "carrier state: %d", netif_carrier_ok(dev));
+
+   ++pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount;
+
+   if (pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount >
+          HDD_SAP_TX_STALL_SSR_THRESHOLD)
+   {
+      // Driver could not recover, issue SSR
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                "%s: Cannot recover from Data stall Issue SSR",
+                __func__);
+      WLANTL_FatalError();
+      return;
+   }
+
+   /* If Tx stalled for a long time then *hdd_tx_timeout* is called
+    * every 5sec. The TL debug spits out a lot of information on the
+    * serial console, if it is called every time *hdd_tx_timeout* is
+    * called then we may get a watchdog bite on the Application
+    * processor, so ratelimit the TL debug logs.
+    */
+   if (__ratelimit(&hdd_softap_tx_timeout_rs))
+   {
+      hdd_wmm_tx_snapshot(pAdapter);
+      WLANTL_TLDebugMessage(VOS_TRUE);
+   }
+
 } 
 
 
@@ -727,7 +784,6 @@ VOS_STATUS hdd_softap_deinit_tx_rx( hdd_adapter_t *pAdapter )
   ===========================================================================*/
 static VOS_STATUS hdd_softap_flush_tx_queues_sta( hdd_adapter_t *pAdapter, v_U8_t STAId )
 {
-   VOS_STATUS status = VOS_STATUS_SUCCESS;
    v_U8_t i = -1;
 
    hdd_list_node_t *anchor = NULL;
@@ -737,7 +793,7 @@ static VOS_STATUS hdd_softap_flush_tx_queues_sta( hdd_adapter_t *pAdapter, v_U8_
 
    if (FALSE == pAdapter->aStaInfo[STAId].isUsed)
    {
-      return status;
+      return VOS_STATUS_SUCCESS;
    }
 
    for (i = 0; i < NUM_TX_QUEUES; i ++)
@@ -745,8 +801,9 @@ static VOS_STATUS hdd_softap_flush_tx_queues_sta( hdd_adapter_t *pAdapter, v_U8_
       spin_lock_bh(&pAdapter->aStaInfo[STAId].wmm_tx_queue[i].lock);
       while (true) 
       {
-         status = hdd_list_remove_front ( &pAdapter->aStaInfo[STAId].wmm_tx_queue[i], &anchor);
-         if (VOS_STATUS_E_EMPTY != status)
+         if (VOS_STATUS_E_EMPTY !=
+              hdd_list_remove_front(&pAdapter->aStaInfo[STAId].wmm_tx_queue[i],
+                                    &anchor))
          {
             //If success then we got a valid packet from some AC
             pktNode = list_entry(anchor, skb_list_node_t, anchor);
@@ -764,7 +821,7 @@ static VOS_STATUS hdd_softap_flush_tx_queues_sta( hdd_adapter_t *pAdapter, v_U8_
       spin_unlock_bh(&pAdapter->aStaInfo[STAId].wmm_tx_queue[i].lock);
    }
 
-   return status;
+   return VOS_STATUS_SUCCESS;
 }
 
 /**============================================================================
@@ -984,6 +1041,7 @@ VOS_STATUS hdd_softap_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    v_SIZE_t size = 0;
    v_U8_t STAId = WLAN_MAX_STA_COUNT;   
    hdd_context_t *pHddCtx = NULL;
+   v_U8_t proto_type = 0;
 
    //Sanity check on inputs
    if ( ( NULL == vosContext ) || 
@@ -1168,6 +1226,21 @@ VOS_STATUS hdd_softap_tx_fetch_packet_cbk( v_VOID_t *vosContext,
       }
    }
  
+   if (pHddCtx->cfg_ini->gEnableDebugLog)
+   {
+      proto_type = vos_pkt_get_proto_type(skb,
+                                          pHddCtx->cfg_ini->gEnableDebugLog);
+      if (VOS_PKT_PROTO_TYPE_EAPOL & proto_type)
+      {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                   "SAP TX EAPOL");
+      }
+      else if (VOS_PKT_PROTO_TYPE_DHCP & proto_type)
+      {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                   "SAP TX DHCP");
+      }
+   }
 //xg: @@@@: temporarily disble these. will revisit later
    {
       pPktMetaInfo->ucUP = pktNode->userPriority;
@@ -1206,6 +1279,7 @@ VOS_STATUS hdd_softap_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    ++pAdapter->stats.tx_packets;
    ++pAdapter->hdd_stats.hddTxRxStats.txFetchDequeued;
    ++pAdapter->hdd_stats.hddTxRxStats.txFetchDequeuedAC[ac];
+   pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount = 0;
 
    VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_INFO,
               "%s: Valid VOS PKT returned to TL", __func__);
@@ -1302,6 +1376,7 @@ VOS_STATUS hdd_softap_rx_packet_cbk( v_VOID_t *vosContext,
    vos_pkt_t* pVosPacket;
    vos_pkt_t* pNextVosPacket;   
    hdd_context_t *pHddCtx = NULL;   
+   v_U8_t proto_type;
 
    //Sanity check on inputs
    if ( ( NULL == vosContext ) || 
@@ -1386,6 +1461,22 @@ VOS_STATUS hdd_softap_rx_packet_cbk( v_VOID_t *vosContext,
       ++pAdapter->hdd_stats.hddTxRxStats.rxPackets;
       ++pAdapter->stats.rx_packets;
       pAdapter->stats.rx_bytes += skb->len;
+
+      if (pHddCtx->cfg_ini->gEnableDebugLog)
+      {
+         proto_type = vos_pkt_get_proto_type(skb,
+                                             pHddCtx->cfg_ini->gEnableDebugLog);
+         if (VOS_PKT_PROTO_TYPE_EAPOL & proto_type)
+         {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "SAP RX EAPOL");
+         }
+         else if (VOS_PKT_PROTO_TYPE_DHCP & proto_type)
+         {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "SAP RX DHCP");
+         }
+      }
 
       if (WLAN_RX_BCMC_STA_ID == pRxMetaInfo->ucDesSTAId)
       {
@@ -1685,7 +1776,7 @@ VOS_STATUS hdd_softap_stop_bss( hdd_adapter_t *pAdapter)
     pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 
     /*bss deregister is not allowed during wlan driver loading or unloading*/
-    if (pHddCtx->isLoadUnloadInProgress)
+    if (WLAN_HDD_IS_LOAD_UNLOAD_IN_PROGRESS(pHddCtx))
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                    "%s:Loading_unloading in Progress. Ignore!!!",__func__);
@@ -1703,13 +1794,14 @@ VOS_STATUS hdd_softap_stop_bss( hdd_adapter_t *pAdapter)
     for (staId = 0; staId < WLAN_MAX_STA_COUNT; staId++)
     {
         if (pAdapter->aStaInfo[staId].isUsed)// This excludes BC sta as it is already deregistered
-            vosStatus = hdd_softap_DeregisterSTA( pAdapter, staId);
-
-        if (!VOS_IS_STATUS_SUCCESS(vosStatus))
         {
-            VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
+            vosStatus = hdd_softap_DeregisterSTA( pAdapter, staId);
+            if (!VOS_IS_STATUS_SUCCESS(vosStatus))
+            {
+                VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_ERROR,
                        "%s: Failed to deregister sta Id %d", __func__, staId);
-        }
+            }
+       }
     }
 
     return vosStatus;

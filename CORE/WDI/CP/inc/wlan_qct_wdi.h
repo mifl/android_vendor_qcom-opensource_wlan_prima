@@ -3540,6 +3540,21 @@ typedef struct
 }WDI_EnterBmpsReqParamsType;
 
 /*---------------------------------------------------------------------------
+  WDI_EnterImpsReqParamsType
+  Enter IMPS parameters passed to WDI from WDA
+---------------------------------------------------------------------------*/
+typedef struct
+{
+   /*Request status callback offered by UMAC - it is called if the current req
+   has returned PENDING as status; it delivers the status of sending the message
+   over the BUS */
+   WDI_ReqStatusCb          wdiReqStatusCB;
+   /*The user data passed in by UMAC, it will be sent back when the above
+   function pointer will be called */
+   void*                    pUserData;
+}WDI_EnterImpsReqParamsType;
+
+/*---------------------------------------------------------------------------
   WDI_EnterBmpsReqParamsType
   Enter BMPS parameters passed from WDI to WDA
 ---------------------------------------------------------------------------*/
@@ -7247,6 +7262,8 @@ typedef void (*WDI_SetBatchScanCb)(void *pData, WDI_SetBatchScanRspType *pRsp);
 
 #endif
 
+typedef void (*WDI_GetBcnMissRateCb)(wpt_uint8 status, wpt_uint32 bcnMissRate,
+                                     void* pUserData);
 
 /*========================================================================
  *     Function Declarations and Documentation
@@ -8439,6 +8456,7 @@ WDI_SetPwrSaveCfgReq
 WDI_Status 
 WDI_EnterImpsReq
 (
+   WDI_EnterImpsReqParamsType *pwdiEnterImpsReqParams,
    WDI_EnterImpsRspCb  wdiEnterImpsRspCb,
    void*                   pUserData
 );
@@ -9464,6 +9482,24 @@ wpt_boolean WDI_IsHwFrameTxTranslationCapable
   wpt_uint8 uSTAIdx
 );
 
+
+/**
+ @brief WDI_IsSelfSTA - check if staid is self sta index
+
+ @param  pWDICtx:   pointer to the WLAN DAL context
+         ucSTAIdx:  station index
+
+ @return Result of the function call
+*/
+
+wpt_boolean
+WDI_IsSelfSTA
+(
+   void*  pWDICtx,
+   wpt_uint8 ucSTAIdx
+);
+
+
 #ifdef WLAN_FEATURE_VOWIFI_11R
 /**
  @brief WDI_AggrAddTSReq will be called when the upper MAC to inform
@@ -10311,6 +10347,12 @@ WDI_TriggerBatchScanResultInd(WDI_TriggerBatchScanResultIndType *pWdiReq);
 
 
 #endif /*FEATURE_WLAN_BATCH_SCAN*/
+
+
+WDI_Status WDI_GetBcnMissRate( void *pUserData,
+                                WDI_GetBcnMissRateCb wdiGetBcnMissRateCb,
+                                wpt_uint8   *bssid
+                             );
 
 #ifdef __cplusplus
  }
