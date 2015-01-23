@@ -7916,7 +7916,7 @@ static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
     {
         char chList [(request->n_channels*5)+1];
         int len;
-        for (i = 0; i < request->n_channels; i++)
+        for (i = 0, len = 0; i < request->n_channels; i++)
         {
             for (indx = 0; indx < num_channels_allowed; indx++)
             {
