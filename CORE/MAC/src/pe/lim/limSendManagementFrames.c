@@ -3810,33 +3810,14 @@ eHalStatus limSendDeauthCnf(tpAniSirGlobal pMac)
             goto end;
         }
 
-
         /// Receive path cleanup with dummy packet
         limCleanupRxPath(pMac, pStaDs,psessionEntry);
 
 #ifdef WLAN_FEATURE_VOWIFI_11R
-        if  ( (psessionEntry->limSystemRole == eLIM_STA_ROLE ) &&
-                (
-#ifdef FEATURE_WLAN_ESE
-                 (psessionEntry->isESEconnection ) ||
-#endif
-#ifdef FEATURE_WLAN_LFR
-                 (psessionEntry->isFastRoamIniFeatureEnabled ) ||
-#endif
-                 (psessionEntry->is11Rconnection )))
+        if  ( psessionEntry->limSystemRole == eLIM_STA_ROLE )
         {
-            PELOGE(limLog(pMac, LOGE,
-                   FL("FT Preauth Session (%p,%d) Cleanup"
-                      " Deauth reason %d Trigger = %d"),
-                   psessionEntry, psessionEntry->peSessionId,
-                   pMlmDeauthReq->reasonCode,
-                   pMlmDeauthReq->deauthTrigger););
-            limFTCleanup(pMac);
-        }
-        else
-        {
-            PELOGE(limLog(pMac, LOGE,
-                   FL("No FT Preauth Session Cleanup in role %d"
+            PELOGE(limLog(pMac, LOG1,
+                   FL("FT Preauth SessionId %d Cleanup"
 #ifdef FEATURE_WLAN_ESE
                    " isESE %d"
 #endif
@@ -3844,7 +3825,7 @@ eHalStatus limSendDeauthCnf(tpAniSirGlobal pMac)
                    " isLFR %d"
 #endif
                    " is11r %d, Deauth reason %d Trigger = %d"),
-                   psessionEntry->limSystemRole,
+                   psessionEntry->peSessionId,
 #ifdef FEATURE_WLAN_ESE
                    psessionEntry->isESEconnection,
 #endif
@@ -3854,6 +3835,8 @@ eHalStatus limSendDeauthCnf(tpAniSirGlobal pMac)
                    psessionEntry->is11Rconnection,
                    pMlmDeauthReq->reasonCode,
                    pMlmDeauthReq->deauthTrigger););
+
+            limFTCleanup(pMac);
         }
 #endif
 
@@ -3921,26 +3904,11 @@ eHalStatus limSendDisassocCnf(tpAniSirGlobal pMac)
 
 #ifdef WLAN_FEATURE_VOWIFI_11R
         if  ( (psessionEntry->limSystemRole == eLIM_STA_ROLE ) && 
-                (
-#ifdef FEATURE_WLAN_CCX
-                 (psessionEntry->isCCXconnection ) ||
-#endif
-#ifdef FEATURE_WLAN_LFR
-                 (psessionEntry->isFastRoamIniFeatureEnabled ) ||
-#endif
-                 (psessionEntry->is11Rconnection )) &&
                 (pMlmDisassocReq->reasonCode !=
                  eSIR_MAC_DISASSOC_DUE_TO_FTHANDOFF_REASON))
         {
-            PELOGE(limLog(pMac, LOGE,
-                   FL("FT Preauth Session (%p,%d) Cleanup"),
-                   psessionEntry, psessionEntry->peSessionId););
-            limFTCleanup(pMac);
-        }
-        else 
-        {
-            PELOGE(limLog(pMac, LOGE, 
-                   FL("No FT Preauth Session Cleanup in role %d"
+            PELOGE(limLog(pMac, LOG1,
+                   FL("FT Preauth SessionId %d Cleanup"
 #ifdef FEATURE_WLAN_CCX
                    " isCCX %d"
 #endif
@@ -3948,7 +3916,7 @@ eHalStatus limSendDisassocCnf(tpAniSirGlobal pMac)
                    " isLFR %d"
 #endif
                    " is11r %d reason %d"),
-                   psessionEntry->limSystemRole, 
+                   psessionEntry->peSessionId,
 #ifdef FEATURE_WLAN_CCX
                    psessionEntry->isCCXconnection,
 #endif
@@ -3957,6 +3925,7 @@ eHalStatus limSendDisassocCnf(tpAniSirGlobal pMac)
 #endif
                    psessionEntry->is11Rconnection,
                    pMlmDisassocReq->reasonCode););
+            limFTCleanup(pMac);
         }
 #endif
 
