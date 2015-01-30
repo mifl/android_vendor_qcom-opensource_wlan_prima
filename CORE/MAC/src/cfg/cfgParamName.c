@@ -256,7 +256,7 @@ unsigned char *gCfgParamName[] = {
     (unsigned char *)"MAX_BA_SESSIONS",
     (unsigned char *)"BA_AUTO_SETUP",
     (unsigned char *)"ADDBA_REQ_DECLINE",
-    (unsigned char *)"DEL_ALL_RX_BA_SESSIONS_2_4_G_BTC",
+    (unsigned char *)"DEL_ALL_RX_TX_BA_SESSIONS_2_4_G_BTC",
     (unsigned char *)"BG_SCAN_CHANNEL_LIST",
     (unsigned char *)"MAX_MEDIUM_TIME",
     (unsigned char *)"MAX_MPDUS_IN_AMPDU",
@@ -340,6 +340,7 @@ unsigned char *gCfgParamName[] = {
     (unsigned char *)"BTC_SAP_ACTIVE_WLAN_LEN",
     (unsigned char *)"BTC_SAP_ACTIVE_BT_LEN",
     (unsigned char *)"GO_LINK_MONITOR_TIMEOUT",
+    (unsigned char *)"DEBUG_P2P_REMAIN_ON_CHANNEL",
 };
 
 

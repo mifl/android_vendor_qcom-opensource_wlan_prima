@@ -64,6 +64,19 @@
 #include "wlan_nv.h"
 #include "wlan_nv2.h"
 
+/* Maximum number of channels per country can be ignored */
+#define MAX_CHANNELS_IGNORE 10
+#define MAX_COUNTRY_IGNORE 5
+
+typedef struct sCsrIgnoreChannels
+{
+   tANI_U8 countryCode[NV_FIELD_COUNTRY_CODE_SIZE];
+   tANI_U16 channelList[MAX_CHANNELS_IGNORE];
+   tANI_U16 channelCount;
+}tCsrIgnoreChannels;
+
+extern tCsrIgnoreChannels countryIgnoreList[];
+
 /*--------------------------------------------------------------------------
   Preprocessor definitions and constants
   ------------------------------------------------------------------------*/
@@ -755,4 +768,16 @@ eNvVersionType vos_nv_getNvVersion
   \sa
   -------------------------------------------------------------------------*/
 v_U16_t vos_chan_to_freq(v_U8_t chanNum);
+
+/**------------------------------------------------------------------------
+  \brief vos_is_nv_country_non_zero -
+  \param   NONE
+  \return Success if default Country is Non-Zero
+  \sa
+  -------------------------------------------------------------------------*/
+
+v_BOOL_t vos_is_nv_country_non_zero
+(
+   void
+);
 #endif // __VOS_NVITEM_H
