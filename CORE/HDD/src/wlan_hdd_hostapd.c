@@ -1356,13 +1356,47 @@ static __iw_softap_setparam(struct net_device *dev,
                           union iwreq_data *wrqu, char *extra)
 {
     hdd_adapter_t *pHostapdAdapter = (netdev_priv(dev));
-    tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
+    tHalHandle hHal;
+    hdd_context_t *pHddCtx = NULL;
+    v_CONTEXT_t pVosContext;
     int *value = (int *)extra;
     int sub_cmd = value[0];
     int set_value = value[1];
     eHalStatus status;
     int ret = 0; /* success */
-    v_CONTEXT_t pVosContext = (WLAN_HDD_GET_CTX(pHostapdAdapter))->pvosContext; 
+
+    if (NULL == pHostapdAdapter)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: hostapd Adapter is null",
+                  __func__);
+        return -1;
+    }
+
+    pHddCtx = WLAN_HDD_GET_CTX(pHostapdAdapter);
+    ret = wlan_hdd_validate_context(pHddCtx);
+    if (0 != ret)
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+               "%s: HDD context is not valid (%d)", __func__, ret);
+        return -1;
+    }
+
+    hHal = WLAN_HDD_GET_HAL_CTX(pHostapdAdapter);
+    if (!hHal)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: Hal ctx is null", __func__);
+        return -1;
+    }
+
+    pVosContext = (WLAN_HDD_GET_CTX(pHostapdAdapter))->pvosContext;
+    if (!pVosContext)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: Vos ctx is null", __func__);
+        return -1;
+    }
 
     switch(sub_cmd)
     {
