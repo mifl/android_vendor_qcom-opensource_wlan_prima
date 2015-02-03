@@ -1026,7 +1026,17 @@ static tANI_BOOLEAN limAgeOutProbeReq( tpAniSirGlobal pMac, tpSirMsgQ  limMsg,
     return match;
 }
 
-
+void limDecrementPendingMgmtCount (tpAniSirGlobal pMac)
+{
+    if( pMac->sys.gSysBbtPendingMgmtCount )
+    {
+         vos_spin_lock_acquire( &pMac->sys.lock );
+         pMac->sys.gSysBbtPendingMgmtCount--;
+         vos_spin_lock_release( &pMac->sys.lock );
+    }
+    else
+         limLog(pMac, LOGW, FL("Pending Management count going negative"));
+}
 /**
  * limProcessMessages
  *
@@ -1151,9 +1161,6 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
 #ifdef WLAN_DEBUG                
             pMac->lim.numBbt++;
 #endif
-            vos_spin_lock_acquire( &pMac->sys.lock );
-            pMac->sys.gSysBbtPendingMgmtCount--;
-            vos_spin_lock_release( &pMac->sys.lock );
             {
                 v_U16_t     pktLen = 0;
                 vos_pkt_t  *pVosPkt;
@@ -1177,6 +1184,7 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
 
                 if( !VOS_IS_STATUS_SUCCESS(vosStatus) )
                 {
+                    limDecrementPendingMgmtCount(pMac);
                     vos_pkt_return_packet(pVosPkt);
                     break;
 
@@ -1190,6 +1198,7 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
 
                 if( limAgeOutProbeReq ( pMac, &limMsgNew, pVosPkt ))
                 {
+                   limDecrementPendingMgmtCount(pMac);
                    break;
                 }
 
@@ -1224,6 +1233,7 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
                                 pMac->lim.gLimSystemRole,  pMac->lim.gLimMlmState,  pMac->lim.gLimPrevMlmState);)
                             limLogSessionStates(pMac);
                             limPrintMsgName(pMac, LOGE, limMsg->type);
+                            limDecrementPendingMgmtCount(pMac);
                             vos_pkt_return_packet(pVosPkt);
                         }
                 }
@@ -1233,6 +1243,7 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
                      * Asumption here is when Rx mgmt frame processing is done,
                      * voss packet could be freed here.
                      */
+                    limDecrementPendingMgmtCount(pMac);
                     vos_pkt_return_packet(pVosPkt);
                 }
             }
