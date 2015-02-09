@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -511,5 +511,8 @@ void limUtilsframeshtonl(tpAniSirGlobal  pCtx,
                             tANI_U8  *pOut,
                             tANI_U32  pIn,
                             tANI_U8  fMsb);
+
+void limParseBeaconForTim(tpAniSirGlobal pMac, tANI_U8* pRxPacketInfo,
+                          tpPESession psessionEntry);
 
 #endif /* __LIM_UTILS_H */
