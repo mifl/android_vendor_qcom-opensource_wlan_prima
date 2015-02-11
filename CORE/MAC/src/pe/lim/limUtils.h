@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -537,5 +537,7 @@ void limUpdateOBSSScanParams(tpPESession psessionEntry ,
 #ifdef WLAN_FEATURE_11W
 void limPmfSaQueryTimerHandler(void *pMacGlobal, tANI_U32 param);
 #endif
+void limParseBeaconForTim(tpAniSirGlobal pMac, tANI_U8* pRxPacketInfo,
+                          tpPESession psessionEntry);
 
 #endif /* __LIM_UTILS_H */
