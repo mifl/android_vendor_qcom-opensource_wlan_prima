@@ -3577,7 +3577,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            /* Proceed with scan/roam */
            smeIssueFastRoamNeighborAPEvent(WLAN_HDD_GET_HAL_CTX(pAdapter),
                                            &targetApBssid[0],
-                                           (tSmeFastRoamTrigger)(trigger));
+                                           (tSmeFastRoamTrigger)(trigger),
+                                           channel);
        }
 #endif
 #ifdef FEATURE_WLAN_ESE
