@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -73,6 +73,12 @@ typedef enum
 {\
     *pCurVal = (tLimBAState)(((pSta->baState >> tid*2) & 0x3));\
 }
+
+#define LIM_DFS_START_CHANNEL 52
+#define LIM_DFS_END_CHANNEL   144
+
+#define LIM_IS_CHANNEL_DFS(chnNum) \
+     (((chnNum) >= LIM_DFS_START_CHANNEL) && ((chnNum) <= LIM_DFS_END_CHANNEL))
 
 typedef struct sAddBaInfo
 {
