@@ -1075,6 +1075,7 @@ typedef struct sAniSirGlobal
     v_BOOL_t isCoexScoIndSet;
     v_U8_t miracast_mode;
     tANI_BOOLEAN miracastVendorConfig;
+    v_BOOL_t fActiveScanOnDFSChannels;
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS
