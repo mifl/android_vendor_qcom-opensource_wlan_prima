@@ -2422,6 +2422,8 @@ static __iw_softap_getassoc_stamacaddr(struct net_device *dev,
         return -ENOMEM;
     }
 
+    pStaInfo = pHostapdAdapter->aStaInfo;
+
     /* start indexing beyond where the record count will be written */
     maclist_index = sizeof(maclist_index);
     left = wrqu->data.length - maclist_index;
