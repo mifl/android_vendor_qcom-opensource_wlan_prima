@@ -1132,7 +1132,9 @@ void limHandleFTPreAuthRsp(tpAniSirGlobal pMac, tSirRetStatus status,
                                               &sessionId, pMac->lim.maxStation)) == NULL)
         {
             limLog(pMac, LOGE, FL("Session Can not be created for pre-auth 11R AP"));
-            return;
+            status = eSIR_FAILURE;
+            pMac->ft.ftPEContext.ftPreAuthStatus = status;
+            goto out;
         }
         pftSessionEntry->peSessionId = sessionId;
         sirCopyMacAddr(pftSessionEntry->selfMacAddr, psessionEntry->selfMacAddr);
@@ -1161,7 +1163,7 @@ void limHandleFTPreAuthRsp(tpAniSirGlobal pMac, tSirRetStatus status,
         sirCopyMacAddr(psessionEntry->limReAssocbssId, pbssDescription->bssId);
         limPrintMacAddr(pMac, psessionEntry->limReAssocbssId, LOG1);
     }
-
+out:
     if (psessionEntry->currentOperChannel !=
         pMac->ft.ftPEContext.pFTPreAuthReq->preAuthchannelNum)
     {
