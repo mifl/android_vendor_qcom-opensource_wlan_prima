@@ -1245,7 +1245,6 @@ static tANI_BOOLEAN limAgeOutProbeReq( tpAniSirGlobal pMac, tpSirMsgQ  limMsg,
     return match;
 }
 
-
 /**
  * limProcessMessages
  *
