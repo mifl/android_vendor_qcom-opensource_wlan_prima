@@ -501,7 +501,6 @@ void limCleanUpDisassocDeauthReq(tpAniSirGlobal pMac, tANI_U8 *staMac, tANI_BOOL
 
 tANI_BOOLEAN limCheckDisassocDeauthAckPending(tpAniSirGlobal pMac, tANI_U8 *staMac);
 
-
 void limUtilsframeshtons(tpAniSirGlobal  pCtx,
                             tANI_U8  *pOut,
                             tANI_U16  pIn,
@@ -515,4 +514,5 @@ void limUtilsframeshtonl(tpAniSirGlobal  pCtx,
 void limParseBeaconForTim(tpAniSirGlobal pMac, tANI_U8* pRxPacketInfo,
                           tpPESession psessionEntry);
 
+void limDecrementPendingMgmtCount (tpAniSirGlobal pMac);
 #endif /* __LIM_UTILS_H */
