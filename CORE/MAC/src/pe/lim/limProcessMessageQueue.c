@@ -1192,9 +1192,6 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
 #ifdef WLAN_DEBUG
             pMac->lim.numBbt++;
 #endif
-            vos_spin_lock_acquire( &pMac->sys.lock );
-            pMac->sys.gSysBbtPendingMgmtCount--;
-            vos_spin_lock_release( &pMac->sys.lock );
             {
                 v_U16_t     pktLen = 0;
                 vos_pkt_t  *pVosPkt;
