@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -176,6 +176,7 @@ enum eSirHostMsgTypes
 enum {
     SIR_BOOT_MODULE_ID = 1,
     SIR_HAL_MODULE_ID  = 0x10,
+    SIR_HAL_EXT_MODULE_ID  = 0x11,
     SIR_CFG_MODULE_ID = 0x12,
     SIR_LIM_MODULE_ID,
     SIR_ARQ_MODULE_ID,
@@ -3632,6 +3633,13 @@ typedef struct sSirSmeDelStaSelfRsp
     tSirMacAddr     selfMacAddr;
 }tSirSmeDelStaSelfRsp, *tpSirSmeDelStaSelfRsp;
 
+typedef enum DFSChanScanType
+{
+    DFS_CHNL_SCAN_DISABLED,
+    DFS_CHNL_SCAN_ENABLED_NORMAL,
+    DFS_CHNL_SCAN_ENABLED_ACTIVE
+}eDFSChanScanType;
+
 /* Coex Indication defines - 
    should match WLAN_COEX_IND_DATA_SIZE 
    should match WLAN_COEX_IND_TYPE_DISABLE_HB_MONITOR 
@@ -3713,6 +3721,30 @@ typedef struct sSirWlanSetRxpFilters
     tANI_U8 setMcstBcstFilter;
 }tSirWlanSetRxpFilters,*tpSirWlanSetRxpFilters;
 
+typedef void(*MgmtLoggingInitReqCb)(void *mgmtlogInitCbContext,
+                                                       VOS_STATUS status);
+typedef void ( *tGetFrameLogCallback) (void *pContext);
+
+typedef struct sAniGetFrameLogReq
+{
+    tANI_U16               msgType;
+    tANI_U16               msgLen;
+    tGetFrameLogCallback   getFramelogCallback;
+    void                   *pDevContext;       //device context
+    tANI_U8                getFrameLogCmdFlag;
+    tANI_U32               rspStatus;
+} tAniGetFrameLogReq,      *tpAniGetFrameLogReq;
+
+
+typedef struct sSirMgmtLoggingInitParam
+{
+    tANI_U8                enableFlag;
+    tANI_U8                frameType;
+    tANI_U8                frameSize;
+    tANI_U8                bufferMode;
+    MgmtLoggingInitReqCb   mgmtlogInitCallback;
+    void                   *mgmtlogInitCbContext;
+}tSirMgmtLoggingInitParam,*tpSirMgmtLoggingInitParam;
 
 #ifdef FEATURE_WLAN_SCAN_PNO
 //

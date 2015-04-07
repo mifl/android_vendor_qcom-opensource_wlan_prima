@@ -3523,7 +3523,60 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            pHddCtx->cfg_ini->isFastTransitionEnabled = ft;
            sme_UpdateFastTransitionEnabled((tHalHandle)(pHddCtx->hHal), ft);
        }
+       else if (strncmp(command, "SETDFSSCANMODE", 14) == 0)
+       {
+           tANI_U8 *value = command;
+           tANI_U8 dfsScanMode = DFS_CHNL_SCAN_ENABLED_NORMAL;
 
+           /* Move pointer to ahead of SETDFSSCANMODE<delimiter> */
+           value = value + 15;
+           /* Convert the value from ascii to integer */
+           ret = kstrtou8(value, 10, &dfsScanMode);
+           if (ret < 0)
+           {
+               /* If the input value is greater than max value of
+                               datatype, then also kstrtou8 fails
+                          */
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "%s: kstrtou8 failed range [%d - %d]", __func__,
+                      CFG_ENABLE_DFS_CHNL_SCAN_MIN,
+                      CFG_ENABLE_DFS_CHNL_SCAN_MAX);
+               ret = -EINVAL;
+               goto exit;
+           }
+
+           if ((dfsScanMode < CFG_ENABLE_DFS_CHNL_SCAN_MIN) ||
+               (dfsScanMode > CFG_ENABLE_DFS_CHNL_SCAN_MAX))
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                      "dfsScanMode value %d is out of range"
+                      " (Min: %d Max: %d)", dfsScanMode,
+                      CFG_ENABLE_DFS_CHNL_SCAN_MIN,
+                      CFG_ENABLE_DFS_CHNL_SCAN_MAX);
+               ret = -EINVAL;
+               goto exit;
+           }
+           VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                      "%s: Received Command to Set DFS Scan Mode = %d",
+                      __func__, dfsScanMode);
+
+           ret = wlan_hdd_handle_dfs_chan_scan(pHddCtx, dfsScanMode);
+       }
+       else if (strncmp(command, "GETDFSSCANMODE", 14) == 0)
+       {
+           tANI_U8 dfsScanMode = sme_GetDFSScanMode(pHddCtx->hHal);
+           char extra[32];
+           tANI_U8 len = 0;
+
+           len = scnprintf(extra, sizeof(extra), "%s %d", command, dfsScanMode);
+           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           {
+               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  "%s: failed to copy data to user buffer", __func__);
+               ret = -EFAULT;
+               goto exit;
+           }
+       }
        else if (strncmp(command, "FASTREASSOC", 11) == 0)
        {
            tANI_U8 *value = command;
@@ -8918,6 +8971,102 @@ static eHalStatus hdd_11d_scan_done(tHalHandle halHandle, void *pContext,
 
     return eHAL_STATUS_SUCCESS;
 }
+/**---------------------------------------------------------------------------
+
+  \brief hdd_init_frame_logging_done - callback to be executed when mgmt frame
+                                       logging is completed successfully.
+
+  \return -  None
+
+  --------------------------------------------------------------------------*/
+void hdd_init_frame_logging_done(void *mgmtlogInitCbContext, VOS_STATUS status)
+{
+   hdd_context_t* pHddCtx = (hdd_context_t*)mgmtlogInitCbContext;
+
+   if (NULL == pHddCtx)
+   {
+      hddLog(VOS_TRACE_LEVEL_ERROR,
+                 "%s: HDD context is NULL",__func__);
+      return;
+   }
+
+   if (VOS_STATUS_SUCCESS == status)
+   {
+      hddLog(VOS_TRACE_LEVEL_INFO, FL("Mgmt Frame Logging init successful"));
+      pHddCtx->mgmt_frame_logging = TRUE;
+   }
+   else
+   {
+      hddLog(VOS_TRACE_LEVEL_INFO, FL("Mgmt Frame Logging init not success"));
+      pHddCtx->mgmt_frame_logging = FALSE;
+   }
+
+   return;
+}
+/**---------------------------------------------------------------------------
+
+  \brief hdd_init_frame_logging - function to initialize frame logging.
+                            Currently only Mgmt Frames are logged in both TX
+                            and Rx direction and are sent to userspace
+                            application using logger thread when queried.
+
+  \return -  None
+
+  --------------------------------------------------------------------------*/
+void hdd_init_frame_logging(hdd_context_t* pHddCtx, v_BOOL_t enable)
+{
+   eHalStatus halStatus = eHAL_STATUS_FAILURE;
+   tpSirMgmtLoggingInitParam wlanMgmtLoggingInitParam;
+
+   if (TRUE != sme_IsFeatureSupportedByFW(MGMT_FRAME_LOGGING))
+   {
+       hddLog(VOS_TRACE_LEVEL_INFO, FL("MGMT_FRAME_LOGGING not supp by FW"));
+       return;
+   }
+
+   wlanMgmtLoggingInitParam = vos_mem_malloc(sizeof(tSirMgmtLoggingInitParam));
+   if(NULL == wlanMgmtLoggingInitParam)
+   {
+       hddLog(VOS_TRACE_LEVEL_FATAL, "%s: vos_mem_alloc failed ", __func__);
+       return;
+   }
+
+   vos_mem_set(wlanMgmtLoggingInitParam, sizeof(tSirMgmtLoggingInitParam), 0);
+
+   hddLog(VOS_TRACE_LEVEL_INFO, "%s: Configuring Mgmt Frame Logging %d",
+                                     __func__, enable);
+
+   if (enable)
+   {
+      wlanMgmtLoggingInitParam->enableFlag |= WLAN_FRAME_LOG_EN;
+   }
+
+   if (pHddCtx->cfg_ini->enableBMUHWtracing)
+   {
+      wlanMgmtLoggingInitParam->enableFlag |= WLAN_BMUHW_TRACE_LOG_EN;
+   }
+
+   wlanMgmtLoggingInitParam->frameType = WLAN_FRAME_LOGGING_FRAMETYPE_MGMT;
+   wlanMgmtLoggingInitParam->frameSize = WLAN_MGMT_LOGGING_FRAMESIZE_128BYTES;
+   wlanMgmtLoggingInitParam->bufferMode =
+                                       WLAN_FRAME_LOGGING_BUFFERMODE_CIRCULAR;
+
+   wlanMgmtLoggingInitParam->enableFlag &= ~WLAN_QXDM_LOG_EN;
+   wlanMgmtLoggingInitParam->enableFlag &= ~WLAN_DPU_TXP_LOG_EN;
+
+   wlanMgmtLoggingInitParam->mgmtlogInitCallback = hdd_init_frame_logging_done;
+   wlanMgmtLoggingInitParam->mgmtlogInitCbContext= pHddCtx;
+
+   halStatus = sme_InitMgmtFrameLogging(pHddCtx->hHal,
+                                                      wlanMgmtLoggingInitParam);
+
+   if (eHAL_STATUS_SUCCESS != halStatus)
+   {
+       vos_mem_free(wlanMgmtLoggingInitParam);
+   }
+
+   return;
+}
 
 /**---------------------------------------------------------------------------
 
@@ -9639,7 +9788,20 @@ int hdd_wlan_startup(struct device *dev )
            pHddCtx->cfg_ini->gEnableDebugLog =
            VOS_PKT_PROTO_TYPE_EAPOL | VOS_PKT_PROTO_TYPE_DHCP;
    }
+
+   if (pHddCtx->cfg_ini->enableMgmtLogging &&
+               pHddCtx->cfg_ini->wlanLoggingEnable)
+   {
+       hdd_init_frame_logging(pHddCtx, TRUE);
+   }
+   else
+   {
+       hddLog(VOS_TRACE_LEVEL_INFO, FL("Mgmt Logging disabled in ini"));
+   }
+
 #endif
+
+
    hdd_register_mcast_bcast_filter(pHddCtx);
    if (VOS_STA_SAP_MODE != hdd_get_conparam())
    {
@@ -9679,6 +9841,10 @@ int hdd_wlan_startup(struct device *dev )
 #endif
    /* Send the update default channel list to the FW*/
    sme_UpdateChannelList(pHddCtx->hHal);
+
+   /* Fwr capabilities received, Set the Dot11 mode */
+   sme_SetDefDot11Mode(pHddCtx->hHal);
+
 #ifndef CONFIG_ENABLE_LINUX_REG
    /*updating wiphy so that regulatory user hints can be processed*/
    if (wiphy)
@@ -10030,6 +10196,12 @@ static void hdd_driver_exit(void)
    }
    else
    {
+      /* We wait for active entry threads to exit from driver
+       * by waiting until rtnl_lock is available.
+       */
+      rtnl_lock();
+      rtnl_unlock();
+
       INIT_COMPLETION(pHddCtx->ssr_comp_var);
       if ((pHddCtx->isLogpInProgress) && (FALSE ==
                   vos_is_wlan_in_badState(VOS_MODULE_ID_HDD, NULL)))
@@ -10046,10 +10218,8 @@ static void hdd_driver_exit(void)
          }
       }
 
-      rtnl_lock();
       pHddCtx->isLoadUnloadInProgress = WLAN_HDD_UNLOAD_IN_PROGRESS;
       vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
-      rtnl_unlock();
 
        /* Driver Need to send country code 00 in below condition
         * 1) If gCountryCodePriority is set to 1; and last country
@@ -10855,6 +11025,20 @@ VOS_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx)
     return sme_isSta_p2p_clientConnected(pHddCtx->hHal);
 }
 
+
+/*
+ * API to find if the firmware will send logs using DXE channel
+ */
+v_U8_t hdd_is_fw_logging_enabled(void)
+{
+    hdd_context_t *pHddCtx;
+
+    pHddCtx = vos_get_context(VOS_MODULE_ID_HDD,
+                              vos_get_global_context(VOS_MODULE_ID_HDD, NULL));
+
+    return (pHddCtx && pHddCtx->mgmt_frame_logging);
+}
+
 /*
  * API to find if there is any session connected
  */
@@ -10962,6 +11146,94 @@ hdd_remain_on_chan_ctx_t *hdd_get_remain_on_channel_ctx(hdd_context_t *pHddCtx)
         pAdapterNode = pNext;
     }
     return pRemainChanCtx;
+}
+
+/**
+ * wlan_hdd_handle_dfs_chan_scan () - handles disable/enable DFS channels
+ *
+ * @pHddCtx: HDD context within host driver
+ * @dfsScanMode: dfsScanMode passed from ioctl
+ *
+ */
+
+VOS_STATUS wlan_hdd_handle_dfs_chan_scan(hdd_context_t *pHddCtx,
+                                   tANI_U8 dfsScanMode)
+{
+    hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
+    hdd_adapter_t *pAdapter;
+    VOS_STATUS vosStatus;
+    hdd_station_ctx_t *pHddStaCtx;
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+
+    if(!pHddCtx)
+    {
+       hddLog(LOGE, FL("HDD context is Null"));
+       return eHAL_STATUS_FAILURE;
+    }
+
+    if (pHddCtx->scan_info.mScanPending)
+    {
+        hddLog(LOG1, FL("Aborting scan for sessionId: %d"),
+               pHddCtx->scan_info.sessionId);
+        hdd_abort_mac_scan(pHddCtx,
+                           pHddCtx->scan_info.sessionId,
+                           eCSR_SCAN_ABORT_DEFAULT);
+    }
+
+    if (!dfsScanMode)
+    {
+        vosStatus = hdd_get_front_adapter( pHddCtx, &pAdapterNode);
+        while ((NULL != pAdapterNode) &&
+               (VOS_STATUS_SUCCESS == vosStatus))
+        {
+            pAdapter = pAdapterNode->pAdapter;
+
+            if (WLAN_HDD_INFRA_STATION == pAdapter->device_mode)
+            {
+                pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+
+                if(!pHddStaCtx)
+                {
+                   hddLog(LOGE, FL("HDD STA context is Null"));
+                   return eHAL_STATUS_FAILURE;
+                }
+
+                /* if STA is already connected on DFS channel,
+                                disconnect immediately*/
+                if (hdd_connIsConnected(pHddStaCtx) &&
+                    (NV_CHANNEL_DFS ==
+                     vos_nv_getChannelEnabledState(
+                         pHddStaCtx->conn_info.operationChannel)))
+                {
+                    status = sme_RoamDisconnect(pHddCtx->hHal,
+                             pAdapter->sessionId,
+                             eCSR_DISCONNECT_REASON_UNSPECIFIED);
+                    hddLog(LOG1, FL("Client connected on DFS channel %d,"
+                           "sme_RoamDisconnect returned with status: %d"
+                           "for sessionid: %d"), pHddStaCtx->conn_info.
+                            operationChannel, status, pAdapter->sessionId);
+                }
+            }
+
+            vosStatus = hdd_get_next_adapter(pHddCtx, pAdapterNode,
+                                              &pNext);
+            pAdapterNode = pNext;
+        }
+    }
+
+    sme_UpdateDFSScanMode(pHddCtx->hHal, dfsScanMode);
+    sme_UpdateDFSRoamMode(pHddCtx->hHal,
+                         (dfsScanMode != DFS_CHNL_SCAN_DISABLED));
+
+    status = sme_HandleDFSChanScan(pHddCtx->hHal);
+    if (!HAL_STATUS_SUCCESS(status))
+    {
+         hddLog(LOGE,
+                FL("Failed in sme_HandleDFSChanScan (err=%d)"), status);
+         return status;
+    }
+
+    return status;
 }
 
 //Register the module init/exit functions

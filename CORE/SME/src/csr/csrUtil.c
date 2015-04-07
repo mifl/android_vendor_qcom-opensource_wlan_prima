@@ -2056,8 +2056,39 @@ eHalStatus csrGetParsedBssDescriptionIEs(tHalHandle hHal, tSirBssDescription *pB
     return (status);
 }
 
+eHalStatus csrProcessGetFrameLogCommand( tpAniSirGlobal pMac,
+                                         tSmeCmd *pCommand )
+{
+   tAniGetFrameLogReq *pMsg;
+   tANI_U16 msgLen;
+   eHalStatus status = eHAL_STATUS_FAILURE;
 
+   msgLen = sizeof(tAniGetFrameLogReq);
 
+   if ( NULL == pCommand )
+   {
+       smsLog( pMac, LOGE, FL("cannot process. cmd is null") );
+       return eHAL_STATUS_FAILURE;
+   }
+
+   pMsg = vos_mem_malloc(msgLen);
+   if ( NULL == pMsg )
+   {
+       smsLog( pMac, LOGE, FL("fail to allocate memory") );
+       return eHAL_STATUS_FAILURE;
+   }
+
+   pMsg->msgType= pal_cpu_to_be16((tANI_U16)WDA_GET_FRAME_LOG_REQ);
+   pMsg->msgLen= pal_cpu_to_be16(msgLen);
+
+   pMsg->pDevContext = pCommand->u.getFramelogCmd.pDevContext;
+   pMsg->getFramelogCallback= pCommand->u.getFramelogCmd.getFramelogCallback;
+   pMsg->getFrameLogCmdFlag = pCommand->u.getFramelogCmd.getFrameLogCmdFlag;
+
+   status = palSendMBMessage(pMac->hHdd, pMsg);
+
+   return( status );
+}
 
 tANI_BOOLEAN csrIsNULLSSID( tANI_U8 *pBssSsid, tANI_U8 len )
 {
@@ -2169,7 +2200,15 @@ tANI_U32 csrTranslateToWNICfgDot11Mode(tpAniSirGlobal pMac, eCsrCfgDot11Mode csr
         }
         else
         {
-            ret = WNI_CFG_DOT11_MODE_11AC;
+#ifdef WLAN_FEATURE_11AC
+            if ( IS_FEATURE_SUPPORTED_BY_DRIVER(DOT11AC) &&
+                     IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
+                ret = WNI_CFG_DOT11_MODE_11AC;
+            else
+                ret = WNI_CFG_DOT11_MODE_11N;
+#else
+            ret = WNI_CFG_DOT11_MODE_11N;
+#endif
         }
         break;
     case eCSR_CFG_DOT11_MODE_TAURUS:
@@ -2194,19 +2233,27 @@ tANI_U32 csrTranslateToWNICfgDot11Mode(tpAniSirGlobal pMac, eCsrCfgDot11Mode csr
         ret = WNI_CFG_DOT11_MODE_TITAN;
         break;
     case eCSR_CFG_DOT11_MODE_11G_ONLY:
-       ret = WNI_CFG_DOT11_MODE_11G_ONLY;
-       break;
+        ret = WNI_CFG_DOT11_MODE_11G_ONLY;
+        break;
     case eCSR_CFG_DOT11_MODE_11N_ONLY:
-       ret = WNI_CFG_DOT11_MODE_11N_ONLY;
-       break;
+        ret = WNI_CFG_DOT11_MODE_11N_ONLY;
+        break;
 
 #ifdef WLAN_FEATURE_11AC
-     case eCSR_CFG_DOT11_MODE_11AC_ONLY:
-        ret = WNI_CFG_DOT11_MODE_11AC_ONLY;
+    case eCSR_CFG_DOT11_MODE_11AC_ONLY:
+        if ( IS_FEATURE_SUPPORTED_BY_DRIVER(DOT11AC) &&
+             IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
+            ret = WNI_CFG_DOT11_MODE_11AC_ONLY;
+        else
+            ret = WNI_CFG_DOT11_MODE_11N;
         break;
-     case eCSR_CFG_DOT11_MODE_11AC:
-        ret = WNI_CFG_DOT11_MODE_11AC;
-       break;
+    case eCSR_CFG_DOT11_MODE_11AC:
+        if ( IS_FEATURE_SUPPORTED_BY_DRIVER(DOT11AC) &&
+             IS_FEATURE_SUPPORTED_BY_FW(DOT11AC))
+             ret = WNI_CFG_DOT11_MODE_11AC;
+        else
+            ret = WNI_CFG_DOT11_MODE_11N;
+        break;
 #endif
     default:
         smsLog(pMac, LOGW, FL("doesn't expect %d as csrDo11Mode"), csrDot11Mode);
