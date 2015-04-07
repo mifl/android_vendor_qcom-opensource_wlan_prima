@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -633,9 +633,6 @@ tBssSystemRole wdaGetGlobalSystemRole(tpAniSirGlobal pMac);
 #define WDA_TL_TX_SUSPEND_SUCCESS   0
 #define WDA_TL_TX_SUSPEND_FAILURE   1
 
-// FIXME Temporary value for R33D integaration
-//#define WDA_TL_TX_FRAME_TIMEOUT  20000 /* in msec a very high upper limit */
-
 #define DPU_FEEDBACK_UNPROTECTED_ERROR 0x0F
 
 
@@ -764,6 +761,10 @@ tBssSystemRole wdaGetGlobalSystemRole(tpAniSirGlobal pMac);
 /* WDA_IS_RX_LLC_PRESENT *****************************************************/
 #  define WDA_IS_RX_LLC_PRESENT(pRxMeta)    \
       ( (0 == ((WDI_DS_RxMetaInfoType*)(pRxMeta))->llcr) ? VOS_TRUE : VOS_FALSE )
+
+#  define WDA_IS_LOGGING_DATA(pRxMeta)    \
+        ((0 == ((WDI_DS_RxMetaInfoType*)(pRxMeta))->loggingData) ? VOS_FALSE \
+                                                                 : VOS_TRUE)
 
 #define WLANWDA_HO_IS_AN_AMPDU                    0x4000
 #define WLANWDA_HO_LAST_MPDU_OF_AMPDU             0x400
@@ -905,6 +906,7 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_TL_FLUSH_AC_RSP SIR_HAL_TL_FLUSH_AC_RSP
 
 #define WDA_MSG_TYPES_BEGIN            SIR_HAL_MSG_TYPES_BEGIN
+#define WDA_EXT_MSG_TYPES_BEGIN        SIR_HAL_EXT_MSG_TYPES_BEGIN
 #define WDA_ITC_MSG_TYPES_BEGIN        SIR_HAL_ITC_MSG_TYPES_BEGIN
 #define WDA_RADAR_DETECTED_IND         SIR_HAL_RADAR_DETECTED_IND
 #define WDA_WDT_KAM_RSP                SIR_HAL_WDT_KAM_RSP 
@@ -1272,6 +1274,9 @@ eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
 
 #define WDA_SPOOF_MAC_ADDR_REQ               SIR_HAL_SPOOF_MAC_ADDR_REQ
 #define WDA_SPOOF_MAC_ADDR_RSP               SIR_HAL_SPOOF_MAC_ADDR_RSP
+
+#define WDA_MGMT_LOGGING_INIT_REQ               SIR_HAL_MGMT_LOGGING_INIT_REQ
+#define WDA_GET_FRAME_LOG_REQ                   SIR_HAL_GET_FRAME_LOG_REQ
 
 #define HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME 0x40 // Bit 6 will be used to control BD rate for Management frames
 
