@@ -3541,4 +3541,5 @@ eHalStatus sme_SetMiracastVendorConfig(tHalHandle hHal,
                                tANI_U32 iniNumBuffAdvert,
                                       tANI_U32 set_value);
 
+void sme_SetDefDot11Mode(tHalHandle hHal);
 #endif //#if !defined( __SME_API_H )

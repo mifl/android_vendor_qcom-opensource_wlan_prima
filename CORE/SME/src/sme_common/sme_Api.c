@@ -12016,3 +12016,9 @@ eHalStatus sme_SetMiracastVendorConfig(tHalHandle hHal,
     return eHAL_STATUS_SUCCESS;
 }
 
+void sme_SetDefDot11Mode(tHalHandle hHal)
+{
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    csrSetDefaultDot11Mode(pMac);
+}
+
