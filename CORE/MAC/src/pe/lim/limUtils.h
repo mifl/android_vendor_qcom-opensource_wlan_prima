@@ -538,4 +538,5 @@ void limPmfSaQueryTimerHandler(void *pMacGlobal, tANI_U32 param);
 void limParseBeaconForTim(tpAniSirGlobal pMac, tANI_U8* pRxPacketInfo,
                           tpPESession psessionEntry);
 
+void limDecrementPendingMgmtCount (tpAniSirGlobal pMac);
 #endif /* __LIM_UTILS_H */
