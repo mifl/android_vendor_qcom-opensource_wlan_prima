@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -6559,6 +6559,15 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
          //netif_tx_disable(pWlanDev);
          netif_carrier_off(pAdapter->dev);
 
+         if (WLAN_HDD_P2P_CLIENT == session_type ||
+                 WLAN_HDD_P2P_DEVICE == session_type)
+         {
+             /* Initialize the work queue to defer the
+              * back to back RoC request */
+             INIT_DELAYED_WORK(&pAdapter->roc_work,
+                     hdd_p2p_roc_work_queue);
+         }
+
          break;
       }
 
@@ -6593,6 +6602,14 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
          netif_carrier_off(pAdapter->dev);
 
          hdd_set_conparam( 1 );
+
+         if (WLAN_HDD_P2P_GO == session_type)
+         {
+             /* Initialize the work queue to
+              * defer the back to back RoC request */
+             INIT_DELAYED_WORK(&pAdapter->roc_work,
+                     hdd_p2p_roc_work_queue);
+         }
          break;
       }
       case WLAN_HDD_MONITOR:
@@ -6873,6 +6890,11 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
          if( hdd_connIsConnected(pstation) ||
              (pstation->conn_info.connState == eConnectionState_Connecting) )
          {
+#ifdef FEATURE_WLAN_TDLS
+              mutex_lock(&pHddCtx->tdls_lock);
+              wlan_hdd_tdls_exit(pAdapter, TRUE);
+              mutex_unlock(&pHddCtx->tdls_lock);
+#endif
             if (pWextState->roamProfile.BSSType == eCSR_BSS_TYPE_START_IBSS)
                 halStatus = sme_RoamDisconnect(pHddCtx->hHal,
                                              pAdapter->sessionId,
@@ -6944,6 +6966,9 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
                   break;
                }
             }
+#ifdef WLAN_OPEN_SOURCE
+          cancel_delayed_work_sync(&pAdapter->roc_work);
+#endif
        }
 #ifdef WLAN_NS_OFFLOAD
 #ifdef WLAN_OPEN_SOURCE
@@ -7002,6 +7027,10 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
                   break;
                }
             }
+
+#ifdef WLAN_OPEN_SOURCE
+            cancel_delayed_work_sync(&pAdapter->roc_work);
+#endif
          }
          mutex_lock(&pHddCtx->sap_lock);
          if (test_bit(SOFTAP_BSS_STARTED, &pAdapter->event_flags)) 
@@ -7165,6 +7194,11 @@ VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx )
           clear_bit(WMM_INIT_DONE, &pAdapter->event_flags);
       }
 
+      if (test_bit(SOFTAP_BSS_STARTED, &pAdapter->event_flags))
+      {
+          clear_bit(SOFTAP_BSS_STARTED, &pAdapter->event_flags);
+      }
+
 #ifdef FEATURE_WLAN_BATCH_SCAN
       if (eHDD_BATCH_SCAN_STATE_STARTED == pAdapter->batchScanState)
       {
@@ -7172,6 +7206,11 @@ VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx )
       }
 #endif
 
+#ifdef FEATURE_WLAN_TDLS
+      mutex_lock(&pHddCtx->tdls_lock);
+      wlan_hdd_tdls_exit(pAdapter, TRUE);
+      mutex_unlock(&pHddCtx->tdls_lock);
+#endif
       status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
       pAdapterNode = pNext;
    }
@@ -7892,6 +7931,9 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
 
    if (VOS_FTM_MODE != hdd_get_conparam())
    {
+      /* This will issue a dump command which will clean up
+         BTQM queues and unblock MC thread */
+      vos_fwDumpReq(274, 0, 0, 0, 0, 1);
       // Unloading, restart logic is no more required.
       wlan_hdd_restart_deinit(pHddCtx);
 
@@ -8702,6 +8744,8 @@ int hdd_wlan_startup(struct device *dev )
     */
    mutex_init(&pHddCtx->tdls_lock);
 #endif
+   mutex_init(&pHddCtx->wmmLock);
+
    /* By default Strict Regulatory For FCC should be false */
 
    pHddCtx->nEnableStrictRegulatoryForFCC = FALSE;
@@ -8820,7 +8864,7 @@ int hdd_wlan_startup(struct device *dev )
           goto err_free_hdd_context;
       }
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: FTM driver loaded success fully",__func__);
-
+      pHddCtx->isLoadUnloadInProgress = WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS;
       vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, FALSE);
       return VOS_STATUS_SUCCESS;
    }
@@ -9528,6 +9572,9 @@ static int hdd_driver_init( void)
 #ifdef HAVE_WCNSS_CAL_DOWNLOAD
    int max_retries = 0;
 #endif
+#ifdef HAVE_CBC_DONE
+   int max_cbc_retries = 0;
+#endif
 
 #ifdef WLAN_LOGGING_SOCK_SVC_ENABLE
    wlan_logging_sock_init_svc();
@@ -9556,6 +9603,7 @@ static int hdd_driver_init( void)
    while (!wcnss_device_ready() && 5 >= ++max_retries) {
        msleep(1000);
    }
+
    if (max_retries >= 5) {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: WCNSS driver not ready", __func__);
 #ifdef WLAN_OPEN_SOURCE
@@ -9567,6 +9615,15 @@ static int hdd_driver_init( void)
 #endif
 
       return -ENODEV;
+   }
+#endif
+
+#ifdef HAVE_CBC_DONE
+   while (!wcnss_cbc_complete() && 10 >= ++max_cbc_retries) {
+       msleep(1000);
+   }
+   if (max_cbc_retries >= 10) {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s:CBC not completed", __func__);
    }
 #endif
 
