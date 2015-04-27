@@ -1386,7 +1386,7 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
 #ifdef FEATURE_WLAN_TDLS_INTERNAL
                 tANI_U32    *pBD = NULL ;
 #endif 
-
+                MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_PROCESS, 0, 0 );)
                 /* The original limMsg which we were deferring have the 
                  * bodyPointer point to 'BD' instead of 'Vos pkt'. If we don't make a copy
                  * of limMsg, then vos_pkt_peek_data will overwrite the limMsg->bodyPointer. 
@@ -1407,6 +1407,16 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
                     break;
 
                 }
+
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+                if (WDA_GET_ROAMCANDIDATEIND(limMsgNew.bodyptr))
+                    limLog(pMac, LOG1, FL("roamCandidateInd %d"),
+                           WDA_GET_ROAMCANDIDATEIND(limMsgNew.bodyptr));
+
+                if (WDA_GET_OFFLOADSCANLEARN(limMsgNew.bodyptr))
+                    limLog(pMac, LOG1, FL("offloadScanLearn %d"),
+                           WDA_GET_OFFLOADSCANLEARN(limMsgNew.bodyptr));
+#endif
 
                 /*
                 * putting a check for age out probe request frames
@@ -1462,10 +1472,12 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
                      * Asumption here is when Rx mgmt frame processing is done,
                      * voss packet could be freed here.
                      */
+                    MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_PROCESS, 0, 3 );)
                     limDecrementPendingMgmtCount(pMac);
                     vos_pkt_return_packet(pVosPkt);
                 }
             }
+            MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_PROCESS, 0, 4 );)
             break;
 
         case eWNI_SME_SCAN_REQ:

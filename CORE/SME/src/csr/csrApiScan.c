@@ -3173,7 +3173,7 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
     {
         pBssDescription = GET_BASE_ADDR( pEntry, tCsrScanResult, Link );
 
-        smsLog( pMac, LOGW, "...Bssid= "MAC_ADDRESS_STR" chan= %d, rssi = -%d",
+        smsLog( pMac, LOG2, "...Bssid= "MAC_ADDRESS_STR" chan= %d, rssi = -%d",
                       MAC_ADDR_ARRAY(pBssDescription->Result.BssDescriptor.bssId),
                       pBssDescription->Result.BssDescriptor.channelId,
                 pBssDescription->Result.BssDescriptor.rssi * (-1) );
@@ -8412,7 +8412,7 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
 
 
    pParsedFrame =
-       (tpSirProbeRespBeacon)vos_mem_malloc(sizeof(tSirProbeRespBeacon));
+       (tpSirProbeRespBeacon)vos_mem_vmalloc(sizeof(tSirProbeRespBeacon));
 
    if (NULL == pParsedFrame)
    {
@@ -8425,7 +8425,7 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
       smsLog(pMac, LOGE,
          FL("Not enough bytes in PNO indication probe resp frame! length=%d"),
          pPrefNetworkFoundInd->frameLength);
-      vos_mem_free(pParsedFrame);
+      vos_mem_vfree(pParsedFrame);
       return eHAL_STATUS_FAILURE;
    }
 
@@ -8438,7 +8438,7 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
       smsLog(pMac, LOGE,
          FL("Parse error ProbeResponse, length=%d"),
          pPrefNetworkFoundInd->frameLength);
-      vos_mem_free(pParsedFrame);
+      vos_mem_vfree(pParsedFrame);
       return eHAL_STATUS_FAILURE;
    }
    //24 byte MAC header and 12 byte to ssid IE
@@ -8505,7 +8505,7 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
    {
       smsLog(pMac, LOGE, FL(" sme_GetCfgValidChannels failed "));
       csrFreeScanResultEntry(pMac, pScanResult);
-      vos_mem_free(pParsedFrame);
+      vos_mem_vfree(pParsedFrame);
       return eHAL_STATUS_FAILURE;
    }
    /* Checking chhanelId with allowed channel list */
@@ -8526,7 +8526,7 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
       smsLog(pMac, LOGW, FL(" prefered network found on invalid channel = %d"),
                                                          pBssDescr->channelId);
       csrFreeScanResultEntry(pMac, pScanResult);
-      vos_mem_free(pParsedFrame);
+      vos_mem_vfree(pParsedFrame);
       return eHAL_STATUS_FAILURE;
    }
 
@@ -8592,7 +8592,7 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
    {
       smsLog(pMac, LOGE, FL("  Cannot parse IEs"));
       csrFreeScanResultEntry(pMac, pScanResult);
-      vos_mem_free(pParsedFrame);
+      vos_mem_vfree(pParsedFrame);
       return eHAL_STATUS_RESOURCES;
    }
 
@@ -8620,7 +8620,7 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
        vos_mem_free(pIesLocal);
    }
 
-   vos_mem_free(pParsedFrame);
+   vos_mem_vfree(pParsedFrame);
 
    return eHAL_STATUS_SUCCESS;
 }

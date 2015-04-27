@@ -5758,6 +5758,10 @@ int wlan_hdd_cfg80211_init(struct device *dev,
     }
 #endif/*FEATURE_WLAN_SCAN_PNO*/
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0))
+    wiphy->features |= NL80211_FEATURE_HT_IBSS;
+#endif
+
 #ifdef CONFIG_ENABLE_LINUX_REG
     /* even with WIPHY_FLAG_CUSTOM_REGULATORY,
        driver can still register regulatory callback and
@@ -5772,7 +5776,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 
     wiphy->max_scan_ssids = MAX_SCAN_SSID;
 
-    wiphy->max_scan_ie_len = SIR_MAC_MAX_IE_LENGTH;
+    wiphy->max_scan_ie_len = SIR_MAC_MAX_ADD_IE_LENGTH;
 
     wiphy->max_acl_mac_addrs = MAX_ACL_MAC_ADDRESS;
 
@@ -9854,22 +9858,8 @@ wlan_hdd_cfg80211_inform_bss_frame( hdd_adapter_t *pAdapter,
        kfree(mgmt);
        return NULL;
     }
-    /*To keep the rssi icon of the connected AP in the scan window
-    *and the rssi icon of the wireless networks in sync
-    * */
-    if (( eConnectionState_Associated ==
-             pAdapter->sessionCtx.station.conn_info.connState ) &&
-             ( VOS_TRUE == vos_mem_compare(bss_desc->bssId,
-                             pAdapter->sessionCtx.station.conn_info.bssId,
-                             WNI_CFG_BSSID_LEN)))
-    {
-       /* supplicant takes the signal strength in terms of mBm(100*dBm) */
-       rssi = (pAdapter->rssi * 100);
-    }
-    else
-    {
-       rssi = (VOS_MIN ((bss_desc->rssi + bss_desc->sinr), 0))*100;
-    }
+    /* Supplicant takes the signal strength in terms of mBm(100*dBm) */
+    rssi = (VOS_MIN ((bss_desc->rssi + bss_desc->sinr), 0)) * 100;
 
     hddLog(VOS_TRACE_LEVEL_INFO, "%s: BSSID:" MAC_ADDRESS_STR " Channel:%d"
           "RSSI:%d", __func__, MAC_ADDR_ARRAY(mgmt->bssid),
@@ -10765,7 +10755,7 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
             (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode) ||
             (WLAN_HDD_P2P_DEVICE == pAdapter->device_mode))
         {
-            if ( request->ie_len <= SIR_MAC_MAX_IE_LENGTH)
+            if (request->ie_len <= SIR_MAC_MAX_ADD_IE_LENGTH)
             {
                 pwextBuf->roamProfile.nAddIEScanLength = request->ie_len;
                 memcpy( pwextBuf->roamProfile.addIEScan,
@@ -11451,7 +11441,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set WPS IE(len %d)",
                             __func__, eLen + 2);
 
-                    if( SIR_MAC_MAX_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
+                    if( SIR_MAC_MAX_ADD_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
                     {
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate assocAddIE. "
                                                       "Need bigger buffer space");
@@ -11481,7 +11471,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set P2P IE(len %d)",
                             __func__, eLen + 2);
 
-                    if( SIR_MAC_MAX_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
+                    if( SIR_MAC_MAX_ADD_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
                     {
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate assocAddIE "
                                                       "Need bigger buffer space");
@@ -11505,7 +11495,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set WFD IE(len %d)",
                             __func__, eLen + 2);
 
-                    if( SIR_MAC_MAX_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
+                    if( SIR_MAC_MAX_ADD_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
                     {
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate assocAddIE "
                                                       "Need bigger buffer space");
@@ -11529,7 +11519,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set HS20 IE(len %d)",
                             __func__, eLen + 2);
 
-                    if( SIR_MAC_MAX_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
+                    if( SIR_MAC_MAX_ADD_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
                     {
                         hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate assocAddIE "
                                "Need bigger buffer space");
@@ -11550,7 +11540,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set OSEN IE(len %d)",
                             __func__, eLen + 2);
 
-                    if( SIR_MAC_MAX_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
+                    if( SIR_MAC_MAX_ADD_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
                     {
                         hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate assocAddIE "
                                "Need bigger buffer space");
@@ -11708,7 +11698,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set Extended CAPS IE(len %d)",
                             __func__, eLen + 2);
 
-                    if( SIR_MAC_MAX_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
+                    if( SIR_MAC_MAX_ADD_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
                     {
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate assocAddIE "
                                                       "Need bigger buffer space");
@@ -15172,6 +15162,7 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device 
                 WLAN_STADescType         staDesc;
                 tANI_U16 numCurrTdlsPeers = 0;
                 hddTdlsPeer_t *connPeer = NULL;
+                tANI_U8 suppChannelLen = 0;
 
                 pTdlsPeer = wlan_hdd_tdls_find_peer(pAdapter, peer, TRUE);
                 memset(&staDesc, 0, sizeof(staDesc));
@@ -15195,6 +15186,9 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device 
                     return -EINVAL;
                 }
 
+                /* before starting tdls connection, set tdls
+                 * off channel established status to default value */
+                pTdlsPeer->isOffChannelEstablished = FALSE;
                 /* TDLS Off Channel, Disable tdls channel switch,
                    when there are more than one tdls link */
                 numCurrTdlsPeers = wlan_hdd_tdlsConnectedPeers(pAdapter);
@@ -15298,6 +15292,40 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device 
                             }
                         }
 
+                        suppChannelLen =
+                               tdlsLinkEstablishParams.supportedChannelsLen;
+                        if  ((TRUE == pTdlsPeer->isOffChannelSupported) &&
+                             (TRUE == pTdlsPeer->isOffChannelConfigured) &&
+                             (suppChannelLen > 0) &&
+                             (suppChannelLen <= SIR_MAC_MAX_SUPP_CHANNELS))
+                        {
+                            int offChan =  pTdlsPeer->peerParams.channel;
+                            int i = 0;
+                            for (i = 0U; i < suppChannelLen; i++)
+                            {
+                                pTdlsPeer->isOffChannelConfigured = FALSE;
+                                if (
+                                   (tdlsLinkEstablishParams.supportedChannels[i]
+                                    <= offChan) &&
+                                   (tdlsLinkEstablishParams.supportedChannels[i]
+                                    == offChan))
+                                {
+                                    pTdlsPeer->isOffChannelConfigured = TRUE;
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            pTdlsPeer->isOffChannelConfigured = FALSE;
+                        }
+                        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                                  "%s: TDLS channel switch request for channel "
+                                  "%d isOffChannelConfigured %d suppChannelLen "
+                                  "%d", __func__, pTdlsPeer->peerParams.channel,
+                                  pTdlsPeer->isOffChannelConfigured,
+                                  suppChannelLen);
+
                         /* TDLS Off Channel, Enable tdls channel switch,
                            when their is only one tdls link and it supports */
                         numCurrTdlsPeers = wlan_hdd_tdlsConnectedPeers(pAdapter);
@@ -15383,7 +15411,8 @@ static int __wlan_hdd_cfg80211_tdls_oper(struct wiphy *wiphy, struct net_device 
                 {
                     long status;
 
-
+                    /* set tdls off channel status to false for this peer */
+                    pTdlsPeer->isOffChannelEstablished = FALSE;
                     wlan_hdd_tdls_set_peer_link_status(pTdlsPeer,
                               eTDLS_LINK_TEARING,
                               (pTdlsPeer->link_status == eTDLS_LINK_TEARING)?
