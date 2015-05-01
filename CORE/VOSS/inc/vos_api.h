@@ -175,7 +175,7 @@ void vos_set_load_unload_in_progress(VOS_MODULE_ID moduleId, v_U8_t value);
 
 v_U8_t vos_is_reinit_in_progress(VOS_MODULE_ID moduleId, v_VOID_t *moduleContext);
 void vos_set_reinit_in_progress(VOS_MODULE_ID moduleId, v_U8_t value);
-VOS_STATUS vos_logger_pkt_serialize(vos_pkt_t *pPacket, uint8 pkt_type);
+VOS_STATUS vos_logger_pkt_serialize(vos_pkt_t *pPacket, uint32 pkt_type);
 
 /**---------------------------------------------------------------------------
   
@@ -339,5 +339,7 @@ v_U32_t   vos_get_dxeReplenishRXTimerVal(void);
 v_BOOL_t  vos_get_dxeSSREnable(void);
 
 v_U8_t vos_is_fw_logging_enabled(void);
+
+v_U8_t vos_is_fw_logging_supported(void);
 
 #endif // if !defined __VOS_NVITEM_H

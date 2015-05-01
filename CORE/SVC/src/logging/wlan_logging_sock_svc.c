@@ -628,6 +628,8 @@ static int wlan_logging_thread(void *Arg)
 
 		if (INVALID_PID == gapp_pid) {
 		    pr_err("%s: Invalid PID\n", __func__);
+		    test_and_clear_bit(HOST_LOG_POST_MASK,&gwlan_logging.event_flag);
+		    test_and_clear_bit(LOGGER_PKT_POST_MASK,&gwlan_logging.event_flag);
 		    continue;
 		}
 
@@ -836,7 +838,7 @@ int wlan_logging_sock_deinit_svc(void)
        return 0;
 }
 
-int wlan_queue_logpkt_for_app(vos_pkt_t *pPacket, uint8 pkt_type)
+int wlan_queue_logpkt_for_app(vos_pkt_t *pPacket, uint32 pkt_type)
 {
 	unsigned long flags;
 	vos_pkt_t *next_pkt;

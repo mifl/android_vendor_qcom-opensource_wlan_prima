@@ -90,11 +90,9 @@
 #include "bap_hdd_misc.h"
 #endif
 #include <qc_sap_ioctl.h>
-#ifdef FEATURE_WLAN_TDLS
 #include "wlan_hdd_tdls.h"
 #include "wlan_hdd_wmm.h"
 #include "wlan_qct_wda.h"
-#endif
 #include "wlan_nv.h"
 #include "wlan_hdd_dev_pwr.h"
 
@@ -8028,6 +8026,13 @@ int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
     /* Reset the current device mode bit mask*/
     wlan_hdd_clear_concurrency_mode(pHddCtx, pAdapter->device_mode);
 
+    /* Notify Mode change in case of concurrency.
+     * Below function invokes TDLS teardown Functionality Since TDLS is
+     * not Supported in case of concurrency i.e Once P2P session
+     * is detected disable offchannel and teardown TDLS links
+     */
+    hdd_tdls_notify_mode_change(pAdapter, pHddCtx);
+
     if( (pAdapter->device_mode == WLAN_HDD_INFRA_STATION)
       || (pAdapter->device_mode == WLAN_HDD_P2P_CLIENT)
       || (pAdapter->device_mode == WLAN_HDD_P2P_DEVICE)
@@ -11032,6 +11037,8 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
         hdd_station_ctx_t *pHddStaCtx;
         pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
+        wlan_hdd_get_frame_logs(pAdapter, WLAN_HDD_GET_FRAME_LOG_CMD_CLEAR);
+
         if (HDD_WMM_USER_MODE_NO_QOS ==
                         (WLAN_HDD_GET_CTX(pAdapter))->cfg_ini->WmmMode)
         {
@@ -11555,7 +11562,6 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     pWextState->roamProfile.nAddIEAssocLength = pWextState->assocAddIE.length;
                 }
 
-                break;
                 if (WLAN_HDD_IBSS == pAdapter->device_mode) {
 
                    /* populating as ADDIE in beacon frames */

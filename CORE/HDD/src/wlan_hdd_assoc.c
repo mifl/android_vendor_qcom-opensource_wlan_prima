@@ -66,6 +66,7 @@
 #include "sme_Api.h"
 #include "wlan_hdd_hostapd.h"
 #include "vos_utils.h"
+#include <wlan_hdd_wext.h>
 
 v_BOOL_t mibIsDot11DesiredBssTypeInfrastructure( hdd_adapter_t *pAdapter );
 
@@ -1079,6 +1080,15 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
                    cfg80211_disconnected(dev, WLAN_REASON_UNSPECIFIED, NULL, 0, GFP_KERNEL);
                }
             }
+            if ((TRUE == pHddCtx->cfg_ini->fEnableTDLSSupport) &&
+                          (TRUE == sme_IsFeatureSupportedByFW(TDLS))) {
+                if (pAdapter->device_mode != WLAN_HDD_INFRA_STATION)
+                    /* Enable TDLS support Once P2P session ends since
+                     * upond detection of concurrency TDLS would be disabled
+                     */
+                    wlan_hdd_tdls_set_mode(pHddCtx, eTDLS_SUPPORT_ENABLED,
+                                                                     FALSE);
+            }
             //If the Device Mode is Station
             // and the P2P Client is Connected
             //Enable BMPS
@@ -1866,6 +1876,9 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                     " reason:%d and Status:%d\n",
                     MAC_ADDR_ARRAY(pWextState->req_bssId),
                     roamResult, roamStatus);
+
+        wlan_hdd_get_frame_logs(pAdapter,
+                                WLAN_HDD_GET_FRAME_LOG_CMD_SEND_AND_CLEAR);
 
         /* Set connection state to eConnectionState_NotConnected only when CSR
          * has completed operation - with a ASSOCIATION_FAILURE status
@@ -3532,14 +3545,6 @@ static tANI_S32 hdd_ProcessGENIE(hdd_adapter_t *pAdapter,
     memset( &dot11WPAIE, 0 , sizeof(tDot11fIEWPA) );
     memset( &dot11RSNIE, 0 , sizeof(tDot11fIERSN) );
 
-    // Validity checks
-    if ((gen_ie_len < VOS_MIN(DOT11F_IE_RSN_MIN_LEN, DOT11F_IE_WPA_MIN_LEN)) ||
-            (gen_ie_len > VOS_MAX(DOT11F_IE_RSN_MAX_LEN, DOT11F_IE_WPA_MAX_LEN)) )
-    {
-        hddLog(LOGE, "%s: Invalid DOT11F IE Length passed :%d",
-               __func__,  gen_ie_len);
-        return -EINVAL;
-    }
     // Type check
     if ( gen_ie[0] ==  DOT11F_EID_RSN)
     {
