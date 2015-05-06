@@ -536,4 +536,5 @@ void limUpdateOBSSScanParams(tpPESession psessionEntry ,
 void limPmfSaQueryTimerHandler(void *pMacGlobal, tANI_U32 param);
 #endif
 
+void limDecrementPendingMgmtCount (tpAniSirGlobal pMac);
 #endif /* __LIM_UTILS_H */
