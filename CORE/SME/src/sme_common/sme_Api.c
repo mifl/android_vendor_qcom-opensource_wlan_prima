@@ -10750,7 +10750,6 @@ eHalStatus sme_StopBatchScanInd
 
 #endif
 
-
 #ifdef FEATURE_WLAN_CH_AVOID
 /* ---------------------------------------------------------------------------
     \fn sme_AddChAvoidCallback
@@ -10795,6 +10794,7 @@ void activeListCmdTimeoutHandle(void *userData)
         "%s: Active List command timeout Cmd List Count %d", __func__,
     csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList) );
     smeGetCommandQStatus((tHalHandle) userData);
+    VOS_BUG(0);
 }
 
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
