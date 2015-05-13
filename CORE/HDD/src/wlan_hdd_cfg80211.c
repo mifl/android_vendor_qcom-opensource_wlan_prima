@@ -8101,7 +8101,6 @@ static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
                   FL("already PNO is enabled"));
        return -EBUSY;
     }
-    pHddCtx->isPnoEnable = TRUE;
 
     if (VOS_STATUS_SUCCESS != wlan_hdd_cancel_remain_on_channel(pHddCtx))
     {
@@ -8316,6 +8315,9 @@ static int wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
 error:
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
               FL("PNO scanRequest offloaded ret = %d"), ret);
+
+    pHddCtx->isPnoEnable = FALSE;
+
     if (pnoRequest.aNetworks)
         vos_mem_free(pnoRequest.aNetworks);
     if (pnoRequest.p24GProbeTemplate)
