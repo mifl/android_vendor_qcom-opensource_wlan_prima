@@ -8441,14 +8441,17 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
         return -EBUSY;
     }
 
+    mutex_lock(&pHddCtx->tdls_lock);
     pTdlsPeer = wlan_hdd_tdls_get_peer(pAdapter, mac);
 
     if ( NULL == pTdlsPeer ) {
         VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                "%s: " MAC_ADDRESS_STR " (update %d) not exist. return invalid",
                __func__, MAC_ADDR_ARRAY(mac), update);
+        mutex_unlock(&pHddCtx->tdls_lock);
         return -EINVAL;
     }
+    mutex_unlock(&pHddCtx->tdls_lock);
 
     /* in add station, we accept existing valid staId if there is */
     if ((0 == update) &&
@@ -8998,6 +9001,21 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
         pHostapdState = WLAN_HDD_GET_HOSTAP_STATE_PTR(pAdapter);
         if( pHostapdState->bssState == BSS_START )
         {
+            hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+            vos_status = wlan_hdd_check_ula_done(pAdapter);
+
+            if ( vos_status != VOS_STATUS_SUCCESS )
+            {
+                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                        "[%4d] wlan_hdd_check_ula_done returned ERROR status= %d",
+                        __LINE__, vos_status );
+
+                pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
+
+                status = -EINVAL;
+                goto end;
+            }
+
             status = WLANSAP_SetKeySta( pVosContext, &setKey);
 
             if ( status != eHAL_STATUS_SUCCESS )
@@ -9065,36 +9083,19 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                 setKey.peerMac[4], setKey.peerMac[5],
                 setKey.keyDirection);
 
-        /* Wait for EAPOL M4 before setting key.
-         * No need to consider Dynamic WEP as we will receive M8.
-         */
-        if ( (setKey.encType == eCSR_ENCRYPT_TYPE_AES ||
-             setKey.encType == eCSR_ENCRYPT_TYPE_TKIP) &&
-             ( 1
-#if defined WLAN_FEATURE_VOWIFI_11R
-               && pHddStaCtx->conn_info.authType != eCSR_AUTH_TYPE_FT_RSN
-               && pHddStaCtx->conn_info.authType != eCSR_AUTH_TYPE_FT_RSN_PSK
-#endif
-#ifdef FEATURE_WLAN_ESE
-               && pHddStaCtx->conn_info.authType != eCSR_AUTH_TYPE_CCKM_WPA
-               && pHddStaCtx->conn_info.authType != eCSR_AUTH_TYPE_CCKM_RSN
-#endif
-               ))
-        {
-            vos_status = wlan_hdd_check_ula_done(pAdapter);
+        vos_status = wlan_hdd_check_ula_done(pAdapter);
 
-            if ( vos_status != VOS_STATUS_SUCCESS )
-            {
-               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+        if ( vos_status != VOS_STATUS_SUCCESS )
+        {
+            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                     "[%4d] wlan_hdd_check_ula_done returned ERROR status= %d",
                     __LINE__, vos_status );
 
-               pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
+            pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
 
-               status = -EINVAL;
-               goto end;
+            status = -EINVAL;
+            goto end;
 
-            }
         }
 
 #ifdef WLAN_FEATURE_VOWIFI_11R
@@ -10894,6 +10895,9 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
         {
             hdd_allow_suspend();
             status = -EFAULT;
+#ifdef FEATURE_WLAN_TDLS
+        wlan_hdd_tdls_scan_done_callback(pAdapter);
+#endif
             goto free_mem;
         }
     }
@@ -14989,13 +14993,16 @@ int wlan_hdd_tdls_extctrl_config_peer(hdd_adapter_t *pAdapter,
     /* To cater the requirement of establishing the TDLS link
      * irrespective of the data traffic , get an entry of TDLS peer.
      */
+    mutex_lock(&pHddCtx->tdls_lock);
     pTdlsPeer = wlan_hdd_tdls_get_peer(pAdapter, peer);
     if (pTdlsPeer == NULL) {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: peer " MAC_ADDRESS_STR " not existing",
                   __func__, MAC_ADDR_ARRAY(peer));
+        mutex_unlock(&pHddCtx->tdls_lock);
         return -EINVAL;
     }
+    mutex_unlock(&pHddCtx->tdls_lock);
 
     /* check FW TDLS Off Channel capability */
     if ((TRUE == sme_IsFeatureSupportedByFW(TDLS_OFF_CHANNEL)) &&
