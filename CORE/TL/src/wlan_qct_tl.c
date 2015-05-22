@@ -365,14 +365,6 @@ WLANTL_GetEtherType_2
   v_U16_t              * usEtherType
 );
 #endif
-#ifdef FEATURE_WLAN_WAPI
-/*---------------------------------------------------------------------------
- * Adding a global variable to be used when doing frame translation in TxAuth
- * state so as to not set the protected bit to 1 in the case of WAI frames
- *---------------------------------------------------------------------------*/
-v_U8_t gUcIsWai;
-#endif
-
 /*----------------------------------------------------------------------------
  * Externalized Function Definitions
 * -------------------------------------------------------------------------*/
@@ -7853,10 +7845,6 @@ WLANTL_STATxAuth
      {
         /* SW based translation */
 
-#ifdef FEATURE_WLAN_WAPI
-       gUcIsWai = tlMetaInfo.ucIsWai,
-#endif
-
        vosStatus =  WLANTL_Translate8023To80211Header( vosDataBuff, &vosStatus,
                                                     pTLCb, &ucSTAId,
                                                     &tlMetaInfo, &ucWDSEnabled,
@@ -9829,7 +9817,7 @@ if ((0 == w8023Header.usLenType) && (pClientSTA->wSTADesc.ucIsEseSta))
 
 #ifdef FEATURE_WLAN_WAPI
   if (( WLANTL_STA_AUTHENTICATED == pClientSTA->tlState ||
-        pClientSTA->ptkInstalled ) && gUcIsWai != 1)
+        pClientSTA->ptkInstalled ) && (tlMetaInfo->ucIsWai != 1))
 #else
   if ( WLANTL_STA_AUTHENTICATED == pClientSTA->tlState ||
        pClientSTA->ptkInstalled )
