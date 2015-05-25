@@ -1756,6 +1756,7 @@ VOS_STATUS hdd_ibss_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    hdd_station_ctx_t *pHddStaCtx = NULL;
    hdd_ibss_peer_info_t *pPeerInfo = NULL;
    v_U8_t proto_type = 0;
+   v_U16_t packet_size;
 
    //Sanity check on inputs
    if ( ( NULL == vosContext ) ||
@@ -1808,9 +1809,6 @@ VOS_STATUS hdd_ibss_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    }
 
    ++pAdapter->hdd_stats.hddTxRxStats.txFetchedAC[ac];
-
-   VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_FATAL,
-                              "%s: AC %d passed by TL", __func__, ac);
 
    //Get the vos packet before so that we are prepare for VOS low reseurce condition
    //This simplifies the locking and unlocking of Tx queue
@@ -1915,6 +1913,10 @@ VOS_STATUS hdd_ibss_tx_fetch_packet_cbk( v_VOID_t *vosContext,
                    "IBSS STA TX DHCP");
       }
    }
+
+   vos_pkt_get_packet_length( pVosPacket,&packet_size );
+   if ( HDD_ETHERTYPE_ARP_SIZE == packet_size )
+       pPktMetaInfo->ucIsArp = hdd_IsARP( pVosPacket ) ? 1 : 0;
 
    pPktMetaInfo->ucUP = pktNode->userPriority;
    pPktMetaInfo->ucTID = pPktMetaInfo->ucUP;
