@@ -2450,6 +2450,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_DXE_SSR_ENABLE_MIN       ( 0 )
 #define CFG_DXE_SSR_ENABLE_MAX       ( 1 )
 
+#define CFG_TOGGLE_ARP_BDRATES_NAME       "gToggleArpBDRates"
+#define CFG_TOGGLE_ARP_BDRATES_MIN         0
+#define CFG_TOGGLE_ARP_BDRATES_MAX         1
+#define CFG_TOGGLE_ARP_BDRATES_DEFAULT     0
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2951,6 +2956,7 @@ typedef struct
    v_U32_t                     dxeReplenishRXTimerVal;
    v_U32_t                     dxeSSREnable;
    v_U8_t                      multicast_host_msgs;
+   v_BOOL_t                    toggleArpBDRates;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
