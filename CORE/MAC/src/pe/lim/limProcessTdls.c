@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2716,24 +2716,21 @@ limTdlsPopulateMatchingRateSet(tpAniSirGlobal pMac,
             for (j = 0;j < tempRateSet.numRates; j++)
             {
                 if ((tempRateSet2.rate[i] & 0x7F) ==
-                    (tempRateSet.rate[j] & 0x7F))
+                        (tempRateSet.rate[j] & 0x7F))
                 {
-                    if ((bRateIndex > SIR_NUM_11B_RATES) ||
-                        (aRateIndex > SIR_NUM_11A_RATES))
-                    {
-                        limLog(pMac, LOGE, FL("Invalid number of rates"
-                                              "(11b->%d, 11a->%d)"),
-                                              bRateIndex,aRateIndex);
-                        return eSIR_FAILURE;
-                    }
-
                     if (sirIsArate(tempRateSet2.rate[i] & 0x7f))
                     {
                         isArate=1;
-                        rates->llaRates[aRateIndex++] = tempRateSet2.rate[i];
+                        if (aRateIndex < SIR_NUM_11A_RATES)
+                            rates->llaRates[aRateIndex++] =
+                                tempRateSet2.rate[i];
                     }
                     else
-                        rates->llbRates[bRateIndex++] = tempRateSet2.rate[i];
+                    {
+                        if (bRateIndex < SIR_NUM_11B_RATES)
+                            rates->llbRates[bRateIndex++] =
+                                tempRateSet2.rate[i];
+                    }
                     break;
                 }
             }
