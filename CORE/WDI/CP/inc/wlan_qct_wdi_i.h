@@ -476,6 +476,9 @@ typedef enum
   /* NAN Request */
   WDI_NAN_REQUEST                                = 106,
 
+  WDI_MON_START_REQ                              = 107,
+  WDI_MON_STOP_REQ                               = 108,
+
   WDI_MAX_REQ,
 
   /*Send a suspend Indication down to HAL*/
@@ -514,6 +517,7 @@ typedef enum
   /* csa channel switch req*/
   WDI_CH_SWITCH_REQ_V1,
   WDI_TDLS_CHAN_SWITCH_REQ,
+  WDI_SET_RTS_CTS_HTVHT_IND,
 
   /*Keep adding the indications to the max request
     such that we keep them sepparate */
@@ -810,6 +814,9 @@ typedef enum
   WDI_GET_FRAME_LOG_RSP                          = 105,
 
   WDI_NAN_RESPONSE                               = 106,
+
+  WDI_MON_START_RSP                              = 107,
+  WDI_MON_STOP_RSP                               = 108,
 
   /*-------------------------------------------------------------------------
     Indications
@@ -6205,6 +6212,52 @@ WDI_ProcessNanEvent
 (
   WDI_ControlBlockType*  pWDICtx,
   WDI_EventInfoType*     pEventData
+);
+
+/**
+ @brief WDI_ProcessSetRtsCtsHtvhtInd
+        Set RTS/CTS indication for diff modes.
+
+ @param  pWDICtx:         pointer to the WLAN DAL context
+         pEventData:      pointer to the event information structure
+
+ @return Result of the function call
+*/
+
+
+WDI_Status
+WDI_ProcessSetRtsCtsHtvhtInd
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessMonStartReq
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessMonStartRsp
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessMonStopReq
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessMonStopRsp
+(
+   WDI_ControlBlockType*  pWDICtx,
+   WDI_EventInfoType*     pEventData
 );
 
 #endif /*WLAN_QCT_WDI_I_H*/
