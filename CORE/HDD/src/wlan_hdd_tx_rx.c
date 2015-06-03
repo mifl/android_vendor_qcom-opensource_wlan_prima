@@ -645,9 +645,21 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
             * if it is in the mainline code and if the log level is enabled by someone for debugging
            VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_INFO,"%s:Queue is Filling up.Inform TL again about pending packets", __func__);*/
 
-       WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
+     status = WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                               STAId, ac
                              );
+     if ( !VOS_IS_STATUS_SUCCESS( status ) )
+      {
+         VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+                    "%s: WLANTL_STAPktPending() returned error code %d",
+                    __func__, status);
+         ++pAdapter->stats.tx_dropped;
+         ++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
+         ++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[ac];
+         kfree_skb(skb);
+         spin_unlock(&pAdapter->wmm_tx_queue[ac].lock);
+         return NETDEV_TX_OK;
+      }
    }
    //If we have already reached the max queue size, disable the TX queue
    if ( pAdapter->wmm_tx_queue[ac].count == pAdapter->wmm_tx_queue[ac].max_size)
