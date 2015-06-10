@@ -34,6 +34,8 @@
 \brief       Linux HDD TDLS include file
 ==========================================================================*/
 
+#ifdef FEATURE_WLAN_TDLS
+
 #define MAX_NUM_TDLS_PEER           3
 
 #define TDLS_SUB_DISCOVERY_PERIOD   100
@@ -331,6 +333,9 @@ int wlan_hdd_tdls_extctrl_deconfig_peer(hdd_adapter_t *pAdapter, u8 *peer);
 int wlan_hdd_tdls_extctrl_config_peer(hdd_adapter_t *pAdapter,
                                       u8 *peer,
                                       cfg80211_exttdls_callback callback);
+void hdd_tdls_notify_mode_change(hdd_adapter_t *pAdapter,
+                                 hdd_context_t *pHddCtx);
+void wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *pHddCtx);
 /*EXT TDLS*/
 int wlan_hdd_tdls_get_status(hdd_adapter_t *pAdapter,
                              tANI_U8* mac,
@@ -348,4 +353,16 @@ int hdd_set_tdls_scan_type(hdd_adapter_t *pAdapter,
 hddTdlsPeer_t *wlan_hdd_tdls_get_first_connected_peer(hdd_adapter_t *pAdapter);
 
 int wlan_hdd_validate_tdls_context(hdd_context_t *pHddCtx, tdlsCtx_t *pTdlsCtx);
+
+#else
+static inline void hdd_tdls_notify_mode_change(hdd_adapter_t *pAdapter,
+                                               hdd_context_t *pHddCtx)
+{
+}
+static inline void
+wlan_hdd_tdls_disable_offchan_and_teardown_links(hdd_context_t *pHddCtx)
+{
+}
+#endif
+
 #endif // __HDD_TDSL_H
