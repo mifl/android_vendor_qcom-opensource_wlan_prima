@@ -1411,9 +1411,16 @@ typedef enum
 #define CFG_ENABLE_BYPASS_11D_MAX                  ( 1 )
 #define CFG_ENABLE_BYPASS_11D_DEFAULT              ( 1 )
 
+/*
+ * gEnableDFSChnlScan
+ * 0: disable scan on DFS channels
+ * 1: enables passive scan on DFS channels
+ * 2: enables active scan on DFS channels for static list.
+ *    Static or cfg list is the channel list set by ioctl SETROAMSCANCHANNELS.
+*/
 #define CFG_ENABLE_DFS_CHNL_SCAN_NAME              "gEnableDFSChnlScan"
 #define CFG_ENABLE_DFS_CHNL_SCAN_MIN               ( 0 )
-#define CFG_ENABLE_DFS_CHNL_SCAN_MAX               ( 1 )
+#define CFG_ENABLE_DFS_CHNL_SCAN_MAX               ( 2 )
 #define CFG_ENABLE_DFS_CHNL_SCAN_DEFAULT           ( 1 )
 
 #define CFG_ENABLE_DFS_PNO_CHNL_SCAN_NAME              "gEnableDFSPnoChnlScan"
@@ -2421,6 +2428,12 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_P2P_LISTEN_DEFER_INTERVAL_MIN      ( 100 )
 #define CFG_P2P_LISTEN_DEFER_INTERVAL_MAX      ( 200 )
 #define CFG_P2P_LISTEN_DEFER_INTERVAL_DEFAULT  ( 100 )
+
+#define CFG_TOGGLE_ARP_BDRATES_NAME       "gToggleArpBDRates"
+#define CFG_TOGGLE_ARP_BDRATES_MIN         0
+#define CFG_TOGGLE_ARP_BDRATES_MAX         1
+#define CFG_TOGGLE_ARP_BDRATES_DEFAULT     0
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2914,6 +2927,7 @@ typedef struct
    v_U8_t                      btcEnableIndTimerVal;
    v_BOOL_t                    btcFastWlanConnPref;
    v_U16_t                     gP2PListenDeferInterval;
+   v_BOOL_t                    toggleArpBDRates;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
