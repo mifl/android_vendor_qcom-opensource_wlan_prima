@@ -341,6 +341,7 @@ unsigned char *gCfgParamName[] = {
     (unsigned char *)"BTC_SAP_ACTIVE_BT_LEN",
     (unsigned char *)"GO_LINK_MONITOR_TIMEOUT",
     (unsigned char *)"DEBUG_P2P_REMAIN_ON_CHANNEL",
+    (unsigned char *)"TOGGLE_ARP_BDRATES",
 };
 
 
