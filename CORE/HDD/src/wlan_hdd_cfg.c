@@ -2917,6 +2917,13 @@ REG_VARIABLE( CFG_TDLS_EXTERNAL_CONTROL, WLAN_PARAM_Integer,
                 CFG_DEFER_IMPS_FOR_TIME_MIN,
                 CFG_DEFER_IMPS_FOR_TIME_MAX),
 
+   REG_VARIABLE( CFG_TOGGLE_ARP_BDRATES_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, toggleArpBDRates,
+                 VAR_FLAGS_OPTIONAL |
+                 VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_TOGGLE_ARP_BDRATES_DEFAULT,
+                 CFG_TOGGLE_ARP_BDRATES_MIN,
+                 CFG_TOGGLE_ARP_BDRATES_MAX),
 };
 
 /*
@@ -3294,6 +3301,7 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
 
 
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [overrideCountryCode] Value = [%s] ",pHddCtx->cfg_ini->overrideCountryCode);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [toggleArpBDRates] Value = [%u] ", pHddCtx->cfg_ini->toggleArpBDRates);
 }
 
 
@@ -4557,6 +4565,14 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
               "Could not pass on WNI_CFG_DEBUG_P2P_REMAIN_ON_CHANNEL to CCM");
    }
 
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_TOGGLE_ARP_BDRATES,
+               pConfig->toggleArpBDRates,
+               NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on"
+               "WNI_CFG_TOGGLE_ARP_BDRATES to CCM");
+   }
    return fStatus;
 }
 
