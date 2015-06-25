@@ -12956,6 +12956,7 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
    tANI_U8 eventIdx = 0;
    tBssSystemRole systemRole = eSYSTEM_UNKNOWN_ROLE;
    tpAniSirGlobal pMac;
+   tpSirTxBdStatus txBdStatus = {0};
 
    if((NULL == pWDA)||(NULL == pFrmBuf)) 
    {
@@ -12988,7 +12989,7 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
            /* Already TxComp is active no need to active again */
            VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR, 
                    "There is already one request pending for tx complete");
-           pWDA->pAckTxCbFunc( pMac, 0);
+           pWDA->pAckTxCbFunc( pMac, &txBdStatus);
            pWDA->pAckTxCbFunc = NULL;
 
            if( VOS_STATUS_SUCCESS !=
@@ -14410,7 +14411,7 @@ void WDA_lowLevelIndCallback(WDI_LowLevelIndType *wdiLowLevelInd,
                VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                                   "Tx Complete timeout Timer Stop Failed ");
             }
-            if (IS_FEATURE_SUPPORTED_BY_FW(ENHANCED_TXBD_COMPLETION))
+            if (!IS_FEATURE_SUPPORTED_BY_FW(ENHANCED_TXBD_COMPLETION))
                 pWDA->pAckTxCbFunc( pMac, &wdiLowLevelInd->wdiIndicationData.tx_complete_status);
             else
                 pWDA->pAckTxCbFunc( pMac, &wdiLowLevelInd->wdiIndicationData.wdiTxBdInd);
@@ -15600,11 +15601,14 @@ void WDA_TimerHandler(v_VOID_t* pContext, tANI_U32 timerInfo)
 void WDA_ProcessTxCompleteTimeOutInd(tWDA_CbContext* pWDA)
 {
    tpAniSirGlobal pMac = (tpAniSirGlobal )VOS_GET_MAC_CTXT(pWDA->pVosContext) ;
+   tpSirTxBdStatus txBdStatus = {0};
+
    if( pWDA->pAckTxCbFunc )
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                                       "TxComplete timer expired");
-      pWDA->pAckTxCbFunc( pMac, 0);
+      /*Indicate failure*/
+      pWDA->pAckTxCbFunc( pMac, &txBdStatus);
       pWDA->pAckTxCbFunc = NULL;
    }
    else
@@ -15918,12 +15922,13 @@ void WDA_ConvertSirAuthToWDIAuth(WDI_AuthType *AuthType, v_U8_t csrAuthType)
       case eCSR_AUTH_TYPE_AUTOSWITCH:
            *AuthType = eWDA_AUTH_TYPE_OPEN_SYSTEM;
            break;
-#if 0
-      case eCSR_AUTH_TYPE_SHARED_KEY:
-           *AuthType = eWDA_AUTH_TYPE_SHARED_KEY;
+#ifdef WLAN_FEATURE_11W
+      case eCSR_AUTH_TYPE_RSN_PSK_SHA256:
+           *AuthType = eWDA_AUTH_TYPE_RSN_PSK_SHA256;
            break;
-      case eCSR_AUTH_TYPE_AUTOSWITCH:
-           *AuthType = eWDA_AUTH_TYPE_AUTOSWITCH;
+      case eCSR_AUTH_TYPE_RSN_8021X_SHA256:
+           *AuthType = eWDA_AUTH_TYPE_RSN_8021X_SHA256;
+           break;
 #endif
       default:
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,

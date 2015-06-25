@@ -1794,6 +1794,11 @@ VOS_STATUS hdd_ibss_tx_fetch_packet_cbk( v_VOID_t *vosContext,
          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                    "IBSS STA TX DHCP");
       }
+      else if (VOS_PKT_PROTO_TYPE_ARP & proto_type)
+      {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                   "IBSS STA TX ARP");
+      }
    }
 
    vos_pkt_get_packet_length( pVosPacket,&packet_size );
@@ -2106,6 +2111,11 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                    "STA TX DHCP");
       }
+      else if (VOS_PKT_PROTO_TYPE_ARP & proto_type)
+      {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                   "STA TX ARP");
+      }
    }
 
    vos_pkt_get_packet_length( pVosPacket,&packet_size );
@@ -2332,8 +2342,16 @@ static void hdd_mon_add_rx_radiotap_hdr (struct sk_buff *skb,
     unsigned char *pos;
     u16 rx_flags = 0;
     u16 rateIdx;
+    s8        currentRSSI, currentRSSI0, currentRSSI1;
 
     rateIdx = WDA_GET_RX_MAC_RATE_IDX(pRxPacket);
+    if( rateIdx >= 210 && rateIdx <= 217)
+       rateIdx-=202;
+    if( rateIdx >= 218 && rateIdx <= 225 )
+       rateIdx-=210;
+    currentRSSI0 = WDA_GETRSSI0(pRxPacket) - 100;
+    currentRSSI1 = WDA_GETRSSI1(pRxPacket) - 100;
+    currentRSSI  = (currentRSSI0 > currentRSSI1) ? currentRSSI0 : currentRSSI1;
 
     rthdr = (struct ieee80211_radiotap_header *)(&rtap_temp[0]);
 
@@ -2357,7 +2375,12 @@ static void hdd_mon_add_rx_radiotap_hdr (struct sk_buff *skb,
 
     /* IEEE80211_RADIOTAP_CHANNEL */
     put_unaligned_le16(pMonCtx->ChannelNo, pos);
-    pos += 2;
+    pos += 4;
+
+    /* IEEE80211_RADIOTAP_DBM_ANTSIGNAL */
+    *pos = currentRSSI;
+    rthdr->it_present |=cpu_to_le32(1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL);
+    pos++;
 
     if ((pos - (u8 *)rthdr) & 1)
         pos++;
@@ -2423,7 +2446,7 @@ VOS_STATUS  hdd_rx_packet_monitor_cbk(v_VOID_t *vosContext,vos_pkt_t *pVosPacket
     if(!conversion)
     {
          pMonCtx = WLAN_HDD_GET_MONITOR_CTX_PTR(pAdapter);
-         needed_headroom = sizeof(struct ieee80211_radiotap_header) + 9;
+         needed_headroom = sizeof(struct ieee80211_radiotap_header) + 10;
          hdd_mon_add_rx_radiotap_hdr( skb, needed_headroom, pvBDHeader, pMonCtx );
     }
 
@@ -2597,6 +2620,11 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
          {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                       "STA RX DHCP");
+         }
+         else if (VOS_PKT_PROTO_TYPE_ARP & proto_type)
+         {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                      "STA RX ARP");
          }
       }
 

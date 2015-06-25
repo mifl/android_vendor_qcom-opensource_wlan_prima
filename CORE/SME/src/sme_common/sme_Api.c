@@ -401,7 +401,8 @@ tSmeCmd *smeGetCommandBuffer( tpAniSirGlobal pMac )
         /* reset when free list is available */
             smeCommandQueueFull = 0;
     }
-    else {
+    else
+    {
         int idx = 1;
 
         //Cannot change pRetCmd here since it needs to return later.
@@ -439,22 +440,33 @@ tSmeCmd *smeGetCommandBuffer( tpAniSirGlobal pMac )
             }
             pEntry = csrLLNext( &pMac->sme.smeCmdPendingList, pEntry, LL_ACCESS_NOLOCK );
         }
-        /* Increament static variable so that it prints pending command only once*/
-        smeCommandQueueFull++;
         csrLLUnlock(&pMac->sme.smeCmdPendingList);
 
+        idx = 1;
         //There may be some more command in CSR's own pending queue
         csrLLLock(&pMac->roam.roamCmdPendingList);
         pEntry = csrLLPeekHead( &pMac->roam.roamCmdPendingList, LL_ACCESS_NOLOCK );
-        while(pEntry)
+        while(pEntry && !smeCommandQueueFull)
         {
             pTempCmd = GET_BASE_ADDR( pEntry, tSmeCmd, Link );
-            smsLog( pMac, LOGE, "Out of command buffer.... CSR pending command #%d (0x%X)",
-                    idx++, pTempCmd->command );
+            /* Print only 1st five commands from CSR pending queue */
+            if (idx <= 5)
+                smsLog( pMac, LOGE,
+                       "Out of command buffer...CSR pending command #%d (0x%X)",
+                        idx, pTempCmd->command );
+            idx++;
             dumpCsrCommandInfo(pMac, pTempCmd);
             pEntry = csrLLNext( &pMac->roam.roamCmdPendingList, pEntry, LL_ACCESS_NOLOCK );
         }
+        /*
+         * Increament static variable so that it prints pending command
+         * only once
+         */
+        smeCommandQueueFull++;
         csrLLUnlock(&pMac->roam.roamCmdPendingList);
+
+       /* panic with out-of-command */
+        VOS_BUG(0);
     }
 
     if( pRetCmd )
@@ -846,6 +858,9 @@ sme_process_cmd:
                     {
                         //Force this command to wake up the chip
                         csrLLInsertHead( &pMac->sme.smeCmdActiveList, &pPmcCmd->Link, LL_ACCESS_NOLOCK );
+                        MTRACE(vos_trace(VOS_MODULE_ID_SME,
+                               TRACE_CODE_SME_COMMAND,pPmcCmd->sessionId,
+                               pPmcCmd->command));
                         csrLLUnlock( &pMac->sme.smeCmdActiveList );
                         fContinue = pmcProcessCommand( pMac, pPmcCmd );
                         if( fContinue )
@@ -3471,7 +3486,7 @@ eHalStatus sme_RoamDisconnect(tHalHandle hHal, tANI_U8 sessionId, eCsrRoamDiscon
    {
       if( CSR_IS_SESSION_VALID( pMac, sessionId ) )
       {
-         status = csrRoamDisconnect( pMac, sessionId, reason );
+          status = csrRoamDisconnect( pMac, sessionId, reason );
       }
       else
       {
@@ -6696,7 +6711,9 @@ eHalStatus sme_OpenSession(tHalHandle hHal, csrRoamCompleteCallback callback,
 
   --------------------------------------------------------------------------*/
 eHalStatus sme_CloseSession(tHalHandle hHal, tANI_U8 sessionId,
-                          csrRoamSessionCloseCallback callback, void *pContext)
+                            tANI_U8 bPurgeSmeCmdList,
+                            csrRoamSessionCloseCallback callback,
+                            void *pContext)
 {
    eHalStatus status;
    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
@@ -6706,12 +6723,25 @@ eHalStatus sme_CloseSession(tHalHandle hHal, tANI_U8 sessionId,
    status = sme_AcquireGlobalLock( &pMac->sme );
    if ( HAL_STATUS_SUCCESS( status ) )
    {
-      status = csrRoamCloseSession( pMac, sessionId, FALSE,
+      status = csrRoamCloseSession( pMac, sessionId, FALSE, bPurgeSmeCmdList,
                                     callback, pContext );
 
       sme_ReleaseGlobalLock( &pMac->sme );
    }
 
+   return ( status );
+}
+
+eHalStatus sme_PurgeCmdList(tHalHandle hHal, tANI_U8 sessionId)
+{
+   eHalStatus status;
+   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+   status = sme_AcquireGlobalLock( &pMac->sme );
+   if ( HAL_STATUS_SUCCESS( status ) )
+   {
+      csrPurgeSmeCmdList( pMac, sessionId );
+      sme_ReleaseGlobalLock( &pMac->sme );
+   }
    return ( status );
 }
 
@@ -7942,6 +7972,19 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
    VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
    static uNvTables nvTables;
    pMsg = (tAniChangeCountryCodeReq *)pMsgBuf;
+
+    if (pMac->scan.fcc_constraint)
+    {
+       pMac->scan.fcc_constraint = false;
+       if (VOS_TRUE== vos_mem_compare(pMac->scan.countryCodeCurrent,
+                                          pMsg->countryCode, 2))
+       {
+           csrInitGetChannels(pMac);
+           csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
+           csrScanFilterResults(pMac);
+           return status ;
+       }
+   }
 
 
    /* if the reset Supplicant country code command is triggered, enable 11D, reset the NV country code and return */
@@ -12587,4 +12630,32 @@ eHalStatus sme_SetRtsCtsHtVht(tHalHandle hHal, tANI_U32 set_value)
     }
     return eHAL_STATUS_FAILURE;
 
+}
+
+/**
+ * sme_handleSetFccChannel() - handle fcc constraint request
+ * @hal: HAL pointer
+ * @fcc_constraint: whether to apply or remove fcc constraint
+ *
+ * Return: tANI_BOOLEAN.
+ */
+tANI_BOOLEAN sme_handleSetFccChannel(tHalHandle hHal, tANI_U8 fcc_constraint)
+{
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
+    status = sme_AcquireGlobalLock(&pMac->sme);
+
+    if (eHAL_STATUS_SUCCESS == status &&
+                 (!sme_Is11dSupported(hHal)) )
+    {
+           pMac->scan.fcc_constraint = !fcc_constraint;
+           /* update the channel list to the firmware */
+           csrUpdateFCCChannelList(pMac);
+
+    }
+
+        sme_ReleaseGlobalLock(&pMac->sme);
+
+    return status;
 }

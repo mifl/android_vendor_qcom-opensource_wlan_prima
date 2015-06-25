@@ -4609,13 +4609,8 @@ static int __wlan_hdd_cfg80211_exttdls_get_status(struct wiphy *wiphy,
            sizeof(peer));
     hddLog(VOS_TRACE_LEVEL_INFO, FL(MAC_ADDRESS_STR),MAC_ADDR_ARRAY(peer));
 
-    ret = wlan_hdd_tdls_get_status(pAdapter, peer, &state, &reason);
+    wlan_hdd_tdls_get_status(pAdapter, peer, &state, &reason);
 
-    if (0 != ret) {
-        hddLog(VOS_TRACE_LEVEL_ERROR,
-               FL("get status Failed"));
-        return -EINVAL;
-    }
     skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
                                               4 * sizeof(s32) +
                                               NLMSG_HDRLEN);
@@ -5109,19 +5104,15 @@ __wlan_hdd_cfg80211_get_concurrency_matrix(struct wiphy *wiphy,
 
     /* Fill feature combination matrix */
     feature_sets = 0;
-    if (feature_sets >= WLAN_HDD_MAX_FEATURE_SET) goto max_buffer_err;
     feature_set_matrix[feature_sets++] = WIFI_FEATURE_INFRA |
                                          WIFI_FEATURE_P2P;
 
-    if (feature_sets >= WLAN_HDD_MAX_FEATURE_SET) goto max_buffer_err;
     feature_set_matrix[feature_sets++] = WIFI_FEATURE_INFRA |
                                          WIFI_FEATURE_SOFT_AP;
 
-    if (feature_sets >= WLAN_HDD_MAX_FEATURE_SET) goto max_buffer_err;
     feature_set_matrix[feature_sets++] = WIFI_FEATURE_P2P |
                                          WIFI_FEATURE_SOFT_AP;
 
-    if (feature_sets >= WLAN_HDD_MAX_FEATURE_SET) goto max_buffer_err;
     feature_set_matrix[feature_sets++] = WIFI_FEATURE_INFRA |
                                          WIFI_FEATURE_SOFT_AP |
                                          WIFI_FEATURE_P2P;
@@ -5157,10 +5148,6 @@ __wlan_hdd_cfg80211_get_concurrency_matrix(struct wiphy *wiphy,
     hddLog(LOGE, FL("Feature set matrix: buffer alloc fail"));
     return -ENOMEM;
 
-max_buffer_err:
-    hddLog(LOGE, FL("Feature set max buffer size reached. feature_sets(%d) max(%d)"),
-           feature_sets, WLAN_HDD_MAX_FEATURE_SET);
-    return -EINVAL;
 }
 
 static int
@@ -13348,16 +13335,16 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_devic
                         if (supported_mcs_rate[j].beacon_rate_index == MCSRates[i])
                         {
                             currentRate = supported_mcs_rate[j].supported_rate[rateFlag];
+                            maxMCSIdx   = supported_mcs_rate[j].beacon_rate_index;
                             break;
                         }
                     }
                     if ((j < temp) && (currentRate > maxRate))
                     {
                         maxRate     = currentRate;
-                        maxSpeedMCS = 1;
-                        maxMCSIdx   = supported_mcs_rate[j].beacon_rate_index;
                     }
                 }
+                maxSpeedMCS = 1;
             }
         }
 
@@ -16166,6 +16153,13 @@ static int __wlan_hdd_cfg80211_dump_survey(struct wiphy *wiphy,
          * the next iteration
          */
         pAdapter->survey_idx = 0;
+        return -ENONET;
+    }
+
+    if (VOS_TRUE == pHddStaCtx->hdd_ReassocScenario)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                 "%s: Roaming in progress, hence return ", __func__);
         return -ENONET;
     }
 
