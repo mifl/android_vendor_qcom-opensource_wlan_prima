@@ -1086,6 +1086,7 @@ typedef struct sAniSirGlobal
     v_U8_t fBtcEnableIndTimerVal;
     tANI_BOOLEAN miracastVendorConfig;
     tAuthAckStatus  authAckStatus;
+    v_BOOL_t fActiveScanOnDFSChannels;
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS
