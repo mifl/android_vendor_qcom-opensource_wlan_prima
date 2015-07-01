@@ -293,6 +293,8 @@ void csrRemoveScanForSSIDFromPendingList(tpAniSirGlobal pMac, tDblLinkList *pLis
 //The BSS is remove if the count reaches 0.
 eHalStatus csrScanAgeResults(tpAniSirGlobal pMac, tSmeGetScanChnRsp *pScanChnInfo);
 
+eHalStatus csrIbssAgeBss(tpAniSirGlobal pMac);
+
 //If fForce is TRUE we will save the new String that is learn't.
 //Typically it will be true in case of Join or user initiated ioctl
 tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription *pSirBssDesc,
@@ -493,6 +495,14 @@ eHalStatus csrScanFlushResult(tpAniSirGlobal);
  *-------------------------------------------------------------------------------
  */
 eHalStatus csrScanFilterResults(tpAniSirGlobal pMac);
+
+/* ---------------------------------------------------------------------------
+ *  \fn csrScanFilterDFSResults
+ *  \brief Filter BSSIDs on DFS channels from the scan results.
+ *  \return eHalStatus
+ *-------------------------------------------------------------------------------
+ */
+eHalStatus csrScanFilterDFSResults(tpAniSirGlobal pMac);
 
 eHalStatus csrScanFlushSelectiveResult(tpAniSirGlobal, v_BOOL_t flushP2P);
 
