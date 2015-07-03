@@ -7790,14 +7790,17 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
         return -EBUSY;
     }
 
+    mutex_lock(&pHddCtx->tdls_lock);
     pTdlsPeer = wlan_hdd_tdls_get_peer(pAdapter, mac);
 
     if ( NULL == pTdlsPeer ) {
         VOS_TRACE( VOS_MODULE_ID_HDD, TDLS_LOG_LEVEL,
                "%s: " MAC_ADDRESS_STR " (update %d) not exist. return invalid",
                __func__, MAC_ADDR_ARRAY(mac), update);
+        mutex_unlock(&pHddCtx->tdls_lock);
         return -EINVAL;
     }
+    mutex_unlock(&pHddCtx->tdls_lock);
 
     /* in add station, we accept existing valid staId if there is */
     if ((0 == update) &&
@@ -14155,13 +14158,16 @@ int wlan_hdd_tdls_extctrl_config_peer(hdd_adapter_t *pAdapter,
     /* To cater the requirement of establishing the TDLS link
      * irrespective of the data traffic , get an entry of TDLS peer.
      */
+    mutex_lock(&pHddCtx->tdls_lock);
     pTdlsPeer = wlan_hdd_tdls_get_peer(pAdapter, peer);
     if (pTdlsPeer == NULL) {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: peer " MAC_ADDRESS_STR " not existing",
                   __func__, MAC_ADDR_ARRAY(peer));
+        mutex_unlock(&pHddCtx->tdls_lock);
         return -EINVAL;
     }
+    mutex_unlock(&pHddCtx->tdls_lock);
 
     if ( 0 != wlan_hdd_tdls_set_force_peer(pAdapter, peer, TRUE) ) {
 
