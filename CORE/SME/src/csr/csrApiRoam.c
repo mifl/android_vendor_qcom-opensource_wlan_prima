@@ -8303,6 +8303,7 @@ void csrRoamRoamingStateDisassocRspProcessor( tpAniSirGlobal pMac, tSirSmeDisass
         
             /* Notify sub-modules like QoS etc. that handoff happening */
             sme_QosCsrEventInd(pMac, sessionId, SME_QOS_CSR_HANDOFF_ASSOC_REQ, NULL);
+            pmcStopTrafficTimer(pMac);
             csrReleaseProfile(pMac, pCurRoamProfile);
             vos_mem_free(pCurRoamProfile);
             csrFreeScanFilter(pMac, pScanFilter);
@@ -10204,6 +10205,12 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                             else
                             {
                                 setKeyEvent.eventId = WLAN_SECURITY_EVENT_SET_PTK_RSP;
+                            }
+                            if( pRsp->peerMacAddr[0] & 0x01 )
+                            {
+                                pMac->pmc.remainInPowerActiveTillDHCP = FALSE;
+                                smsLog(pMac, LOG1, FL("Reset"
+                                "remainInPowerActiveTillDHCP to allow BMPS"));
                             }
                             setKeyEvent.encryptionModeMulticast = 
                                 (v_U8_t)diagEncTypeFromCSRType(pSession->connectedProfile.mcEncryptionType);
