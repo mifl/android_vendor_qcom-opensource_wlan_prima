@@ -1165,6 +1165,20 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
                    status = eHAL_STATUS_FAILURE;
                }
 
+               vstatus = hdd_sta_id_hash_remove_entry(pAdapter,
+                           sta_id, &pHddStaCtx->conn_info.peerMacAddress[i]);
+               if (vstatus != VOS_STATUS_SUCCESS) {
+                   hddLog(VOS_TRACE_LEVEL_ERROR,
+                             FL("Not able to remove staid hash %d"),
+                             sta_id);
+                   status = eHAL_STATUS_FAILURE;
+               } else {
+                   hddLog(VOS_TRACE_LEVEL_INFO,
+                         FL("ibss station removed sta_id %d mac:"
+                         MAC_ADDRESS_STR), sta_id,
+                         MAC_ADDR_ARRAY(pHddStaCtx->conn_info.peerMacAddress[i].bytes));
+               }
+
                /*set the staid and peer mac as 0, all other reset are
                 * done in hdd_connRemoveConnectInfo.
                 */
@@ -2042,6 +2056,7 @@ static void hdd_RoamIbssIndicationHandler( hdd_adapter_t *pAdapter,
    hdd_context_t *pHddCtx = (hdd_context_t*)pAdapter->pHddCtx;
    v_MACADDR_t broadcastMacAddr = VOS_MAC_ADDR_BROADCAST_INITIALIZER;
    struct cfg80211_bss *bss;
+   hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
    hddLog(VOS_TRACE_LEVEL_INFO, "%s: %s: id %d, status %d, result %d",
           __func__, pAdapter->dev->name, roamId, roamStatus, roamResult);
@@ -2106,6 +2121,35 @@ static void hdd_RoamIbssIndicationHandler( hdd_adapter_t *pAdapter,
              VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                        "%s: NULL Bss Desc",__func__);
          }
+
+         /* Set Broadcast key again in case IBSS_COALESCED as DEL BSS,
+          * in IBSS_COALESCED will remove the BC key.
+          */
+         if ((eCSR_ROAM_RESULT_IBSS_COALESCED == roamResult) &&
+             ( eCSR_ENCRYPT_TYPE_WEP40_STATICKEY
+                                           == pHddStaCtx->ibss_enc_key.encType
+               ||eCSR_ENCRYPT_TYPE_WEP104_STATICKEY
+                                           == pHddStaCtx->ibss_enc_key.encType
+               ||eCSR_ENCRYPT_TYPE_TKIP == pHddStaCtx->ibss_enc_key.encType
+               ||eCSR_ENCRYPT_TYPE_AES == pHddStaCtx->ibss_enc_key.encType ))
+         {
+             u8 grpmacaddr[WNI_CFG_BSSID_LEN] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+             VOS_STATUS vosStatus;
+
+             pHddStaCtx->ibss_enc_key.keyDirection = eSIR_TX_RX;
+
+             memcpy(&pHddStaCtx->ibss_enc_key.peerMac,
+                            grpmacaddr, WNI_CFG_BSSID_LEN);
+             hddLog(VOS_TRACE_LEVEL_INFO,
+                       FL(" SET GTK in case of COALESCED"));
+             vosStatus = sme_RoamSetKey( WLAN_HDD_GET_HAL_CTX(pAdapter),
+                      pAdapter->sessionId, &pHddStaCtx->ibss_enc_key, &roamId );
+             if ( VOS_STATUS_SUCCESS != vosStatus )
+             {
+                hddLog(VOS_TRACE_LEVEL_ERROR,
+                       FL("sme_RoamSetKey failed, returned %d"),vosStatus);
+             }
+         }
          break;
       }
 
@@ -2134,10 +2178,12 @@ static void hdd_RoamIbssIndicationHandler( hdd_adapter_t *pAdapter,
   return FALSE.
 
   ===========================================================================*/
-static int roamSaveIbssStation( hdd_station_ctx_t *pHddStaCtx, v_U8_t staId, v_MACADDR_t *peerMacAddress )
+static int roamSaveIbssStation(hdd_adapter_t *pAdapter, v_U8_t staId, v_MACADDR_t *peerMacAddress)
 {
    int fSuccess = FALSE;
    int idx = 0;
+   VOS_STATUS status;
+   hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
    for ( idx = 0; idx < HDD_MAX_NUM_IBSS_STA; idx++ )
    {
@@ -2151,6 +2197,18 @@ static int roamSaveIbssStation( hdd_station_ctx_t *pHddStaCtx, v_U8_t staId, v_M
          break;
       }
    }
+
+   status = hdd_sta_id_hash_add_entry(pAdapter, staId, peerMacAddress);
+   if (status != VOS_STATUS_SUCCESS) {
+       hddLog(VOS_TRACE_LEVEL_ERROR,
+                 FL("Not able to add staid hash %d"), staId);
+       return FALSE;
+   }
+
+   hddLog(VOS_TRACE_LEVEL_INFO,
+             FL("New station added sta_id %d mac:"
+             MAC_ADDRESS_STR), staId,
+             MAC_ADDR_ARRAY(peerMacAddress->bytes));
 
    return( fSuccess );
 }
@@ -2169,21 +2227,32 @@ static int roamRemoveIbssStation( hdd_adapter_t *pAdapter, v_U8_t staId )
    v_U8_t  del_idx   = 0;
    v_U8_t  empty_slots = 0;
    hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+   VOS_STATUS status;
 
    for ( idx = 0; idx < HDD_MAX_NUM_IBSS_STA; idx++ )
    {
       if ( staId == pHddStaCtx->conn_info.staId[ idx ] )
       {
          pHddStaCtx->conn_info.staId[ idx ] = 0;
+         status = hdd_sta_id_hash_remove_entry(pAdapter,
+                  staId, &pHddStaCtx->conn_info.peerMacAddress[idx]);
+         if (status != VOS_STATUS_SUCCESS) {
+             hddLog(VOS_TRACE_LEVEL_ERROR,
+                      FL("Not able to remove staid hash %d"), staId );
+             fSuccess = FALSE;
+         } else {
+             hddLog(VOS_TRACE_LEVEL_INFO,
+                   FL("station removed sta_id %d mac:"
+                   MAC_ADDRESS_STR), staId,
+                   MAC_ADDR_ARRAY(pHddStaCtx->conn_info.peerMacAddress[idx].bytes));
 
-         vos_zero_macaddr( &pHddStaCtx->conn_info.peerMacAddress[ idx ] );
+             vos_zero_macaddr( &pHddStaCtx->conn_info.peerMacAddress[ idx ] );
 
-         fSuccess = TRUE;
-
-         // Note the deleted Index, if its 0 we need special handling
-         del_idx = idx;
-
-         empty_slots++;
+             fSuccess = TRUE;
+             // Note the deleted Index, if its 0 we need special handling
+             del_idx = idx;
+             empty_slots++;
+         }
       }
       else
       {
@@ -2382,6 +2451,8 @@ static eHalStatus hdd_RoamSetKeyCompleteHandler( hdd_adapter_t *pAdapter, tCsrRo
          {
             vosStatus = WLANTL_STAPtkInstalled( pHddCtx->pvosContext,
                                                 IBSS_BROADCAST_STAID);
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+                "WLAN TL STA GTK Installed for STAID=%d", IBSS_BROADCAST_STAID);
             pHddStaCtx->roam_info.roamingState = HDD_ROAM_STATE_NONE;
          }
          else
@@ -2536,7 +2607,7 @@ static eHalStatus roamRoamConnectStatusUpdateHandler( hdd_adapter_t *pAdapter, t
                     MAC_ADDR_ARRAY(pHddStaCtx->conn_info.bssId),
                     pRoamInfo->staId );
 
-         if ( !roamSaveIbssStation( WLAN_HDD_GET_STATION_CTX_PTR(pAdapter), pRoamInfo->staId, (v_MACADDR_t *)pRoamInfo->peerMac ) )
+         if ( !roamSaveIbssStation( pAdapter, pRoamInfo->staId, (v_MACADDR_t *)pRoamInfo->peerMac ) )
          {
             VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
                        "New IBSS peer but we already have the max we can handle.  Can't register this one" );
@@ -2576,6 +2647,7 @@ static eHalStatus roamRoamConnectStatusUpdateHandler( hdd_adapter_t *pAdapter, t
             ||eCSR_ENCRYPT_TYPE_AES == pHddStaCtx->ibss_enc_key.encType )
          {
             pHddStaCtx->ibss_enc_key.keyDirection = eSIR_TX_RX;
+
             memcpy(&pHddStaCtx->ibss_enc_key.peerMac,
                               pRoamInfo->peerMac, WNI_CFG_BSSID_LEN);
 

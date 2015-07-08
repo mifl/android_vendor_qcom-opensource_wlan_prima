@@ -2091,31 +2091,32 @@ v_U16_t hdd_hostapd_select_queue(struct net_device * dev, struct sk_buff *skb)
    hdd_adapter_t *pAdapter = (hdd_adapter_t *)netdev_priv(dev);
    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
    v_U8_t STAId;
-   v_U8_t *pSTAId = (v_U8_t *)(((v_U8_t *)(skb->data)) - 1);
    v_CONTEXT_t pVosContext = ( WLAN_HDD_GET_CTX(pAdapter))->pvosContext;
    ptSapContext pSapCtx = NULL;
+   int status = 0;
 
-   if (vos_is_logp_in_progress(VOS_MODULE_ID_HDD, NULL)) {
-       VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
-                  FL("called during WDReset"));
+   status = wlan_hdd_validate_context(pHddCtx);
+   if (status !=0 )
+   {
+       VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                  FL("called during WDReset/unload"));
        skb->priority = SME_QOS_WMM_UP_BE;
        return HDD_LINUX_AC_BE;
    }
 
    pSapCtx = VOS_GET_SAP_CB(pVosContext);
    if(pSapCtx == NULL){
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                  FL("psapCtx is NULL"));
-       *pSTAId = HDD_WLAN_INVALID_STA_ID;
+       STAId = HDD_WLAN_INVALID_STA_ID;
        goto done;
    }
    /*Get the Station ID*/
-   if (VOS_STATUS_SUCCESS != hdd_softap_GetStaId(pAdapter, pDestMacAddress, &STAId))
-   {
-      VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_INFO,
-            "%s: Failed to find right station", __func__);
-      *pSTAId = HDD_WLAN_INVALID_STA_ID;
-      goto done;
+   STAId = hdd_sta_id_find_from_mac_addr(pAdapter, pDestMacAddress);
+   if (STAId == HDD_WLAN_INVALID_STA_ID) {
+       VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_INFO,
+                 "%s: Failed to find right station", __func__);
+       goto done;
    }
 
    spin_lock_bh( &pSapCtx->staInfo_lock );
@@ -2124,7 +2125,7 @@ v_U16_t hdd_hostapd_select_queue(struct net_device * dev, struct sk_buff *skb)
       VOS_TRACE( VOS_MODULE_ID_HDD_SOFTAP, VOS_TRACE_LEVEL_INFO,
                    "%s: Station MAC address does not matching", __func__);
 
-      *pSTAId = HDD_WLAN_INVALID_STA_ID;
+      STAId = HDD_WLAN_INVALID_STA_ID;
       goto release_lock;
    }
    if (pSapCtx->aStaInfo[STAId].isUsed && pSapCtx->aStaInfo[STAId].isQosEnabled && (HDD_WMM_USER_MODE_NO_QOS != pHddCtx->cfg_ini->WmmMode))
@@ -2140,7 +2141,6 @@ v_U16_t hdd_hostapd_select_queue(struct net_device * dev, struct sk_buff *skb)
          ac = hddWmmUpToAcMap[up];
       }
    }
-   *pSTAId = STAId;
 
 release_lock:
     spin_unlock_bh( &pSapCtx->staInfo_lock );
@@ -2174,10 +2174,11 @@ v_U16_t hdd_wmm_select_queue(struct net_device * dev, struct sk_buff *skb)
    sme_QosWmmUpType up = SME_QOS_WMM_UP_BE;
    v_USHORT_t queueIndex;
    hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
+   hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   int status = 0;
 
-   if (vos_is_logp_in_progress(VOS_MODULE_ID_HDD, NULL)) {
-       VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_WARN,
-                  FL("called during WDReset"));
+   status = wlan_hdd_validate_context(pHddCtx);
+   if (status !=0) {
        skb->priority = SME_QOS_WMM_UP_BE;
        return HDD_LINUX_AC_BE;
    }
@@ -2185,23 +2186,19 @@ v_U16_t hdd_wmm_select_queue(struct net_device * dev, struct sk_buff *skb)
    /*Get the Station ID*/
    if (WLAN_HDD_IBSS == pAdapter->device_mode)
    {
-       v_U8_t *pSTAId = (v_U8_t *)(((v_U8_t *)(skb->data)) - 1);
        v_MACADDR_t *pDestMacAddress = (v_MACADDR_t*)skb->data;
+       v_U8_t STAId;
 
-       if ( VOS_STATUS_SUCCESS !=
-            hdd_Ibss_GetStaId(&pAdapter->sessionCtx.station,
-                               pDestMacAddress, pSTAId))
+       STAId = hdd_sta_id_find_from_mac_addr(pAdapter, pDestMacAddress);
+       if ((STAId == HDD_WLAN_INVALID_STA_ID) &&
+            !vos_is_macaddr_broadcast( pDestMacAddress ) &&
+            !vos_is_macaddr_group(pDestMacAddress))
        {
-          *pSTAId = HDD_WLAN_INVALID_STA_ID;
-          if ( !vos_is_macaddr_broadcast( pDestMacAddress ) &&
-                             !vos_is_macaddr_group(pDestMacAddress))
-          {
-              VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+           VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                      "%s: Failed to find right station pDestMacAddress: "
                      MAC_ADDRESS_STR , __func__,
                      MAC_ADDR_ARRAY(pDestMacAddress->bytes));
-              goto done;
-          }
+           goto done;
        }
    }
    /* All traffic will get equal opportuniy to transmit data frames. */

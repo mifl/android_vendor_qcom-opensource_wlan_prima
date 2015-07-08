@@ -8093,6 +8093,12 @@ int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                 wdev->iftype = type;
                 hdd_set_ibss_ops( pAdapter );
                 hdd_ibss_init_tx_rx( pAdapter );
+
+                status = hdd_sta_id_hash_attach(pAdapter);
+                if (VOS_STATUS_SUCCESS != status) {
+                     hddLog(VOS_TRACE_LEVEL_ERROR,
+                            FL("Failed to initialize hash for IBSS"));
+                }
                 break;
 
             case NL80211_IFTYPE_AP:
@@ -8223,6 +8229,14 @@ int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                     return -EINVAL;
                 }
                 hdd_set_conparam(1);
+
+                status = hdd_sta_id_hash_attach(pAdapter);
+                if (VOS_STATUS_SUCCESS != status)
+                {
+                    hddLog(VOS_TRACE_LEVEL_ERROR,
+                           FL("Failed to initialize hash for AP"));
+                    return -EINVAL;
+                }
 
                 /*interface type changed update in wiphy structure*/
                 if(wdev)
@@ -9868,8 +9882,23 @@ wlan_hdd_cfg80211_inform_bss_frame( hdd_adapter_t *pAdapter,
        kfree(mgmt);
        return NULL;
     }
-    /* Supplicant takes the signal strength in terms of mBm(100*dBm) */
-    rssi = (VOS_MIN ((bss_desc->rssi + bss_desc->sinr), 0)) * 100;
+    /*To keep the rssi icon of the connected AP in the scan window
+    *and the rssi icon of the wireless networks in sync
+    * */
+    if (( eConnectionState_Associated ==
+             pAdapter->sessionCtx.station.conn_info.connState ) &&
+             ( VOS_TRUE == vos_mem_compare(bss_desc->bssId,
+                             pAdapter->sessionCtx.station.conn_info.bssId,
+                             WNI_CFG_BSSID_LEN)) &&
+                             (pHddCtx->hdd_wlan_suspended == FALSE))
+    {
+       /* supplicant takes the signal strength in terms of mBm(100*dBm) */
+       rssi = (pAdapter->rssi * 100);
+    }
+    else
+    {
+       rssi = (VOS_MIN ((bss_desc->rssi + bss_desc->sinr), 0))*100;
+    }
 
     hddLog(VOS_TRACE_LEVEL_INFO, "%s: BSSID:" MAC_ADDRESS_STR " Channel:%d"
           " RSSI:%d", __func__, MAC_ADDR_ARRAY(mgmt->bssid),
@@ -9975,6 +10004,8 @@ static int wlan_hdd_cfg80211_update_bss( struct wiphy *wiphy,
     {
         hddLog(VOS_TRACE_LEVEL_INFO, "%s: No scan result Status %d",
                                                       __func__, status);
+        wlan_hdd_get_frame_logs(pAdapter,
+                                WLAN_HDD_GET_FRAME_LOG_CMD_SEND_AND_CLEAR);
         return status;
     }
 
@@ -10499,6 +10530,9 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
     v_U8_t* pP2pIe = NULL;
     int ret = 0;
     v_U8_t *pWpsIe=NULL;
+    bool is_p2p_scan = false;
+    v_S7_t rssi=0;
+    hdd_station_ctx_t *pHddStaCtx=NULL;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0))
     struct net_device *dev = NULL;
@@ -10535,6 +10569,13 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
     }
     cfg_param = pHddCtx->cfg_ini;
     pScanInfo = &pHddCtx->scan_info;
+
+    pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+    if ( (pHddStaCtx != NULL) && (TRUE == hdd_connIsConnected(pHddStaCtx)))
+    {
+        wlan_hdd_get_roam_rssi(pAdapter, &rssi);
+        hddLog(VOS_TRACE_LEVEL_INFO, FL("rssi: %d"), rssi);
+    }
 
 #ifdef WLAN_BTAMP_FEATURE
     //Scan not supported when AMP traffic is on.
@@ -10760,8 +10801,13 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
      * the AP doesnt respond to our probe req then association
      * fails which is not desired
      */
+    if ((request->n_ssids == 1)
+            && (request->ssids != NULL)
+            && vos_mem_compare(&request->ssids[0], "DIRECT-", 7))
+        is_p2p_scan = true;
 
-    if( request->n_channels != WLAN_HDD_P2P_SINGLE_CHANNEL_SCAN )
+    if( is_p2p_scan ||
+            (request->n_channels != WLAN_HDD_P2P_SINGLE_CHANNEL_SCAN) )
     {
         hddLog(VOS_TRACE_LEVEL_DEBUG, "Flushing P2P Results");
         sme_ScanFlushP2PResult( WLAN_HDD_GET_HAL_CTX(pAdapter),
@@ -10918,7 +10964,7 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
             goto free_mem;
         }
     }
-
+    wlan_hdd_get_frame_logs(pAdapter, WLAN_HDD_GET_FRAME_LOG_CMD_CLEAR);
     status = sme_ScanRequest( WLAN_HDD_GET_HAL_CTX(pAdapter),
                               pAdapter->sessionId, &scanRequest, &scanId,
                               &hdd_cfg80211_scan_done_callback, dev );
