@@ -3432,12 +3432,36 @@ VOS_STATUS vos_nv_getRegDomainFromCountryCode( v_REGDOMAIN_t *pRegDomain,
         }
         else if (COUNTRY_IE == source || COUNTRY_USER == source)
         {
+            INIT_COMPLETION(pHddCtx->linux_reg_req);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
             regulatory_hint_user(country_code,NL80211_USER_REG_HINT_USER);
 #else
             regulatory_hint_user(country_code);
 #endif
-            *pRegDomain = temp_reg_domain;
+            wait_result = wait_for_completion_interruptible_timeout(
+                               &pHddCtx->linux_reg_req,
+                               msecs_to_jiffies(LINUX_REG_WAIT_TIME));
+
+            /* if the country information does not exist with the kernel,
+               then the driver callback would not be called */
+
+            if (wait_result >= 0)
+            {
+               VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+                           "runtime country code : %c%c is found in kernel db",
+                            country_code[0], country_code[1]);
+               *pRegDomain = temp_reg_domain;
+            }
+
+            else
+            {
+                VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_WARN,
+                           "runtime country code : %c%c is not found"
+                           " in kernel db",
+                            country_code[0], country_code[1]);
+
+                return VOS_STATUS_E_EXISTS;
+            }
         }
 
    }
@@ -3872,15 +3896,18 @@ int __wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
 #endif
     }
 
+    if (vos_is_logp_in_progress(VOS_MODULE_ID_VOSS, NULL))
+    {
+       VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
+                   ("SSR is in progress") );
+       goto do_comp;
+    }
+
     if (WLAN_HDD_IS_UNLOAD_IN_PROGRESS(pHddCtx))
     {
        VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
                    ("%s Unload is in progress"), __func__ );
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
-       return;
-#else
-       return 0;
-#endif
+       goto do_comp;
     }
 
     VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_INFO,
@@ -3907,7 +3934,6 @@ int __wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
         linux_reg_cc[0] =  request->alpha2[0];
         linux_reg_cc[1] =  request->alpha2[1];
 
-        complete(&pHddCtx->linux_reg_req);
     }
 
     else if (request->initiator == NL80211_REGDOM_SET_BY_USER ||
@@ -4007,7 +4033,12 @@ int __wlan_hdd_linux_reg_notifier(struct wiphy *wiphy,
           }
        }
     }
-
+do_comp:
+    if ((request->initiator == NL80211_REGDOM_SET_BY_DRIVER) ||
+         (request->initiator == NL80211_REGDOM_SET_BY_USER))
+    {
+        complete(&pHddCtx->linux_reg_req);
+    }
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0))
     return;
 #else
