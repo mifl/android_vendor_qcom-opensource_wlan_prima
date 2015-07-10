@@ -2396,6 +2396,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_BURST_MODE_BE_TXOP_VALUE_MAX       ( 12288 )
 #define CFG_BURST_MODE_BE_TXOP_VALUE_DEFAULT   ( 0 )
 
+#define CFG_TOGGLE_ARP_BDRATES_NAME       "gToggleArpBDRates"
+#define CFG_TOGGLE_ARP_BDRATES_MIN         0
+#define CFG_TOGGLE_ARP_BDRATES_MAX         1
+#define CFG_TOGGLE_ARP_BDRATES_DEFAULT     0
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2885,6 +2890,7 @@ typedef struct
    v_U8_t                      acsScanBandPreference;
    v_U16_t                     acsBandSwitchThreshold;
    v_U32_t                     enableDynamicRAStartRate;
+   v_BOOL_t                    toggleArpBDRates;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
