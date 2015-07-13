@@ -7242,14 +7242,14 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
       case WLAN_HDD_P2P_DEVICE:
       {
          hdd_station_ctx_t *pstation = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+#ifdef FEATURE_WLAN_TDLS
+         mutex_lock(&pHddCtx->tdls_lock);
+         wlan_hdd_tdls_exit(pAdapter, TRUE);
+         mutex_unlock(&pHddCtx->tdls_lock);
+#endif
          if( hdd_connIsConnected(pstation) ||
              (pstation->conn_info.connState == eConnectionState_Connecting) )
          {
-#ifdef FEATURE_WLAN_TDLS
-              mutex_lock(&pHddCtx->tdls_lock);
-              wlan_hdd_tdls_exit(pAdapter, TRUE);
-              mutex_unlock(&pHddCtx->tdls_lock);
-#endif
             if (pWextState->roamProfile.BSSType == eCSR_BSS_TYPE_START_IBSS)
                 halStatus = sme_RoamDisconnect(pHddCtx->hHal,
                                              pAdapter->sessionId,
@@ -7819,10 +7819,10 @@ VOS_STATUS hdd_get_front_adapter( hdd_context_t *pHddCtx,
                                   hdd_adapter_list_node_t** ppAdapterNode)
 {
     VOS_STATUS status;
-    spin_lock(&pHddCtx->hddAdapters.lock);
+    spin_lock_bh(&pHddCtx->hddAdapters.lock);
     status =  hdd_list_peek_front ( &pHddCtx->hddAdapters,
                    (hdd_list_node_t**) ppAdapterNode );
-    spin_unlock(&pHddCtx->hddAdapters.lock);
+    spin_unlock_bh(&pHddCtx->hddAdapters.lock);
     return status;
 }
 
@@ -7831,12 +7831,12 @@ VOS_STATUS hdd_get_next_adapter( hdd_context_t *pHddCtx,
                                  hdd_adapter_list_node_t** pNextAdapterNode)
 {
     VOS_STATUS status;
-    spin_lock(&pHddCtx->hddAdapters.lock);
+    spin_lock_bh(&pHddCtx->hddAdapters.lock);
     status = hdd_list_peek_next ( &pHddCtx->hddAdapters,
                                   (hdd_list_node_t*) pAdapterNode,
                                   (hdd_list_node_t**)pNextAdapterNode );
 
-    spin_unlock(&pHddCtx->hddAdapters.lock);
+    spin_unlock_bh(&pHddCtx->hddAdapters.lock);
     return status;
 }
 
@@ -7844,10 +7844,10 @@ VOS_STATUS hdd_remove_adapter( hdd_context_t *pHddCtx,
                                hdd_adapter_list_node_t* pAdapterNode)
 {
     VOS_STATUS status;
-    spin_lock(&pHddCtx->hddAdapters.lock);
+    spin_lock_bh(&pHddCtx->hddAdapters.lock);
     status =  hdd_list_remove_node ( &pHddCtx->hddAdapters,
                                      &pAdapterNode->node );
-    spin_unlock(&pHddCtx->hddAdapters.lock);
+    spin_unlock_bh(&pHddCtx->hddAdapters.lock);
     return status;
 }
 
@@ -7855,10 +7855,10 @@ VOS_STATUS hdd_remove_front_adapter( hdd_context_t *pHddCtx,
                                      hdd_adapter_list_node_t** ppAdapterNode)
 {
     VOS_STATUS status;
-    spin_lock(&pHddCtx->hddAdapters.lock);
+    spin_lock_bh(&pHddCtx->hddAdapters.lock);
     status =  hdd_list_remove_front( &pHddCtx->hddAdapters,
                    (hdd_list_node_t**) ppAdapterNode );
-    spin_unlock(&pHddCtx->hddAdapters.lock);
+    spin_unlock_bh(&pHddCtx->hddAdapters.lock);
     return status;
 }
 
@@ -7866,10 +7866,10 @@ VOS_STATUS hdd_add_adapter_back( hdd_context_t *pHddCtx,
                                  hdd_adapter_list_node_t* pAdapterNode)
 {
     VOS_STATUS status;
-    spin_lock(&pHddCtx->hddAdapters.lock);
+    spin_lock_bh(&pHddCtx->hddAdapters.lock);
     status =  hdd_list_insert_back ( &pHddCtx->hddAdapters,
                    (hdd_list_node_t*) pAdapterNode );
-    spin_unlock(&pHddCtx->hddAdapters.lock);
+    spin_unlock_bh(&pHddCtx->hddAdapters.lock);
     return status;
 }
 
@@ -7877,10 +7877,10 @@ VOS_STATUS hdd_add_adapter_front( hdd_context_t *pHddCtx,
                                   hdd_adapter_list_node_t* pAdapterNode)
 {
     VOS_STATUS status;
-    spin_lock(&pHddCtx->hddAdapters.lock);
+    spin_lock_bh(&pHddCtx->hddAdapters.lock);
     status =  hdd_list_insert_front ( &pHddCtx->hddAdapters,
                    (hdd_list_node_t*) pAdapterNode );
-    spin_unlock(&pHddCtx->hddAdapters.lock);
+    spin_unlock_bh(&pHddCtx->hddAdapters.lock);
     return status;
 }
 
@@ -9403,6 +9403,16 @@ int hdd_wlan_startup(struct device *dev )
 
    vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
 
+   /* register for riva power on lock to platform driver
+    * Locking power early to ensure FW doesn't reset by kernel while
+    * host driver is busy initializing itself */
+   if (req_riva_power_on_lock("wlan"))
+   {
+      hddLog(VOS_TRACE_LEVEL_FATAL,"%s: req riva power on lock failed",
+                                     __func__);
+      goto err_free_hdd_context;
+   }
+
    /*Get vos context here bcoz vos_open requires it*/
    pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
 
@@ -10025,21 +10035,13 @@ int hdd_wlan_startup(struct device *dev )
       goto err_unregister_pmops;
    }
 
-   /* register for riva power on lock to platform driver */
-   if (req_riva_power_on_lock("wlan"))
-   {
-      hddLog(VOS_TRACE_LEVEL_FATAL,"%s: req riva power on lock failed",
-                                     __func__);
-      goto err_unregister_pmops;
-   }
-
    // register net device notifier for device change notification
    ret = register_netdevice_notifier(&hdd_netdev_notifier);
 
    if(ret < 0)
    {
       hddLog(VOS_TRACE_LEVEL_ERROR,"%s: register_netdevice_notifier failed",__func__);
-      goto err_free_power_on_lock;
+      goto err_unregister_pmops;
    }
 
    //Initialize the nlink service
@@ -10210,9 +10212,6 @@ err_nl_srv:
 err_reg_netdev:
    unregister_netdevice_notifier(&hdd_netdev_notifier);
 
-err_free_power_on_lock:
-   free_riva_power_on_lock("wlan");
-
 err_unregister_pmops:
    hddDevTmUnregisterNotifyCallback(pHddCtx);
    hddDeregisterPmOps(pHddCtx);
@@ -10264,6 +10263,7 @@ err_config:
 
 err_free_hdd_context:
    hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_DRIVER_INIT);
+   free_riva_power_on_lock("wlan");
    wiphy_free(wiphy) ;
    //kfree(wdev) ;
    VOS_BUG(1);
@@ -11368,6 +11368,7 @@ int wlan_hdd_scan_abort(hdd_adapter_t *pAdapter)
     tSirAbortScanStatus abortScanStatus;
 
     pScanInfo = &pHddCtx->scan_info;
+    INIT_COMPLETION(pScanInfo->abortscan_event_var);
     if (pScanInfo->mScanPending)
     {
         abortScanStatus = hdd_abort_mac_scan(pHddCtx, pScanInfo->sessionId,
@@ -11381,7 +11382,6 @@ int wlan_hdd_scan_abort(hdd_adapter_t *pAdapter)
          */
         if (abortScanStatus == eSIR_ABORT_ACTIVE_SCAN_LIST_NOT_EMPTY)
         {
-            INIT_COMPLETION(pScanInfo->abortscan_event_var);
             status = wait_for_completion_interruptible_timeout(
                            &pScanInfo->abortscan_event_var,
                            msecs_to_jiffies(5000));
