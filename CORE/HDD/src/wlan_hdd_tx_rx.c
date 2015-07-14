@@ -1065,6 +1065,7 @@ VOS_STATUS hdd_Ibss_GetStaId(hdd_station_ctx_t *pHddStaCtx, v_MACADDR_t *pMacAdd
 void __hdd_tx_timeout(struct net_device *dev)
 {
    hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
+   hdd_context_t *pHddCtx;
    struct netdev_queue *txq;
    int i = 0;
    v_ULONG_t diff_in_jiffies = 0;
@@ -1080,6 +1081,9 @@ void __hdd_tx_timeout(struct net_device *dev)
       return;
    }
 
+   pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   if (0 != wlan_hdd_validate_context(pHddCtx))
+      return;
    ++pAdapter->hdd_stats.hddTxRxStats.txTimeoutCount;
 
    //Getting here implies we disabled the TX queues for too long. Queues are 
@@ -1139,6 +1143,10 @@ void __hdd_tx_timeout(struct net_device *dev)
    //update last jiffies after the check
    pAdapter->hdd_stats.hddTxRxStats.jiffiesLastTxTimeOut = jiffies;
 
+   if (WLANTL_IsEAPOLPending(pHddCtx->pvosContext) == VOS_STATUS_SUCCESS) {
+      pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount = 0;
+      goto print_log;
+   }
    if (pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount ==
           HDD_TX_STALL_RECOVERY_THRESHOLD)
    {
@@ -1158,6 +1166,7 @@ void __hdd_tx_timeout(struct net_device *dev)
        return;
    }
 
+print_log:
    /* If Tx stalled for a long time then *hdd_tx_timeout* is called
     * every 5sec. The TL debug spits out a lot of information on the
     * serial console, if it is called every time *hdd_tx_timeout* is
