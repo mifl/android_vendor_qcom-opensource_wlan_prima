@@ -2583,9 +2583,6 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
            psessionEntry->peSessionId,
            pMacHdr->fc.subType));
 
-    // enable caching
-    WLANTL_EnableCaching(psessionEntry->staId);
-
     halstatus = halTxFrame( pMac, pPacket, ( tANI_U16 ) (sizeof(tSirMacMgmtHdr) + nPayload),
             HAL_TXRX_FRM_802_11_MGMT,
             ANI_TXDIR_TODS,
@@ -2602,6 +2599,9 @@ limSendAssocReqMgmtFrame(tpAniSirGlobal   pMac,
         vos_mem_free(pFrm);
         return;
     }
+
+    //Enable caching only if Assoc Request is successfully submitted to the h/w
+    WLANTL_EnableCaching(psessionEntry->staId);
 
     // Free up buffer allocated for mlmAssocReq
     vos_mem_free(pMlmAssocReq);
@@ -3025,9 +3025,6 @@ limSendReassocReqWithFTIEsMgmtFrame(tpAniSirGlobal     pMac,
     }
 
 
-    // Enable TL cahching in case of roaming
-    WLANTL_EnableCaching(psessionEntry->staId);
-
     MTRACE(macTrace(pMac, TRACE_CODE_TX_MGMT,
            psessionEntry->peSessionId,
            pMacHdr->fc.subType));
@@ -3048,6 +3045,8 @@ limSendReassocReqWithFTIEsMgmtFrame(tpAniSirGlobal     pMac,
         goto end;
     }
 
+	// Enable TL cahching in case of roaming
+    WLANTL_EnableCaching(psessionEntry->staId);
 end:
     // Free up buffer allocated for mlmAssocReq
     vos_mem_free( pMlmReassocReq );
@@ -3434,8 +3433,6 @@ limSendReassocReqMgmtFrame(tpAniSirGlobal     pMac,
            psessionEntry->peSessionId,
            pMacHdr->fc.subType));
 
-    // enable caching
-    WLANTL_EnableCaching(psessionEntry->staId);
 
     halstatus = halTxFrame( pMac, pPacket, ( tANI_U16 ) (sizeof(tSirMacMgmtHdr) + nPayload),
                             HAL_TXRX_FRM_802_11_MGMT,
@@ -3453,6 +3450,8 @@ limSendReassocReqMgmtFrame(tpAniSirGlobal     pMac,
         //Pkt will be freed up by the callback
         goto end;
     }
+    // enable caching
+    WLANTL_EnableCaching(psessionEntry->staId);
 
 end:
     // Free up buffer allocated for mlmAssocReq
