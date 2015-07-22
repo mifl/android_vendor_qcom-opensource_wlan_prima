@@ -2310,11 +2310,14 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
             * 9 byte will have band setting value */
            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                     "%s: SetBandCommand Info  comm %s UL %d, TL %d", __func__, command, priv_data.used_len, priv_data.total_len);
-           /* Change band request received */
-           ret = hdd_setBand_helper(pAdapter->dev, ptr);
-           if(ret < 0)
-               VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
-                   "%s: failed to set band ret=%d", __func__, ret);
+           if(VOS_FTM_MODE != hdd_get_conparam())
+           {
+               /* Change band request received */
+               ret = hdd_setBand_helper(pAdapter->dev, ptr);
+               if(ret < 0)
+                   VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+                       "%s: failed to set band ret=%d", __func__, ret);
+           }
        }
        else if(strncmp(command, "SETWMMPS", 8) == 0)
        {
@@ -9323,6 +9326,10 @@ void hdd_init_frame_logging(hdd_context_t* pHddCtx)
       wlanFWLoggingInitParam->enableFlag |= WLAN_QXDM_LOG_EN;
    }
 
+   if (pHddCtx->cfg_ini->enableMgmtLogging)
+   {
+      wlanFWLoggingInitParam->enableFlag |= WLAN_FRAME_LOG_EN;
+   }
    if (pHddCtx->cfg_ini->enableBMUHWtracing)
    {
       wlanFWLoggingInitParam->enableFlag |= WLAN_BMUHW_TRACE_LOG_EN;
