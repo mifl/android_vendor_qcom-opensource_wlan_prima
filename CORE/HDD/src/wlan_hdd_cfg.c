@@ -3231,6 +3231,14 @@ REG_VARIABLE( CFG_EXTSCAN_ENABLE, WLAN_PARAM_Integer,
                  CFG_TOGGLE_ARP_BDRATES_DEFAULT,
                  CFG_TOGGLE_ARP_BDRATES_MIN,
                  CFG_TOGGLE_ARP_BDRATES_MAX),
+
+   REG_VARIABLE( CFG_P2P_LISTEN_DEFER_INTERVAL_NAME, WLAN_PARAM_Integer,
+                  hdd_config_t, gP2PListenDeferInterval,
+                  VAR_FLAGS_OPTIONAL |
+                  VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                  CFG_P2P_LISTEN_DEFER_INTERVAL_DEFAULT,
+                  CFG_P2P_LISTEN_DEFER_INTERVAL_MIN,
+                  CFG_P2P_LISTEN_DEFER_INTERVAL_MAX),
 };
 
 /*
