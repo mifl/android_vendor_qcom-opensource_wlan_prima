@@ -6074,23 +6074,8 @@ VOS_STATUS hdd_init_station_mode( hdd_adapter_t *pAdapter )
 
    set_bit(WMM_INIT_DONE, &pAdapter->event_flags);
 
-#ifdef FEATURE_WLAN_TDLS
-   if(0 != wlan_hdd_sta_tdls_init(pAdapter))
-   {
-       status = VOS_STATUS_E_FAILURE;
-       hddLog(VOS_TRACE_LEVEL_ERROR,"%s: wlan_hdd_sta_tdls_init failed",__func__);
-       goto error_tdls_init;
-   }
-   set_bit(TDLS_INIT_DONE, &pAdapter->event_flags);
-#endif
-
    return VOS_STATUS_SUCCESS;
 
-#ifdef FEATURE_WLAN_TDLS
-error_tdls_init:
-   clear_bit(WMM_INIT_DONE, &pAdapter->event_flags);
-   hdd_wmm_adapter_close(pAdapter);
-#endif
 error_wmm_init:
    clear_bit(INIT_TX_RX_SUCCESS, &pAdapter->event_flags);
    hdd_deinit_tx_rx(pAdapter);
@@ -6164,14 +6149,6 @@ void hdd_deinit_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter )
          }
 
          hdd_cleanup_actionframe(pHddCtx, pAdapter);
-#ifdef FEATURE_WLAN_TDLS
-         if(test_bit(TDLS_INIT_DONE, &pAdapter->event_flags))
-         {
-            wlan_hdd_tdls_exit(pAdapter);
-            clear_bit(TDLS_INIT_DONE, &pAdapter->event_flags);
-         }
-#endif
-
          break;
       }
 
@@ -6894,6 +6871,11 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
          if( hdd_connIsConnected(pstation) ||
              (pstation->conn_info.connState == eConnectionState_Connecting) )
          {
+#ifdef FEATURE_WLAN_TDLS
+              mutex_lock(&pHddCtx->tdls_lock);
+              wlan_hdd_tdls_exit(pAdapter);
+              mutex_unlock(&pHddCtx->tdls_lock);
+#endif
             if (pWextState->roamProfile.BSSType == eCSR_BSS_TYPE_START_IBSS)
                 halStatus = sme_RoamDisconnect(pHddCtx->hHal,
                                              pAdapter->sessionId,
@@ -7198,6 +7180,11 @@ VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx )
       }
 #endif
 
+#ifdef FEATURE_WLAN_TDLS
+      mutex_lock(&pHddCtx->tdls_lock);
+      wlan_hdd_tdls_exit(pAdapter);
+      mutex_unlock(&pHddCtx->tdls_lock);
+#endif
       status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
       pAdapterNode = pNext;
    }
