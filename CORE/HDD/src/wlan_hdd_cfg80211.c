@@ -5126,7 +5126,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 
     wiphy->max_scan_ssids = MAX_SCAN_SSID;
 
-    wiphy->max_scan_ie_len = SIR_MAC_MAX_IE_LENGTH;
+    wiphy->max_scan_ie_len = SIR_MAC_MAX_ADD_IE_LENGTH;
 
     wiphy->max_acl_mac_addrs = MAX_ACL_MAC_ADDRESS;
 
@@ -9211,7 +9211,7 @@ static int wlan_hdd_cfg80211_update_bss( struct wiphy *wiphy,
     tScanResultHandle pResult;
     struct cfg80211_bss *bss_status = NULL;
     hdd_context_t *pHddCtx;
-
+    bool is_p2p_scan = false;
     ENTER();
 
     MTRACE(vos_trace(VOS_MODULE_ID_HDD,
@@ -9236,7 +9236,13 @@ static int wlan_hdd_cfg80211_update_bss( struct wiphy *wiphy,
         return VOS_STATUS_E_PERM;
     }
 
-
+    if (pAdapter->request != NULL)
+    {
+        if ((pAdapter->request->n_ssids == 1)
+                && (pAdapter->request->ssids != NULL)
+                && vos_mem_compare(&pAdapter->request->ssids[0], "DIRECT-", 7))
+            is_p2p_scan = true;
+    }
     /*
      * start getting scan results and populate cgf80211 BSS database
      */
@@ -9264,7 +9270,14 @@ static int wlan_hdd_cfg80211_update_bss( struct wiphy *wiphy,
          * ieee80211_mgmt(probe response) and passing to c
          * fg80211_inform_bss_frame.
          * */
-
+        if(is_p2p_scan && (pScanResult->ssId.ssId != NULL) &&
+                !vos_mem_compare( pScanResult->ssId.ssId, "DIRECT-", 7) )
+        {
+            hddLog(VOS_TRACE_LEVEL_INFO, FL(" Non P2P BSS skipped: =%s:"),
+                    pScanResult->ssId.ssId);
+            pScanResult = sme_ScanResultGetNext(hHal, pResult);
+            continue; //Skip the non p2p bss entries
+        }
         bss_status = wlan_hdd_cfg80211_inform_bss_frame(pAdapter,
                 &pScanResult->BssDescriptor);
 
@@ -9287,7 +9300,7 @@ static int wlan_hdd_cfg80211_update_bss( struct wiphy *wiphy,
     }
 
     sme_ScanResultPurge(hHal, pResult);
-
+    is_p2p_scan = false;
     return 0;
 }
 
@@ -10046,7 +10059,7 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
             (WLAN_HDD_P2P_CLIENT == pAdapter->device_mode) ||
             (WLAN_HDD_P2P_DEVICE == pAdapter->device_mode))
         {
-            if ( request->ie_len <= SIR_MAC_MAX_IE_LENGTH)
+            if ( request->ie_len <= SIR_MAC_MAX_ADD_IE_LENGTH)
             {
                 pwextBuf->roamProfile.nAddIEScanLength = request->ie_len;
                 memcpy( pwextBuf->roamProfile.addIEScan,
@@ -10684,7 +10697,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set WPS IE(len %d)",
                             __func__, eLen + 2);
 
-                    if( SIR_MAC_MAX_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
+                    if( SIR_MAC_MAX_ADD_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
                     {
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate assocAddIE. "
                                                       "Need bigger buffer space");
@@ -10714,7 +10727,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set P2P IE(len %d)",
                             __func__, eLen + 2);
 
-                    if( SIR_MAC_MAX_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
+                    if( SIR_MAC_MAX_ADD_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
                     {
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate assocAddIE "
                                                       "Need bigger buffer space");
@@ -10738,7 +10751,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set WFD IE(len %d)",
                             __func__, eLen + 2);
 
-                    if( SIR_MAC_MAX_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
+                    if( SIR_MAC_MAX_ADD_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
                     {
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate assocAddIE "
                                                       "Need bigger buffer space");
@@ -10762,7 +10775,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set HS20 IE(len %d)",
                             __func__, eLen + 2);
 
-                    if( SIR_MAC_MAX_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
+                    if( SIR_MAC_MAX_ADD_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
                     {
                         hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate assocAddIE "
                                "Need bigger buffer space");
@@ -10798,7 +10811,9 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     pWextState->roamProfile.nAddIEAssocLength = pWextState->assocAddIE.length;
                 }
 
-                if (WLAN_HDD_IBSS == pAdapter->device_mode) {
+                 /* Update only for WPA IE */
+                if (!memcmp(genie, WPA_OUI_TYPE, WPA_OUI_TYPE_SIZE) &&
+                       (WLAN_HDD_IBSS == pAdapter->device_mode)) {
 
                    /* populating as ADDIE in beacon frames */
                    if (ccmCfgSetStr(WLAN_HDD_GET_HAL_CTX(pAdapter),
@@ -10930,7 +10945,7 @@ int wlan_hdd_cfg80211_set_ie( hdd_adapter_t *pAdapter,
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set Extended CAPS IE(len %d)",
                             __func__, eLen + 2);
 
-                    if( SIR_MAC_MAX_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
+                    if( SIR_MAC_MAX_ADD_IE_LENGTH < (pWextState->assocAddIE.length + eLen) )
                     {
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate assocAddIE "
                                                       "Need bigger buffer space");
@@ -11751,7 +11766,7 @@ static int __wlan_hdd_cfg80211_join_ibss( struct wiphy *wiphy,
                     "%s:ccmCfgStInt faild for WNI_CFG_IBSS_AUTO_BSSID", __func__);
             return -EIO;
         }
-        params->bssid = vos_mem_malloc(sizeof(VOS_MAC_ADDR_SIZE));
+        params->bssid = vos_mem_malloc(VOS_MAC_ADDR_SIZE);
         if (!params->bssid)
         {
             hddLog (VOS_TRACE_LEVEL_ERROR,

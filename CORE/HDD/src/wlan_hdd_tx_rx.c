@@ -851,16 +851,8 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
    spin_lock(&pAdapter->wmm_tx_queue[qid].lock);
-   /*CR 463598,384996*/
-   /*For every increment of 10 pkts in the queue, we inform TL about pending pkts.
-    *We check for +1 in the logic,to take care of Zero count which
-    *occurs very frequently in low traffic cases */
-   if((pAdapter->wmm_tx_queue[qid].count + 1) % 10 == 0)
+   if (WLAN_HDD_IBSS == pAdapter->device_mode)
    {
-      /* Use the following debug statement during Engineering Debugging.There are chance that this will lead to a Watchdog Bark
-            * if it is in the mainline code and if the log level is enabled by someone for debugging
-           VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_INFO,"%s:Queue is Filling up.Inform TL again about pending packets", __func__);*/
-
       status = WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
                                     STAId, qid
                                     );
@@ -876,6 +868,37 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
          spin_unlock(&pAdapter->wmm_tx_queue[qid].lock);
          return NETDEV_TX_OK;
       }
+   }
+   else
+   {
+     //If we have already reached the max queue size, disable the TX queue
+
+     /*CR 463598,384996*/
+     /*For every increment of 10 pkts in the queue, we inform TL about pending pkts.
+      *We check for +1 in the logic,to take care of Zero count which
+      *occurs very frequently in low traffic cases */
+     if((pAdapter->wmm_tx_queue[qid].count + 1) % 10 == 0)
+     {
+        /* Use the following debug statement during Engineering Debugging.There are chance that this will lead to a Watchdog Bark
+              * if it is in the mainline code and if the log level is enabled by someone for debugging
+             VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_INFO,"%s:Queue is Filling up.Inform TL again about pending packets", __func__);*/
+
+        status = WLANTL_STAPktPending( (WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
+                                      STAId, qid
+                                      );
+        if ( !VOS_IS_STATUS_SUCCESS( status ) )
+        {
+           VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+                      "%s: WLANTL_STAPktPending() returned error code %d",
+                      __func__, status);
+           ++pAdapter->stats.tx_dropped;
+           ++pAdapter->hdd_stats.hddTxRxStats.txXmitDropped;
+           ++pAdapter->hdd_stats.hddTxRxStats.txXmitDroppedAC[qid];
+           kfree_skb(skb);
+           spin_unlock(&pAdapter->wmm_tx_queue[qid].lock);
+           return NETDEV_TX_OK;
+        }
+     }
    }
    //If we have already reached the max queue size, disable the TX queue
    if ( pAdapter->wmm_tx_queue[qid].count == pAdapter->wmm_tx_queue[qid].max_size)
@@ -1595,23 +1618,6 @@ VOS_STATUS hdd_tx_fetch_packet_cbk( v_VOID_t *vosContext,
          "skb from Tx queue status = %d", __func__, status );
       vos_pkt_return_packet(pVosPacket);
       return VOS_STATUS_E_FAILURE;
-   }
-   /* In IBSS the staID can change and hdd uses the same queue for all staid.
-    * Due to this the fetch may be called for staID x, but data might be of
-    * staID y. So better get the staId again from SKB and use this to process
-    * the packet further.
-    */
-   if (WLAN_HDD_IBSS == pAdapter->device_mode)
-   {
-      *pStaId = *(v_U8_t *)(((v_U8_t *)(skb->data)) - 1);
-
-      /* If HDD_WLAN_INVALID_STA_ID no need to check the destination,
-       * just make the staID 0. As if HDD_WLAN_INVALID_STA_ID and
-       * destination is not BC of MC, the packet is already dropped in
-       * hdd_hard_start_xmit.
-       */
-      if (*pStaId == HDD_WLAN_INVALID_STA_ID)
-         *pStaId = IBSS_BROADCAST_STAID;
    }
    //Attach skb to VOS packet.
    status = vos_pkt_set_os_packet( pVosPacket, skb );
