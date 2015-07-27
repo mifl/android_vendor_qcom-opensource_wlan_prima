@@ -506,6 +506,7 @@ void hdd_SendFTEvent(hdd_adapter_t *pAdapter)
     if (auth_resp_len == 0)
     {
         hddLog(LOGE, "%s: AuthRsp FTIES is of length 0", __func__);
+        kfree(buff);
         return;
     }
 
@@ -887,6 +888,15 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
                {
                    cfg80211_disconnected(dev, WLAN_REASON_UNSPECIFIED, NULL, 0, GFP_KERNEL);
                }
+            }
+            if ((TRUE == pHddCtx->cfg_ini->fEnableTDLSSupport) &&
+                          (TRUE == sme_IsFeatureSupportedByFW(TDLS))) {
+                if (pAdapter->device_mode != WLAN_HDD_INFRA_STATION)
+                    /* Enable TDLS support Once P2P session ends since
+                     * upond detection of concurrency TDLS would be disabled
+                     */
+                    wlan_hdd_tdls_set_mode(pHddCtx, eTDLS_SUPPORT_ENABLED,
+                                                                     FALSE);
             }
             //If the Device Mode is Station
             // and the P2P Client is Connected
