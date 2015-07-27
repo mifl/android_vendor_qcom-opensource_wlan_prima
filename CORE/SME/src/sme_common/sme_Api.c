@@ -3517,6 +3517,29 @@ eHalStatus sme_RoamDisconnect(tHalHandle hHal, tANI_U8 sessionId, eCsrRoamDiscon
 }
 
 /* ---------------------------------------------------------------------------
+    \fn.sme_abortConnection
+    \brief a wrapper function to request CSR to stop from connecting a network
+    \retun void.
+---------------------------------------------------------------------------*/
+
+void sme_abortConnection(tHalHandle hHal, tANI_U8 sessionId)
+{
+   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+   eHalStatus status = eHAL_STATUS_FAILURE;
+
+   status = sme_AcquireGlobalLock( &pMac->sme );
+   if ( HAL_STATUS_SUCCESS( status ) )
+   {
+      if( CSR_IS_SESSION_VALID( pMac, sessionId ) )
+      {
+          csr_abortConnection( pMac, sessionId);
+      }
+      sme_ReleaseGlobalLock( &pMac->sme );
+   }
+   return;
+}
+
+/* ---------------------------------------------------------------------------
     \fn sme_RoamStopBss
     \brief To stop BSS for Soft AP. This is an asynchronous API.
     \param hHal - Global structure
@@ -7495,14 +7518,10 @@ eHalStatus sme_p2pSetPs(tHalHandle hHal, tP2pPsConfig * data)
     \fn sme_GetFramesLog
     \brief a wrapper function that client calls to register a callback to get
            mgmt frames logged
-    \param callback - SME sends back the context using the callback
     \param flag - flag tells to clear OR send the frame log buffer
-    \param pContext - user context to be passed back along with the callback
     \return eHalStatus
   ---------------------------------------------------------------------------*/
-eHalStatus sme_GetFramesLog(tHalHandle hHal,
-                             tGetFrameLogCallback callback,
-                             tANI_U8 flag, void *pContext)
+eHalStatus sme_GetFramesLog(tHalHandle hHal, tANI_U8 flag)
 {
    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
    eHalStatus status = eHAL_STATUS_SUCCESS;
@@ -7512,8 +7531,6 @@ eHalStatus sme_GetFramesLog(tHalHandle hHal,
    if (pGetFrameLogCmd)
    {
        pGetFrameLogCmd->command = eSmeCommandGetFrameLogRequest;
-       pGetFrameLogCmd->u.getFramelogCmd.pDevContext= pContext;
-       pGetFrameLogCmd->u.getFramelogCmd.getFramelogCallback= callback;
        pGetFrameLogCmd->u.getFramelogCmd.getFrameLogCmdFlag= flag;
 
        status = csrQueueSmeCommand(pMac, pGetFrameLogCmd, eANI_BOOLEAN_TRUE);
@@ -11410,6 +11427,24 @@ eHalStatus sme_StopBatchScanInd
 
 #endif
 
+void activeListCmdTimeoutHandle(void *userData)
+{
+    /* Return if no cmd pending in active list as
+     * in this case we should not be here.
+     */
+    if ((NULL == userData) ||
+        (0 == csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList)))
+        return;
+    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+        "%s: Active List command timeout Cmd List Count %d", __func__,
+        csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList) );
+    smeGetCommandQStatus((tHalHandle) userData);
+
+    if (!(vos_isLoadUnloadInProgress() ||
+        vos_is_logp_in_progress(VOS_MODULE_ID_SME, NULL)))
+       VOS_BUG(0);
+}
+
 #ifdef FEATURE_WLAN_CH_AVOID
 /* ---------------------------------------------------------------------------
     \fn sme_AddChAvoidCallback
@@ -11445,21 +11480,6 @@ eHalStatus sme_AddChAvoidCallback
     return(status);
 }
 #endif /* FEATURE_WLAN_CH_AVOID */
-
-void activeListCmdTimeoutHandle(void *userData)
-{
-    /* Return if no cmd pending in active list as
-     * in this case we should not be here.
-     */
-    if ((NULL == userData) ||
-        (0 == csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList)))
-        return;
-    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
-        "%s: Active List command timeout Cmd List Count %d", __func__,
-    csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList) );
-    smeGetCommandQStatus((tHalHandle) userData);
-    VOS_BUG(0);
-}
 
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 
