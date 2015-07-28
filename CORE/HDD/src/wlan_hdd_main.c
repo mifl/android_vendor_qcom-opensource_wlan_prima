@@ -2528,8 +2528,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETROAMSCANPERIOD", (nEmptyScanRefreshPeriod/1000));
            /* Returned value is in units of seconds */
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -2590,8 +2590,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETROAMSCANREFRESHPERIOD", (value/1000));
            /* Returned value is in units of seconds */
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -2666,8 +2666,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
 	       roamMode = CFG_LFR_FEATURE_ENABLED_MIN;
 
 	   len = scnprintf(extra, sizeof(extra), "%s %d", command, roamMode);
-	   if (copy_to_user(priv_data.buf, &extra, len + 1))
-	   {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+	   if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -2727,8 +2727,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
                             pAdapter->sessionId, roamRssiDiff));
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    command, roamRssiDiff);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -2748,8 +2748,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
                             TRACE_CODE_HDD_GETBAND_IOCTL,
                             pAdapter->sessionId, band));
            len = scnprintf(extra, sizeof(extra), "%s %d", command, band);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -2916,7 +2916,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
 
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETFASTTRANSITION", ft);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
@@ -3088,7 +3089,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            MTRACE(vos_trace(VOS_MODULE_ID_HDD,
                             TRACE_CODE_HDD_GETROAMSCANCHANNELMINTIME_IOCTL,
                             pAdapter->sessionId, val));
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);

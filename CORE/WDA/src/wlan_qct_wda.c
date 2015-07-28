@@ -601,6 +601,11 @@ VOS_STATUS WDA_start(v_PVOID_t pVosContext)
       {
          wdaContext->wdaTimersCreated = VOS_TRUE;
       }
+      else
+      {
+          VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                    FL("wda create timers failed"));
+      }
    }
    else
    {
@@ -17332,16 +17337,18 @@ VOS_STATUS WDA_shutdown(v_PVOID_t pVosContext, wpt_boolean closeTransport)
       VOS_ASSERT(0);
    }
 
-   if ( (eDRIVER_TYPE_MFG != pWDA->driverMode) &&
-        (VOS_TRUE == pWDA->wdaTimersCreated))
+   if (eDRIVER_TYPE_MFG != pWDA->driverMode)
    {
-      wdaDestroyTimers(pWDA);
-      pWDA->wdaTimersCreated = VOS_FALSE;
+       if(VOS_TRUE == pWDA->wdaTimersCreated)
+       {
+          wdaDestroyTimers(pWDA);
+          pWDA->wdaTimersCreated = VOS_FALSE;
+       }
    }
    else
    {
       vos_event_destroy(&pWDA->ftmStopDoneEvent);
-  }
+   }
 
    /* call WDI shutdown */
    wdiStatus = WDI_Shutdown(closeTransport);
@@ -19195,8 +19202,8 @@ void WDA_MonStopRspCallback(void* pUserData)
 {
    tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData;
 
-   VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                                          "<------ %s " ,__func__);
+   VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                                          "%s: Mon stop request cb " ,__func__);
    if (NULL == pWdaParams)
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
@@ -19230,6 +19237,8 @@ VOS_STATUS WDA_ProcessMonStopReq( tWDA_CbContext *pWDA, void* wdaRequest)
     pWdaParams->wdaMsgParam = wdaRequest;
     pWdaParams->wdaWdiApiMsgParam = NULL;
 
+    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+            "%s: Processing Mon stop request", __func__);
     status = WDI_MonStopReq((WDI_MonStopRspCb)WDA_MonStopRspCallback,
                              (void *)pWdaParams);
 
