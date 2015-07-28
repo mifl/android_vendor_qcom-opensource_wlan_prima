@@ -3606,4 +3606,8 @@ eHalStatus sme_SetMiracastVendorConfig(tHalHandle hHal,
                                       tANI_U32 set_value);
 
 void sme_SetDefDot11Mode(tHalHandle hHal);
+
+tANI_BOOLEAN sme_handleSetFccChannel(tHalHandle hHal,
+                                      tANI_U8 fcc_constraint);
+
 #endif //#if !defined( __SME_API_H )
