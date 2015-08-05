@@ -5854,6 +5854,7 @@ VOS_STATUS WDA_ProcessGetRoamRssiReq(tWDA_CbContext *pWDA,
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                            "%s: VOS MEM Alloc Failure", __func__);
+      vos_mem_free(pGetRoamRssiParams);
       VOS_ASSERT(0);
       return VOS_STATUS_E_NOMEM;
    }
@@ -7036,6 +7037,7 @@ VOS_STATUS WDA_ProcessSendBeacon(tWDA_CbContext *pWDA,
    {
        VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                "Invalid p2pIeOffset = %hu ", pSendbeaconParams->p2pIeOffset);
+       vos_mem_free(pSendbeaconParams);
        VOS_ASSERT( 0 );
        return WDI_STATUS_E_FAILURE;
    }
@@ -7082,7 +7084,10 @@ VOS_STATUS WDA_ProcessUpdateProbeRspTemplate(tWDA_CbContext *pWDA,
                                           "------> %s " ,__func__);
 
    if (!wdiSendProbeRspParam)
+   {
+      vos_mem_free(pSendProbeRspParams);
       return CONVERT_WDI2VOS_STATUS(WDI_STATUS_MEM_FAILURE);
+   }
 
    /*Copy update probe response parameters*/
    vos_mem_copy(wdiSendProbeRspParam->wdiProbeRspTemplateInfo.macBSSID,
@@ -7474,6 +7479,7 @@ VOS_STATUS WDA_ProcessSetP2PGONOAReq(tWDA_CbContext *pWDA,
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                            "%s: VOS MEM Alloc Failure", __func__); 
+      vos_mem_free(pP2pPsConfigParams);
       VOS_ASSERT(0);
       return VOS_STATUS_E_NOMEM;
    }
@@ -7593,6 +7599,7 @@ VOS_STATUS WDA_ProcessSetTdlsLinkEstablishReq(tWDA_CbContext *pWDA,
     {
         VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                    "%s: VOS MEM Alloc Failure", __func__);
+        vos_mem_free(pTdlsLinkEstablishParams);
         VOS_ASSERT(0);
         return VOS_STATUS_E_NOMEM;
     }
@@ -7716,6 +7723,7 @@ VOS_STATUS WDA_ProcessSetTdlsChanSwitchReq(tWDA_CbContext *pWDA,
     {
         VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                    "%s: VOS MEM Alloc Failure", __func__);
+        vos_mem_free(pTdlsChanSwitchParams);
         VOS_ASSERT(0);
         return VOS_STATUS_E_NOMEM;
     }
@@ -7819,6 +7827,7 @@ VOS_STATUS WDA_ProcessAggrAddTSReq(tWDA_CbContext *pWDA,
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
                            "%s: VOS MEM Alloc Failure", __func__); 
+      vos_mem_free(pAggrAddTsReqParams);
       VOS_ASSERT(0);
       return VOS_STATUS_E_NOMEM;
    }
