@@ -2422,8 +2422,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETROAMSCANPERIOD", (nEmptyScanRefreshPeriod/1000));
            /* Returned value is in units of seconds */
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -2484,8 +2484,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETROAMSCANREFRESHPERIOD", (value/1000));
            /* Returned value is in units of seconds */
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -2560,8 +2560,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
 	       roamMode = CFG_LFR_FEATURE_ENABLED_MIN;
 
 	   len = scnprintf(extra, sizeof(extra), "%s %d", command, roamMode);
-	   if (copy_to_user(priv_data.buf, &extra, len + 1))
-	   {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+	   if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -2621,8 +2621,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
                             pAdapter->sessionId, roamRssiDiff));
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    command, roamRssiDiff);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -2642,8 +2642,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
                             TRACE_CODE_HDD_GETBAND_IOCTL,
                             pAdapter->sessionId, band));
            len = scnprintf(extra, sizeof(extra), "%s %d", command, band);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -2716,7 +2716,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
                        ChannelList[j]);
            }
 
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
@@ -2745,7 +2746,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
 
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETCCXMODE", eseMode);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
@@ -2774,7 +2776,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
 
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETOKCMODE", okcMode);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
@@ -2790,7 +2793,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
 
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETFASTROAM", lfrMode);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
@@ -2806,7 +2810,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
 
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETFASTTRANSITION", ft);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
@@ -2978,7 +2983,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            MTRACE(vos_trace(VOS_MODULE_ID_HDD,
                             TRACE_CODE_HDD_GETROAMSCANCHANNELMINTIME_IOCTL,
                             pAdapter->sessionId, val));
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
@@ -3034,7 +3040,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            /* value is interms of msec */
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETSCANCHANNELTIME", val);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
@@ -3090,7 +3097,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            /* value is interms of msec */
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETSCANHOMETIME", val);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
@@ -3145,7 +3153,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            /* value is interms of msec */
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    "GETROAMINTRABAND", val);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
@@ -6581,6 +6590,15 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
          //netif_tx_disable(pWlanDev);
          netif_carrier_off(pAdapter->dev);
 
+         if (WLAN_HDD_P2P_CLIENT == session_type ||
+                 WLAN_HDD_P2P_DEVICE == session_type)
+         {
+             /* Initialize the work queue to defer the
+              * back to back RoC request */
+             INIT_DELAYED_WORK(&pAdapter->roc_work,
+                     hdd_p2p_roc_work_queue);
+         }
+
          break;
       }
 
@@ -6615,6 +6633,14 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
          netif_carrier_off(pAdapter->dev);
 
          hdd_set_conparam( 1 );
+
+         if (WLAN_HDD_P2P_GO == session_type)
+         {
+             /* Initialize the work queue to
+              * defer the back to back RoC request */
+             INIT_DELAYED_WORK(&pAdapter->roc_work,
+                     hdd_p2p_roc_work_queue);
+         }
          break;
       }
       case WLAN_HDD_MONITOR:
@@ -6966,6 +6992,9 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
                   break;
                }
             }
+#ifdef WLAN_OPEN_SOURCE
+          cancel_delayed_work_sync(&pAdapter->roc_work);
+#endif
        }
 #ifdef WLAN_NS_OFFLOAD
 #ifdef WLAN_OPEN_SOURCE
@@ -7024,6 +7053,10 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
                   break;
                }
             }
+
+#ifdef WLAN_OPEN_SOURCE
+            cancel_delayed_work_sync(&pAdapter->roc_work);
+#endif
          }
          mutex_lock(&pHddCtx->sap_lock);
          if (test_bit(SOFTAP_BSS_STARTED, &pAdapter->event_flags)) 
@@ -9998,7 +10031,8 @@ int hdd_del_all_sta(hdd_adapter_t *pAdapter)
 
                 WLANSAP_PopulateDelStaParams(
                             pSapCtx->aStaInfo[i].macAddrSTA.bytes,
-                            eCsrForcedDeauthSta, SIR_MAC_MGMT_DEAUTH >> 4,
+                            eSIR_MAC_DEAUTH_LEAVING_BSS_REASON,
+                            SIR_MAC_MGMT_DEAUTH >> 4,
                             &delStaParams);
                 vos_status = hdd_softap_sta_deauth(pAdapter, &delStaParams);
                 if (VOS_IS_STATUS_SUCCESS(vos_status))
