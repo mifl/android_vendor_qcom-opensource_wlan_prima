@@ -1152,6 +1152,14 @@ sapSortMacList(v_MACADDR_t *macList, v_U8_t size)
         return;
     }
 
+    if ((NULL == macList) || (size >= MAX_ACL_MAC_ADDRESS))
+    {
+        VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO_HIGH,
+                      "In %s, either buffer is NULL or size = %d is more."
+                      ,__func__, size);
+        return;
+    }
+
     for(outer = 0; outer < size; outer++)
     {
         for(inner = 0; inner < size - 1; inner++)
