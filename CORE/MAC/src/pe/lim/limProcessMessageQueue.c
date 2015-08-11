@@ -1287,8 +1287,29 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
       limMsgStr(limMsg->type), limSmeStateStr(pMac->lim.gLimSmeState),
       limMlmStateStr(pMac->lim.gLimMlmState));)
 
-    MTRACE(macTraceMsgRx(pMac, NO_SESSION, LIM_TRACE_MAKE_RXMSG(limMsg->type, LIM_MSG_PROCESSED));)
+   /*
+    * MTRACE logs not captured for events received from SME
+    * SME enums (eWNI_SME_START_REQ) starts with 0x16xx.
+    * Compare received SME events with SIR_SME_MODULE_ID
+    */
 
+    if (SIR_SME_MODULE_ID == (tANI_U8)MAC_TRACE_GET_MODULE_ID(limMsg->type))
+    {
+       MTRACE(macTrace(pMac, TRACE_CODE_RX_SME_MSG, NO_SESSION, limMsg->type));
+    }
+    else
+    {
+       /* Omitting below message types as these are too frequent and when crash
+        * happens we loose critical trace logs if these are also logged
+        */
+       if (limMsg->type != SIR_LIM_MAX_CHANNEL_TIMEOUT &&
+           limMsg->type != SIR_LIM_MIN_CHANNEL_TIMEOUT &&
+           limMsg->type != SIR_LIM_PERIODIC_PROBE_REQ_TIMEOUT &&
+           limMsg->type != SIR_CFG_PARAM_UPDATE_IND &&
+           limMsg->type != SIR_BB_XPORT_MGMT_MSG)
+              MTRACE(macTraceMsgRx(pMac, NO_SESSION,
+                      LIM_TRACE_MAKE_RXMSG(limMsg->type, LIM_MSG_PROCESSED));)
+    }
     switch (limMsg->type)
     {
 
@@ -1367,7 +1388,6 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
                 vos_pkt_t  *pVosPkt;
                 VOS_STATUS  vosStatus;
                 tSirMsgQ    limMsgNew;
-                MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_PROCESS, 0, 0 );)
                 /* The original limMsg which we were deferring have the 
                  * bodyPointer point to 'BD' instead of 'Vos pkt'. If we don't make a copy
                  * of limMsg, then vos_pkt_peek_data will overwrite the limMsg->bodyPointer. 
@@ -1435,14 +1455,11 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
                      * Asumption here is when Rx mgmt frame processing is done,
                      * voss packet could be freed here.
                      */
-                    MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_PROCESS, 0, 3 );)
                     limDecrementPendingMgmtCount(pMac);
                     vos_pkt_return_packet(pVosPkt);
                 }
             }
-            MTRACE(macTrace(pMac, TRACE_CODE_RX_MGMT_PROCESS, 0, 4 );)
             break;
-
         case eWNI_SME_SCAN_REQ:
         case eWNI_SME_REMAIN_ON_CHANNEL_REQ:
         case eWNI_SME_DISASSOC_REQ:
