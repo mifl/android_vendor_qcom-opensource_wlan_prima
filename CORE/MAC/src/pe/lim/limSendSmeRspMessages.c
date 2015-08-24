@@ -729,10 +729,6 @@ limSendSmeScanRsp(tpAniSirGlobal pMac, tANI_U16 length,
     tANI_U8               *pbBuf;
     tSirBssDescription    *pDesc;
 
-    limLog(pMac, LOG1,
-       FL("Sending message SME_SCAN_RSP with length=%d reasonCode %s"),
-       length, limResultCodeStr(resultCode));
-
     if (resultCode != eSIR_SME_SUCCESS)
     {
         limPostSmeScanRspMessage(pMac, length, resultCode,smesessionId,smetranscationId);
@@ -803,15 +799,14 @@ limSendSmeScanRsp(tpAniSirGlobal pMac, tANI_U16 length,
             }
             curMsgLen = msgLen;
 
-            limLog(pMac, LOG1, FL("ScanRsp : msgLen %d, bssDescr Len=%d"),
-                          msgLen, ptemp->bssDescription.length);
             pDesc->length
                     = ptemp->bssDescription.length;
             vos_mem_copy( (tANI_U8 *) &pDesc->bssId,
                           (tANI_U8 *) &ptemp->bssDescription.bssId,
                            ptemp->bssDescription.length);
 
-            limLog(pMac, LOG1, FL("BssId "));
+            limLog(pMac, LOG1, FL("ScanRsp : msgLen %d, bssDescr Len=%d BssID "),
+                          msgLen, ptemp->bssDescription.length);
             limPrintMacAddr(pMac, ptemp->bssDescription.bssId, LOG1);
 
             pSirSmeScanRsp->sessionId   = smesessionId;
@@ -1652,7 +1647,7 @@ limSendSmeTDLSDeleteAllPeerInd(tpAniSirGlobal pMac, tpPESession psessionEntry)
  */
 void
 limSendSmeMgmtTXCompletion(tpAniSirGlobal pMac,
-                           tpPESession psessionEntry,
+                           tANI_U32 smeSessionId,
                            tANI_U32 txCompleteStatus)
 {
     tSirMsgQ  mmhMsg;
@@ -1670,7 +1665,7 @@ limSendSmeMgmtTXCompletion(tpAniSirGlobal pMac,
     pSirMgmtTxCompletionInd->length = sizeof(tSirMgmtTxCompletionInd);
 
     //sessionId
-    pSirMgmtTxCompletionInd->sessionId = psessionEntry->smeSessionId;
+    pSirMgmtTxCompletionInd->sessionId = smeSessionId;
 
     pSirMgmtTxCompletionInd->txCompleteStatus = txCompleteStatus;
 

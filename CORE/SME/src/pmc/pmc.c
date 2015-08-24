@@ -2169,10 +2169,10 @@ tANI_BOOLEAN pmcProcessCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand )
             break;
 
         case eSmeCommandExitBmps:
-            if( BMPS == pMac->pmc.pmcState )
+            if ((BMPS == pMac->pmc.pmcState) || (UAPSD == pMac->pmc.pmcState))
             {
+                tPmcState origState = pMac->pmc.pmcState;
                 pMac->pmc.requestFullPowerPending = FALSE;
-
                 /* Change PMC state */
                 pMac->pmc.pmcState = REQUEST_FULL_POWER;
                 status = pmcSendMessage( pMac, eWNI_PMC_EXIT_BMPS_REQ,
@@ -2185,7 +2185,7 @@ tANI_BOOLEAN pmcProcessCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand )
                 }
                 else
                 {
-                    pMac->pmc.pmcState = BMPS;
+                    pMac->pmc.pmcState = origState;
                     pmcLog(pMac, LOGE, FL("eWNI_PMC_EXIT_BMPS_REQ fail to be sent to PE status %d"), status);
                     pmcEnterFullPowerState(pMac);
                 }
@@ -2436,8 +2436,8 @@ eHalStatus pmcEnterBmpsCheck( tpAniSirGlobal pMac )
    /* Check that we are associated with a single active session. */
    if (!pmcValidateConnectState( pMac ))
    {
-      pmcLog(pMac, LOGE, FL("PMC: STA not associated with an AP with single"
-                            " active session. BMPS cannot be entered"));
+      pmcLog(pMac, VOS_TRACE_LEVEL_INFO, FL("PMC: STA not associated with an AP with single"
+                          " active session. BMPS cannot be entered"));
       return eHAL_STATUS_FAILURE;
    }
 

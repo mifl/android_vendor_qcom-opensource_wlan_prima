@@ -1409,8 +1409,11 @@ static void pmcProcessResponse( tpAniSirGlobal pMac, tSirSmeRsp *pMsg )
                 pmcLog(pMac, LOGP,
                        FL("Response message to request to exit BMPS indicates failure, status %d"),
                        pMsg->statusCode);
+                /*Status is not succes, so set back the pmc state as BMPS*/
+                pMac->pmc.pmcState = BMPS;
             }
-            pmcEnterFullPowerState(pMac);
+            else
+                pmcEnterFullPowerState(pMac);
         break;
 
         /* We got a response to our Start UAPSD request.  */
@@ -2173,18 +2176,12 @@ eHalStatus pmcWowlAddBcastPattern (
     if(pattern == NULL)
     {
         pmcLog(pMac, LOGE, FL("Null broadcast pattern being passed"));
-#ifdef FEATURE_WLAN_DIAG_SUPPORT
-        WLAN_VOS_DIAG_LOG_FREE(log_ptr);
-#endif
         return eHAL_STATUS_FAILURE;
     }
 
     if( pSession == NULL)
     {
         pmcLog(pMac, LOGE, FL("Session not found "));
-#ifdef FEATURE_WLAN_DIAG_SUPPORT
-        WLAN_VOS_DIAG_LOG_FREE(log_ptr);
-#endif
         return eHAL_STATUS_FAILURE;
     }
 

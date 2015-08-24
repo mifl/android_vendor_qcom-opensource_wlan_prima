@@ -1825,7 +1825,6 @@ static int __wlan_hdd_cfg80211_ll_stats_set(struct wiphy *wiphy,
     struct net_device *dev = wdev->netdev;
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_context_t *pHddCtx = wiphy_priv(wiphy);
-    hdd_station_ctx_t *pHddStaCtx;
 
     ENTER();
 
@@ -1905,16 +1904,6 @@ static int __wlan_hdd_cfg80211_ll_stats_set(struct wiphy *wiphy,
 
     }
 
-    pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-    if (VOS_STATUS_SUCCESS !=
-        WLANTL_ClearInterfaceStats((WLAN_HDD_GET_CTX(pAdapter))->pvosContext,
-        pHddStaCtx->conn_info.staId[0], WIFI_STATS_IFACE))
-    {
-        hddLog(VOS_TRACE_LEVEL_ERROR, "%s:"
-                "WLANTL_ClearInterfaceStats Failed", __func__);
-        return -EINVAL;
-    }
-
     if (eHAL_STATUS_SUCCESS != sme_LLStatsSetReq( pHddCtx->hHal,
                                             &linkLayerStatsSetReq))
     {
@@ -1969,6 +1958,7 @@ static int __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
     tSirLLStatsGetReq linkLayerStatsGetReq;
     struct net_device *dev = wdev->netdev;
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
+    hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
     int status;
 
     ENTER();
@@ -1985,6 +1975,14 @@ static int __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
                "%s: HDD adapter is Null", __func__);
         return -ENODEV;
     }
+
+    if (pHddStaCtx == NULL)
+    {
+        hddLog(VOS_TRACE_LEVEL_FATAL,
+               "%s: HddStaCtx is Null", __func__);
+        return -ENODEV;
+    }
+
     /* check the LLStats Capability */
     if ( (TRUE != pHddCtx->cfg_ini->fEnableLLStats) ||
          (TRUE != sme_IsFeatureSupportedByFW(LINK_LAYER_STATS_MEAS)))
@@ -2001,6 +1999,13 @@ static int __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
                "%s: isLinkLayerStatsSet : %d",
                __func__, pAdapter->isLinkLayerStatsSet);
         return -EINVAL;
+    }
+
+    if (VOS_TRUE == pHddStaCtx->hdd_ReassocScenario)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                  "%s: Roaming in progress, so unable to proceed this request", __func__);
+        return -EBUSY;
     }
 
     if (nla_parse(tb_vendor, QCA_WLAN_VENDOR_ATTR_LL_STATS_GET_MAX,
@@ -4482,11 +4487,11 @@ static int __wlan_hdd_cfg80211_set_spoofed_mac_oui(struct wiphy *wiphy,
         return -EINVAL;
     }
     if (FALSE == pHddCtx->cfg_ini->enableMacSpoofing) {
-        hddLog(VOS_TRACE_LEVEL_ERROR, FL("MAC_SPOOFED_SCAN disabled in ini"));
+        hddLog(VOS_TRACE_LEVEL_INFO, FL("MAC_SPOOFED_SCAN disabled in ini"));
         return -ENOTSUPP;
     }
     if (TRUE != sme_IsFeatureSupportedByFW(MAC_SPOOFED_SCAN)){
-        hddLog(VOS_TRACE_LEVEL_ERROR, FL("MAC_SPOOFED_SCAN not supported by FW"));
+        hddLog(VOS_TRACE_LEVEL_INFO, FL("MAC_SPOOFED_SCAN not supported by FW"));
         return -ENOTSUPP;
     }
 
@@ -5811,7 +5816,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
 
        if (NULL == wiphy->bands[i])
        {
-          hddLog(VOS_TRACE_LEVEL_ERROR,"%s: wiphy->bands[i] is NULL, i = %d",
+          hddLog(VOS_TRACE_LEVEL_INFO,"%s: wiphy->bands[i] is NULL, i = %d",
                  __func__, i);
           continue;
        }
@@ -8064,6 +8069,11 @@ int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
                 //Check for sub-string p2p to confirm its a p2p interface
                 if (NULL != strstr(ndev->name,"p2p"))
                 {
+#ifdef FEATURE_WLAN_TDLS
+                   mutex_lock(&pHddCtx->tdls_lock);
+                   wlan_hdd_tdls_exit(pAdapter, TRUE);
+                   mutex_unlock(&pHddCtx->tdls_lock);
+#endif
                     pAdapter->device_mode = (type == NL80211_IFTYPE_STATION) ?
                                 WLAN_HDD_P2P_DEVICE : WLAN_HDD_P2P_CLIENT;
                 }
@@ -8410,6 +8420,7 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
     long ret;
     tANI_U16 numCurrTdlsPeers;
     hdd_adapter_t *pAdapter;
+    VOS_STATUS status;
 
     ENTER();
 
@@ -8573,10 +8584,23 @@ static int wlan_hdd_tdls_add_station(struct wiphy *wiphy,
 
     if (!update)
     {
+        /*Before adding sta make sure that device exited from BMPS*/
+        if (TRUE == sme_IsPmcBmps(WLAN_HDD_GET_HAL_CTX(pAdapter)))
+        {
+            VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                       "%s: Adding tdls peer sta. Disable BMPS", __func__);
+            status = hdd_disable_bmps_imps(pHddCtx, WLAN_HDD_INFRA_STATION);
+            if (status != VOS_STATUS_SUCCESS) {
+                hddLog(VOS_TRACE_LEVEL_ERROR, FL("Failed to set BMPS/IMPS"));
+            }
+        }
+
         ret = sme_AddTdlsPeerSta(WLAN_HDD_GET_HAL_CTX(pAdapter),
                 pAdapter->sessionId, mac);
         if (ret != eHAL_STATUS_SUCCESS) {
-            hddLog(VOS_TRACE_LEVEL_ERROR, FL("Failed to add TDLS peer STA"));
+            hddLog(VOS_TRACE_LEVEL_ERROR,
+                    FL("Failed to add TDLS peer STA. Enable Bmps"));
+            wlan_hdd_tdls_check_bmps(pAdapter);
             return -EPERM;
         }
     }
@@ -10015,8 +10039,6 @@ static int wlan_hdd_cfg80211_update_bss( struct wiphy *wiphy,
         if(is_p2p_scan && (pScanResult->ssId.ssId != NULL) &&
                 !vos_mem_compare( pScanResult->ssId.ssId, "DIRECT-", 7) )
         {
-            hddLog(VOS_TRACE_LEVEL_INFO, FL(" Non P2P BSS skipped: =%s:"),
-                    pScanResult->ssId.ssId);
             pScanResult = sme_ScanResultGetNext(hHal, pResult);
             continue; //Skip the non p2p bss entries
         }
@@ -10628,10 +10650,6 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
     }
 
     vos_mem_zero( &scanRequest, sizeof(scanRequest));
-
-    hddLog(VOS_TRACE_LEVEL_INFO, "scan request for ssid = %d",
-           (int)request->n_ssids);
-
 
     /* Even though supplicant doesn't provide any SSIDs, n_ssids is set to 1.
      * Becasue of this, driver is assuming that this is not wildcard scan and so
@@ -11389,7 +11407,7 @@ static int wlan_hdd_cfg80211_set_cipher( hdd_adapter_t *pAdapter,
 
     if (!cipher)
     {
-        hddLog(VOS_TRACE_LEVEL_ERROR, "%s: received cipher %d - considering none",
+        hddLog(VOS_TRACE_LEVEL_INFO, "%s: received cipher %d - considering none",
                 __func__, cipher);
         encryptionType = eCSR_ENCRYPT_TYPE_NONE;
     }
@@ -12372,7 +12390,7 @@ static int __wlan_hdd_cfg80211_disconnect( struct wiphy *wiphy,
                 hdd_abort_mac_scan(pHddCtx, pScanInfo->sessionId,
                                    eCSR_SCAN_ABORT_DEFAULT);
             }
-
+            wlan_hdd_cancel_existing_remain_on_channel(pAdapter);
 #ifdef FEATURE_WLAN_TDLS
             /* First clean up the tdls peers if any */
             for (staIdx = 0 ; staIdx < HDD_MAX_NUM_TDLS_STA; staIdx++)

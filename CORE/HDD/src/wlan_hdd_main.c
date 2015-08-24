@@ -3314,8 +3314,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            tANI_U8 len = 0;
 
            len = scnprintf(extra, sizeof(extra), "%s %d", command, val);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -3371,8 +3371,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            tANI_U8 len = 0;
 
            len = scnprintf(extra, sizeof(extra), "%s %d", command, val);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -3479,8 +3479,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            tANI_U8 len = 0;
 
            len = scnprintf(extra, sizeof(extra), "%s %d", command, wesMode);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -3833,8 +3833,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
 
            len = scnprintf(extra, sizeof(extra), "%s %d",
                    command, roamScanControl);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -3928,6 +3928,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
 
            memset(extra, 0, sizeof(extra));
            ret = hdd_get_dwell_time(pCfg, command, extra, sizeof(extra), &len);
+           len = VOS_MIN(priv_data.total_len, len + 1);
            if (ret != 0 || copy_to_user(priv_data.buf, &extra, len + 1))
            {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -4159,8 +4160,8 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
                   tsmMetrics.UplinkPktLoss, tsmMetrics.UplinkPktCount, tsmMetrics.RoamingCount,
                   tsmMetrics.RoamingDly);
 
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
+           len = VOS_MIN(priv_data.total_len, len + 1);
+           if (copy_to_user(priv_data.buf, &extra, len)) {
                VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: failed to copy data to user buffer", __func__);
                ret = -EFAULT;
@@ -7621,14 +7622,17 @@ VOS_STATUS hdd_start_all_adapters( hdd_context_t *pHddCtx )
 
             connState = (WLAN_HDD_GET_STATION_CTX_PTR(pAdapter))->conn_info.connState;
 
-            hdd_init_station_mode(pAdapter);
+            if (!pHddCtx->isLogpInProgress)
+                hdd_init_station_mode(pAdapter);
+
             /* Open the gates for HDD to receive Wext commands */
             pAdapter->isLinkUpSvcNeeded = FALSE; 
             pHddCtx->scan_info.mScanPending = FALSE;
             pHddCtx->scan_info.waitScanResult = FALSE;
 
             //Trigger the initial scan
-            hdd_wlan_initial_scan(pAdapter);
+            if (!pHddCtx->isLogpInProgress)
+                hdd_wlan_initial_scan(pAdapter);
 
             //Indicate disconnect event to supplicant if associated previously
             if (eConnectionState_Associated == connState ||
@@ -8627,10 +8631,10 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    hdd_debugfs_exit(pHddCtx);
 
 #ifdef WLAN_NS_OFFLOAD
-   hddLog(LOGE, FL("Unregister IPv6 notifier"));
+   hddLog(LOG1, FL("Unregister IPv6 notifier"));
    unregister_inet6addr_notifier(&pHddCtx->ipv6_notifier);
 #endif
-   hddLog(LOGE, FL("Unregister IPv4 notifier"));
+   hddLog(LOG1, FL("Unregister IPv4 notifier"));
    unregister_inetaddr_notifier(&pHddCtx->ipv4_notifier);
 
    // Unregister the Net Device Notifier
@@ -8712,14 +8716,13 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
 
    hdd_close_all_adapters( pHddCtx );
 
+free_hdd_ctx:
    /* free the power on lock from platform driver */
    if (free_riva_power_on_lock("wlan"))
    {
       hddLog(VOS_TRACE_LEVEL_ERROR, "%s: failed to free power on lock",
                                            __func__);
    }
-
-free_hdd_ctx:
 
    //Free up dynamically allocated members inside HDD Adapter
    if (pHddCtx->cfg_ini)
@@ -9082,12 +9085,12 @@ boolean hdd_is_5g_supported(hdd_context_t * pHddCtx)
    */
    if (WCNSS_XO_48MHZ == wcnss_wlan_iris_xo_mode())
    {
-      hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Hardware supports 5Ghz", __func__);
+      hddLog(VOS_TRACE_LEVEL_INFO, "%s: Hardware supports 5Ghz", __func__);
       return true;
    }
    else
    {
-      hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Hardware doesn't supports 5Ghz",
+      hddLog(VOS_TRACE_LEVEL_INFO, "%s: Hardware doesn't supports 5Ghz",
                     __func__);
       return false;
    }
@@ -10201,11 +10204,11 @@ int hdd_wlan_startup(struct device *dev )
    ret = register_inet6addr_notifier(&pHddCtx->ipv6_notifier);
    if (ret)
    {
-      hddLog(LOGE, FL("Failed to register IPv6 notifier"));
+      hddLog(VOS_TRACE_LEVEL_ERROR, FL("Failed to register IPv6 notifier"));
    }
    else
    {
-      hddLog(LOGE, FL("Registered IPv6 notifier"));
+      hddLog(VOS_TRACE_LEVEL_INFO, FL("Registered IPv6 notifier"));
    }
 #endif
 
@@ -10215,11 +10218,11 @@ int hdd_wlan_startup(struct device *dev )
    ret = register_inetaddr_notifier(&pHddCtx->ipv4_notifier);
    if (ret)
    {
-      hddLog(LOGE, FL("Failed to register IPv4 notifier"));
+      hddLog(VOS_TRACE_LEVEL_ERROR, FL("Failed to register IPv4 notifier"));
    }
    else
    {
-      hddLog(LOGE, FL("Registered IPv4 notifier"));
+      hddLog(VOS_TRACE_LEVEL_INFO, FL("Registered IPv4 notifier"));
    }
 
    goto success;
@@ -11822,7 +11825,7 @@ int hdd_sta_id_find_from_mac_addr(hdd_adapter_t *pAdapter,
     spin_lock_bh( &pAdapter->sta_hash_lock);
     if (pAdapter->is_sta_id_hash_initialized != VOS_TRUE) {
         spin_unlock_bh( &pAdapter->sta_hash_lock);
-        hddLog(VOS_TRACE_LEVEL_ERROR,
+        hddLog(VOS_TRACE_LEVEL_INFO,
                   FL("hash is not initialized for session id %d"),
                   pAdapter->sessionId);
         return HDD_WLAN_INVALID_STA_ID;
