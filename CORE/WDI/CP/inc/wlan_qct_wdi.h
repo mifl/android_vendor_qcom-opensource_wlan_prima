@@ -7949,8 +7949,7 @@ typedef void  (*WDI_FWStatsGetRspCb)(WDI_Status status,void *fwStatsResp,
 
 typedef void  (*WDI_EncryptMsgRspCb)(wpt_uint8 status, void *pEventData, void* pUserData);
 
-typedef void  (*WDI_MonStartRspCb)(void *pEventData,void *pUserData);
-typedef void  (*WDI_MonStopRspCb)(void *pUserData);
+typedef void  (*WDI_MonModeRspCb)(void *pEventData,void *pUserData);
 
 /*========================================================================
  *     Function Declarations and Documentation
@@ -11244,13 +11243,13 @@ WDI_Status WDI_FWStatsGetReq
 WDI_Status WDI_MonStartReq
 (
     WDI_MonStartReqType*   pwdiMonStartReqParams,
-    WDI_MonStartRspCb      wdiMonStartRspCb,
+    WDI_MonModeRspCb       wdiMonModeRspCb,
     void*                  pUserData
 );
 
 WDI_Status WDI_MonStopReq
 (
-    WDI_MonStopRspCb      wdiMonStopRspCb,
+    WDI_MonModeRspCb       wdiMonModeRspCb,
     void*                  pUserData
 );
 

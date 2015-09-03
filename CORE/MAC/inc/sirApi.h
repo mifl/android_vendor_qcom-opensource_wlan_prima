@@ -5653,4 +5653,12 @@ typedef enum eSirAbortScanStatus
     eSIR_ABORT_SCAN_FAILURE
 }tSirAbortScanStatus;
 
+typedef void (*tSirMonModeCb)(tANI_U32 *magic, struct completion *cmpVar);
+typedef struct
+{
+    tANI_U32 *magic;
+    struct completion *cmpVar;
+    void *data;
+    tSirMonModeCb callback;
+}tSirMonModeReq, *ptSirMonModeReq;
 #endif /* __SIR_API_H */
