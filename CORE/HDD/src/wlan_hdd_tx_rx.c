@@ -1069,6 +1069,7 @@ void __hdd_tx_timeout(struct net_device *dev)
    struct netdev_queue *txq;
    int i = 0;
    v_ULONG_t diff_in_jiffies = 0;
+   hdd_station_ctx_t *pHddStaCtx = NULL;
 
    VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
       "%s: Transmission timeout occurred", __func__);
@@ -1084,6 +1085,14 @@ void __hdd_tx_timeout(struct net_device *dev)
    pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
    if (0 != wlan_hdd_validate_context(pHddCtx))
       return;
+   pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+   if ( NULL == pHddStaCtx )
+   {
+      VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+              FL("pHddStaCtx is NULL"));
+      return;
+   }
+
    ++pAdapter->hdd_stats.hddTxRxStats.txTimeoutCount;
 
    //Getting here implies we disabled the TX queues for too long. Queues are 
@@ -1143,7 +1152,9 @@ void __hdd_tx_timeout(struct net_device *dev)
    //update last jiffies after the check
    pAdapter->hdd_stats.hddTxRxStats.jiffiesLastTxTimeOut = jiffies;
 
-   if (WLANTL_IsEAPOLPending(pHddCtx->pvosContext) == VOS_STATUS_SUCCESS) {
+   if (!pHddStaCtx->conn_info.uIsAuthenticated) {
+      VOS_TRACE(VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_INFO,
+                FL("TL is not in authenticated state so skipping SSR"));
       pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount = 0;
       goto print_log;
    }
