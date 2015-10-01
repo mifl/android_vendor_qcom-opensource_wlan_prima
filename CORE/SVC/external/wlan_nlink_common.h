@@ -87,6 +87,7 @@
 #define WLAN_BTC_SOFTAP_BSS_START      0x11
 
 #define WLAN_SVC_SAP_RESTART_IND 0x108
+#define WLAN_SVC_WLAN_TP_IND     0x109
 // Event data for WLAN_BTC_QUERY_STATE_RSP & WLAN_STA_ASSOC_DONE_IND
 typedef struct
 {
@@ -99,8 +100,8 @@ typedef enum eAniNlModuleTypes {
    ANI_NL_MSG_PUMAC = ANI_NL_MSG_BASE + 0x01,// PTT Socket App
    ANI_NL_MSG_PTT   = ANI_NL_MSG_BASE + 0x07,// Quarky GUI
    WLAN_NL_MSG_BTC,
+   WLAN_NL_MSG_SVC  = ANI_NL_MSG_BASE + 0x0A,
    ANI_NL_MSG_LOG   = ANI_NL_MSG_BASE + 0x0C,
-   WLAN_NL_MSG_SVC,
    ANI_NL_MSG_MAX  
 } tAniNlModTypes, tWlanNlModTypes;
 
