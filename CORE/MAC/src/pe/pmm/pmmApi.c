@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -38,7 +38,7 @@
  */
 
 #include "palTypes.h"
-#include "wniCfgSta.h"
+#include "wniCfg.h"
 
 #include "sirCommon.h"
 #include "aniGlobal.h"
@@ -222,6 +222,8 @@ void pmmInitBmpsResponseHandler(tpAniSirGlobal pMac, tpSirMsgQ limMsg )
     if (NULL == limMsg->bodyptr)
     {
         PELOGE(pmmLog(pMac, LOGE, FL("pmmBmps: Received SIR_HAL_ENTER_BMPS_RSP with NULL "));)
+        nextState = ePMM_STATE_BMPS_WAKEUP;
+        retStatus = eSIR_SME_BMPS_REQ_FAILED;
         goto failure;
     }
     pEnterBmpsParams = (tpEnterBmpsParams)(limMsg->bodyptr);

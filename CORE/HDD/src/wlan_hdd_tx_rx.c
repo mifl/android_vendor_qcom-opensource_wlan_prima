@@ -1065,9 +1065,11 @@ VOS_STATUS hdd_Ibss_GetStaId(hdd_station_ctx_t *pHddStaCtx, v_MACADDR_t *pMacAdd
 void __hdd_tx_timeout(struct net_device *dev)
 {
    hdd_adapter_t *pAdapter =  WLAN_HDD_GET_PRIV_PTR(dev);
+   hdd_context_t *pHddCtx;
    struct netdev_queue *txq;
    int i = 0;
    v_ULONG_t diff_in_jiffies = 0;
+   hdd_station_ctx_t *pHddStaCtx = NULL;
 
    VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
       "%s: Transmission timeout occurred", __func__);
@@ -1077,6 +1079,17 @@ void __hdd_tx_timeout(struct net_device *dev)
       VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
               FL("pAdapter is NULL"));
       VOS_ASSERT(0);
+      return;
+   }
+
+   pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
+   if (0 != wlan_hdd_validate_context(pHddCtx))
+      return;
+   pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
+   if ( NULL == pHddStaCtx )
+   {
+      VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
+              FL("pHddStaCtx is NULL"));
       return;
    }
 
@@ -1139,6 +1152,12 @@ void __hdd_tx_timeout(struct net_device *dev)
    //update last jiffies after the check
    pAdapter->hdd_stats.hddTxRxStats.jiffiesLastTxTimeOut = jiffies;
 
+   if (!pHddStaCtx->conn_info.uIsAuthenticated) {
+      VOS_TRACE(VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_INFO,
+                FL("TL is not in authenticated state so skipping SSR"));
+      pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount = 0;
+      goto print_log;
+   }
    if (pAdapter->hdd_stats.hddTxRxStats.continuousTxTimeoutCount ==
           HDD_TX_STALL_RECOVERY_THRESHOLD)
    {
@@ -1158,6 +1177,7 @@ void __hdd_tx_timeout(struct net_device *dev)
        return;
    }
 
+print_log:
    /* If Tx stalled for a long time then *hdd_tx_timeout* is called
     * every 5sec. The TL debug spits out a lot of information on the
     * serial console, if it is called every time *hdd_tx_timeout* is
