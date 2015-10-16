@@ -527,6 +527,10 @@ typedef enum
    WLAN_HAL_DISABLE_MONITOR_MODE_RSP        = 305,
    WLAN_HAL_SET_RTS_CTS_HTVHT_IND           = 306,
    WLAN_HAL_LOST_LINK_PARAMETERS_IND        = 312,
+
+   WLAN_HAL_WIFI_CONFIG_SET_PARAMS_REQ      = 328,
+   WLAN_HAL_WIFI_CONFIG_SET_PARAMS_RSP      = 329,
+
    WLAN_HAL_MSG_MAX = WLAN_HAL_MSG_TYPE_MAX_ENUM_SIZE
 }tHalHostMsgType;
 
@@ -6616,6 +6620,7 @@ typedef enum {
     FW_STATS               = 47,
     WPS_PRBRSP_TMPL        = 48,
     BCN_IE_FLT_DELTA       = 49,
+    WIFI_CONFIG            = 61,
     MAX_FEATURE_SUPPORTED  = 128,
 } placeHolderInCapBitmap;
 
@@ -8364,6 +8369,30 @@ typedef PACKED_PRE struct PACKED_POST
     tHalMsgHeader header;
     tHalLostLinkParametersIndParams lostLinkParameters;
 }tHalLostLinkParametersIndMsg, *tpHalLostLinkParametersIndMsg;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tANI_U8  paramType;
+   tANI_U32 paramValue;
+   tSirMacAddr bssid;
+} tSetWifiConfigParams, *tpSetWifiConfigParams;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader               header;
+   tSetWifiConfigParams        wifiConfigParams;
+} tSetWifiConfigParamsReq, *tpSetWifiConfigParamsReq;
+
+typedef PACKED_PRE struct PACKED_POST {
+   tANI_U32 status;
+} tHalSetWifiConfigRspParams, * tpHalSetWifiConfigRspParams;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+
+  tHalSetWifiConfigRspParams setWifiConfigRspParams;
+} tHalSetWifiConfigRsp, *tpHalSetWifiConfigRsp;
 
 #if defined(__ANI_COMPILER_PRAGMA_PACK_STACK)
 #pragma pack(pop)
