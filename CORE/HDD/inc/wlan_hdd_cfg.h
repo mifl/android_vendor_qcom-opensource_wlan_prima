@@ -2547,6 +2547,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_OPTIMIZE_CA_EVENT_ENABLE     ( 1 )
 #define CFG_OPTIMIZE_CA_EVENT_DEFAULT    ( 0 )
 
+#define CFG_WIFI_CONFIG_ENABLE                  "gEnableWifiConfig"
+#define CFG_WIFI_CONFIG_MIN                          (0)
+#define CFG_WIFI_CONFIG_MAX                          (1)
+#define CFG_WIFI_CONFIG_DEFAULT                      (1)
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -3060,6 +3065,7 @@ typedef struct
    v_U32_t                     linkFailTxCnt;
    v_BOOL_t                    ignorePeerHTopMode;
    v_U8_t                      gOptimizeCAevent;
+   v_BOOL_t                    fEnableWifiConfig;
 } hdd_config_t;
 
 /*--------------------------------------------------------------------------- 

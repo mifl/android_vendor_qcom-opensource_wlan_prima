@@ -480,6 +480,8 @@ typedef enum
   WDI_MON_STOP_REQ                               = 108,
   WDI_FATAL_EVENT_LOGGING_REQ                    = 109,
 
+  WDI_WIFI_CONFIG_SET_REQ                        = 113,
+
   WDI_MAX_REQ,
 
   /*Send a suspend Indication down to HAL*/
@@ -823,6 +825,8 @@ typedef enum
   WDI_MON_START_RSP                              = 107,
   WDI_MON_STOP_RSP                               = 108,
   WDI_FATAL_EVENT_LOGGING_RSP                    = 109,
+
+  WDI_WIFI_CONFIG_SET_RSP                        = 113,
 
   /*-------------------------------------------------------------------------
     Indications
@@ -6345,6 +6349,20 @@ WDI_ProcessGetCurrentAntennaIndex
 */
 WDI_Status
 WDI_ProcessGetCurrentAntennaIndexRsp
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessWifiConfigReq
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
+
+WDI_Status
+WDI_ProcessWificonfigSetRsp
 (
   WDI_ControlBlockType*  pWDICtx,
   WDI_EventInfoType*     pEventData

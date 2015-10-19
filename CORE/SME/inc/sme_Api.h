@@ -3717,5 +3717,15 @@ eHalStatus sme_enableDisableChanAvoidIndEvent(tHalHandle hHal,
 eHalStatus sme_GetCurrentAntennaIndex(tHalHandle hHal,
                                       tCsrAntennaIndexCallback callback,
                                       void *pContext, tANI_U8 sessionId);
+/* ---------------------------------------------------------------------------
+    \fn sme_set_wificonfig_params
+    \brief  API to set WifiConfiguration Parameters.
+
+    \param  wifi_config_param - Wificonfig parameter 1.Averaging factor 2. Guard time
+    \- return VOS_STATUS_SUCCES if INdication is posted to
+       WDA else return eHAL_STATUS_FAILURE
+    -------------------------------------------------------------------------*/
+
+eHalStatus sme_set_wificonfig_params(tHalHandle hHal, tSetWifiConfigParams *req);
 
 #endif //#if !defined( __SME_API_H )

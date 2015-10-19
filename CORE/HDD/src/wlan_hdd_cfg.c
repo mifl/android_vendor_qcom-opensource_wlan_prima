@@ -3395,7 +3395,12 @@ REG_VARIABLE( CFG_EXTSCAN_ENABLE, WLAN_PARAM_Integer,
                  CFG_OPTIMIZE_CA_EVENT_DEFAULT,
                  CFG_OPTIMIZE_CA_EVENT_DISABLE,
                  CFG_OPTIMIZE_CA_EVENT_ENABLE ),
-
+   REG_VARIABLE( CFG_WIFI_CONFIG_ENABLE, WLAN_PARAM_Integer,
+                 hdd_config_t, fEnableWifiConfig,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_WIFI_CONFIG_DEFAULT,
+                 CFG_WIFI_CONFIG_MIN,
+                 CFG_WIFI_CONFIG_MAX ),
 };
 
 /*
