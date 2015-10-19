@@ -163,7 +163,10 @@ enum qca_nl80211_vendor_subcmds {
     /* Set nodfs_flag */
     QCA_NL80211_VENDOR_SUBCMD_NO_DFS_FLAG = 40,
     /* Get Concurrency Matrix */
-    QCA_NL80211_VENDOR_SUBCMD_GET_CONCURRENCY_MATRIX = 42
+    QCA_NL80211_VENDOR_SUBCMD_GET_CONCURRENCY_MATRIX = 42,
+    /* Wi-Fi Configuration subcommands */
+    QCA_NL80211_VENDOR_SUBCMD_SET_WIFI_CONFIGURATION = 74,
+    QCA_NL80211_VENDOR_SUBCMD_GET_WIFI_CONFIGURATION = 75,
 };
 
 enum qca_nl80211_vendor_subcmds_index {
@@ -837,6 +840,27 @@ enum qca_wlan_vendor_attr_get_concurrency_matrix {
         QCA_WLAN_VENDOR_ATTR_GET_CONCURRENCY_MATRIX_AFTER_LAST - 1,
 };
 
+/**
+ * enum qca_wlan_vendor_config: wifi config attr
+ *
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_INVALID: invalid config
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_MODULATED_DTIM: dynamic dtim
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_STATS_AVG_FACTOR: stats avg. factor
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_GUARD_TIME: guard time
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_LAST: last config
+ * @QCA_WLAN_VENDOR_ATTR_CONFIG_MAX: max config
+ */
+enum qca_wlan_vendor_config {
+    QCA_WLAN_VENDOR_ATTR_CONFIG_INVALID = 0,
+    QCA_WLAN_VENDOR_ATTR_CONFIG_MODULATED_DTIM,
+    QCA_WLAN_VENDOR_ATTR_CONFIG_STATS_AVG_FACTOR,
+    QCA_WLAN_VENDOR_ATTR_CONFIG_GUARD_TIME,
+    /* keep last */
+    QCA_WLAN_VENDOR_ATTR_CONFIG_LAST,
+    QCA_WLAN_VENDOR_ATTR_CONFIG_MAX =
+    QCA_WLAN_VENDOR_ATTR_CONFIG_LAST - 1
+};
+
 /* Feature defines */
 #define WIFI_FEATURE_INFRA              0x0001   /* Basic infrastructure mode */
 #define WIFI_FEATURE_INFRA_5G           0x0002   /* Support for 5 GHz Band */
@@ -858,6 +882,10 @@ enum qca_wlan_vendor_attr_get_concurrency_matrix {
 #define WIFI_FEATURE_EPR                0x4000   /* Enhanced power reporting */
 #define WIFI_FEATURE_AP_STA             0x8000   /* Support for AP STA
                                                     Concurrency */
+/* WIFI CONFIG Parameter defines */
+#define WIFI_CONFIG_SET_AVG_STATS_FACTOR 0x0001  /* Average stats factor */
+#define WIFI_CONFIG_SET_GUARD_TIME      0x0002  /* Guard Time */
+
 /* Add more features here */
 enum qca_wlan_vendor_attr_set_no_dfs_flag
 {

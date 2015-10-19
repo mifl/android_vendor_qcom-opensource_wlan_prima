@@ -3285,13 +3285,13 @@ REG_VARIABLE( CFG_EXTSCAN_ENABLE, WLAN_PARAM_Integer,
                  CFG_LINK_FAIL_TX_CNT_DEF,
                  CFG_LINK_FAIL_TX_CNT_MIN,
                  CFG_LINK_FAIL_TX_CNT_MAX ),
+
    REG_VARIABLE( CFG_BTC_STATIC_OPP_WLAN_IDLE_WLAN_LEN , WLAN_PARAM_Integer,
                  hdd_config_t, btcStaticOppWlanIdleWlanLen,
                  VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
                  CFG_BTC_STATIC_OPP_WLAN_IDLE_WLAN_LEN_DEFAULT,
                  CFG_BTC_STATIC_OPP_WLAN_IDLE_WLAN_LEN_MIN,
                  CFG_BTC_STATIC_OPP_WLAN_IDLE_WLAN_LEN_MAX ),
-
 
    REG_VARIABLE( CFG_BTC_STATIC_OPP_WLAN_IDLE_BT_LEN , WLAN_PARAM_Integer,
                  hdd_config_t, btcStaticOppWlanIdleBtLen,
@@ -3300,6 +3300,12 @@ REG_VARIABLE( CFG_EXTSCAN_ENABLE, WLAN_PARAM_Integer,
                  CFG_BTC_STATIC_OPP_WLAN_IDLE_BT_LEN_MIN,
                  CFG_BTC_STATIC_OPP_WLAN_IDLE_BT_LEN_MAX ),
 
+   REG_VARIABLE( CFG_WIFI_CONFIG_ENABLE, WLAN_PARAM_Integer,
+                 hdd_config_t, fEnableWifiConfig,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_WIFI_CONFIG_DEFAULT,
+                 CFG_WIFI_CONFIG_MIN,
+                 CFG_WIFI_CONFIG_MAX ),
 };
 
 /*

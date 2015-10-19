@@ -5917,6 +5917,18 @@ typedef struct
    wpt_uint32 reserved;
 } WDI_SpoofMacAddrInfoType;
 
+typedef struct
+{
+   wpt_uint8  paramType;
+   wpt_uint32 paramValue;
+   wpt_macAddr  bssId;
+}WDI_WifiConfigSetReqType;
+
+typedef struct
+{
+    wpt_uint32 wificonfigset_status;
+}WDI_WifconfigSetRsp;
+
 /*----------------------------------------------------------------------------
  *   WDI callback types
  *--------------------------------------------------------------------------*/
@@ -7824,6 +7836,8 @@ typedef void  (*WDI_LLStatsClearRspCb)(void *pEventData,
 
 typedef void  (*WDI_SetSpoofMacAddrRspCb)(
                         WDI_SpoofMacAddrRspParamType* wdiRsp, void *pUserData);
+typedef void  (*WDI_WifiConfigSetRspCb) (WDI_WifconfigSetRsp *wdiRsp, void *pUserData);
+
 /*========================================================================
  *     Function Declarations and Documentation
  ==========================================================================*/
@@ -11206,5 +11220,21 @@ WDI_SetRtsCtsHTVhtInd
 #ifdef __cplusplus
  }
 #endif 
+
+/**
+ @brief WDI_WifiConfigSetReq
+    This API is called to send WifiConfig  request to FW
+
+ @param pwdiWifConfigSetReqParams : pointer to  wificonfig params
+        WDI_WifiConfigSetRspCb    : set wificonfig response callback
+        usrData : Client context
+ @see
+ @return SUCCESS or FAIL
+*/
+WDI_Status
+WDI_WifiConfigSetReq
+   (WDI_WifiConfigSetReqType* pwdiWifConfigSetReqParams,
+    WDI_WifiConfigSetRspCb wdiWifiConfigSetRspCb,
+    void*                 pUserData);
 
 #endif /* #ifndef WLAN_QCT_WDI_H */

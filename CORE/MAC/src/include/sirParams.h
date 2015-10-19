@@ -125,6 +125,7 @@ typedef enum {
    BMU_ERROR_GENERIC_RECOVERY = 45,
    WPS_PRBRSP_TMPL       = 48,
    BCN_IE_FLT_DELTA      = 49,
+   WIFI_CONFIG            = 61,
    //MAX_FEATURE_SUPPORTED = 128
 } placeHolderInCapBitmap;
 
@@ -695,6 +696,7 @@ typedef struct sSirMbMsgP2p
 #define SIR_HAL_SET_RTS_CTS_HTVHT            (SIR_HAL_ITC_MSG_TYPES_BEGIN + 268)
 #define SIR_HAL_LOST_LINK_PARAMS_IND         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 269)
 
+#define SIR_HAL_WIFI_CONFIG_PARAMS           (SIR_HAL_ITC_MSG_TYPES_BEGIN + 280)
 #define SIR_HAL_MSG_TYPES_END              (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 // CFG message types
 #define SIR_CFG_MSG_TYPES_BEGIN        (SIR_CFG_MODULE_ID << 8)

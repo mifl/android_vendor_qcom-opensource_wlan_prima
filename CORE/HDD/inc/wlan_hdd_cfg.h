@@ -2493,6 +2493,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_LINK_FAIL_TX_CNT_MAX     ( 1000 )
 #define CFG_LINK_FAIL_TX_CNT_DEF     ( 200 )
 
+#define CFG_WIFI_CONFIG_ENABLE                  "gEnableWifiConfig"
+#define CFG_WIFI_CONFIG_MIN                          (0)
+#define CFG_WIFI_CONFIG_MAX                          (1)
+#define CFG_WIFI_CONFIG_DEFAULT                      (1)
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2991,6 +2996,7 @@ typedef struct
    v_U32_t                     linkFailTxCnt;
    v_U32_t                     btcStaticOppWlanIdleWlanLen;
    v_U32_t                     btcStaticOppWlanIdleBtLen;
+   v_BOOL_t                    fEnableWifiConfig;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
