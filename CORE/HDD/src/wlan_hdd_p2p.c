@@ -689,12 +689,15 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
         return -EBUSY;
     }
 
+    mutex_lock(&pHddCtx->roc_lock);
+
     pRemainChanCtx = vos_mem_malloc( sizeof(hdd_remain_on_chan_ctx_t) );
     if( NULL == pRemainChanCtx )
     {
         hddLog(VOS_TRACE_LEVEL_FATAL,
              "%s: Not able to allocate memory for Channel context",
                                          __func__);
+        mutex_unlock(&pHddCtx->roc_lock);
         return -ENOMEM;
     }
 
@@ -732,6 +735,9 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
             {
                 if (pRemainChanCtx->duration > HDD_P2P_MAX_ROC_DURATION)
                     pRemainChanCtx->duration = HDD_P2P_MAX_ROC_DURATION;
+
+                mutex_unlock(&pHddCtx->roc_lock);
+
                 schedule_delayed_work(&pAdapter->roc_work,
                         msecs_to_jiffies(pHddCtx->cfg_ini->gP2PListenDeferInterval));
                 hddLog(VOS_TRACE_LEVEL_INFO, "Defer interval is %hu, pAdapter %p",
@@ -741,6 +747,7 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
         }
     }
 
+    mutex_unlock(&pHddCtx->roc_lock);
     status = wlan_hdd_p2p_start_remain_on_channel(pAdapter);
 
     EXIT();
@@ -1411,13 +1418,12 @@ bypass_lock:
 
         vos_mem_copy( cfgState->buf, buf, len);
 
+        mutex_lock(&pHddCtx->roc_lock);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
         if( cfgState->remain_on_chan_ctx )
         {
-            mutex_lock(&pHddCtx->roc_lock);
             cfgState->action_cookie = cfgState->remain_on_chan_ctx->cookie;
             *cookie = cfgState->action_cookie;
-            mutex_unlock(&pHddCtx->roc_lock);
         }
         else
         {
@@ -1427,6 +1433,7 @@ bypass_lock:
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
         }
 #endif
+        mutex_unlock(&pHddCtx->roc_lock);
     }
 
     if ( (WLAN_HDD_INFRA_STATION == pAdapter->device_mode) ||
@@ -2342,7 +2349,6 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
     }
 
     cfgState = WLAN_HDD_GET_CFG_STATE_PTR( pAdapter );
-    pRemainChanCtx = cfgState->remain_on_chan_ctx;
 
     if ((type == SIR_MAC_MGMT_FRAME) &&
         (subType == SIR_MAC_MGMT_ACTION))
@@ -2389,6 +2395,9 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
                     }
                 }
 #endif
+             mutex_lock(&pHddCtx->roc_lock);
+             pRemainChanCtx = cfgState->remain_on_chan_ctx;
+
              if (pRemainChanCtx != NULL && VOS_TIMER_STATE_RUNNING
                                  == vos_timer_getCurrentState(&pRemainChanCtx->hdd_remain_on_chan_timer))
              {
@@ -2439,6 +2448,7 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
                                       "Frames are pending. dropping frame !!!",
                                       __func__);
                           }
+                          mutex_unlock(&pHddCtx->roc_lock);
                           return;
                       }
                  }
@@ -2449,15 +2459,17 @@ void hdd_indicateMgmtFrame( hdd_adapter_t *pAdapter,
                  hddLog( LOG1, "%s:"
                          "Rcvd action frame after timer expired ", __func__);
 
+             mutex_unlock(&pHddCtx->roc_lock);
+
              if (((actionFrmType == WLAN_HDD_PROV_DIS_RESP) &&
                    (cfgState->actionFrmState == HDD_PD_REQ_ACK_PENDING)) ||
                   ((actionFrmType == WLAN_HDD_GO_NEG_RESP) &&
                    (cfgState->actionFrmState == HDD_GO_NEG_REQ_ACK_PENDING)))
              {
-                  hddLog(LOG1, "%s: ACK_PENDING and But received RESP for Action frame ",
+                 hddLog(LOG1, "%s: ACK_PENDING and But received RESP for Action frame ",
                          __func__);
-                  hdd_sendActionCnf(pAdapter, TRUE);
-                }
+                 hdd_sendActionCnf(pAdapter, TRUE);
+             }
             }
 #ifdef FEATURE_WLAN_TDLS
             else if(pbFrames[WLAN_HDD_PUBLIC_ACTION_FRAME_OFFSET+1] == WLAN_HDD_PUBLIC_ACTION_TDLS_DISC_RESP)
