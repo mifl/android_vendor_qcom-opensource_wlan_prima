@@ -214,6 +214,15 @@ int __iw_set_oem_data_req(
     hdd_context_t *pHddCtx;
     hdd_wext_state_t *pwextBuf;
 
+    ENTER();
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
+
     pAdapter = (netdev_priv(dev));
     if (NULL == pAdapter)
     {
