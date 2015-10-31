@@ -5253,6 +5253,13 @@ int iw_set_var_ints_getnone(struct net_device *dev, struct iw_request_info *info
 
     hddLog(LOG1, "%s: Received length %d", __func__, wrqu->data.length);
 
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
+
     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
     {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
@@ -6629,6 +6636,13 @@ static int iw_set_packet_filter_params(struct net_device *dev, struct iw_request
     hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     tpPacketFilterCfg pRequest = NULL;
     int ret;
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
 
     /* ODD number is used for set, copy data using copy_from_user */
     pRequest = mem_alloc_copy_from_user_helper(wrqu->data.pointer,
