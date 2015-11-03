@@ -838,6 +838,7 @@ limSendDelStaCnf(tpAniSirGlobal pMac, tSirMacAddr staDsAddr,
                      (tANI_U8 *) staDsAddr,
                       sizeof(tSirMacAddr));
         mlmDisassocCnf.resultCode = statusCode;
+        mlmDisassocCnf.aid          = staDsAssocId;
         mlmDisassocCnf.disassocTrigger =
                                    mlmStaContext.cleanupTrigger;
         /* Update PE session Id*/
@@ -861,6 +862,7 @@ limSendDelStaCnf(tpAniSirGlobal pMac, tSirMacAddr staDsAddr,
                      (tANI_U8 *) staDsAddr,
                       sizeof(tSirMacAddr));
         mlmDeauthCnf.resultCode    = statusCode;
+        mlmDeauthCnf.aid           = staDsAssocId;
         mlmDeauthCnf.deauthTrigger =
                                    mlmStaContext.cleanupTrigger;
         /* PE session Id */

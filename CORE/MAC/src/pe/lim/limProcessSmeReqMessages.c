@@ -2744,6 +2744,14 @@ __limProcessSmeDisassocCnf(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                      MAC_ADDR_ARRAY(smeDisassocCnf.peerMacAddr));)
             return;
         }
+
+	if(aid != smeDisassocCnf.assocId)
+        {
+            PELOGE(limLog(pMac, LOGE, FL("same peerMacAddr but assocId is different "
+                     "aid=%d, assocId=%d, addr= "MAC_ADDRESS_STR),
+                      aid, smeDisassocCnf.assocId, MAC_ADDR_ARRAY(smeDisassocCnf.peerMacAddr));)
+            return;
+        }
         /* Delete FT session if there exists one */
         limFTCleanup(pMac);
         limCleanupRxPath(pMac, pStaDs, psessionEntry);
