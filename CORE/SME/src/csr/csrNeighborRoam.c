@@ -1074,7 +1074,7 @@ eHalStatus csrNeighborRoamPreauthRspHandler(tpAniSirGlobal pMac, tSirRetStatus l
     VOS_STATUS  vosStatus = VOS_STATUS_SUCCESS;
     eHalStatus  preauthProcessed = eHAL_STATUS_SUCCESS;
     tpCsrNeighborRoamBSSInfo pPreauthRspNode = NULL;
-
+    tCsrRoamSession *pSession;
 #ifdef FEATURE_WLAN_LFR_METRICS
     tCsrRoamInfo *roamInfo;
 #endif
@@ -1202,11 +1202,18 @@ eHalStatus csrNeighborRoamPreauthRspHandler(tpAniSirGlobal pMac, tSirRetStatus l
             csrNeighborRoamFreeNeighborRoamBSSNode(pMac, pNeighborBssNode);
             }
         }
+        pSession = CSR_GET_SESSION(pMac, pNeighborRoamInfo->csrSessionId);
+        if ((NULL != pSession) && pSession->abortConnection)
+        {
+           smsLog(pMac, LOGE, FL(" Deauth in progress Abort preauth"));
+           goto abort_preauth;
+        }
 
         /* Issue preauth request for the same/next entry */
         if (eHAL_STATUS_SUCCESS == csrNeighborRoamIssuePreauthReq(pMac))
         goto DEQ_PREAUTH; 
 
+abort_preauth:
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
         if (csrRoamIsRoamOffloadScanEnabled(pMac))
         {
