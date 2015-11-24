@@ -18383,8 +18383,8 @@ void WDA_MonStopRspCallback(void* pUserData)
 {
    tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData;
 
-   VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                                          "<------ %s " ,__func__);
+   VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                                          "%s: Mon stop request cb " ,__func__);
    if (NULL == pWdaParams)
    {
       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
