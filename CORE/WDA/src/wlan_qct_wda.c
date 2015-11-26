@@ -13574,6 +13574,8 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
          pCompFunc(VOS_GET_MAC_CTXT(pWDA->pVosContext), (vos_pkt_t *)pFrmBuf);
       } */
 
+      WLANTL_TLDebugMessage(WLANTL_DEBUG_FW_CLEANUP);
+
       if( pAckTxComp )
       {
          pWDA->pAckTxCbFunc = NULL;
