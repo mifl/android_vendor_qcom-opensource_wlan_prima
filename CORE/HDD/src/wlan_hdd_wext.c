@@ -5958,14 +5958,22 @@ void hdd_wmm_tx_snapshot(hdd_adapter_t *pAdapter)
      * whether the clients are registered or not.
      */
     int i = 0, j = 0;
+    v_SIZE_t tx_queue_count[NUM_TX_QUEUES];
+
     for ( i=0; i< NUM_TX_QUEUES; i++)
     {
         spin_lock_bh(&pAdapter->wmm_tx_queue[i].lock);
-        hddLog(LOGE, "HDD WMM TxQueue Info For AC: %d Count: %d PrevAdress:%p, NextAddress:%p",
-               i, pAdapter->wmm_tx_queue[i].count,
-               pAdapter->wmm_tx_queue[i].anchor.prev, pAdapter->wmm_tx_queue[i].anchor.next);
+        tx_queue_count[i] = pAdapter->wmm_tx_queue[i].count;
         spin_unlock_bh(&pAdapter->wmm_tx_queue[i].lock);
     }
+
+    for ( i=0; i< NUM_TX_QUEUES; i++) {
+        if (tx_queue_count[i]) {
+            hddLog(LOGE, "HDD WMM TxQueue Info For AC: %d Count: %d",
+                i, tx_queue_count[i]);
+        }
+    }
+
 
     for(i =0; i<WLAN_MAX_STA_COUNT; i++)
     {
@@ -5977,11 +5985,8 @@ void hdd_wmm_tx_snapshot(hdd_adapter_t *pAdapter)
                 if( pAdapter->aStaInfo[i].wmm_tx_queue[j].count )
                 {
                    spin_lock_bh(&pAdapter->aStaInfo[i].wmm_tx_queue[j].lock);
-                   hddLog(LOGE, "HDD TxQueue Info For AC: %d Count: %d"
-                         "PrevAdress:%p, NextAddress:%p",
-                         j, pAdapter->aStaInfo[i].wmm_tx_queue[j].count,
-                         pAdapter->aStaInfo[i].wmm_tx_queue[j].anchor.prev,
-                         pAdapter->aStaInfo[i].wmm_tx_queue[j].anchor.next);
+                   hddLog(LOGE, "HDD TxQueue Info For AC: %d Count: %d",
+                         j, pAdapter->aStaInfo[i].wmm_tx_queue[j].count);
                   spin_unlock_bh(&pAdapter->aStaInfo[i].wmm_tx_queue[j].lock);
                 }
              }
