@@ -283,6 +283,12 @@ extern spinlock_t hdd_context_lock;
 #define SNR_CONTEXT_MAGIC   0x534E5200   //SNR
 #define BCN_MISS_RATE_CONTEXT_MAGIC 0x513F5753
 #define FW_STATS_CONTEXT_MAGIC  0x5022474E //FW STATS
+#define GET_FRAME_LOG_MAGIC   0x464c4f47   //FLOG
+#define MON_MODE_MSG_MAGIC 0x51436B3A //MON_MODE
+
+#define MON_MODE_MSG_TIMEOUT 5000
+#define MON_MODE_START 1
+#define MON_MODE_STOP  0
 
 /*
  * Driver miracast parameters 0-Disabled
@@ -770,9 +776,28 @@ struct hdd_ap_ctx_s
    beacon_data_t *beacon;
 };
 
+#define NUM_FILTERS_SUPPORTED 1
+struct filter
+{
+   v_MACADDR_t macAddr;
+   v_BOOL_t isA1filter;
+   v_BOOL_t isA2filter;
+   v_BOOL_t isA3filter;
+};
+
 struct hdd_mon_ctx_s
 {
-   hdd_adapter_t *pAdapterForTx;
+  /* start or stop */
+   v_BOOL_t state;
+   /*Conversion of packet required or not*/
+   v_BOOL_t is80211to803ConReq;
+   v_U32_t ChannelNo;
+   v_U32_t ChannelBW;
+   v_BOOL_t crcCheckEnabled;
+   v_U8_t numOfMacFilters;
+   struct filter mmFilters[NUM_FILTERS_SUPPORTED];
+   v_U64_t typeSubtypeBitmap;
+   v_U64_t rsvd;
 };
 
 typedef struct hdd_scaninfo_s
@@ -1114,6 +1139,7 @@ struct hdd_adapter_s
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
+#define WLAN_HDD_GET_MONITOR_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.monitor)
 #define WLAN_HDD_GET_AP_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.ap)
 #define WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter)  (&(pAdapter)->sessionCtx.station.WextState)
 #define WLAN_HDD_GET_CTX(pAdapter) ((hdd_context_t*)pAdapter->pHddCtx)
@@ -1445,7 +1471,10 @@ void hdd_set_station_ops( struct net_device *pWlanDev );
 tANI_U8* wlan_hdd_get_intf_addr(hdd_context_t* pHddCtx);
 void wlan_hdd_release_intf_addr(hdd_context_t* pHddCtx, tANI_U8* releaseAddr);
 v_U8_t hdd_get_operating_channel( hdd_context_t *pHddCtx, device_mode_t mode );
-
+void wlan_hdd_mon_set_typesubtype( hdd_mon_ctx_t *pMonCtx,int type);
+void hdd_monPostMsgCb(tANI_U32 *magic, struct completion *cmpVar);
+VOS_STATUS wlan_hdd_mon_postMsg(tANI_U32 *magic, struct completion *cmpVar,
+                                hdd_mon_ctx_t *pMonCtx , void* callback);
 void hdd_set_conparam ( v_UINT_t newParam );
 tVOS_CON_MODE hdd_get_conparam( void );
 
@@ -1456,7 +1485,6 @@ v_BOOL_t hdd_is_suspend_notify_allowed(hdd_context_t* pHddCtx);
 tSirAbortScanStatus hdd_abort_mac_scan(hdd_context_t* pHddCtx,
                                        tANI_U8 sessionId,
                                        eCsrAbortReason reason);
-void wlan_hdd_set_monitor_tx_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
 void hdd_cleanup_actionframe( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
 
 void crda_regulatory_entry_default(v_U8_t *countryCode, int domain_id);

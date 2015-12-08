@@ -166,8 +166,9 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #define WE_SET_TDLS_OFF_CHAN_MODE        16
 #endif
 #define  WE_SET_SCAN_BAND_PREFERENCE     17
-#define  WE_SET_MIRACAST_VENDOR_CONFIG     18
+#define  WE_SET_MIRACAST_VENDOR_CONFIG   18
 
+#define  WE_SET_MONITOR_STATE            19
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_NONE_GET_INT    (SIOCIWFIRSTPRIV + 1)
@@ -255,6 +256,8 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 
 #define WE_MTRACE_DUMP_CMD    8
 #define WE_MTRACE_SELECTIVE_MODULE_LOG_ENABLE_CMD    9
+#define WE_CONFIGURE_MONITOR_MODE  10
+#define WE_SET_MONITOR_MODE_FILTER  11
 
 #ifdef FEATURE_WLAN_TDLS
 #undef  MAX_VAR_ARGS
@@ -5277,6 +5280,7 @@ static int __iw_setint_getnone(struct net_device *dev,
     tHalHandle hHal;
     hdd_wext_state_t  *pWextState;
     hdd_context_t *pHddCtx;
+    hdd_mon_ctx_t *pMonCtx = NULL;
     int *value = (int *)extra;
     int sub_cmd = value[0];
     int set_value = value[1];
@@ -5300,23 +5304,25 @@ static int __iw_setint_getnone(struct net_device *dev,
         hddLog(VOS_TRACE_LEVEL_ERROR, FL("HDD context is not valid"));
         return ret;
     }
-    hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
-    if (NULL == hHal)
+    if ( VOS_MONITOR_MODE != hdd_get_conparam())
     {
-        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                  "%s: Hal Context is NULL",__func__);
-        return -EINVAL;
-    }
-    pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
-    if (NULL == pWextState)
-    {
-        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                  "%s: pWextState is NULL",__func__);
-        return -EINVAL;
-    }
+      hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
+      if (NULL == hHal)
+      {
+          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                    "%s: Hal Context is NULL",__func__);
+          return -EINVAL;
+      }
+      pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
+      if (NULL == pWextState)
+      {
+          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                    "%s: pWextState is NULL",__func__);
+          return -EINVAL;
+      }
 
-    INIT_COMPLETION(pWextState->completion_var);
-
+      INIT_COMPLETION(pWextState->completion_var);
+    }
     switch(sub_cmd)
     {
         case WE_SET_11D_STATE:
@@ -5762,6 +5768,55 @@ static int __iw_setint_getnone(struct net_device *dev,
             }
 
             break;
+        }
+        case WE_SET_MONITOR_STATE:
+        {
+           v_U32_t magic = 0;
+           struct completion cmpVar;
+           long waitRet = 0;
+           tVOS_CON_MODE mode = hdd_get_conparam();
+
+           if( VOS_MONITOR_MODE != mode)
+           {
+               hddLog(LOGE, "invalid mode %d", mode);
+               ret = -EIO;
+           }
+
+           pMonCtx =  WLAN_HDD_GET_MONITOR_CTX_PTR(pAdapter);
+           if( pMonCtx == NULL )
+           {
+             hddLog(LOGE, "Monitor Context NULL");
+             ret = -EIO;
+           }
+           if (pMonCtx->state == set_value)
+           {
+               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                         FL("already in same mode curr_mode:%d req_mode: %d"),
+                             pMonCtx->state, set_value);
+               break;
+           }
+           pMonCtx->state = set_value;
+           magic = MON_MODE_MSG_MAGIC;
+           init_completion(&cmpVar);
+           if (VOS_STATUS_SUCCESS !=
+                         wlan_hdd_mon_postMsg(&magic, &cmpVar,
+                                               pMonCtx, hdd_monPostMsgCb)) {
+                VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                          FL("failed to post MON MODE REQ"));
+                pMonCtx->state = (pMonCtx->state==MON_MODE_START)?
+                                   MON_MODE_STOP : MON_MODE_START;
+                magic = 0;
+                ret = -EIO;
+                break;
+           }
+           waitRet = wait_for_completion_timeout(&cmpVar, MON_MODE_MSG_TIMEOUT);
+           magic = 0;
+           if (waitRet <= 0 ){
+               VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                    FL("failed to wait on monitor mode completion %ld"),
+                        waitRet);
+           }
+           break;
         }
         default:
         {
@@ -6992,8 +7047,10 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
     int sub_cmd;
     int *apps_args = (int *) extra;
     hdd_station_ctx_t *pStaCtx = NULL ;
+    hdd_mon_ctx_t *pMonCtx = NULL;
     hdd_context_t *pHddCtx = NULL;
     hdd_ap_ctx_t  *pAPCtx = NULL;
+    v_CONTEXT_t pVosContext;
     int cmd = 0;
     int staId = 0;
     int ret = 0;
@@ -7011,6 +7068,7 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
                   "%s: Adapter is NULL",__func__);
         return -EINVAL;
     }
+    pVosContext = ( WLAN_HDD_GET_CTX(pAdapter))->pvosContext;
     pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     ret = wlan_hdd_validate_context(pHddCtx);
     if (0 != ret)
@@ -7019,17 +7077,19 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
                     "%s: HDD context is Null", __func__);
         return ret;
     }
-    hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
-    if (NULL == hHal)
+    if( VOS_MONITOR_MODE != hdd_get_conparam())
     {
-        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                  "%s: Hal Context is NULL",__func__);
-        return -EINVAL;
+      hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
+      if (NULL == hHal)
+      {
+          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                    "%s: Hal Context is NULL",__func__);
+          return -EINVAL;
+      }
     }
     sub_cmd = wrqu->data.flags;
 
     hddLog(LOG1, "%s: Received length %d", __func__, wrqu->data.length);
-
 
     if(( sub_cmd == WE_MCC_CONFIG_CREDENTIAL ) ||
         (sub_cmd == WE_MCC_CONFIG_PARAMS ))
@@ -7153,6 +7213,112 @@ static int __iw_set_var_ints_getnone(struct net_device *dev,
             }
         break;
 #endif
+        case WE_CONFIGURE_MONITOR_MODE:
+           {
+               v_U32_t magic = 0;
+               struct completion cmpVar;
+               long waitRet = 0;
+
+               pMonCtx =  WLAN_HDD_GET_MONITOR_CTX_PTR(pAdapter);
+               if( pMonCtx == NULL )
+               {
+                 hddLog(LOGE, "Monitor Context NULL");
+                 break;
+               }
+               hddLog(LOG1, "%s: Monitor MOde Configuration: ChNo=%d ChBW=%d CRCCheck=%d type=%d ConversionBit=%d",
+                        __func__, apps_args[0], apps_args[1], apps_args[2],
+                        apps_args[3], apps_args[4]);
+               /* Input Validation part of FW */
+               pMonCtx->ChannelNo = apps_args[0];
+               pMonCtx->ChannelBW = apps_args[1];
+               pMonCtx->crcCheckEnabled = apps_args[2];
+               wlan_hdd_mon_set_typesubtype( pMonCtx,apps_args[3]);
+               pMonCtx->is80211to803ConReq = apps_args[4];
+               WLANTL_SetIsConversionReq(pVosContext,apps_args[4]);
+               if( pMonCtx->is80211to803ConReq )
+                    pAdapter->dev->type = ARPHRD_ETHER;
+               else
+                    pAdapter->dev->type = ARPHRD_IEEE80211_RADIOTAP;
+               if( (apps_args[3]!= 100 && apps_args[3]!= 0) && apps_args[4] )
+               {
+                  hddLog(LOGE, "%s: Filtering data packets as management and control"
+                         " cannot be converted to 802.3 ",__func__);
+                  pMonCtx->typeSubtypeBitmap = 0xFFFF00000000;
+               }
+               if (MON_MODE_START == pMonCtx->state) {
+                    magic = MON_MODE_MSG_MAGIC;
+                    init_completion(&cmpVar);
+                    if (VOS_STATUS_SUCCESS !=
+                            wlan_hdd_mon_postMsg(&magic, &cmpVar,
+                                                  pMonCtx, hdd_monPostMsgCb)) {
+                        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                                    FL("failed to post MON MODE REQ"));
+                        magic = 0;
+                        ret = -EIO;
+                        break;
+                    }
+                    waitRet = wait_for_completion_timeout(&cmpVar,
+                                                       MON_MODE_MSG_TIMEOUT);
+                    magic = 0;
+                    if (waitRet <= 0 ) {
+                        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                            FL("failed to wait on monitor mode completion %ld"),
+                                waitRet);
+                    }
+               }
+           }
+         break;
+
+        case WE_SET_MONITOR_MODE_FILTER:
+           {
+               v_U32_t magic = 0;
+               struct completion cmpVar;
+               long waitRet = 0;
+
+               pMonCtx =  WLAN_HDD_GET_MONITOR_CTX_PTR(pAdapter);
+               if( pMonCtx == NULL )
+               {
+                  hddLog(LOGE, "Monitor Context NULL");
+                  break;
+               }
+               /* Input Validation Part of FW */
+               pMonCtx->numOfMacFilters=1;
+               pMonCtx->mmFilters[0].macAddr.bytes[0]=apps_args[0];
+               pMonCtx->mmFilters[0].macAddr.bytes[1]=apps_args[1];
+               pMonCtx->mmFilters[0].macAddr.bytes[2]=apps_args[2];
+               pMonCtx->mmFilters[0].macAddr.bytes[3]=apps_args[3];
+               pMonCtx->mmFilters[0].macAddr.bytes[4]=apps_args[4];
+               pMonCtx->mmFilters[0].macAddr.bytes[5]=apps_args[5];
+               pMonCtx->mmFilters[0].isA1filter = apps_args[6];
+               pMonCtx->mmFilters[0].isA2filter = apps_args[7];
+               pMonCtx->mmFilters[0].isA3filter = apps_args[8];
+               hddLog(LOG1, "%s: Monitor Filter: %pM A1=%d A2=%d A3=%d ",
+                        __func__, pMonCtx->mmFilters[0].macAddr.bytes,
+                       apps_args[6], apps_args[7], apps_args[8]);
+               if (MON_MODE_START == pMonCtx->state) {
+                    magic = MON_MODE_MSG_MAGIC;
+                    init_completion(&cmpVar);
+                    if (VOS_STATUS_SUCCESS !=
+                            wlan_hdd_mon_postMsg(&magic, &cmpVar,
+                                                  pMonCtx, hdd_monPostMsgCb)) {
+                        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                                    FL("failed to post MON MODE REQ"));
+                        magic = 0;
+                        ret = -EIO;
+                        break;
+                    }
+                    waitRet = wait_for_completion_timeout(&cmpVar,
+                                                       MON_MODE_MSG_TIMEOUT);
+                    magic = 0;
+                    if (waitRet <= 0 ) {
+                        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                            FL("failed to wait on monitor mode completion %ld"),
+                                waitRet);
+                    }
+               }
+           }
+         break;
+
         default:
             {
                 hddLog(LOGE, "%s: Invalid IOCTL command %d",
@@ -9899,6 +10065,10 @@ static const iw_handler we_private[] = {
 /*Maximum command length can be only 15 */
 static const struct iw_priv_args we_private_args[] = {
 
+    {   WE_SET_MONITOR_STATE,
+        IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
+        0, "monitor" },
+
     /* handlers for main ioctl */
     {   WLAN_PRIV_SET_INT_GET_NONE,
         IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
@@ -10291,6 +10461,18 @@ static const struct iw_priv_args we_private_args[] = {
        0,
        "setTdlsConfig" },
 #endif
+
+   {
+       WE_CONFIGURE_MONITOR_MODE,
+       IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
+       0,
+       "MonitorModeConf" },
+
+   {
+       WE_SET_MONITOR_MODE_FILTER,
+       IW_PRIV_TYPE_INT | MAX_VAR_ARGS,
+       0,
+       "MonitorFilter" },
 
     /* handlers for main ioctl */
     {   WLAN_PRIV_ADD_TSPEC,

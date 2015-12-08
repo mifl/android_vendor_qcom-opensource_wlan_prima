@@ -258,6 +258,8 @@ v_VOID_t WDA_ProcessFWStatsGetReq(tWDA_CbContext *pWDA,
 
 VOS_STATUS WDA_ProcessEncryptMsgReq(tWDA_CbContext *pWDA,
                                       u8 *wdaRequest);
+VOS_STATUS WDA_ProcessMonStartReq( tWDA_CbContext *pWDA, void* wdaRequest);
+VOS_STATUS WDA_ProcessMonStopReq( tWDA_CbContext *pWDA, void* wdaRequest);
 
 /*
  * FUNCTION: WDA_open
@@ -13491,6 +13493,16 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
          WDA_ProcessEncryptMsgReq(pWDA, (u8 *)pMsg->bodyptr);
          break;
       }
+      case WDA_MON_START_REQ:
+      {
+         WDA_ProcessMonStartReq(pWDA,(v_PVOID_t)pMsg->bodyptr);
+         break;
+      }
+      case WDA_MON_STOP_REQ:
+      {
+         WDA_ProcessMonStopReq(pWDA, (v_PVOID_t)pMsg->bodyptr);
+         break;
+      }
       default:
       {
          VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
@@ -18308,6 +18320,99 @@ VOS_STATUS WDA_ProcessEncryptMsgReq(tWDA_CbContext *pWDA,
     {
         VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
             FL("Failure to request.  Free all the memory " ));
+        vos_mem_free(pWdaParams->wdaMsgParam);
+        vos_mem_free(pWdaParams);
+    }
+    return CONVERT_WDI2VOS_STATUS(status);
+}
+
+void WDA_MonModeRspCallback(void *pEventData, void* pUserData)
+{
+   tWDA_ReqParams *pWdaParams = (tWDA_ReqParams *)pUserData;
+   tSirMonModeReq *pData;
+
+   VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+                                          "<------ %s " ,__func__);
+   if (NULL == pWdaParams)
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+              "%s: pWdaParams received NULL", __func__);
+      VOS_ASSERT(0) ;
+      return ;
+   }
+   pData = (tSirMonModeReq *)pWdaParams->wdaMsgParam;
+   if (pData != NULL) {
+        pData->callback(pData->magic, pData->cmpVar);
+        vos_mem_free(pWdaParams->wdaMsgParam);
+   }
+   vos_mem_free(pWdaParams) ;
+
+   return;
+}
+
+VOS_STATUS WDA_ProcessMonStartReq( tWDA_CbContext *pWDA, void *wdaRequest)
+{
+
+    WDI_Status status = WDI_STATUS_SUCCESS;
+    tWDA_ReqParams *pWdaParams;
+    tSirMonModeReq *pMonModeData = (tSirMonModeReq *)wdaRequest;
+
+    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+            FL("%s: "), __func__);
+    pWdaParams = (tWDA_ReqParams *)vos_mem_malloc(sizeof(tWDA_ReqParams));
+    if (NULL == pWdaParams)
+    {
+        VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+            FL("%s: VOS MEM Alloc Failure"), __func__);
+        VOS_ASSERT(0);
+        return VOS_STATUS_E_NOMEM;
+    }
+    pWdaParams->pWdaContext = pWDA;
+    pWdaParams->wdaMsgParam = wdaRequest;
+    pWdaParams->wdaWdiApiMsgParam = NULL;
+
+    status = WDI_MonStartReq(pMonModeData->data,
+                               (WDI_MonModeRspCb)WDA_MonModeRspCallback,
+                               (void *)pWdaParams);
+    if (IS_WDI_STATUS_FAILURE(status))
+    {
+        VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                   "Failure to request.  Free all the memory " );
+        vos_mem_free(pWdaParams->wdaMsgParam);
+        vos_mem_free(pWdaParams);
+    }
+    return CONVERT_WDI2VOS_STATUS(status);
+}
+
+VOS_STATUS WDA_ProcessMonStopReq( tWDA_CbContext *pWDA, void* wdaRequest)
+{
+
+    WDI_Status status = WDI_STATUS_SUCCESS;
+    tWDA_ReqParams *pWdaParams;
+
+    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
+            FL("%s: "), __func__);
+    pWdaParams = (tWDA_ReqParams *)vos_mem_malloc(sizeof(tWDA_ReqParams));
+    if (NULL == pWdaParams)
+    {
+        VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+            FL("%s: VOS MEM Alloc Failure"), __func__);
+        VOS_ASSERT(0);
+        return VOS_STATUS_E_NOMEM;
+    }
+    pWdaParams->pWdaContext = pWDA;
+    pWdaParams->wdaMsgParam = wdaRequest;
+    pWdaParams->wdaWdiApiMsgParam = NULL;
+
+    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+            "%s: Processing Mon stop request", __func__);
+    status = WDI_MonStopReq((WDI_MonModeRspCb)WDA_MonModeRspCallback,
+                             (void *)pWdaParams);
+
+    if (IS_WDI_STATUS_FAILURE(status))
+    {
+        VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+                   "Failure to request.  Free all the memory " );
         vos_mem_free(pWdaParams->wdaMsgParam);
         vos_mem_free(pWdaParams);
     }

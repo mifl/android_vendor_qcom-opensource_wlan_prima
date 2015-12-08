@@ -4567,6 +4567,11 @@ int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
     return ret;
 }
 
+int hdd_mon_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+  return 0;
+}
+
 #if defined(FEATURE_WLAN_ESE) && defined(FEATURE_WLAN_ESE_UPLOAD)
 /**---------------------------------------------------------------------------
 
@@ -5495,8 +5500,6 @@ int __hdd_mon_open (struct net_device *dev)
       return -EINVAL;
    }
 
-   netif_start_queue(dev);
-
    return 0;
 }
 
@@ -5509,6 +5512,11 @@ int hdd_mon_open (struct net_device *dev)
     vos_ssr_unprotect(__func__);
 
     return ret;
+}
+
+int hdd_mon_stop(struct net_device *dev)
+{
+  return 0;
 }
 
 /**---------------------------------------------------------------------------
@@ -6101,12 +6109,12 @@ void wlan_hdd_release_intf_addr(hdd_context_t* pHddCtx, tANI_U8* releaseAddr)
  };
  static struct net_device_ops wlan_mon_drv_ops = {
       .ndo_open = hdd_mon_open,
-      .ndo_stop = hdd_stop,
+      .ndo_stop = hdd_mon_stop,
       .ndo_uninit = hdd_uninit,
       .ndo_start_xmit = hdd_mon_hard_start_xmit,  
       .ndo_tx_timeout = hdd_tx_timeout,
       .ndo_get_stats = hdd_stats,
-      .ndo_do_ioctl = hdd_ioctl,
+      .ndo_do_ioctl = hdd_mon_ioctl,
       .ndo_set_mac_address = hdd_set_mac_address,
  };
 
@@ -6464,21 +6472,15 @@ void hdd_deinit_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter, tANI_U
 
          hdd_unregister_hostapd(pAdapter, rtnl_held);
          hdd_set_conparam( 0 );
-         wlan_hdd_set_monitor_tx_adapter( WLAN_HDD_GET_CTX(pAdapter), NULL );
          break;
       }
 
       case WLAN_HDD_MONITOR:
       {
-          hdd_adapter_t* pAdapterforTx = pAdapter->sessionCtx.monitor.pAdapterForTx;
          if(test_bit(INIT_TX_RX_SUCCESS, &pAdapter->event_flags))
          {
             hdd_deinit_tx_rx( pAdapter );
             clear_bit(INIT_TX_RX_SUCCESS, &pAdapter->event_flags);
-         }
-         if(NULL != pAdapterforTx)
-         {
-            hdd_cleanup_actionframe(pHddCtx, pAdapterforTx);
          }
          break;
       }
@@ -6768,6 +6770,38 @@ VOS_STATUS hdd_disable_bmps_imps(hdd_context_t *pHddCtx, tANI_U8 session_type)
    return status;
 }
 
+void hdd_monPostMsgCb(tANI_U32 *magic, struct completion *cmpVar)
+{
+    if (magic == NULL || cmpVar == NULL) {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("invalid arguments %p %p"), magic, cmpVar);
+        return;
+    }
+    if (*magic != MON_MODE_MSG_MAGIC) {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("maic: %x"), *magic);
+        return;
+    }
+
+    complete(cmpVar);
+    return;
+}
+
+void hdd_init_mon_mode (hdd_adapter_t *pAdapter)
+ {
+    hdd_mon_ctx_t *pMonCtx = NULL;
+    pMonCtx = WLAN_HDD_GET_MONITOR_CTX_PTR(pAdapter);
+
+    pMonCtx->state = 0;
+    pMonCtx->ChannelNo = 1;
+    pMonCtx->ChannelBW = 20;
+    pMonCtx->crcCheckEnabled = 1;
+    pMonCtx->typeSubtypeBitmap = 0xFFFF00000000;
+    pMonCtx->is80211to803ConReq = 1;
+    pMonCtx->numOfMacFilters = 0;
+ }
+
+
 hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
                                  const char *iface_name, tSirMacAddr macAddr,
                                  tANI_U8 rtnl_held )
@@ -6922,34 +6956,32 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
             return NULL;
          }
 
+         // Register wireless extensions
+         if( VOS_STATUS_SUCCESS !=  (status = hdd_register_wext(pAdapter->dev)))
+         {
+              hddLog(VOS_TRACE_LEVEL_FATAL,
+                   "hdd_register_wext() failed with status code %08d [x%08x]",
+                                                      status, status );
+              status = VOS_STATUS_E_FAILURE;
+         }
+
          pAdapter->wdev.iftype = NL80211_IFTYPE_MONITOR; 
          pAdapter->device_mode = session_type;
-         status = hdd_register_interface( pAdapter, rtnl_held );
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,29)
          pAdapter->dev->netdev_ops = &wlan_mon_drv_ops;
 #else
          pAdapter->dev->open = hdd_mon_open;
          pAdapter->dev->hard_start_xmit = hdd_mon_hard_start_xmit;
+         pAdapter->dev->stop = hdd_mon_stop;
+         pAdapter->dev->do_ioctl = hdd_mon_ioctl;
 #endif
+         status = hdd_register_interface( pAdapter, rtnl_held );
+         hdd_init_mon_mode( pAdapter );
          hdd_init_tx_rx( pAdapter );
          set_bit(INIT_TX_RX_SUCCESS, &pAdapter->event_flags);
-         //Set adapter to be used for data tx. It will use either GO or softap.
-         pAdapter->sessionCtx.monitor.pAdapterForTx = 
-                           hdd_get_adapter(pAdapter->pHddCtx, WLAN_HDD_SOFTAP);
-         if (NULL == pAdapter->sessionCtx.monitor.pAdapterForTx)
-         {
-            pAdapter->sessionCtx.monitor.pAdapterForTx = 
-                           hdd_get_adapter(pAdapter->pHddCtx, WLAN_HDD_P2P_GO);
-         }
-         /* This workqueue will be used to transmit management packet over
-          * monitor interface. */
-         if (NULL == pAdapter->sessionCtx.monitor.pAdapterForTx) {
-             hddLog(VOS_TRACE_LEVEL_ERROR,"%s:Failed:hdd_get_adapter",__func__);
-             return NULL;
-         }
-
-         INIT_WORK(&pAdapter->sessionCtx.monitor.pAdapterForTx->monTxWorkQueue,
-                   hdd_mon_tx_work_queue);
+         //Stop the Interface TX queue.
+         netif_tx_disable(pAdapter->dev);
+         netif_carrier_off(pAdapter->dev);
       }
          break;
       case WLAN_HDD_FTM:
@@ -7386,9 +7418,6 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
          break;
 
       case WLAN_HDD_MONITOR:
-#ifdef WLAN_OPEN_SOURCE
-         cancel_work_sync(&pAdapter->sessionCtx.monitor.pAdapterForTx->monTxWorkQueue);
-#endif
          break;
 
       default:
@@ -7923,28 +7952,6 @@ hdd_adapter_t * hdd_get_mon_adapter( hdd_context_t *pHddCtx )
 
 /**---------------------------------------------------------------------------
   
-  \brief hdd_set_monitor_tx_adapter() - 
-
-   This API initializes the adapter to be used while transmitting on monitor
-   adapter. 
-   
-  \param  - pHddCtx - Pointer to the HDD context.
-            pAdapter - Adapter that will used for TX. This can be NULL.
-  \return - None. 
-  --------------------------------------------------------------------------*/
-void wlan_hdd_set_monitor_tx_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter )
-{
-   hdd_adapter_t *pMonAdapter;
-
-   pMonAdapter = hdd_get_adapter( pHddCtx, WLAN_HDD_MONITOR );
-
-   if( NULL != pMonAdapter )
-   {
-      pMonAdapter->sessionCtx.monitor.pAdapterForTx = pAdapter;
-   }
-}
-/**---------------------------------------------------------------------------
-  
   \brief hdd_get_operating_channel() -
 
    This API returns the operating channel of the requested device mode 
@@ -8214,6 +8221,128 @@ static void hdd_full_power_callback(void *callbackContext, eHalStatus status)
    spin_unlock(&hdd_context_lock);
 }
 
+void wlan_hdd_mon_set_typesubtype( hdd_mon_ctx_t *pMonCtx,int type)
+{
+   pMonCtx->typeSubtypeBitmap = 0;
+   if( type%10 ) /* Management Packets */
+     pMonCtx->typeSubtypeBitmap |= 0xFFFF;
+   type/=10;
+   if( type%10 ) /* Control Packets */
+     pMonCtx->typeSubtypeBitmap |= 0xFFFF0000;
+   type/=10;
+   if( type%10 ) /* Data Packets */
+     pMonCtx->typeSubtypeBitmap |= 0xFFFF00000000;
+}
+
+VOS_STATUS wlan_hdd_mon_postMsg(tANI_U32 *magic, struct completion *cmpVar,
+                                hdd_mon_ctx_t *pMonCtx , void* callback)
+{
+    vos_msg_t    monMsg;
+    tSirMonModeReq *pMonModeReq;
+
+    if (MON_MODE_START == pMonCtx->state)
+        monMsg.type = WDA_MON_START_REQ;
+    else if (MON_MODE_STOP == pMonCtx->state)
+        monMsg.type = WDA_MON_STOP_REQ;
+    else {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+                FL("invalid monitor state %d"), pMonCtx->state);
+        return VOS_STATUS_E_FAILURE;
+    }
+
+    pMonModeReq = vos_mem_malloc(sizeof(tSirMonModeReq));
+    if (pMonModeReq == NULL) {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+                FL("fail to allocate memory for monitor mode req"));
+        return VOS_STATUS_E_FAILURE;
+    }
+
+    pMonModeReq->magic = magic;
+    pMonModeReq->cmpVar = cmpVar;
+    pMonModeReq->data = pMonCtx;
+    pMonModeReq->callback = callback;
+
+    monMsg.reserved = 0;
+    monMsg.bodyptr = pMonModeReq;
+    monMsg.bodyval = 0;
+
+    if (VOS_STATUS_SUCCESS != vos_mq_post_message(
+        VOS_MODULE_ID_WDA,(vos_msg_t *)&monMsg)) {
+        hddLog(VOS_TRACE_LEVEL_ERROR,"%s: : Failed to post Msg to HAL",__func__);
+        vos_mem_free(pMonModeReq);
+    }
+    return VOS_STATUS_SUCCESS;
+}
+
+void wlan_hdd_mon_close(hdd_context_t *pHddCtx)
+{
+    VOS_STATUS vosStatus;
+    v_CONTEXT_t pVosContext = pHddCtx->pvosContext;
+
+    long ret;
+    hdd_mon_ctx_t *pMonCtx = NULL;
+    v_U32_t magic;
+    struct completion cmpVar;
+
+    hdd_adapter_t *pAdapter = hdd_get_adapter(pHddCtx,WLAN_HDD_MONITOR);
+    if(pAdapter == NULL || pVosContext == NULL)
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL, "%s:pAdapter is NULL",__func__);
+        return ;
+    }
+
+    pMonCtx =  WLAN_HDD_GET_MONITOR_CTX_PTR(pAdapter);
+    if (pMonCtx!= NULL && pMonCtx->state == MON_MODE_START) {
+        pMonCtx->state = MON_MODE_STOP;
+        magic = MON_MODE_MSG_MAGIC;
+        init_completion(&cmpVar);
+        if (VOS_STATUS_SUCCESS !=
+                      wlan_hdd_mon_postMsg(&magic, &cmpVar,
+                                            pMonCtx, hdd_monPostMsgCb)) {
+             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                       FL("failed to post MON MODE REQ"));
+             pMonCtx->state = MON_MODE_START;
+             magic = 0;
+             return;
+        }
+        ret = wait_for_completion_timeout(&cmpVar, MON_MODE_MSG_TIMEOUT);
+        magic = 0;
+        if (ret <= 0 ) {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                    FL("timeout on monitor mode completion %ld"), ret);
+        }
+    }
+
+   hdd_UnregisterWext(pAdapter->dev);
+
+   vos_mon_stop( pVosContext );
+
+   vosStatus = vos_sched_close( pVosContext );
+   if (!VOS_IS_STATUS_SUCCESS(vosStatus))    {
+      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
+         "%s: Failed to close VOSS Scheduler",__func__);
+      VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
+   }
+
+   vosStatus = vos_nv_close();
+   if (!VOS_IS_STATUS_SUCCESS(vosStatus))
+   {
+      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
+          "%s: Failed to close NV", __func__);
+      VOS_ASSERT( VOS_IS_STATUS_SUCCESS( vosStatus ) );
+   }
+
+   vos_close(pVosContext);
+
+   #ifdef WLAN_KD_READY_NOTIFIER
+       nl_srv_exit(pHddCtx->ptt_pid);
+   #else
+       nl_srv_exit();
+   #endif
+
+   hdd_close_all_adapters( pHddCtx );
+}
+
 /**---------------------------------------------------------------------------
 
   \brief hdd_wlan_exit() - HDD WLAN exit function
@@ -8245,7 +8374,13 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    hddLog(LOGE, FL("Unregister IPv4 notifier"));
    unregister_inetaddr_notifier(&pHddCtx->ipv4_notifier);
 
-   if (VOS_FTM_MODE != hdd_get_conparam())
+   if (VOS_MONITOR_MODE == hdd_get_conparam())
+   {
+      hddLog(VOS_TRACE_LEVEL_ERROR,"%s: MONITOR MODE",__func__);
+      wlan_hdd_mon_close(pHddCtx);
+      goto free_hdd_ctx;
+   }
+   else if (VOS_FTM_MODE != hdd_get_conparam())
    {
       /* This will issue a dump command which will clean up
          BTQM queues and unblock MC thread */
@@ -8957,6 +9092,91 @@ static int hdd_generate_iface_mac_addr_auto(hdd_context_t *pHddCtx,
    return 0;
 }
 
+int wlan_hdd_mon_open(hdd_context_t *pHddCtx)
+{
+    VOS_STATUS status;
+    v_CONTEXT_t pVosContext= NULL;
+    hdd_adapter_t *pAdapter= NULL;
+
+    pVosContext = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
+
+    if (NULL == pVosContext)
+    {
+        VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                    "%s: Trying to open VOSS without a PreOpen", __func__);
+        VOS_ASSERT(0);
+        return VOS_STATUS_E_FAILURE;
+    }
+
+   status = vos_nv_open();
+   if (!VOS_IS_STATUS_SUCCESS(status))
+   {
+       /* NV module cannot be initialized */
+       hddLog( VOS_TRACE_LEVEL_FATAL,
+                "%s: vos_nv_open failed", __func__);
+       return VOS_STATUS_E_FAILURE;
+   }
+
+   status = vos_init_wiphy_from_nv_bin();
+   if (!VOS_IS_STATUS_SUCCESS(status))
+   {
+       /* NV module cannot be initialized */
+       hddLog( VOS_TRACE_LEVEL_FATAL,
+               "%s: vos_init_wiphy failed", __func__);
+       goto err_vos_nv_close;
+   }
+
+   status = vos_open( &pVosContext, pHddCtx->parent_dev);
+   if ( !VOS_IS_STATUS_SUCCESS( status ))
+   {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: vos_open failed", __func__);
+      goto err_vos_nv_close;
+   }
+
+   status = vos_mon_start( pVosContext );
+   if ( !VOS_IS_STATUS_SUCCESS( status ) )
+   {
+      hddLog(VOS_TRACE_LEVEL_FATAL,"%s: vos_start failed",__func__);
+      goto err_vosclose;
+   }
+
+   WLANTL_SetMonRxCbk( pVosContext, hdd_rx_packet_monitor_cbk );
+   WDA_featureCapsExchange(pVosContext);
+   wcnss_wlan_set_drvdata(pHddCtx->parent_dev, pHddCtx);
+
+   pAdapter = hdd_open_adapter( pHddCtx, WLAN_HDD_MONITOR, "wlan%d",
+         wlan_hdd_get_intf_addr(pHddCtx), FALSE );
+   if( pAdapter == NULL )
+   {
+      hddLog(VOS_TRACE_LEVEL_ERROR, "%s: hdd_open_adapter failed", __func__);
+      goto err_close_adapter;
+   }
+
+   //Initialize the nlink service
+   if(nl_srv_init() != 0)
+   {
+      hddLog(VOS_TRACE_LEVEL_FATAL,"%s: nl_srv_init failed", __func__);
+      goto err_close_adapter;
+   }
+   return VOS_STATUS_SUCCESS;
+
+err_close_adapter:
+   hdd_close_all_adapters( pHddCtx );
+   vos_mon_stop( pVosContext );
+err_vosclose:
+   status = vos_sched_close( pVosContext );
+   if (!VOS_IS_STATUS_SUCCESS(status))    {
+      VOS_TRACE( VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_FATAL,
+         "%s: Failed to close VOSS Scheduler", __func__);
+      VOS_ASSERT( VOS_IS_STATUS_SUCCESS( status ) );
+   }
+   vos_close(pVosContext );
+
+err_vos_nv_close:
+   vos_nv_close();
+
+return status;
+}
 /**---------------------------------------------------------------------------
 
   \brief hdd_11d_scan_done - callback to be executed when 11d scan is
@@ -9200,6 +9420,19 @@ int hdd_wlan_startup(struct device *dev )
       pHddCtx->isLoadUnloadInProgress = WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS;
       vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, FALSE);
       return VOS_STATUS_SUCCESS;
+   }
+
+   if( VOS_MONITOR_MODE == hdd_get_conparam())
+   {
+       if ( VOS_STATUS_SUCCESS != wlan_hdd_mon_open(pHddCtx))
+       {
+          hddLog(VOS_TRACE_LEVEL_FATAL,"%s: wlan_hdd_mon_open Failed",__func__);
+          goto err_free_hdd_context;
+       }
+       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: Driver loaded in Monitor Mode",__func__);
+       pHddCtx->isLoadUnloadInProgress = WLAN_HDD_NO_LOAD_UNLOAD_IN_PROGRESS;
+       vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, FALSE);
+       return VOS_STATUS_SUCCESS;
    }
 
    //Open watchdog module
@@ -10096,6 +10329,15 @@ static void hdd_driver_exit(void)
    if(!pHddCtx)
    {
       hddLog(VOS_TRACE_LEVEL_FATAL,"%s: module exit called before probe",__func__);
+   }
+   else if (VOS_MONITOR_MODE == hdd_get_conparam())
+   {
+       hddLog(VOS_TRACE_LEVEL_INFO,"%s: MONITOR MODE",__func__);
+       pHddCtx->isLoadUnloadInProgress = WLAN_HDD_UNLOAD_IN_PROGRESS;
+       vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
+       hdd_wlan_exit(pHddCtx);
+       vos_preClose( &pVosContext );
+      goto done;
    }
    else
    {
