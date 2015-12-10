@@ -694,6 +694,13 @@ typedef struct
    wpt_timer                       dxeSSRTimer;
 } WLANDXE_CtrlBlkType;
 
+typedef struct
+{
+   u64                             *rxIntDisableReturn;
+   wpt_uint8                       rxIntChanlSrc;
+   wpt_uint8                       txCmpIntChanlSrc;
+} WLANDXE_EnvInformation;
+
 /*==========================================================================
   @  Function Name 
       dxeCommonDefaultConfig
