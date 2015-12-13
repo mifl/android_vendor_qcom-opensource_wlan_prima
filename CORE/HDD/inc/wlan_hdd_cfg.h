@@ -289,6 +289,12 @@
 #define CFG_ENABLE_ADAPT_RX_DRAIN_MAX       WNI_CFG_ENABLE_ADAPT_RX_DRAIN_STAMAX
 #define CFG_ENABLE_ADAPT_RX_DRAIN_DEFAULT   WNI_CFG_ENABLE_ADAPT_RX_DRAIN_STADEF
 
+#define CFG_DISABLE_BAR_WAKEUP_HOST_NAME       "gDisableBarWakeUp"
+#define CFG_DISABLE_BAR_WAKEUP_HOST_MIN         0
+#define CFG_DISABLE_BAR_WAKEUP_HOST_MAX         1
+#define CFG_DISABLE_BAR_WAKEUP_HOST_DEFAULT     0
+
+
 typedef enum
 {
     eHDD_DOT11_MODE_AUTO = 0, //covers all things we support
@@ -2914,6 +2920,7 @@ typedef struct
    v_U8_t                      btcEnableIndTimerVal;
    v_U8_t                      btcFastWlanConnPref;
    v_U16_t                     gP2PListenDeferInterval;
+   v_BOOL_t                    disableBarWakeUp;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation

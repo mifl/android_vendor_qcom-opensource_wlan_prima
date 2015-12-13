@@ -267,13 +267,14 @@
 #define QWLAN_HAL_CFG_BURST_MODE_BE_TXOP_VALUE               209
 #define QWLAN_HAL_CFG_ENABLE_DYNAMIC_RA_START_RATE           210
 #define QWLAN_HAL_CFG_BTC_FAST_WLAN_CONN_PREF                211
+#define QWLAN_HAL_CFG_BAR_WAKEUP_HOST_DISABLE                219
 
 
-#define QWLAN_HAL_CFG_MAX_PARAMS                             212
+#define QWLAN_HAL_CFG_MAX_PARAMS                             220
 
 
 /* Total number of Integer CFGs. This is used while allocating the memory for TLV */
-#define QWLAN_HAL_CFG_INTEGER_PARAM                     212
+#define QWLAN_HAL_CFG_INTEGER_PARAM                     220
 
 /*-------------------------------------------------------------------------
   Configuration Parameter min, max, defaults
@@ -1047,5 +1048,9 @@
 #define QWLAN_HAL_CFG_BTC_FAST_WLAN_CONN_PREF_MIN 0
 #define QWLAN_HAL_CFG_BTC_FAST_WLAN_CONN_PREF_MAX 1
 
+/* QWLAN_HAL_CFG_BAR_WAKEUP_HOST_DISABLE */
+#define QWLAN_HAL_CFG_BAR_WAKEUP_HOST_DISABLE_MIN 0
+#define QWLAN_HAL_CFG_BAR_WAKEUP_HOST_DISABLE_MAX 1
+#define QWLAN_HAL_CFG_BAR_WAKEUP_HOST_DISABLE_DEF 0
 
 #endif //__WLAN_HAL_CFG_H__

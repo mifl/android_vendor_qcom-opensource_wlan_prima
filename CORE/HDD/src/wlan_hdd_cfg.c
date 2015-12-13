@@ -3255,6 +3255,14 @@ REG_VARIABLE( CFG_EXTSCAN_ENABLE, WLAN_PARAM_Integer,
                   CFG_P2P_LISTEN_DEFER_INTERVAL_DEFAULT,
                   CFG_P2P_LISTEN_DEFER_INTERVAL_MIN,
                   CFG_P2P_LISTEN_DEFER_INTERVAL_MAX),
+
+   REG_VARIABLE( CFG_DISABLE_BAR_WAKEUP_HOST_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, disableBarWakeUp,
+                 VAR_FLAGS_OPTIONAL |
+                 VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DISABLE_BAR_WAKEUP_HOST_DEFAULT,
+                 CFG_DISABLE_BAR_WAKEUP_HOST_MIN,
+                 CFG_DISABLE_BAR_WAKEUP_HOST_MAX),
 };
 
 /*
@@ -3668,6 +3676,9 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gACSBandSwitchThreshold] value = [%u]\n",pHddCtx->cfg_ini->acsBandSwitchThreshold);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gDeferScanTimeInterval] value = [%u]\n",pHddCtx->cfg_ini->nDeferScanTimeInterval);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableTDLSScan] value = [%u]\n",pHddCtx->cfg_ini->fEnableTDLSScan);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+          "Name = [disableBarWakeUp] Value = [%u] ",
+          pHddCtx->cfg_ini->disableBarWakeUp);
 }
 
 
@@ -5171,6 +5182,15 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
       fStatus = FALSE;
       hddLog(LOGE, "Could not pass on WNI_CFG_BTC_FAST_WLAN_CONN_PREF ");
    }
+
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_DISABLE_BAR_WAKE_UP_HOST,
+               pConfig->disableBarWakeUp,
+               NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
+   {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_CFG_DISABLE_BAR_WAKE_UP_HOST to CCM");
+   }
+
    return fStatus;
 }
 
