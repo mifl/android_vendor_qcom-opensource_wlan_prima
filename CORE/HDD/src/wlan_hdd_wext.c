@@ -6086,6 +6086,13 @@ int __iw_set_three_ints_getnone(struct net_device *dev,
     int sub_cmd = value[0];
     int ret = 0;
 
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
+
     pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     if (NULL == pAdapter)
     {
@@ -9293,6 +9300,13 @@ static int __iw_set_band_config(struct net_device *dev,
     int *value = (int *)extra;
 
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "%s: ", __func__);
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
 
     return hdd_setBand(dev, value[0]);
 }
