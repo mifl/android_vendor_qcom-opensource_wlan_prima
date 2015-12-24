@@ -5759,6 +5759,13 @@ static int __iw_setchar_getnone(struct net_device *dev,
     struct iw_point s_priv_data;
     tSirpkt80211 *pkt;
 
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
+
     pAdapter = (netdev_priv(dev));
     if (NULL == pAdapter)
     {
@@ -8365,6 +8372,13 @@ static int __iw_set_packet_filter_params(struct net_device *dev,
     tpPacketFilterCfg pRequest = NULL;
     int ret = 0;
     struct iw_point s_priv_data;
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
 
     pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     if (NULL == pAdapter)
