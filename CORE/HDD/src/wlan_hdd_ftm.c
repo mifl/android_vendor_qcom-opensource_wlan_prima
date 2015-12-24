@@ -5678,6 +5678,13 @@ static int __iw_ftm_set_var_ints_getnone(struct net_device *dev, struct iw_reque
     int *value = (int*)wrqu->data.pointer;
     int ret = 0;
 
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+            FL("permission check failed"));
+        return -EPERM;
+    }
+
     if(wrqu->data.length != 2)
     {
         hddLog(LOGE, "Invalid number of Arguments  %d  \n",  wrqu->data.length);
