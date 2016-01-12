@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -551,4 +551,5 @@ void limParseBeaconForTim(tpAniSirGlobal pMac, tANI_U8* pRxPacketInfo,
                           tpPESession psessionEntry);
 
 void limDecrementPendingMgmtCount (tpAniSirGlobal pMac);
+bool lim_is_robust_mgmt_action_frame(uint8 action_catagory);
 #endif /* __LIM_UTILS_H */
