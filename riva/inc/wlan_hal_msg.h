@@ -531,6 +531,7 @@ typedef enum
    WLAN_HAL_WIFI_CONFIG_SET_PARAMS_REQ      = 328,
    WLAN_HAL_WIFI_CONFIG_SET_PARAMS_RSP      = 329,
 
+   WLAN_HAL_MODIFY_ROAM_PARAMS_IND           = 332,
    WLAN_HAL_MSG_MAX = WLAN_HAL_MSG_TYPE_MAX_ENUM_SIZE
 }tHalHostMsgType;
 
@@ -8393,6 +8394,18 @@ typedef PACKED_PRE struct PACKED_POST
 
   tHalSetWifiConfigRspParams setWifiConfigRspParams;
 } tHalSetWifiConfigRsp, *tpHalSetWifiConfigRsp;
+
+/* WDI_MODIFY_ROAM_PARAMS_IND */
+typedef PACKED_PRE struct PACKED_POST {
+   tANI_U8 param;
+   tANI_U32 value;
+} tHalModifyRoamParamsIndParams, *tpHalModifyRoamParamsIndParams;
+
+typedef PACKED_PRE struct PACKED_POST
+{
+   tHalMsgHeader header;
+   tHalModifyRoamParamsIndParams  modifyRoamParamsReqParams;
+} tHalModifyRoamParamsInd, *tpHalModifyRoamParamsInd;
 
 #if defined(__ANI_COMPILER_PRAGMA_PACK_STACK)
 #pragma pack(pop)
