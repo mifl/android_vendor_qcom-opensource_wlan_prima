@@ -11526,16 +11526,41 @@ eHalStatus sme_StopBatchScanInd
 
 void activeListCmdTimeoutHandle(void *userData)
 {
+    tHalHandle hHal= (tHalHandle) userData;
+    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+    tListElem *pEntry;
+    tSmeCmd *pTempCmd = NULL;
+
+    if (NULL == pMac)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_FATAL,
+            "%s: pMac is null", __func__);
+        return;
+    }
     /* Return if no cmd pending in active list as
      * in this case we should not be here.
      */
     if ((NULL == userData) ||
-        (0 == csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList)))
+        (0 == csrLLCount(&pMac->sme.smeCmdActiveList)))
         return;
     VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
         "%s: Active List command timeout Cmd List Count %d", __func__,
-        csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList) );
-    smeGetCommandQStatus((tHalHandle) userData);
+        csrLLCount(&pMac->sme.smeCmdActiveList));
+    smeGetCommandQStatus(hHal);
+
+    pEntry = csrLLPeekHead(&pMac->sme.smeCmdActiveList, LL_ACCESS_LOCK);
+    if (pEntry) {
+        pTempCmd = GET_BASE_ADDR(pEntry, tSmeCmd, Link);
+    }
+    /* If user initiated scan took more than active list timeout
+     * abort it.
+     */
+    if (pTempCmd && (eSmeCommandScan == pTempCmd->command) &&
+        (eCsrScanUserRequest == pTempCmd->u.scanCmd.reason)) {
+        sme_AbortMacScan(hHal, pTempCmd->sessionId,
+                                 eCSR_SCAN_ABORT_DEFAULT);
+        return;
+    }
 
     if (!(vos_isLoadUnloadInProgress() ||
         vos_is_logp_in_progress(VOS_MODULE_ID_SME, NULL)))
