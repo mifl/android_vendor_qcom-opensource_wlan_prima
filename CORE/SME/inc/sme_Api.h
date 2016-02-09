@@ -3728,4 +3728,6 @@ eHalStatus sme_GetCurrentAntennaIndex(tHalHandle hHal,
 
 eHalStatus sme_set_wificonfig_params(tHalHandle hHal, tSetWifiConfigParams *req);
 
+eHalStatus sme_setBcnMissPenaltyCount(tHalHandle hHal,
+                                      tModifyRoamParamsReqParams *params);
 #endif //#if !defined( __SME_API_H )

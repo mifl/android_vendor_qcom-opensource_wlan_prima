@@ -6154,6 +6154,16 @@ typedef struct
     wpt_uint32 wificonfigset_status;
 }WDI_WifconfigSetRsp;
 
+/**
+ * struct WDI_ModifyRoamParamsReqType - Modified roam parameter details.
+ *
+ */
+
+typedef struct {
+   wpt_uint8  param;
+   wpt_uint32   value;
+}WDI_ModifyRoamParamsReqType;
+
 /*----------------------------------------------------------------------------
  *   WDI callback types
  *--------------------------------------------------------------------------*/
@@ -11655,5 +11665,19 @@ WDI_WifiConfigSetReq
    (WDI_WifiConfigSetReqType* pwdiWifConfigSetReqParams,
     WDI_WifiConfigSetRspCb wdiWifiConfigSetRspCb,
     void*                 pUserData);
+
+/**
+ @brief WDI_SetBcnMissPenaltyCount
+    This API is called to send modified roam parameters to FW
+
+ @param params: pointer to request params
+ @see
+ @return SUCCESS or FAIL
+*/
+WDI_Status
+WDI_SetBcnMissPenaltyCount
+(
+    WDI_ModifyRoamParamsReqType *params
+);
 
 #endif /* #ifndef WLAN_QCT_WDI_H */
