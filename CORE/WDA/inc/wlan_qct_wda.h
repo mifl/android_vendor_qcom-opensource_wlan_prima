@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1268,6 +1268,8 @@ eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
 #define WDA_SPOOF_MAC_ADDR_REQ               SIR_HAL_SPOOF_MAC_ADDR_REQ
 
 #define WDA_WIFI_CONFIG_REQ                    SIR_HAL_WIFI_CONFIG_PARAMS
+
+#define WDA_MODIFY_ROAM_PARAMS_IND             SIR_HAL_MODIFY_ROAM_PARAMS_IND
 
 #define HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME 0x40 // Bit 6 will be used to control BD rate for Management frames
 

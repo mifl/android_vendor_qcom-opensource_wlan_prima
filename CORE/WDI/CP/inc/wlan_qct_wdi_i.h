@@ -509,6 +509,7 @@ typedef enum
 
   /*Keep adding the indications to the max request
     such that we keep them sepparate */
+  WDI_MODIFY_ROAM_PARAMS_IND,
   WDI_MAX_UMAC_IND
 }WDI_RequestEnumType;
 
@@ -6136,5 +6137,20 @@ WDI_ProcessWificonfigSetRsp
   WDI_EventInfoType*     pEventData
 );
 
+/**
+ @brief Process set modified roam params command
+
+ @param  pWDICtx:         pointer to the WLAN DAL context
+         pEventData:      pointer to the event information structure
+
+ @see
+ @return Result of the function call
+*/
+WDI_Status
+WDI_ProcessBcnMissPenaltyCount
+(
+  WDI_ControlBlockType*  pWDICtx,
+  WDI_EventInfoType*     pEventData
+);
 #endif /*WLAN_QCT_WDI_I_H*/
 
