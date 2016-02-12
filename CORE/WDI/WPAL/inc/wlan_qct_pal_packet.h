@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013,2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -411,5 +411,35 @@ void wpalPacketStallDumpLog
    void
 );
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
+
+/*---------------------------------------------------------------------------
+    wpalGetOSPktHead – Get the head of OS spacific socket buffer
+    Param:
+        pPacket – pointer to a wpt_packet
+
+    Return:
+        void* - success
+---------------------------------------------------------------------------*/
+void* wpalGetOSPktHead( wpt_packet *pPacket);
+
+/*---------------------------------------------------------------------------
+     wpalGetOSPktend – Get end pointer of OS spacific socket buffer
+    Param:
+        pPacket – pointer to a wpt_packet
+
+    Return:
+        void*  - success
+---------------------------------------------------------------------------*/
+void* wpalGetOSPktend( wpt_packet *pPacket);
+
+/*---------------------------------------------------------------------------
+    wpalRecoverTail – recover currupted skb tail.
+    Param:
+        pPacket – pointer to a wpt_packet
+
+    Return:
+        void  - success
+---------------------------------------------------------------------------*/
+void wpalRecoverTail( wpt_packet *pPacket);
 
 #endif // __WLAN_QCT_PAL_PACKET_H
