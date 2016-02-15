@@ -265,7 +265,6 @@ eHalStatus wlan_hdd_remain_on_channel_callback( tHalHandle hHal, void* pCtx,
             vos_mem_free(pRemainChanCtx->action_pkt_buff.frame_ptr);
         }
     }
-    mutex_lock(&pHddCtx->roc_lock);
     vos_mem_free( pRemainChanCtx );
     pRemainChanCtx = NULL;
     cfgState->remain_on_chan_ctx = NULL;
