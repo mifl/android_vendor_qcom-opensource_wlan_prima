@@ -7780,6 +7780,13 @@ static int __iw_clear_dynamic_mcbc_filter(struct net_device *dev,
 
     hddLog(VOS_TRACE_LEVEL_INFO_HIGH, "%s: ", __func__);
 
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
+
     pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     if (NULL == pAdapter)
     {
