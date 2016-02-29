@@ -480,7 +480,7 @@ typedef enum
   WDI_MON_STOP_REQ                               = 108,
   WDI_FATAL_EVENT_LOGGING_REQ                    = 109,
 
-  WDI_WIFI_CONFIG_SET_REQ                        = 113,
+  WDI_WIFI_CONFIG_SET_REQ                        = 110,
 
   WDI_MAX_REQ,
 
