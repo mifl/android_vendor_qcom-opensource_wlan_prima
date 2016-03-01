@@ -827,7 +827,7 @@ typedef enum
   WDI_MON_STOP_RSP                               = 108,
   WDI_FATAL_EVENT_LOGGING_RSP                    = 109,
 
-  WDI_WIFI_CONFIG_SET_RSP                        = 113,
+  WDI_WIFI_CONFIG_SET_RSP                        = 110,
 
   /*-------------------------------------------------------------------------
     Indications
