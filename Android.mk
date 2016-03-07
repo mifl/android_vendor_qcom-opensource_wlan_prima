@@ -22,8 +22,6 @@ ifneq ($(WLAN_CHIPSET),)
 LOCAL_PATH := $(call my-dir)
 
 # This makefile is only for DLKM
-ifneq ($(findstring vendor,$(LOCAL_PATH)),)
-
 # Determine if we are Proprietary or Open Source
 ifneq ($(findstring opensource,$(LOCAL_PATH)),)
     WLAN_PROPRIETARY := 0
@@ -34,12 +32,12 @@ endif
 ifeq ($(WLAN_PROPRIETARY),1)
     WLAN_BLD_DIR := vendor/qcom/proprietary/wlan
 else
-    WLAN_BLD_DIR := vendor/qcom/opensource/wlan
+    WLAN_BLD_DIR := $(BOARD_QCOM_OPENSOURCE_DIR)/wlan
 endif
 
 # DLKM_DIR was moved for JELLY_BEAN (PLATFORM_SDK 16)
 ifeq (1,$(filter 1,$(shell echo "$$(( $(PLATFORM_SDK_VERSION) >= 16 ))" )))
-       DLKM_DIR := $(TOP)/device/qcom/common/dlkm
+       DLKM_DIR := $(BOARD_DLKM_DIR)
 else
        DLKM_DIR := build/dlkm
 endif
@@ -109,7 +107,5 @@ include $(DLKM_DIR)/AndroidKernelModule.mk
 $(shell mkdir -p $(TARGET_OUT)/lib/modules; \
         ln -sf /system/lib/modules/$(WLAN_CHIPSET)/$(WLAN_CHIPSET)_wlan.ko \
                $(TARGET_OUT)/lib/modules/wlan.ko)
-
-endif # DLKM check
 
 endif # supported target check
