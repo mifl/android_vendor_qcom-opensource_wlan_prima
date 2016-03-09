@@ -32,7 +32,7 @@ endif
 ifeq ($(WLAN_PROPRIETARY),1)
     WLAN_BLD_DIR := vendor/qcom/proprietary/wlan
 else
-    WLAN_BLD_DIR := $(BOARD_QCOM_OPENSOURCE_DIR)/wlan
+    WLAN_BLD_DIR := $(BOARD_OPENSOURCE_DIR)/wlan
 endif
 
 # DLKM_DIR was moved for JELLY_BEAN (PLATFORM_SDK 16)
