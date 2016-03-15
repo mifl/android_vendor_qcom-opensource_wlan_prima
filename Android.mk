@@ -30,7 +30,7 @@ else
 endif
 
 ifeq ($(WLAN_PROPRIETARY),1)
-    WLAN_BLD_DIR := vendor/qcom/proprietary/wlan
+    WLAN_BLD_DIR := $(QCPATH)/wlan
 else
     WLAN_BLD_DIR := $(BOARD_OPENSOURCE_DIR)/wlan
 endif
