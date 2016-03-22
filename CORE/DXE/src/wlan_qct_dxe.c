@@ -3035,7 +3035,7 @@ static wpt_status dxeTXPushFrame
 #else
    wpt_iterator                iterator;
 #endif /* FEATURE_R33D */
-   wpt_uint32                  isEmpty = 0;
+   wpt_uint32                  KickDxe = 0;
 
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __func__);
@@ -3044,8 +3044,12 @@ static wpt_status dxeTXPushFrame
    if((0 == tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].numRsvdDesc) &&
       (0 == tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI].numRsvdDesc))
    {
-      isEmpty = 1;
+       KickDxe = 1;
    }
+
+   /* Kick DXE when the ring is about to fill */
+   if (WLANDXE_TX_LOW_RES_THRESHOLD >= channelEntry->numFreeDesc)
+       KickDxe = 1;
 
    channelEntry->numFragmentCurrentChain = 0;
    currentCtrlBlk = channelEntry->headCtrlBlk;
@@ -3200,7 +3204,7 @@ static wpt_status dxeTXPushFrame
    {
       /* Update channel head as next avaliable linked slot */
       channelEntry->headCtrlBlk = currentCtrlBlk;
-      if(isEmpty)
+      if(KickDxe)
       {
          tempDxeCtrlBlk->ringNotEmpty = eWLAN_PAL_TRUE;
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
