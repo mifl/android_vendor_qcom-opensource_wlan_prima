@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -494,6 +494,7 @@ WDI_ReqProcFuncType  pfnReqProcTbl[WDI_MAX_UMAC_IND] =
   WDI_ProcessSetRtsCtsHtvhtInd,       /* WDI_SET_RTS_CTS_HTVHT_IND */
 
   WDI_ProcessGetCurrentAntennaIndex,  /* WDI_ANTENNA_DIVERSITY_SELECTION_REQ  */
+  WDI_ProcessSetAllowedActionFramesInd,  /* WDI_SET_ALLOWED_ACTION_FRAMES_IND */
 };
 
 
@@ -1143,6 +1144,7 @@ static char *WDI_getReqMsgString(wpt_uint16 wdiReqMsgId)
     CASE_RETURN_STRING( WDI_SPOOF_MAC_ADDR_REQ);
     CASE_RETURN_STRING( WDI_SET_RTS_CTS_HTVHT_IND );
     CASE_RETURN_STRING( WDI_ANTENNA_DIVERSITY_SELECTION_REQ );
+    CASE_RETURN_STRING( WDI_SET_ALLOWED_ACTION_FRAMES_IND );
     default:
         return "Unknown WDI MessageId";
   }
@@ -23893,6 +23895,8 @@ WDI_2_HAL_REQ_TYPE
        return WLAN_HAL_SET_RTS_CTS_HTVHT_IND;
   case WDI_ANTENNA_DIVERSITY_SELECTION_REQ:
        return WLAN_HAL_ANTENNA_DIVERSITY_SELECTION_REQ;
+  case WDI_SET_ALLOWED_ACTION_FRAMES_IND:
+       return WLAN_HAL_SET_ALLOWED_ACTION_FRAMES_IND;
   default:
     return WLAN_HAL_MSG_MAX;
   }
@@ -33810,4 +33814,92 @@ WDI_GetCurrentAntennaIndex
   wdiEventData.pUserData       = pUserData;
 
   return WDI_PostMainEvent(&gWDICb, WDI_REQUEST_EVENT, &wdiEventData);
+}
+
+/**
+ *  WDI_ProcessSetAllowedActionFramesInd() - Process Allowed action frames
+ *                                   Indication message and post it to HAL
+ *
+ *  @pWDICtx: pointer to the WLAN DAL context
+ *  @pEventData: pointer to the event information structure
+ *
+ *  Return: WDI_Status enumeration
+ */
+WDI_Status WDI_ProcessSetAllowedActionFramesInd(WDI_ControlBlockType *pWDICtx,
+                        WDI_EventInfoType *pEventData)
+{
+    wpt_uint8 *pSendBuffer;
+    wpt_uint16 usDataOffset;
+    wpt_uint16 usSendSize;
+    wpt_uint16 usLen;
+    struct WDI_AllowedActionFramesInd* pwdiAllowedActionFramesInd;
+    tHalAllowedActionFrames* pAllowedActionFrames;
+    WDI_Status wdiStatus;
+
+    WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_INFO,
+                    "%s", __func__);
+
+    if ((!pEventData) || (!pEventData->pEventData))
+    {
+         WPAL_TRACE( eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                                          "%s: Invalid parameters", __func__);
+         WDI_ASSERT(0);
+         return WDI_STATUS_E_FAILURE;
+    }
+
+    if ((WDI_STATUS_SUCCESS != WDI_GetMessageBuffer(pWDICtx,
+                                        WDI_SET_ALLOWED_ACTION_FRAMES_IND,
+                                        sizeof(tHalAllowedActionFrames),
+                                        &pSendBuffer, &usDataOffset,
+                                        &usSendSize))||
+                                 (usSendSize < (usDataOffset + usLen)))
+    {
+          WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_FATAL,
+                         "Unable to get send buffer in Allowed Action Frames req %p",
+                         pEventData);
+          return WDI_STATUS_E_FAILURE;
+    }
+
+    pwdiAllowedActionFramesInd =
+           (struct WDI_AllowedActionFramesInd*)pEventData->pEventData;
+    pAllowedActionFrames =
+           (tHalAllowedActionFrames*)(pSendBuffer+usDataOffset);
+    pAllowedActionFrames->actionFramesBitMask =
+            pwdiAllowedActionFramesInd->bitmask;
+    pAllowedActionFrames->reserved = pwdiAllowedActionFramesInd->reserved;
+
+    pWDICtx->pReqStatusUserData = NULL;
+    pWDICtx->pfncRspCB = NULL;
+
+    wdiStatus = WDI_SendIndication(pWDICtx, pSendBuffer, usSendSize);
+    return (wdiStatus != WDI_STATUS_SUCCESS) ?
+    wdiStatus:WDI_STATUS_SUCCESS_SYNC;
+}/*WDI_ProcessSetAllowedActionFramesInd*/
+
+/**
+ *  WDI_SetAllowedActionFramesInd() - Post Allowed Action Frames Indication to
+ *                                    WDI Main Event Handler
+ *  @params: pointer to the WDI_AllowedActionFramesInd structure
+ *
+ *  Return: WDI_Status enumeration
+ */
+WDI_Status WDI_SetAllowedActionFramesInd(
+                        struct WDI_AllowedActionFramesInd  *params)
+{
+    WDI_EventInfoType wdiEventData;
+
+    if (eWLAN_PAL_FALSE == gWDIInitialized)
+    {
+         WPAL_TRACE(eWLAN_MODULE_DAL_CTRL, eWLAN_PAL_TRACE_LEVEL_ERROR,
+                       "WDI API call before module is initialized - Fail req");
+         return WDI_STATUS_E_NOT_ALLOWED;
+    }
+
+    wdiEventData.wdiRequest = WDI_SET_ALLOWED_ACTION_FRAMES_IND;
+    wdiEventData.pEventData = params;
+    wdiEventData.uEventDataSize  = sizeof(*params);
+    wdiEventData.pCBfnc = NULL;
+    wdiEventData.pUserData = NULL;
+
+    return WDI_PostMainEvent(&gWDICb, WDI_REQUEST_EVENT, &wdiEventData);
 }

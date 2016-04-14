@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -3696,6 +3696,15 @@ typedef struct sSirWlanSetRxpFilters
     tANI_U8 setMcstBcstFilter;
 }tSirWlanSetRxpFilters,*tpSirWlanSetRxpFilters;
 
+/**
+ * struct sir_allowed_action_frames - Parameters to set Allowed action frames
+ * @bitmask: Bits to convey the allowed action frames
+ * @reserved: For future use
+ */
+struct sir_allowed_action_frames {
+    uint32_t bitmask;
+    uint32_t reserved;
+};
 
 #ifdef FEATURE_WLAN_SCAN_PNO
 //
