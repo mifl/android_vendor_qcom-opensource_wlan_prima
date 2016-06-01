@@ -1011,15 +1011,15 @@ void hdd_select_cbmode( hdd_adapter_t *pAdapter,v_U8_t operationChannel);
 #if defined(CFG80211_DISCONNECTED_V2) || \
 (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0))
 static inline void wlan_hdd_cfg80211_indicate_disconnect(struct net_device *dev,
-                                                         bool from_ap,
+                                                         bool locally_generated,
                                                          int reason)
 {
     cfg80211_disconnected(dev, reason, NULL, 0,
-                          from_ap, GFP_KERNEL);
+                          locally_generated, GFP_KERNEL);
 }
 #else
 static inline void wlan_hdd_cfg80211_indicate_disconnect(struct net_device *dev,
-                                                         bool from_ap,
+                                                         bool locally_generated,
                                                          int reason)
 {
     cfg80211_disconnected(dev, reason, NULL, 0,
