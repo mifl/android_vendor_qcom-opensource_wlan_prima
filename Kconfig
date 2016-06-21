@@ -29,6 +29,10 @@ config PRIMA_WLAN_LFR
 	bool "Enable the Prima WLAN Legacy Fast Roaming feature"
 	default n
 
+config QCOM_TDLS
+	bool "Enable the Prima QCOM TDLS feature"
+	default n
+
 config PRIMA_WLAN_OKC
 	bool "Enable the Prima WLAN Opportunistic Key Caching feature"
 	default n

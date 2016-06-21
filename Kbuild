@@ -23,6 +23,9 @@ ifeq ($(KERNEL_BUILD), 0)
 	#Flag to enable Legacy Fast Roaming(LFR)
 	CONFIG_PRIMA_WLAN_LFR := y
 
+	#Flag to enable the Prima TDLS feature
+	CONFIG_QCOM_TDLS := y
+
 	#JB kernel has PMKSA patches, hence enabling this flag
 	CONFIG_PRIMA_WLAN_OKC := y
 

@@ -16,6 +16,11 @@ WLAN_CHIPSET := pronto
 WLAN_SELECT := CONFIG_PRONTO_WLAN=m
 endif
 
+ifeq ($(BRILLO),1)
+WLAN_CHIPSET :=
+WLAN_SELECT := CONFIG_PRONTO_WLAN=y
+endif
+
 # Build/Package only in case of supported target
 ifneq ($(WLAN_CHIPSET),)
 
