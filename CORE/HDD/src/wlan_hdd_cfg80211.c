@@ -12081,7 +12081,13 @@ static int wlan_hdd_try_disconnect( hdd_adapter_t *pAdapter )
     int status, result = 0;
     hdd_station_ctx_t *pHddStaCtx;
     eMib_dot11DesiredBssType connectedBssType;
+    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
 
+    ret = wlan_hdd_validate_context(pHddCtx);
+    if (0 != ret)
+    {
+        return ret;
+    }
     pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
 
     hdd_connGetConnectedBssType(pHddStaCtx,&connectedBssType );
@@ -12090,6 +12096,14 @@ static int wlan_hdd_try_disconnect( hdd_adapter_t *pAdapter )
       (eConnectionState_Associated == pHddStaCtx->conn_info.connState) ||
       (eConnectionState_IbssConnected == pHddStaCtx->conn_info.connState))
     {
+        spin_lock_bh(&pAdapter->lock_for_active_session);
+        if (eConnectionState_Associated ==  pHddStaCtx->conn_info.connState)
+        {
+            wlan_hdd_decr_active_session(pHddCtx, pAdapter->device_mode);
+        }
+        spin_unlock_bh(&pAdapter->lock_for_active_session);
+        hdd_connSetConnectionState(pHddStaCtx,
+                     eConnectionState_Disconnecting);
         /* Issue disconnect to CSR */
         INIT_COMPLETION(pAdapter->disconnect_comp_var);
         status = sme_RoamDisconnect(WLAN_HDD_GET_HAL_CTX(pAdapter),
