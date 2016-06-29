@@ -25745,7 +25745,11 @@ WDI_CopyWDIConfigBSSToHALConfigBSS
   phalConfigBSS->dualCTSProtection        = pwdiConfigBSS->ucDualCTSProtection;
   phalConfigBSS->ucMaxProbeRespRetryLimit = pwdiConfigBSS->ucMaxProbeRespRetryLimit;
   phalConfigBSS->bHiddenSSIDEn            = pwdiConfigBSS->bHiddenSSIDEn;
-  phalConfigBSS->bProxyProbeRespEn        = pwdiConfigBSS->bProxyProbeRespEn;
+
+  if (vos_is_probe_rsp_offload_enabled())
+     phalConfigBSS->bProxyProbeRespEn = 1;
+  else
+     phalConfigBSS->bProxyProbeRespEn = pwdiConfigBSS->bProxyProbeRespEn;
 
 #ifdef WLAN_FEATURE_VOWIFI
   phalConfigBSS->maxTxPower               = pwdiConfigBSS->cMaxTxPower;
