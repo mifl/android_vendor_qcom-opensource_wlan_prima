@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -93,6 +93,8 @@
 
 #include "pttMsgApi.h"
 #include "vos_trace.h"
+
+#include "vos_api.h"
 
 /*===========================================================================
    WLAN DAL Control Path Internal Data Definitions and Declarations
@@ -24919,7 +24921,11 @@ WDI_CopyWDIConfigBSSToHALConfigBSS
   phalConfigBSS->dualCTSProtection        = pwdiConfigBSS->ucDualCTSProtection;
   phalConfigBSS->ucMaxProbeRespRetryLimit = pwdiConfigBSS->ucMaxProbeRespRetryLimit;
   phalConfigBSS->bHiddenSSIDEn            = pwdiConfigBSS->bHiddenSSIDEn;
-  phalConfigBSS->bProxyProbeRespEn        = pwdiConfigBSS->bProxyProbeRespEn;
+
+  if (vos_is_probe_rsp_offload_enabled())
+     phalConfigBSS->bProxyProbeRespEn = 1;
+  else
+     phalConfigBSS->bProxyProbeRespEn = pwdiConfigBSS->bProxyProbeRespEn;
 
 #ifdef WLAN_FEATURE_VOWIFI
   phalConfigBSS->maxTxPower               = pwdiConfigBSS->cMaxTxPower;

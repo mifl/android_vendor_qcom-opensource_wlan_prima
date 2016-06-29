@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -3254,6 +3254,13 @@ REG_VARIABLE( CFG_EXTSCAN_ENABLE, WLAN_PARAM_Integer,
                   CFG_ENABLE_RTSCTS_HTVHT_DEFAULT,
                   CFG_ENABLE_RTSCTS_HTVHT_MIN,
                   CFG_ENABLE_RTSCTS_HTVHT_MAX),
+
+  REG_VARIABLE(CFG_SAP_PROBE_RESP_OFFLOAD_NAME, WLAN_PARAM_Integer,
+               hdd_config_t, sap_probe_resp_offload,
+               VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+               CFG_SAP_PROBE_RESP_OFFLOAD_DEFAULT,
+               CFG_SAP_PROBE_RESP_OFFLOAD_MIN,
+               CFG_SAP_PROBE_RESP_OFFLOAD_MAX),
 };
 
 /*
@@ -3664,6 +3671,10 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gACSBandSwitchThreshold] value = [%u]\n",pHddCtx->cfg_ini->acsBandSwitchThreshold);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gDeferScanTimeInterval] value = [%u]\n",pHddCtx->cfg_ini->nDeferScanTimeInterval);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableTDLSScan] value = [%u]\n",pHddCtx->cfg_ini->fEnableTDLSScan);
+
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+            "Name = [%s] Value = [%u] ", CFG_SAP_PROBE_RESP_OFFLOAD_NAME,
+            pHddCtx->cfg_ini->sap_probe_resp_offload);
 }
 
 

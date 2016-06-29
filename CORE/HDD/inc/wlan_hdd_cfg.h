@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2421,6 +2421,17 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_P2P_LISTEN_DEFER_INTERVAL_MIN      ( 100 )
 #define CFG_P2P_LISTEN_DEFER_INTERVAL_MAX      ( 200 )
 #define CFG_P2P_LISTEN_DEFER_INTERVAL_DEFAULT  ( 100 )
+
+/*
+ * gSapProbeRespOffload: when set in sap, offloads the
+ * probe response transmission to firmware
+ */
+#define CFG_SAP_PROBE_RESP_OFFLOAD_NAME    "gSapProbeRespOffload"
+#define CFG_SAP_PROBE_RESP_OFFLOAD_MIN     (0)
+#define CFG_SAP_PROBE_RESP_OFFLOAD_MAX     (1)
+#define CFG_SAP_PROBE_RESP_OFFLOAD_DEFAULT (1)
+
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -2914,6 +2925,7 @@ typedef struct
    v_U8_t                      btcEnableIndTimerVal;
    v_U8_t                      btcFastWlanConnPref;
    v_U16_t                     gP2PListenDeferInterval;
+   v_BOOL_t                    sap_probe_resp_offload;
 } hdd_config_t;
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
