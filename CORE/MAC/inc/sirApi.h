@@ -1680,6 +1680,15 @@ typedef struct sSirSmeDeauthCnf
     tSirMacAddr        peerMacAddr;
 } tSirSmeDeauthCnf, *tpSirSmeDeauthCnf;
 
+typedef struct sSirSmeDisConDoneInd
+{
+    tANI_U16           messageType;
+    tANI_U16           length;
+    tANI_U8            sessionId;
+    tSirResultCodes    reasonCode;
+    tSirMacAddr        peerMacAddr;
+}tSirSmeDisConDoneInd, *tpSirSmeDisConDoneInd;
+
 /// Definition for stop BSS request message
 typedef struct sSirSmeStopBssReq
 {
