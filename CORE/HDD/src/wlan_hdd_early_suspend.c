@@ -1864,7 +1864,7 @@ static void hdd_ssr_timer_cb(unsigned long data)
 
 #ifdef WCN_PRONTO
     if (wcnss_hardware_type() == WCNSS_PRONTO_HW)
-        wcnss_pronto_log_debug_regs();
+        wcnss_pronto_log_debug_regs_ssr();
 #endif
 
     VOS_BUG(0);
