@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2206,6 +2206,11 @@ static tANI_S32 csrFindSelfCongestionScore(tpAniSirGlobal pMac,
 {
     tANI_S32 i, best_rssi, other_ap_cnt;
     tANI_S32 score = 0;
+    tCsrRoamSession *pSession = CSR_GET_SESSION(pMac,
+                                    pMac->roam.roamSession->sessionId);
+
+    if (pSession == NULL)
+        return -1;
 
     for (i = 0; i <= pMac->PERroamCandidatesCnt; i++)
         if (pMac->candidateChannelInfo[i].channelNumber == bssInfo->channelId)
@@ -2226,6 +2231,11 @@ static tANI_S32 csrFindSelfCongestionScore(tpAniSirGlobal pMac,
         if (pMac->candidateChannelInfo[i].otherApRssi[other_ap_cnt] > best_rssi)
             best_rssi = pMac->candidateChannelInfo[i].otherApRssi[other_ap_cnt];
     }
+
+    /* update latest RSSI for current AP */
+    WLANTL_GetRssi(vos_get_global_context(VOS_MODULE_ID_SME, NULL),
+                   pSession->connectedInfo.staId,
+                   &bssInfo->rssi);
 
     score = calculateBssScore(bssInfo, best_rssi,
                               pMac->candidateChannelInfo[i].otherApCount,
