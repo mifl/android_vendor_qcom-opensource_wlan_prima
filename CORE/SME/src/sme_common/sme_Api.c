@@ -12332,8 +12332,11 @@ void activeListCmdTimeoutHandle(void *userData)
         sme_AbortMacScan(hHal, pTempCmd->sessionId,
                                  eCSR_SCAN_ABORT_DEFAULT);
         return;
+    } else if (pTempCmd &&
+         (eSmeCommandRemainOnChannel == pTempCmd->command)) {
+         /* Ignore if ROC took more than 120 sec */
+         return;
     }
-
     if (pMac->roam.configParam.enableFatalEvent)
     {
        vos_fatal_event_logs_req(WLAN_LOG_TYPE_FATAL,
