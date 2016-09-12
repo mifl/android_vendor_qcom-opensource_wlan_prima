@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2206,6 +2206,11 @@ static tANI_S32 csrFindSelfCongestionScore(tpAniSirGlobal pMac,
 {
     tANI_S32 i, best_rssi, other_ap_cnt;
     tANI_S32 score = 0;
+    tCsrRoamSession *pSession = CSR_GET_SESSION(pMac,
+                                    pMac->roam.roamSession->sessionId);
+
+    if (pSession == NULL)
+        return -1;
 
     for (i = 0; i <= pMac->PERroamCandidatesCnt; i++)
         if (pMac->candidateChannelInfo[i].channelNumber == bssInfo->channelId)
@@ -2227,6 +2232,11 @@ static tANI_S32 csrFindSelfCongestionScore(tpAniSirGlobal pMac,
             best_rssi = pMac->candidateChannelInfo[i].otherApRssi[other_ap_cnt];
     }
 
+    /* update latest RSSI for current AP */
+    WLANTL_GetRssi(vos_get_global_context(VOS_MODULE_ID_SME, NULL),
+                   pSession->connectedInfo.staId,
+                   &bssInfo->rssi);
+
     score = calculateBssScore(bssInfo, best_rssi,
                               pMac->candidateChannelInfo[i].otherApCount,
                               pMac->candidateChannelInfo[i].channelCCA);
@@ -2236,7 +2246,6 @@ static tANI_S32 csrFindSelfCongestionScore(tpAniSirGlobal pMac,
                  score, bssInfo->channelId);
     return 0;
 }
-
 
 static tANI_BOOLEAN csrIsBetterBssInCongestion(tCsrScanResult *pBss1,
                                                tCsrScanResult *pBss2)
@@ -3515,6 +3524,7 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
     tANI_U32 sessionId = CSR_SESSION_ID_INVALID;
     tAniSSID tmpSsid;
     v_TIME_t timer=0;
+    tANI_U8 occupied_chan_count = pMac->scan.occupiedChannels.numChannels;
 
     tmpSsid.length = 0;
 
@@ -3611,6 +3621,19 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
         }
     }
 
+#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
+    if (csrIsSessionClientAndConnected(pMac,
+        pMac->roam.roamSession->sessionId) &&
+        (pMac->scan.occupiedChannels.numChannels != occupied_chan_count))
+    {
+        /* Update FW with new list */
+        smsLog(pMac, LOGW,
+               FL("Updating occupied channel list, new chanNum %d"),
+               pMac->scan.occupiedChannels.numChannels);
+        csrRoamOffloadScan(pMac, ROAM_SCAN_OFFLOAD_UPDATE_CFG,
+                           REASON_CHANNEL_LIST_CHANGED);
+    }
+#endif
     pEntry = csrLLPeekHead( &pMac->scan.scanResultList, LL_ACCESS_LOCK );
     //we don't need to update CC while connected to an AP which is advertising CC already
     if (csrIs11dSupported(pMac))

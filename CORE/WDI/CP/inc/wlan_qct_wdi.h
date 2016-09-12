@@ -5377,6 +5377,7 @@ typedef struct
   wpt_uint32  waitPeriodForNextPERScan;
   wpt_uint32  PERtimerThreshold;
   wpt_uint32  PERroamTriggerPercent;
+  wpt_int16   PERRoamFullScanThreshold;
 } WDI_PERRoamOffloadScanInfo;
 
 typedef struct

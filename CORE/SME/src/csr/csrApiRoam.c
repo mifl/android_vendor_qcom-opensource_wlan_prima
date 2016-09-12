@@ -1926,6 +1926,8 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         pMac->roam.configParam.PERtimerThreshold = pParam->PERtimerThreshold;
         pMac->roam.configParam.isPERRoamCCAEnabled =
                 pParam->isPERRoamCCAEnabled;
+        pMac->roam.configParam.PERRoamFullScanThreshold =
+                pParam->PERRoamFullScanThreshold;
         pMac->roam.configParam.PERroamTriggerPercent =
                 pParam->PERroamTriggerPercent;
 #endif
@@ -2003,6 +2005,22 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         pMac->roam.configParam.apHT40_24GEnabled = pParam->apHT40_24GEnabled;
 #endif
         pMac->roam.configParam.roamDelayStatsEnabled = pParam->roamDelayStatsEnabled;
+
+        pMac->roam.configParam.enable_edca_params = pParam->enable_edca_params;
+        pMac->roam.configParam.edca_vo_cwmin = pParam->edca_vo_cwmin;
+        pMac->roam.configParam.edca_vi_cwmin = pParam->edca_vi_cwmin;
+        pMac->roam.configParam.edca_bk_cwmin = pParam->edca_bk_cwmin;
+        pMac->roam.configParam.edca_be_cwmin = pParam->edca_be_cwmin;
+
+        pMac->roam.configParam.edca_vo_cwmax = pParam->edca_vo_cwmax;
+        pMac->roam.configParam.edca_vi_cwmax = pParam->edca_vi_cwmax;
+        pMac->roam.configParam.edca_bk_cwmax = pParam->edca_bk_cwmax;
+        pMac->roam.configParam.edca_be_cwmax = pParam->edca_be_cwmax;
+
+        pMac->roam.configParam.edca_vo_aifs = pParam->edca_vo_aifs;
+        pMac->roam.configParam.edca_vi_aifs = pParam->edca_vi_aifs;
+        pMac->roam.configParam.edca_bk_aifs = pParam->edca_bk_aifs;
+        pMac->roam.configParam.edca_be_aifs = pParam->edca_be_aifs;
     }
     
     return status;
@@ -2124,6 +2142,8 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
         pParam->PERtimerThreshold = pMac->roam.configParam.PERtimerThreshold;
         pParam->isPERRoamCCAEnabled =
                 pMac->roam.configParam.isPERRoamCCAEnabled;
+        pParam->PERRoamFullScanThreshold =
+                pMac->roam.configParam.PERRoamFullScanThreshold;
         pParam->PERroamTriggerPercent =
                 pMac->roam.configParam.PERroamTriggerPercent;
 #endif
@@ -2166,6 +2186,22 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
 #ifdef WLAN_FEATURE_AP_HT40_24G
         pParam->apHT40_24GEnabled = pMac->roam.configParam.apHT40_24GEnabled;
 #endif
+
+        pParam->enable_edca_params = pMac->roam.configParam.enable_edca_params;
+        pParam->edca_vo_cwmin = pMac->roam.configParam.edca_vo_cwmin;
+        pParam->edca_vi_cwmin = pMac->roam.configParam.edca_vi_cwmin;
+        pParam->edca_bk_cwmin = pMac->roam.configParam.edca_bk_cwmin;
+        pParam->edca_be_cwmin = pMac->roam.configParam.edca_be_cwmin;
+
+        pParam->edca_vo_cwmax = pMac->roam.configParam.edca_vo_cwmax;
+        pParam->edca_vi_cwmax = pMac->roam.configParam.edca_vi_cwmax;
+        pParam->edca_bk_cwmax = pMac->roam.configParam.edca_bk_cwmax;
+        pParam->edca_be_cwmax = pMac->roam.configParam.edca_be_cwmax;
+
+        pParam->edca_vo_aifs = pMac->roam.configParam.edca_vo_aifs;
+        pParam->edca_vi_aifs = pMac->roam.configParam.edca_vi_aifs;
+        pParam->edca_bk_aifs = pMac->roam.configParam.edca_bk_aifs;
+        pParam->edca_be_aifs = pMac->roam.configParam.edca_be_aifs;
 
         status = eHAL_STATUS_SUCCESS;
     }
@@ -16519,8 +16555,8 @@ csrRoamScanOffloadPrepareProbeReqTemplate(tpAniSirGlobal pMac,
 ||    V           |  RSO_START  |  RSO_STOP  |  RSO_RESTART | RSO_UPDATE_CFG ||
 || --------------------------------------------------------------------------||
 || RSO_START      |     NO      |   YES      |     NO       |      NO        ||
-|| RSO_STOP       |    YES      |   YES      |     YES      |      YES       ||
-|| RSO_RESTART    |    YES      |   NO       |     NO       |      YES       ||
+|| RSO_STOP       |    YES      |   NO       |     YES      |      YES       ||
+|| RSO_RESTART    |    YES      |   NO       |     YES      |      YES       ||
 || RSO_UPDATE_CFG |    YES      |   NO       |     YES      |      YES       ||
 ||===========================================================================||
 */
@@ -16532,9 +16568,10 @@ csrRoamScanOffloadPrepareProbeReqTemplate(tpAniSirGlobal pMac,
 
 #define RSO_START_ALLOW_MASK   ( RSO_STOP_BIT )
 #define RSO_STOP_ALLOW_MASK    ( RSO_UPDATE_CFG_BIT | RSO_RESTART_BIT | \
-                                 RSO_STOP_BIT | RSO_START_BIT )
-#define RSO_RESTART_ALLOW_MASK ( RSO_UPDATE_CFG_BIT | RSO_START_BIT )
-#define RSO_UPDATE_CFG_ALLOW_MASK  (RSO_UPDATE_CFG_BIT | RSO_STOP_BIT | \
+                                 RSO_START_BIT )
+#define RSO_RESTART_ALLOW_MASK ( RSO_UPDATE_CFG_BIT | RSO_START_BIT | \
+                                 RSO_RESTART_BIT )
+#define RSO_UPDATE_CFG_ALLOW_MASK  (RSO_UPDATE_CFG_BIT | RSO_RESTART_BIT | \
                                     RSO_START_BIT)
 
 tANI_BOOLEAN CsrIsRSOCommandAllowed(tpAniSirGlobal pMac, tANI_U8 command)
@@ -17050,7 +17087,8 @@ send_roam_scan_offload_cmd:
    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_DEBUG, "Roam Scan Offload Command %d, Reason %d", command, reason);
 
    if (sme_IsFeatureSupportedByFW(PER_BASED_ROAMING) &&
-      (command != ROAM_SCAN_OFFLOAD_STOP))
+      (command != ROAM_SCAN_OFFLOAD_STOP) &&
+      pMac->roam.configParam.isPERRoamEnabled)
    {
 
       /* PER ROAM SCAN */
@@ -17072,6 +17110,8 @@ send_roam_scan_offload_cmd:
               pMac->roam.configParam.PERtimerThreshold;
       PERRoamReqBuf->isPERRoamCCAEnabled =
               pMac->roam.configParam.isPERRoamCCAEnabled;
+      PERRoamReqBuf->PERRoamFullScanThreshold =
+              pMac->roam.configParam.PERRoamFullScanThreshold;
       PERRoamReqBuf->PERroamTriggerPercent =
               pMac->roam.configParam.PERroamTriggerPercent;
       PERRoamReqBuf->sessionId = sessionId;
