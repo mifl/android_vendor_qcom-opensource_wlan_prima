@@ -1945,6 +1945,8 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
         pMac->roam.configParam.PERtimerThreshold = pParam->PERtimerThreshold;
         pMac->roam.configParam.isPERRoamCCAEnabled =
                 pParam->isPERRoamCCAEnabled;
+        pMac->roam.configParam.PERRoamFullScanThreshold =
+                pParam->PERRoamFullScanThreshold;
         pMac->roam.configParam.PERroamTriggerPercent =
                 pParam->PERroamTriggerPercent;
 #endif
@@ -2163,6 +2165,8 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
         pParam->PERtimerThreshold = pMac->roam.configParam.PERtimerThreshold;
         pParam->isPERRoamCCAEnabled =
                 pMac->roam.configParam.isPERRoamCCAEnabled;
+        pParam->PERRoamFullScanThreshold =
+                pMac->roam.configParam.PERRoamFullScanThreshold;
         pParam->PERroamTriggerPercent =
                 pMac->roam.configParam.PERroamTriggerPercent;
 #endif
@@ -16641,8 +16645,8 @@ csrRoamScanOffloadPrepareProbeReqTemplate(tpAniSirGlobal pMac,
 ||    V           |  RSO_START  |  RSO_STOP  |  RSO_RESTART | RSO_UPDATE_CFG ||
 || --------------------------------------------------------------------------||
 || RSO_START      |     NO      |   YES      |     NO       |      NO        ||
-|| RSO_STOP       |    YES      |   YES      |     YES      |      YES       ||
-|| RSO_RESTART    |    YES      |   NO       |     NO       |      YES       ||
+|| RSO_STOP       |    YES      |   NO       |     YES      |      YES       ||
+|| RSO_RESTART    |    YES      |   NO       |     YES      |      YES       ||
 || RSO_UPDATE_CFG |    YES      |   NO       |     YES      |      YES       ||
 ||===========================================================================||
 */
@@ -16654,9 +16658,10 @@ csrRoamScanOffloadPrepareProbeReqTemplate(tpAniSirGlobal pMac,
 
 #define RSO_START_ALLOW_MASK   ( RSO_STOP_BIT )
 #define RSO_STOP_ALLOW_MASK    ( RSO_UPDATE_CFG_BIT | RSO_RESTART_BIT | \
-                                 RSO_STOP_BIT | RSO_START_BIT )
-#define RSO_RESTART_ALLOW_MASK ( RSO_UPDATE_CFG_BIT | RSO_START_BIT )
-#define RSO_UPDATE_CFG_ALLOW_MASK  (RSO_UPDATE_CFG_BIT | RSO_STOP_BIT | \
+                                 RSO_START_BIT )
+#define RSO_RESTART_ALLOW_MASK ( RSO_UPDATE_CFG_BIT | RSO_START_BIT | \
+                                 RSO_RESTART_BIT )
+#define RSO_UPDATE_CFG_ALLOW_MASK  (RSO_UPDATE_CFG_BIT | RSO_RESTART_BIT | \
                                     RSO_START_BIT)
 
 tANI_BOOLEAN CsrIsRSOCommandAllowed(tpAniSirGlobal pMac, tANI_U8 command)
@@ -17200,6 +17205,8 @@ send_roam_scan_offload_cmd:
               pMac->roam.configParam.PERtimerThreshold;
       PERRoamReqBuf->isPERRoamCCAEnabled =
               pMac->roam.configParam.isPERRoamCCAEnabled;
+      PERRoamReqBuf->PERRoamFullScanThreshold =
+              pMac->roam.configParam.PERRoamFullScanThreshold;
       PERRoamReqBuf->PERroamTriggerPercent =
               pMac->roam.configParam.PERroamTriggerPercent;
       PERRoamReqBuf->sessionId = sessionId;
