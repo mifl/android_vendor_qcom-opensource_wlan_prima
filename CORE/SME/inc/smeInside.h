@@ -230,6 +230,7 @@ typedef struct tagSmeCmd
         tTdlsCmd  tdlsCmd;
 #endif
         tSirPNOScanReq pnoInfo;
+        struct csr_set_tx_max_pwr_per_band set_tx_max_pwr_per_band;
     }u;
 }tSmeCmd;
 
