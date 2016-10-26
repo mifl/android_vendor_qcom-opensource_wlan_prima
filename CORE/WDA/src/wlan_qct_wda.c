@@ -2394,6 +2394,20 @@ VOS_STATUS WDA_prepareConfigTLV(v_PVOID_t pVosContext,
    }
    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
                            + sizeof(tHalCfg) + tlvStruct->length) ;
+   /* QWLAN_HAL_CFG_BTC_DISABLE_WLAN_LINK_CRITICAL */
+   tlvStruct->type = QWLAN_HAL_CFG_BTC_DISABLE_WLAN_LINK_CRITICAL ;
+   tlvStruct->length = sizeof(tANI_U32);
+   configDataValue = (tANI_U32 *)(tlvStruct + 1);
+
+   if (wlan_cfgGetInt(pMac, WNI_CFG_BTC_DISABLE_WLAN_LINK_CRITICAL,
+                                            configDataValue ) != eSIR_SUCCESS)
+   {
+      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
+               "Failed to get value for WNI_CFG_BTC_DISABLE_WLAN_LINK_CRITICAL");
+      goto handle_failure;
+   }
+   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
+                           + sizeof(tHalCfg) + tlvStruct->length) ;
 
    /* QWLAN_HAL_CFG_CONS_BCNMISS_COUNT */
    tlvStruct->type = QWLAN_HAL_CFG_CONS_BCNMISS_COUNT;
