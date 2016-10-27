@@ -49,6 +49,8 @@ $(shell mkdir -p $(TARGET_OUT_ETC)/firmware/wlan/prima)
 $(shell rm -f $(TARGET_OUT_ETC)/firmware/wlan/prima/WCNSS_cfg.dat)
 $(shell cp $(LOCAL_PATH)/firmware_bin/WCNSS_cfg.dat $(TARGET_OUT_ETC)/firmware/wlan/prima)
 
+$(shell mkdir -p $(TARGET_OUT_DATA)/misc/wifi/nvbin)
+$(shell cp -r $(LOCAL_PATH)/firmware_bin/msm8909_SWOC_nv.bin  $(TARGET_OUT_DATA)/misc/wifi/nvbin/)
 else
 
 include $(CLEAR_VARS)
