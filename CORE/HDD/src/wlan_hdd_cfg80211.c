@@ -12153,7 +12153,13 @@ wlan_hdd_cfg80211_inform_bss_frame( hdd_adapter_t *pAdapter,
     qie_age->oui_2      = QCOM_OUI2;
     qie_age->oui_3      = QCOM_OUI3;
     qie_age->type       = QCOM_VENDOR_IE_AGE_TYPE;
-    qie_age->age        = vos_timer_get_system_ticks() - bss_desc->nReceivedTime;
+    /* Lowi expects the timestamp of bss in units of 1/10 ms. In driver all bss
+     * related timestamp is in units of ms. Due to this when scan results are
+     * sent to lowi the scan age is high.To address this, send age in units
+     * of 1/10 ms.
+     */
+    qie_age->age        = (vos_timer_get_system_time() -
+                                   bss_desc->nReceivedTime)/10;
 #endif
 
     memcpy(mgmt->u.probe_resp.variable, ie, ie_length);
@@ -12554,6 +12560,42 @@ VOS_STATUS wlan_hdd_cfg80211_roam_metrics_handover(hdd_adapter_t * pAdapter,
 }
 #endif
 
+
+/**
+ * wlan_hdd_cfg80211_validate_scan_req - validate scan request
+ * @scan_req: scan request to be checked
+ *
+ * Return: true or false
+ */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
+static inline bool wlan_hdd_cfg80211_validate_scan_req(struct
+                                                       cfg80211_scan_request
+                                                       *scan_req)
+{
+        if (!scan_req || !scan_req->wiphy) {
+                hddLog(VOS_TRACE_LEVEL_ERROR, "Invalid scan request");
+                return false;
+        }
+        if (vos_is_load_unload_in_progress(VOS_MODULE_ID_HDD, NULL)) {
+                hddLog(VOS_TRACE_LEVEL_ERROR, "Load/Unload in progress");
+                return false;
+        }
+        return true;
+}
+#else
+static inline bool wlan_hdd_cfg80211_validate_scan_req(struct
+                                                       cfg80211_scan_request
+                                                       *scan_req)
+{
+        if (!scan_req || !scan_req->wiphy) {
+                hddLog(VOS_TRACE_LEVEL_ERROR, "Invalid scan request");
+                return false;
+        }
+        return true;
+}
+#endif
+
+
 /*
  * FUNCTION: hdd_cfg80211_scan_done_callback
  * scanning callback function, called after finishing scan
@@ -12670,9 +12712,17 @@ static eHalStatus hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
     /* Scan is no longer pending */
     pScanInfo->mScanPending = VOS_FALSE;
 
-    if (!req || req->wiphy == NULL)
+    if (!wlan_hdd_cfg80211_validate_scan_req(req))
     {
-        hddLog(VOS_TRACE_LEVEL_ERROR, "request is became NULL");
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+            hddLog(VOS_TRACE_LEVEL_ERROR, FL("interface state %s"),
+                   iface_down ? "up" : "down");
+#endif
+
+        if (pAdapter->dev) {
+               hddLog(VOS_TRACE_LEVEL_ERROR, FL("device name %s"),
+                      pAdapter->dev->name);
+        }
         complete(&pScanInfo->abortscan_event_var);
         goto allow_suspend;
     }
