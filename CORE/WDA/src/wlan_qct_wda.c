@@ -13630,7 +13630,8 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
       /* TX MGMT fail with COMP timeout, try to detect DXE stall */
       WDA_TransportChannelDebug(pMac, 1, 0);
 
-      WLANTL_TLDebugMessage(WLANTL_DEBUG_FW_CLEANUP);
+	/* Send Flush command to FW */
+	vos_fwDumpReq(274, 0, 0, 0, 0, 1);
 
       if( pAckTxComp )
       {
