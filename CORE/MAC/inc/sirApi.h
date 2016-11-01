@@ -3745,6 +3745,7 @@ typedef struct sSirWlanSetRxpFilters
 
 typedef void(*FWLoggingInitReqCb)(void *fwlogInitCbContext, VOS_STATUS status);
 typedef void ( *tGetFrameLogCallback) (void *pContext);
+typedef void(*pktFilterReqCb)(void *data, tANI_U32 status);
 
 typedef struct sAniGetFrameLogReq
 {
@@ -4140,6 +4141,8 @@ typedef struct sSirRcvFltPktClearParam
   tANI_U8    filterId;
   tSirMacAddr selfMacAddr;
   tSirMacAddr bssId;
+  pktFilterReqCb     pktFilterCallback;
+  void        *cbCtx;
 }tSirRcvFltPktClearParam, *tpSirRcvFltPktClearParam;
 
 //
