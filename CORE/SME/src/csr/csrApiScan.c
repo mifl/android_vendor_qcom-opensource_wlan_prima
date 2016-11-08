@@ -3637,8 +3637,8 @@ static void csrMoveTempScanResultsToMainList( tpAniSirGlobal pMac, tANI_U8 reaso
     }
 
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-    if (csrIsSessionClientAndConnected(pMac,
-        pMac->roam.roamSession->sessionId) &&
+    if (sme_IsFeatureSupportedByFW(PER_BASED_ROAMING) &&
+       (csrGetInfraSessionId(pMac) != -1) &&
         (pMac->scan.occupiedChannels.numChannels != occupied_chan_count))
     {
         /* Update FW with new list */
