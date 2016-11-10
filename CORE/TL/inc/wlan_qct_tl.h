@@ -3299,4 +3299,17 @@ void WLANTL_StartRxRateMonitor(v_PVOID_t pvosGCtx, wpt_uint8 staId,
 
 void WLANTL_StopRxRateMonitor(v_PVOID_t pvosGCtx);
 #endif
+
+/*
+ * WLANTL_ResetRxSSN - reset last rx ssn
+ * @pvosGCtx: global vos context
+ * @ucSTAId: station id
+ *
+ * This function resets the last ssn of all tids of the station
+ * for whom BA reorder session exists.
+ *
+ * Return: none
+ */
+void WLANTL_ResetRxSSN(v_PVOID_t pvosGCtx, uint8_t ucSTAId);
+
 #endif /* #ifndef WLAN_QCT_WLANTL_H */
