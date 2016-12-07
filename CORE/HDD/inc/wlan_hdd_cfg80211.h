@@ -1425,4 +1425,6 @@ enum qca_wlan_vendor_attr_memory_dump {
     QCA_WLAN_VENDOR_ATTR_MEMORY_DUMP_AFTER_LAST - 1,
 };
 
+struct cfg80211_bss* wlan_hdd_cfg80211_update_bss_list(
+   hdd_adapter_t *pAdapter, tSirMacAddr bssid);
 #endif

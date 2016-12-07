@@ -222,8 +222,19 @@ typedef struct
     tListElem *pCurEntry;
 }tScanResultList;
 
-
-
+/**
+ * csr_scan_for_ssid_context() - Callback context for SSID scan
+ *
+ * @pMac: pMac handle
+ * @sessionId: scan session id
+ * @roamId: roam Id
+ */
+struct csr_scan_for_ssid_context
+{
+    tpAniSirGlobal pMac;
+    tANI_U32 sessionId;
+    tANI_U32 roamId;
+};
 
 #define CSR_IS_ROAM_REASON( pCmd, reason ) ( (reason) == (pCmd)->roamCmd.roamReason )
 #define CSR_IS_BETTER_PREFER_VALUE(v1, v2)   ((v1) > (v2))
@@ -1085,6 +1096,9 @@ eHalStatus csrRoamDelPMKIDfromCache( tpAniSirGlobal pMac, tANI_U32 sessionId,
 tANI_BOOLEAN csrElectedCountryInfo(tpAniSirGlobal pMac);
 void csrAddVoteForCountryInfo(tpAniSirGlobal pMac, tANI_U8 *pCountryCode);
 void csrClearVotesForCountryInfo(tpAniSirGlobal pMac);
+void csr_remove_bssid_from_scan_list(tpAniSirGlobal pMac,
+       tSirMacAddr bssid);
+
 #ifdef WLAN_FEATURE_AP_HT40_24G
 eHalStatus csrSetHT2040Mode(tpAniSirGlobal pMac, tANI_U32 sessionId, tANI_U8 cbMode);
 #endif
