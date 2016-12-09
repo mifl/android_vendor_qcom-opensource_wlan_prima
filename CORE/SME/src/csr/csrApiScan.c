@@ -2202,7 +2202,7 @@ static tANI_S32 csrFindCongestionScore (tpAniSirGlobal pMac, tCsrScanResult *pBs
         return -1;
     }
 
-    if (bssInfo->rssi < PER_BAD_RSSI) {
+    if (bssInfo->rssi < pMac->roam.configParam.PERMinRssiThresholdForRoam) {
         smsLog(pMac, LOG1,
                FL("discrarding candidate due to low rssi=%d bssid "
                MAC_ADDRESS_STR), bssInfo->rssi,
@@ -3740,8 +3740,8 @@ void csrPurgeOldScanResults(tpAniSirGlobal pMac)
 {
     tListElem *pEntry, *tmpEntry;
     tCsrScanResult *pResult, *oldest_bss = NULL;
-    tANI_TIMESTAMP oldest_entry = 0;
-    tANI_TIMESTAMP curTime = (tANI_TIMESTAMP)palGetTickCount(pMac->hHdd);
+    v_TIME_t oldest_entry = 0;
+    v_TIME_t curTime = vos_timer_get_system_time();
 
     csrLLLock(&pMac->scan.scanResultList);
     pEntry = csrLLPeekHead( &pMac->scan.scanResultList, LL_ACCESS_NOLOCK );
@@ -5905,7 +5905,8 @@ tANI_BOOLEAN csrScanAgeOutBss(tpAniSirGlobal pMac, tCsrScanResult *pResult)
     {
         //Reset the counter so that aging out of connected BSS won't hapeen too soon
         pResult->AgingCount = (tANI_S32)pMac->roam.configParam.agingCount;
-        pResult->Result.BssDescriptor.nReceivedTime = (tANI_TIMESTAMP)palGetTickCount(pMac->hHdd);
+        pResult->Result.BssDescriptor.nReceivedTime =
+                                        vos_timer_get_system_time();
 
         return (fRet);
     }
@@ -7237,8 +7238,9 @@ static void csrPurgeScanResultByAge(void *pv)
     tpAniSirGlobal pMac = PMAC_STRUCT( pv );
     tListElem *pEntry, *tmpEntry;
     tCsrScanResult *pResult;
-    tANI_TIMESTAMP ageOutTime =  pMac->scan.scanResultCfgAgingTime * PAL_TICKS_PER_SECOND;
-    tANI_TIMESTAMP curTime = (tANI_TIMESTAMP)palGetTickCount(pMac->hHdd);
+    v_TIME_t ageOutTime =
+       (v_TIME_t)(pMac->scan.scanResultCfgAgingTime * SYSTEM_TIME_SEC_TO_MSEC);
+    v_TIME_t curTime = vos_timer_get_system_time();
   
     csrLLLock(&pMac->scan.scanResultList);
     pEntry = csrLLPeekHead( &pMac->scan.scanResultList, LL_ACCESS_NOLOCK );
@@ -9081,7 +9083,7 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
    pBssDescr->timeStamp[1]   = pParsedFrame->timeStamp[1];
    pBssDescr->capabilityInfo = *((tANI_U16 *)&pParsedFrame->capabilityInfo);
    vos_mem_copy((tANI_U8 *) &pBssDescr->bssId, (tANI_U8 *) macHeader->bssId, sizeof(tSirMacAddr));
-   pBssDescr->nReceivedTime = (tANI_TIMESTAMP)palGetTickCount(pMac->hHdd);
+   pBssDescr->nReceivedTime = vos_timer_get_system_time();
 
    smsLog( pMac, LOG1, FL("Bssid= "MAC_ADDRESS_STR
                        " chan= %d, rssi = %d "),
