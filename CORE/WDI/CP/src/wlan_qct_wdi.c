@@ -18779,8 +18779,12 @@ WDI_ProcessStartOemDataRsp
     return WDI_STATUS_E_FAILURE;
   }
 
+  wpalMemoryZero(wdiOemDataRspParams->oemDataRsp, OEM_DATA_RSP_SIZE);
+
   /* Populate WDI structure members */
-  wpalMemoryCopy(wdiOemDataRspParams->oemDataRsp, halStartOemDataRspParams->oemDataRsp, OEM_DATA_RSP_SIZE);
+  wpalMemoryCopy(wdiOemDataRspParams->oemDataRsp,
+                 halStartOemDataRspParams->oemDataRsp,
+                 pEventData->uEventDataSize);
 
   /*Notify UMAC*/
   wdiOemDataRspCb(wdiOemDataRspParams, pWDICtx->pRspCBUserData);
@@ -25741,7 +25745,11 @@ WDI_CopyWDIConfigBSSToHALConfigBSS
   phalConfigBSS->dualCTSProtection        = pwdiConfigBSS->ucDualCTSProtection;
   phalConfigBSS->ucMaxProbeRespRetryLimit = pwdiConfigBSS->ucMaxProbeRespRetryLimit;
   phalConfigBSS->bHiddenSSIDEn            = pwdiConfigBSS->bHiddenSSIDEn;
-  phalConfigBSS->bProxyProbeRespEn        = pwdiConfigBSS->bProxyProbeRespEn;
+
+  if (vos_is_probe_rsp_offload_enabled())
+     phalConfigBSS->bProxyProbeRespEn = 1;
+  else
+     phalConfigBSS->bProxyProbeRespEn = pwdiConfigBSS->bProxyProbeRespEn;
 
 #ifdef WLAN_FEATURE_VOWIFI
   phalConfigBSS->maxTxPower               = pwdiConfigBSS->cMaxTxPower;

@@ -612,6 +612,8 @@ typedef enum
     eCSR_ROAM_RESULT_IBSS_PEER_INFO_SUCCESS,
     eCSR_ROAM_RESULT_IBSS_PEER_INFO_FAILED,
 #endif
+    /* If Scan for SSID failed to found proper BSS */
+    eCSR_ROAM_RESULT_SCAN_FOR_SSID_FAILURE,
 }eCsrRoamResult;
 
 
@@ -1188,6 +1190,7 @@ typedef struct tagCsrConfigParam
     v_BOOL_t isPERRoamEnabled;
     v_BOOL_t isPERRoamCCAEnabled;
     v_S15_t PERRoamFullScanThreshold;
+    v_S15_t PERMinRssiThresholdForRoam;
     v_U32_t rateUpThreshold;
     v_U32_t rateDownThreshold;
     v_U32_t waitPeriodForNextPERScan;
