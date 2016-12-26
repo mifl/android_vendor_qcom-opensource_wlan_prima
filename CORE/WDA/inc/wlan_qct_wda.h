@@ -453,6 +453,7 @@ typedef struct
    v_PVOID_t            pWdiContext;             /* WDI context */
    WDA_state            wdaState ;               /* WDA state tracking */ 
    v_PVOID_t            wdaWdiCfgApiMsgParam ;   /* WDI API paramter tracking */
+   v_PVOID_t            wdaWdiCfgUpdateIntMsg ;  /* WDI API CFG update param tracking */
    vos_event_t          wdaWdiEvent;             /* WDI API sync event */
 
    /* Event to wait for tx completion */
@@ -815,6 +816,11 @@ tBssSystemRole wdaGetGlobalSystemRole(tpAniSirGlobal pMac);
 #ifdef WLAN_FEATURE_EXTSCAN
 #define WDA_GET_EXTSCANFULLSCANRESIND(pRxMeta) (((WDI_DS_RxMetaInfoType*)(pRxMeta))->extscanBuffer)
 #endif
+
+#ifdef SAP_AUTH_OFFLOAD
+#define WDA_GET_SAP_AUTHOFFLOADIND(pRxMeta)  (((WDI_DS_RxMetaInfoType*)(pRxMeta))->indType)
+#endif
+
 /* WDA_GET_RX_RSSI_DB ********************************************************/
 // Volans RF
 #  define WDA_RSSI_OFFSET             100
@@ -1187,6 +1193,7 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_PER_ROAM_SCAN_TRIGGER_REQ   SIR_HAL_PER_ROAM_SCAN_TRIGGER_REQ
 #define WDA_PER_ROAM_SCAN_TRIGGER_RSP   SIR_HAL_PER_ROAM_SCAN_TRIGGER_RSP
 #endif
+#define WDA_UPDATE_CFG_INT_PARAM    SIR_HAL_UPDATE_CFG_INT_PARAM
 
 #ifdef WLAN_WAKEUP_EVENTS
 #define WDA_WAKE_REASON_IND    SIR_HAL_WAKE_REASON_IND  
@@ -1289,6 +1296,16 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_START_RSSI_MONITOR_REQ             SIR_HAL_RSSI_MON_START_REQ
 #define WDA_STOP_RSSI_MONITOR_REQ              SIR_HAL_RSSI_MON_STOP_REQ
 
+#ifdef DHCP_SERVER_OFFLOAD
+#define WDA_SET_DHCP_SERVER_OFFLOAD_REQ     SIR_HAL_SET_DHCP_SERVER_OFFLOAD_REQ
+#endif /* DHCP_SERVER_OFFLOAD */
+#ifdef MDNS_OFFLOAD
+#define WDA_SET_MDNS_OFFLOAD_CMD              SIR_HAL_SET_MDNS_OFFLOAD
+#define WDA_SET_MDNS_FQDN_CMD                 SIR_HAL_SET_MDNS_FQDN
+#define WDA_SET_MDNS_RESPONSE_CMD             SIR_HAL_SET_MDNS_RESPONSE
+#define WDA_GET_MDNS_STATUS_CMD               SIR_HAL_GET_MDNS_STATUS
+#endif /* MDNS_OFFLOAD */
+
 tSirRetStatus wdaPostCtrlMsg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 
 eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
@@ -1349,6 +1366,17 @@ eHalStatus WDA_SetRegDomain(void * clientCtxt, v_REGDOMAIN_t regId,
 #define WDA_SET_ALLOWED_ACTION_FRAMES_IND      SIR_HAL_SET_ALLOWED_ACTION_FRAMES
 
 #define WDA_PAUSE_TL_IND                       SIR_HAL_PAUSE_TL_IND
+
+#ifdef SAP_AUTH_OFFLOAD
+#define WDA_SAP_OFL_ADD_STA                   SIR_HAL_SAP_OFL_ADD_STA
+#define WDA_SAP_OFL_DEL_STA                   SIR_HAL_SAP_OFL_DEL_STA
+#define WDA_SET_SAP_AUTH_OFL                  SIR_HAL_SET_SAP_AUTH_OFL
+#endif /* SAP_AUTH_OFFLOAD */
+
+#ifdef WLAN_FEATURE_APFIND
+#define WDA_APFIND_SET_CMD                    SIR_HAL_APFIND_SET_CMD
+#define WDA_AP_FIND_IND                       SIR_HAL_AP_FIND_IND
+#endif /* WLAN_FEATURE_APFIND */
 
 #define HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME 0x40 // Bit 6 will be used to control BD rate for Management frames
 

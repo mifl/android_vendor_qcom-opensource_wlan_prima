@@ -29,6 +29,9 @@ ifeq ($(KERNEL_BUILD), 0)
 # JB kernel has CPU enablement patches, so enable
     CONFIG_PRIMA_WLAN_11AC_HIGH_TP := y
 
+#Flag to enable mDNS feature
+    CONFIG_MDNS_OFFLOAD_SUPPORT := y
+
 #Flag to enable TDLS feature
     CONFIG_QCOM_TDLS := y
 
@@ -47,6 +50,11 @@ ifneq ($(CONFIG_PRONTO_WLAN),)
     CONFIG_WLAN_OFFLOAD_PACKETS := y
 
     endif
+#Flag to enable AP Find feature
+CONFIG_WLAN_FEATURE_AP_FIND := y
+
+# Flag to enable feature Software AP Authentication Offload
+SAP_AUTH_OFFLOAD := y
 
 # To enable CONFIG_QCOM_ESE_UPLOAD, dependent config
 # CONFIG_QCOM_ESE must be enabled.
@@ -564,7 +572,8 @@ CDEFINES :=	-DANI_BUS_TYPE_PLATFORM=1 \
                 -DWLAN_FEATURE_LINK_LAYER_STATS \
                 -DWLAN_FEATURE_EXTSCAN \
                 -DFEATURE_EXT_LL_STAT \
-                -DWLAN_VOWIFI_DEBUG
+                -DWLAN_VOWIFI_DEBUG \
+		-DDHCP_SERVER_OFFLOAD
 
 ifneq ($(CONFIG_PRONTO_WLAN),)
 CDEFINES += -DWCN_PRONTO
@@ -658,6 +667,15 @@ ifeq ($(CONFIG_ENABLE_LINUX_REG), y)
 CDEFINES += -DCONFIG_ENABLE_LINUX_REG
 endif
 
+# Enable feature SAP Authentication Offload
+ifeq ($(SAP_AUTH_OFFLOAD), y)
+CDEFINES += -DSAP_AUTH_OFFLOAD
+endif
+
+ifeq ($(CONFIG_WLAN_FEATURE_AP_FIND), y)
+CDEFINES += -DWLAN_FEATURE_APFIND
+endif
+
 CDEFINES += -DFEATURE_WLAN_CH_AVOID
 CDEFINES += -DWLAN_FEATURE_AP_HT40_24G
 
@@ -677,6 +695,10 @@ EXTRA_CFLAGS += -Wno-maybe-uninitialized -Wno-unused-function
 
 ifeq ($(CONFIG_WLAN_OFFLOAD_PACKETS),y)
 CDEFINES += -DWLAN_FEATURE_OFFLOAD_PACKETS
+endif
+
+ifeq ($(CONFIG_MDNS_OFFLOAD_SUPPORT), y)
+CDEFINES += -DMDNS_OFFLOAD
 endif
 
 KBUILD_CPPFLAGS += $(CDEFINES)

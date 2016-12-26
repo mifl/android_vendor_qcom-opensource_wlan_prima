@@ -80,6 +80,7 @@
 #include "cfgApi.h"
 #include "wniCfg.h"
 #include <wlan_hdd_wowl.h>
+#include "wlan_hdd_hostapd.h"
 
 #ifdef FEATURE_WLAN_CH_AVOID
 #include "wcnss_wlan.h"
@@ -786,6 +787,54 @@ static int hdd_stop_bss_link(hdd_adapter_t *pHostapdAdapter,v_PVOID_t usrDataFor
     return (status == VOS_STATUS_SUCCESS) ? 0 : -EBUSY;
 }
 
+#ifdef SAP_AUTH_OFFLOAD
+void hdd_set_sap_auth_offload(hdd_adapter_t *pHostapdAdapter,
+        bool enabled)
+{
+    hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pHostapdAdapter);
+    struct tSirSapOffloadInfo sap_offload_info;
+
+    vos_mem_copy( &sap_offload_info.macAddr,
+            pHostapdAdapter->macAddressCurrent.bytes, VOS_MAC_ADDR_SIZE);
+
+    sap_offload_info.sap_auth_offload_enable = enabled;
+    sap_offload_info.sap_auth_offload_sec_type =
+        pHddCtx->cfg_ini->sap_auth_offload_sec_type;
+    sap_offload_info.key_len =
+        strlen(pHddCtx->cfg_ini->sap_auth_offload_key);
+
+    if (sap_offload_info.sap_auth_offload_enable &&
+        sap_offload_info.sap_auth_offload_sec_type)
+    {
+        if (sap_offload_info.key_len < 8 ||
+                sap_offload_info.key_len > WLAN_PSK_STRING_LENGTH)
+        {
+            hddLog(VOS_TRACE_LEVEL_ERROR,
+                    "%s: invalid key length(%d) of WPA security!", __func__,
+                    sap_offload_info.key_len);
+            return;
+        }
+    }
+    if (sap_offload_info.key_len)
+    {
+        vos_mem_copy(sap_offload_info.key,
+                pHddCtx->cfg_ini->sap_auth_offload_key,
+                sap_offload_info.key_len);
+    }
+    if (eHAL_STATUS_SUCCESS !=
+            sme_set_sap_auth_offload(pHddCtx->hHal, &sap_offload_info))
+    {
+        hddLog(VOS_TRACE_LEVEL_ERROR,
+                "%s: sme_set_sap_auth_offload fail!", __func__);
+        return;
+    }
+
+    hddLog(VOS_TRACE_LEVEL_INFO_HIGH,
+            "%s: sme_set_sap_auth_offload successfully!", __func__);
+    return;
+}
+#endif
+
 VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCallback)
 {
     hdd_adapter_t *pHostapdAdapter;
@@ -923,7 +972,6 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
                           VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                              "%s: WLANSAP_SetKeySta failed idx %d", __func__, i);
                     }
-                    pHddApCtx->wepKey[i].keyLength = 0;
                 }
            }
             //Fill the params for sending IWEVCUSTOM Event with SOFTAP.enabled
@@ -940,6 +988,11 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
         case eSAP_STOP_BSS_EVENT:
             hddLog(LOG1, FL("BSS stop status = %s"),pSapEvent->sapevt.sapStopBssCompleteEvent.status ?
                              "eSAP_STATUS_FAILURE" : "eSAP_STATUS_SUCCESS");
+
+#ifdef SAP_AUTH_OFFLOAD
+            if (cfg_param->enable_sap_auth_offload)
+                hdd_set_sap_auth_offload(pHostapdAdapter, FALSE);
+#endif
 
             //Free up Channel List incase if it is set
             sapCleanupChannelList();
@@ -1066,21 +1119,28 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38))
             {
-                struct station_info staInfo;
+                struct station_info *staInfo;
                 v_U16_t iesLen =  pSapEvent->sapevt.sapStationAssocReassocCompleteEvent.iesLen;
 
-                memset(&staInfo, 0, sizeof(staInfo));
+                staInfo = vos_mem_malloc(sizeof(*staInfo));
+                if (staInfo == NULL) {
+                    hddLog(LOGE, FL("alloc station_info failed"));
+                    return VOS_STATUS_E_NOMEM;
+                }
+
+                memset(staInfo, 0, sizeof(*staInfo));
                 if (iesLen <= MAX_ASSOC_IND_IE_LEN )
                 {
-                    staInfo.assoc_req_ies =
+                    staInfo->assoc_req_ies =
                         (const u8 *)&pSapEvent->sapevt.sapStationAssocReassocCompleteEvent.ies[0];
-                    staInfo.assoc_req_ies_len = iesLen;
+                    staInfo->assoc_req_ies_len = iesLen;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,0,31))
-                    staInfo.filled |= STATION_INFO_ASSOC_REQ_IES;
+                    staInfo->filled |= STATION_INFO_ASSOC_REQ_IES;
 #endif
                     cfg80211_new_sta(dev,
                                  (const u8 *)&pSapEvent->sapevt.sapStationAssocReassocCompleteEvent.staMac.bytes[0],
-                                 &staInfo, GFP_KERNEL);
+                                 staInfo, GFP_KERNEL);
+                    vos_mem_free(staInfo);
                 }
                 else
                 {
@@ -1487,6 +1547,54 @@ void hdd_hostapd_update_unsafe_channel_list(hdd_context_t *pHddCtx,
    return;
 }
 
+/**
+ * hdd_unsafe_channel_restart_sap - restart sap if sap is on unsafe channel
+ * @adapter: hdd ap adapter
+ *
+ * hdd_unsafe_channel_restart_sap check all unsafe channel list
+ * and if ACS is enabled, driver will ask userspace to restart the
+ * sap. User space on LTE coex indication restart driver.
+ *
+ * Return - none
+ */
+static void hdd_unsafe_channel_restart_sap(hdd_adapter_t *adapter,
+                                           hdd_context_t *hdd_ctx)
+{
+
+   if (!(adapter && (WLAN_HDD_SOFTAP == adapter->device_mode))) {
+      return;
+   }
+
+   hddLog(LOG1, FL("Current operation channel %d"),
+           adapter->sessionCtx.ap.operatingChannel);
+   if (false == hdd_ctx->is_ch_avoid_in_progress) {
+      hdd_change_ch_avoidance_status(hdd_ctx, true);
+
+      vos_flush_work(
+              &hdd_ctx->sap_start_work);
+
+      /*
+       * current operating channel
+       * is un-safe channel, restart SAP
+       */
+      hddLog(LOG1,
+              FL("Restarting SAP due to unsafe channel"));
+
+      adapter->sessionCtx.ap.sapConfig.channel =
+                              AUTO_CHANNEL_SELECT;
+
+      netif_tx_disable(adapter->dev);
+
+      if (hdd_ctx->cfg_ini->sap_restrt_ch_avoid)
+              schedule_work(
+              &hdd_ctx->sap_start_work);
+
+      return;
+   }
+   return;
+}
+
+
 /**---------------------------------------------------------------------------
 
   \brief hdd_hostapd_ch_avoid_cb() -
@@ -1503,7 +1611,7 @@ void hdd_hostapd_update_unsafe_channel_list(hdd_context_t *pHddCtx,
   --------------------------------------------------------------------------*/
 void hdd_hostapd_ch_avoid_cb
 (
-   void *pAdapter,
+   void *context,
    void *indParam
 )
 {
@@ -1529,14 +1637,14 @@ void hdd_hostapd_ch_avoid_cb
 #endif
 
    /* Basic sanity */
-   if ((NULL == pAdapter) || (NULL == indParam))
+   if ((NULL == context) || (NULL == indParam))
    {
       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "%s : Invalid arguments", __func__);
       return;
    }
 
-   hddCtxt     = (hdd_context_t *)pAdapter;
+   hddCtxt     = (hdd_context_t *)context;
    chAvoidInd  = (tSirChAvoidIndType *)indParam;
    pVosContext = hddCtxt->pvosContext;
 
@@ -1661,7 +1769,7 @@ void hdd_hostapd_ch_avoid_cb
               {
                   /* current operating channel is un-safe channel
                    * restart driver */
-                   hdd_hostapd_stop(pHostapdAdapter->dev);
+                   hdd_unsafe_channel_restart_sap(pHostapdAdapter, hddCtxt);
                    /* On LE, this event is handled by wlan-services to
                     * restart SAP. On android, this event would be
                     * ignored.
@@ -4764,6 +4872,12 @@ void hdd_set_ap_ops( struct net_device *pWlanHostapdDev )
 VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
 {
     hdd_hostapd_state_t * phostapdBuf;
+#ifdef DHCP_SERVER_OFFLOAD
+    hdd_dhcp_state_t *dhcp_status;
+#endif /* DHCP_SERVER_OFFLOAD */
+#ifdef MDNS_OFFLOAD
+    hdd_mdns_state_t *mdns_status;
+#endif /* MDNS_OFFLOAD */
     struct net_device *dev = pAdapter->dev;
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     VOS_STATUS status;
@@ -4779,8 +4893,20 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
     }
 
     ENTER();
-       // Allocate the Wireless Extensions state structure
+
+#ifdef SAP_AUTH_OFFLOAD
+    if (pHddCtx->cfg_ini->enable_sap_auth_offload)
+        hdd_set_sap_auth_offload(pAdapter, TRUE);
+#endif
+
+    // Allocate the Wireless Extensions state structure
     phostapdBuf = WLAN_HDD_GET_HOSTAP_STATE_PTR( pAdapter );
+#ifdef DHCP_SERVER_OFFLOAD
+    dhcp_status = &pAdapter->dhcp_status;
+#endif /* DHCP_SERVER_OFFLOAD */
+#ifdef MDNS_OFFLOAD
+    mdns_status = &pAdapter->mdns_status;
+#endif /* MDNS_OFFLOAD */
 
     spin_lock_init(&pAdapter->sta_hash_lock);
     pAdapter->is_sta_id_hash_initialized = VOS_FALSE;
@@ -4802,7 +4928,13 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
 
     // Zero the memory.  This zeros the profile structure.
     memset(phostapdBuf, 0,sizeof(hdd_hostapd_state_t));
-    
+#ifdef DHCP_SERVER_OFFLOAD
+    memset(dhcp_status, 0,sizeof(*dhcp_status));
+#endif /* DHCP_SERVER_OFFLOAD */
+#ifdef MDNS_OFFLOAD
+    memset(mdns_status, 0,sizeof(*mdns_status));
+#endif /* MDNS_OFFLOAD */
+
     // Set up the pointer to the Wireless Extensions state structure
     // NOP
     status = hdd_set_hostapd(pAdapter);
@@ -4817,7 +4949,21 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, ("ERROR: Hostapd HDD vos event init failed!!"));
          return status;
     }
-    
+#ifdef DHCP_SERVER_OFFLOAD
+    status = vos_event_init(&dhcp_status->vos_event);
+    if (!VOS_IS_STATUS_SUCCESS(status)) {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR, ("ERROR: Hostapd HDD vos event init failed!!"));
+         return status;
+    }
+#endif /* DHCP_SERVER_OFFLOAD */
+#ifdef MDNS_OFFLOAD
+    status = vos_event_init(&mdns_status->vos_event);
+    if (!VOS_IS_STATUS_SUCCESS(status)) {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                   ("Hostapd HDD vos event init failed!!"));
+         return status;
+    }
+#endif /* MDNS_OFFLOAD */
 
     sema_init(&(WLAN_HDD_GET_AP_CTX_PTR(pAdapter))->semWpsPBCOverlapInd, 1);
  
@@ -4842,8 +4988,6 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
 
     set_bit(WMM_INIT_DONE, &pAdapter->event_flags);
 
-    pHddCtx->is_ap_mode_wow_supported =
-              sme_IsFeatureSupportedByFW(SAP_MODE_WOW);
     return status;
 
 error_wmm_init:

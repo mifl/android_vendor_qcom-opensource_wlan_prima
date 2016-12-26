@@ -243,6 +243,25 @@ typedef v_U8_t tWlanHddMacAddr[HDD_MAC_ADDR_LEN];
 
 #define WLAN_WAIT_TIME_EXTSCAN  1000
 
+#define HDD_MAX_STA_COUNT (HAL_NUM_STA)
+
+#ifdef MDNS_OFFLOAD
+#define MDNS_HEADER_LEN                           12
+#define MDNS_FQDN_TYPE_GENERAL                    0
+#define MDNS_FQDN_TYPE_UNIQUE                     1
+#define MAX_NUM_FIELD_DOMAINNAME                  6
+#define MAX_LEN_DOMAINNAME_FIELD                  64
+#define MAX_MDNS_RESP_TYPE                        6
+#define MDNS_TYPE_A                               1
+#define MDNS_TYPE_TXT                             16
+#define MDNS_TYPE_PTR                             12
+#define MDNS_TYPE_PTR_DNAME                       13
+#define MDNS_TYPE_SRV                             33
+#define MDNS_TYPE_SRV_TARGET                      34
+#define MDNS_CLASS                                1
+#define MDNS_TTL                                  5
+#endif /* MDNS_OFFLOAD */
+
 /*
  * Generic asynchronous request/response support
  *
@@ -544,8 +563,14 @@ typedef struct hdd_wapi_info_s hdd_wapi_info_t;
 #endif /* FEATURE_WLAN_WAPI */
 
 typedef struct beacon_data_s {
-    u8 *head, *tail;
-    int head_len, tail_len;
+    u8 *head;
+    u8 *tail;
+    u8 *proberesp_ies;
+    u8 *assocresp_ies;
+    int head_len;
+    int tail_len;
+    int proberesp_ies_len;
+    int assocresp_ies_len;
     int dtim_period;
 } beacon_data_t;
 
@@ -774,6 +799,23 @@ typedef struct hdd_hostapd_state_s
 
 } hdd_hostapd_state_t;
 
+#ifdef DHCP_SERVER_OFFLOAD
+typedef struct hdd_dhcp_state_s
+{
+    VOS_STATUS dhcp_offload_status;
+    vos_event_t vos_event;
+} hdd_dhcp_state_t;
+#endif /* DHCP_SERVER_OFFLOAD */
+
+#ifdef MDNS_OFFLOAD
+typedef struct hdd_mdns_state_s
+{
+    VOS_STATUS mdns_enable_status;
+    VOS_STATUS mdns_fqdn_status;
+    VOS_STATUS mdns_resp_status;
+    vos_event_t vos_event;
+} hdd_mdns_state_t;
+#endif /* MDNS_OFFLOAD */
 
 /*
  * Per station structure kept in HDD for multiple station support for SoftAP
@@ -1210,6 +1252,12 @@ struct hdd_adapter_s
 
    /* Currently used antenna Index*/
    int antennaIndex;
+#ifdef DHCP_SERVER_OFFLOAD
+   hdd_dhcp_state_t dhcp_status;
+#endif /* DHCP_SERVER_OFFLOAD */
+#ifdef MDNS_OFFLOAD
+    hdd_mdns_state_t mdns_status;
+#endif /* MDNS_OFFLOAD */
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
@@ -1449,11 +1497,18 @@ struct hdd_context_s
    
    v_BOOL_t hdd_wlan_suspended;
    bool rx_wow_dump;
+
+   uint8_t bad_sta[HDD_MAX_STA_COUNT];
    
    spinlock_t filter_lock;
    
    /* Lock to avoid race condtion during start/stop bss*/
    struct mutex sap_lock;
+
+   struct work_struct  sap_start_work;
+   bool is_sap_restart_required;
+   bool is_ch_avoid_in_progress;
+   vos_spin_lock_t sap_update_info_lock;
 
    /* Lock to avoid race condtion between ROC timeout and
       cancel callbacks*/
@@ -1536,6 +1591,8 @@ struct hdd_context_s
     v_U8_t sus_res_mcastbcast_filter;
 
     v_BOOL_t sus_res_mcastbcast_filter_valid;
+
+    v_BOOL_t mc_list_cfg_in_fwr;
 
     /* debugfs entry */
     struct dentry *debugfs_phy;
@@ -1692,6 +1749,20 @@ typedef enum
    WLAN_FW_MEM_DUMP_EN = 1<<6,
 } WLAN_ENABLE_HW_FW_LOG_TYPE;
 
+#ifdef MDNS_OFFLOAD
+/* Offload struct */
+struct hdd_mdns_resp_info {
+    uint8_t num_entries;
+    uint8_t *data;
+    uint16_t *offset;
+};
+
+struct hdd_mdns_resp_matched {
+    uint8_t num_matched;
+    uint8_t type;
+};
+#endif /* MDNS_OFFLOAD */
+
 /*--------------------------------------------------------------------------- 
   Function declarations and documenation
   -------------------------------------------------------------------------*/
@@ -1724,6 +1795,14 @@ VOS_STATUS hdd_stop_all_adapters( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_start_all_adapters( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_reconnect_all_adapters( hdd_context_t *pHddCtx );
+struct cfg80211_bss* hdd_get_bss_entry(struct wiphy *wiphy,
+      struct ieee80211_channel *channel,
+      const u8 *bssid,
+      const u8 *ssid, size_t ssid_len);
+void hdd_connect_result(struct net_device *dev, const u8 *bssid,
+   tCsrRoamInfo *roam_info, const u8 *req_ie,
+   size_t req_ie_len, const u8 * resp_ie,
+   size_t resp_ie_len, u16 status, gfp_t gfp);
 void hdd_dump_concurrency_info(hdd_context_t *pHddCtx);
 hdd_adapter_t * hdd_get_adapter_by_name( hdd_context_t *pHddCtx, tANI_U8 *name );
 hdd_adapter_t * hdd_get_adapter_by_macaddr( hdd_context_t *pHddCtx, tSirMacAddr macAddr );
@@ -1954,4 +2033,12 @@ void wlan_hdd_defer_scan_init_work(hdd_context_t *pHddCtx,
                                 unsigned long delay);
 int hdd_reassoc(hdd_adapter_t *pAdapter, const tANI_U8 *bssid,
 			const tANI_U8 channel, const handoff_src src);
+#ifdef MDNS_OFFLOAD
+bool wlan_hdd_set_mdns_offload(hdd_adapter_t *adapter);
+#else
+static inline bool wlan_hdd_set_mdns_offload(hdd_adapter_t *adapter)
+{
+    return FALSE;
+}
+#endif /* MDNS_OFFLOAD */
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )

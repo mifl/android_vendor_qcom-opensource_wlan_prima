@@ -5309,7 +5309,13 @@ eHalStatus sme_RoamSetKey(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamSetKey *pS
       smsLog(pMac, LOGE, FL("Invalid key length %d"), pSetKey->keyLength);
       return eHAL_STATUS_FAILURE;
    }
-
+#ifdef SAP_AUTH_OFFLOAD
+   if (pMac->sap_auth_offload_sec_type)
+   {
+       smsLog(pMac, LOGW, FL("No set key is required in sap auth offload enable"));
+       return  eHAL_STATUS_SUCCESS;
+   }
+#endif
    status = sme_AcquireGlobalLock( &pMac->sme );
    if ( HAL_STATUS_SUCCESS( status ) )
    {
@@ -6145,7 +6151,7 @@ eHalStatus sme_DHCPStartInd( tHalHandle hHal,
             sme_ReleaseGlobalLock( &pMac->sme );
             return eHAL_STATUS_FAILURE;
         }
-
+        pSession->dhcp_done = false;
         pMsg = (tAniDHCPInd*)vos_mem_malloc(sizeof(tAniDHCPInd));
         if (NULL == pMsg)
         {
@@ -6213,7 +6219,7 @@ eHalStatus sme_DHCPStopInd( tHalHandle hHal,
             sme_ReleaseGlobalLock( &pMac->sme );
             return eHAL_STATUS_FAILURE;
         }
-
+        pSession->dhcp_done = true;
         pMsg = (tAniDHCPInd*)vos_mem_malloc(sizeof(tAniDHCPInd));
         if (NULL == pMsg)
         {
@@ -8330,6 +8336,70 @@ eHalStatus sme_ConfigureRxpFilter( tHalHandle hHal,
            status = eHAL_STATUS_FAILURE;
         }
         sme_ReleaseGlobalLock( &pMac->sme );
+    }
+    return(status);
+}
+
+/* ---------------------------------------------------------------------------
+
+  \fn    sme_update_hal_int_param
+
+  \brief
+    SME will pass this request to lower mac to indicate that the host needs to
+    update the cfg item
+
+  \param
+
+    hHal - The handle returned by macOpen.
+
+    cfg_id- cfg param id
+
+
+  \return eHalStatus
+
+
+--------------------------------------------------------------------------- */
+
+eHalStatus sme_update_cfg_int_param(tHalHandle hHal,
+               tANI_U32 cfg_id)
+{
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
+    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+    vos_msg_t vosMessage;
+    tpSirUpdateCfgIntParam updateCfgIntParam =
+        vos_mem_malloc(sizeof(tSirUpdateCfgIntParam));
+
+    if (updateCfgIntParam == NULL)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+            "%s: vos_mem_alloc  for updateCfgIntParam", __func__);
+        return eHAL_STATUS_FAILURE;
+    }
+
+    updateCfgIntParam->cfgId = cfg_id;
+    /*
+     * This API expect user must have updated cfg item using cfg API's.
+     * Hence it just need the cfg param id not the cfg value.
+     */
+    status = sme_AcquireGlobalLock(&pMac->sme);
+    if (eHAL_STATUS_SUCCESS == status)
+    {
+        /* serialize the req through MC thread */
+        vosMessage.bodyptr = updateCfgIntParam;
+        vosMessage.type    = WDA_UPDATE_CFG_INT_PARAM;
+        vosStatus = vos_mq_post_message(VOS_MQ_ID_WDA, &vosMessage);
+        if (!VOS_IS_STATUS_SUCCESS(vosStatus))
+        {
+           status = eHAL_STATUS_FAILURE;
+           vos_mem_free(updateCfgIntParam);
+        }
+        sme_ReleaseGlobalLock(&pMac->sme);
+    }
+    else
+    {
+        status = eHAL_STATUS_FAILURE;
+        vos_mem_free(updateCfgIntParam);
     }
     return(status);
 }
@@ -14471,3 +14541,361 @@ void sme_set_mgmt_frm_via_wq5(tHalHandle hHal, tANI_BOOLEAN sendMgmtPktViaWQ5)
     }
     return;
 }
+
+#ifdef SAP_AUTH_OFFLOAD
+/**
+ * sme_set_sap_auth_offload() enable/disable Software AP Auth Offload
+ * @hHal: hal layer handler
+ * @sap_auth_offload_info: the information of Software AP Auth offload
+ *
+ * This function provide enable/disable Software AP authenticaiton offload
+ * feature on target firmware
+ *
+ * Return: Return eHalStatus.
+ */
+eHalStatus sme_set_sap_auth_offload(tHalHandle hHal,
+        struct tSirSapOffloadInfo *sap_auth_offload_info)
+{
+    vos_msg_t vosMessage;
+    struct tSirSapOffloadInfo *sme_sap_auth_offload_info;
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
+    pMac->sap_auth_offload_sec_type =
+        sap_auth_offload_info->sap_auth_offload_sec_type;
+    pMac->sap_auth_offload = sap_auth_offload_info->sap_auth_offload_enable;
+
+    sme_sap_auth_offload_info =
+        vos_mem_malloc(sizeof(*sme_sap_auth_offload_info));
+
+    if (!sme_sap_auth_offload_info)
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: Not able to allocate memory for WDA_SET_SAP_AUTH_OFL",
+                __func__);
+        return eHAL_STATUS_E_MALLOC_FAILED;
+    }
+    vos_mem_copy(sme_sap_auth_offload_info, sap_auth_offload_info,
+           sizeof(*sap_auth_offload_info));
+
+    if (eHAL_STATUS_SUCCESS == (status = sme_AcquireGlobalLock(&pMac->sme)))
+    {
+        /* serialize the req through MC thread */
+        vosMessage.type     = WDA_SET_SAP_AUTH_OFL;
+        vosMessage.bodyptr  = sme_sap_auth_offload_info;
+
+        if (!VOS_IS_STATUS_SUCCESS(
+                 vos_mq_post_message(VOS_MODULE_ID_WDA, &vosMessage)))
+        {
+            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                    "%s: Not able to post WDA_SET_SAP_AUTH_OFL to WDA!",
+                    __func__);
+            vos_mem_free(sme_sap_auth_offload_info);
+            status = eHAL_STATUS_FAILURE;
+        }
+        sme_ReleaseGlobalLock(&pMac->sme);
+    }
+    else
+    {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                "%s: sme_AcquireGlobalLock error!",
+                __func__);
+        vos_mem_free(sme_sap_auth_offload_info);
+        status = eHAL_STATUS_FAILURE;
+    }
+
+    return (status);
+}
+#endif
+
+#ifdef DHCP_SERVER_OFFLOAD
+/**
+ * sme_set_dhcp_srv_offload() - sme api to set dhcp server offload info
+ * @hal: handle to hal
+ * @dhcp_srv_info: pointer to dhcp server info
+ *
+ * Return: eHalStatus
+ *	eHAL_STATUS_SUCCESS - success or else failure code
+ */
+eHalStatus sme_set_dhcp_srv_offload(tHalHandle hal,
+				    sir_dhcp_srv_offload_info_t *dhcp_srv_info)
+{
+	vos_msg_t vos_msg;
+	eHalStatus status = eHAL_STATUS_SUCCESS;
+	tpAniSirGlobal mac = PMAC_STRUCT(hal);
+	sir_dhcp_srv_offload_info_t *dhcp_serv_info = NULL;
+
+	dhcp_serv_info =
+		vos_mem_malloc(sizeof(*dhcp_serv_info));
+	if (NULL == dhcp_serv_info) {
+		VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+			  "Failed to alloc memory");
+		return VOS_STATUS_E_NOMEM;
+	}
+
+	vos_mem_copy(dhcp_serv_info, dhcp_srv_info,
+		     sizeof(*dhcp_serv_info));
+
+	status = sme_AcquireGlobalLock(&mac->sme);
+	if (eHAL_STATUS_SUCCESS == status) {
+		/* serialize the req through MC thread */
+		vos_msg.type = WDA_SET_DHCP_SERVER_OFFLOAD_REQ;
+		vos_msg.bodyptr = dhcp_serv_info;
+
+		if (!VOS_IS_STATUS_SUCCESS(vos_mq_post_message
+					   (VOS_MODULE_ID_WDA, &vos_msg))) {
+			VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+				  "%s: Not able to post WDA_SET_DHCP_SERVER_OFFLOAD_REQ to WDA!",
+				  __func__);
+			vos_mem_free(dhcp_serv_info);
+			status = eHAL_STATUS_FAILURE;
+		}
+		sme_ReleaseGlobalLock(&mac->sme);
+	} else {
+		VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+			   "%s: sme_AcquireGlobalLock error!",
+			   __func__);
+		vos_mem_free(dhcp_serv_info);
+	}
+
+	return status;
+}
+#endif /* DHCP_SERVER_OFFLOAD */
+
+#ifdef MDNS_OFFLOAD
+/**
+ * sme_set_mdns_offload() - sme API to set mdns offload enable/disable
+ * @hal: handle to hal pointer
+ * @mdns_info: pointer to mdns offload info
+ *
+ * Return - eHalStatus
+ */
+eHalStatus sme_set_mdns_offload(tHalHandle hal,
+                                sir_mdns_offload_info_t *mdns_info)
+{
+    vos_msg_t vos_msg;
+    sir_mdns_offload_info_t *mdns_offload;
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+    mdns_offload = vos_mem_malloc(sizeof(*mdns_offload));
+
+    if (!mdns_offload) {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+              "%s: Not able to allocate memory for WDA_SET_MDNS_OFFLOAD_CMD",
+              __func__);
+        return eHAL_STATUS_E_MALLOC_FAILED;
+    }
+
+    vos_mem_copy(mdns_offload, mdns_info, sizeof(*mdns_offload));
+
+    status = sme_AcquireGlobalLock(&mac->sme);
+    if (eHAL_STATUS_SUCCESS == status) {
+        /* serialize the req through MC thread */
+        vos_msg.type     = WDA_SET_MDNS_OFFLOAD_CMD;
+        vos_msg.bodyptr  = mdns_offload;
+
+        if (!VOS_IS_STATUS_SUCCESS(
+                    vos_mq_post_message(VOS_MODULE_ID_WDA,
+                                &vos_msg))) {
+            VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                   "%s: Not able to post WDA_SET_MDNS_OFFLOAD_CMD to WDA!",
+                   __func__);
+            vos_mem_free(mdns_offload);
+            status = eHAL_STATUS_FAILURE;
+        }
+        sme_ReleaseGlobalLock(&mac->sme);
+    } else {
+        VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+               "%s: sme_AcquireGlobalLock error!",
+               __func__);
+        vos_mem_free(mdns_offload);
+    }
+
+    return (status);
+}
+
+/**
+ * sme_set_mdns_fqdn() - SME API to set mDNS Fqdn info
+ * @hal: hal handle
+ * @mdns_fqdn: mDNS Fqdn info struct
+ *
+ * Return - return eHalStatus
+ */
+eHalStatus sme_set_mdns_fqdn(tHalHandle hal,
+                 sir_mdns_fqdn_info_t *mdns_fqdn)
+{
+    vos_msg_t vos_msg;
+    sir_mdns_fqdn_info_t *fqdn_info;
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+    fqdn_info = vos_mem_malloc(sizeof(*fqdn_info));
+
+    if (!fqdn_info) {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+              "%s: Not able to allocate memory for WDA_SET_MDNS_FQDN_CMD",
+              __func__);
+        return eHAL_STATUS_E_MALLOC_FAILED;
+    }
+
+    vos_mem_copy(fqdn_info, mdns_fqdn, sizeof(*fqdn_info));
+
+    status = sme_AcquireGlobalLock(&mac->sme);
+    if (eHAL_STATUS_SUCCESS == status) {
+        /* serialize the req through MC thread */
+        vos_msg.type     = WDA_SET_MDNS_FQDN_CMD;
+        vos_msg.bodyptr  = fqdn_info;
+
+        if (!VOS_IS_STATUS_SUCCESS(
+                    vos_mq_post_message(VOS_MODULE_ID_WDA,
+                                &vos_msg))) {
+            VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                   "%s: Not able to post WDA_SET_MDNS_FQDN_CMD to WDA!",
+                   __func__);
+            vos_mem_free(fqdn_info);
+            status = eHAL_STATUS_FAILURE;
+        }
+        sme_ReleaseGlobalLock(&mac->sme);
+    } else {
+        VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+               "%s: sme_AcquireGlobalLock error!",
+               __func__);
+        vos_mem_free(fqdn_info);
+    }
+
+    return (status);
+}
+
+/**
+ * sme_set_mdns_resp() - SME API to set mDNS response info
+ * @hal: hal handle
+ * @mdns_resp : mDNS response info struct
+ *
+ * Return - eHalStatus
+ */
+eHalStatus sme_set_mdns_resp(tHalHandle hal,
+                 sir_mdns_resp_info_t *mdns_resp)
+{
+    vos_msg_t vos_msg;
+    sir_mdns_resp_info_t *resp_info;
+    eHalStatus status = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal mac = PMAC_STRUCT(hal);
+
+    resp_info = vos_mem_malloc(sizeof(*resp_info));
+
+    if (!resp_info) {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+              "%s: Not able to allocate memory for WDA_SET_MDNS_RESPONSE_CMD",
+              __func__);
+        return eHAL_STATUS_E_MALLOC_FAILED;
+    }
+
+    vos_mem_copy(resp_info, mdns_resp, sizeof(*resp_info));
+
+    status = sme_AcquireGlobalLock(&mac->sme);
+    if (eHAL_STATUS_SUCCESS == status) {
+        /* serialize the req through MC thread */
+        vos_msg.type     = WDA_SET_MDNS_RESPONSE_CMD;
+        vos_msg.bodyptr  = resp_info;
+
+        if (!VOS_IS_STATUS_SUCCESS(
+                    vos_mq_post_message(VOS_MODULE_ID_WDA,
+                                &vos_msg))) {
+            VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                   "%s: Not able to post WDA_SET_MDNS_RESPONSE_CMD to WDA!",
+                   __func__);
+            vos_mem_free(resp_info);
+            status = eHAL_STATUS_FAILURE;
+        }
+        sme_ReleaseGlobalLock(&mac->sme);
+    } else {
+        VOS_TRACE( VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+               "%s: sme_AcquireGlobalLock error!",
+               __func__);
+        vos_mem_free(resp_info);
+    }
+
+    return (status);
+}
+#endif /* MDNS_OFFLOAD */
+
+/**
+ * sme_update_hb_threshold() - Set heartbeat Threshold value.
+ * @hal: HAL pointer
+ * @cfgId: cfg param id
+ * @hbThresh: heartbeat threshold value.
+ *
+ * Return: Success/Failure
+ */
+eHalStatus sme_update_hb_threshold(tHalHandle hHal, tANI_U32 cfgId,
+                       tANI_U8 hbThresh, eCsrBand eBand)
+{
+       eHalStatus status = eHAL_STATUS_SUCCESS;
+       tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
+
+       if ((hbThresh <  WNI_CFG_HEART_BEAT_THRESHOLD_STAMIN) ||
+           (hbThresh > WNI_CFG_HEART_BEAT_THRESHOLD_STAMAX)) {
+           smsLog(pMac, LOGE, FL("invalid heartbeat threshold %hhu"), hbThresh);
+           return eHAL_STATUS_FAILURE;
+       }
+
+       if(eBand == eCSR_BAND_24)
+           pMac->roam.configParam.HeartbeatThresh24 = hbThresh;
+
+       if(eBand == eCSR_BAND_5G)
+           pMac->roam.configParam.HeartbeatThresh50 = hbThresh;
+
+       status = sme_update_cfg_int_param(hHal, WNI_CFG_HEART_BEAT_THRESHOLD);
+       if (eHAL_STATUS_SUCCESS != status) {
+           smsLog(pMac, LOGE, FL("WLAN set heartbeat threshold FAILED"));
+           status = eHAL_STATUS_FAILURE;
+       }
+       return status;
+}
+
+#ifdef WLAN_FEATURE_APFIND
+/**
+ * sme_apfind_set_cmd() - set apfind configuration to firmware
+ * @input: pointer to apfind request data.
+ *
+ * SME API to set APFIND configuations to firmware.
+ *
+ * Return: VOS_STATUS.
+ */
+VOS_STATUS sme_apfind_set_cmd(struct sme_ap_find_request_req *input)
+{
+    vos_msg_t msg;
+    struct hal_apfind_request *data;
+    size_t data_len;
+
+    data_len = sizeof(struct hal_apfind_request) + input->request_data_len;
+    data = vos_mem_malloc(data_len);
+
+    if (data == NULL) {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                FL("Memory allocation failure"));
+        return VOS_STATUS_E_NOMEM;
+    }
+
+    vos_mem_zero(data, data_len);
+    data->request_data_len = input->request_data_len;
+    if (input->request_data_len) {
+        vos_mem_copy(data->request_data,
+                input->request_data, input->request_data_len);
+    }
+
+    msg.type = WDA_APFIND_SET_CMD;
+    msg.reserved = 0;
+    msg.bodyptr = data;
+
+    if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)) {
+        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                FL("Not able to post WDA_APFIND_SET_CMD message to WDA"));
+        vos_mem_free(data);
+        return VOS_STATUS_E_FAILURE;
+    }
+
+    return VOS_STATUS_SUCCESS;
+}
+#endif /* WLAN_FEATURE_APFIND */

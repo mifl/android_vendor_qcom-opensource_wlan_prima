@@ -1972,6 +1972,9 @@ eHalStatus csrChangeDefaultConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pPa
                 pParam->PERRoamFullScanThreshold;
         pMac->roam.configParam.PERroamTriggerPercent =
                 pParam->PERroamTriggerPercent;
+        pMac->roam.configParam.PERMinRssiThresholdForRoam =
+                pParam->PERMinRssiThresholdForRoam;
+        pMac->PERroamTimeout = pParam->waitPeriodForNextPERScan;
 #endif
 #ifdef FEATURE_WLAN_LFR
         pMac->roam.configParam.isFastRoamIniFeatureEnabled = pParam->isFastRoamIniFeatureEnabled;
@@ -2200,6 +2203,8 @@ eHalStatus csrGetConfigParam(tpAniSirGlobal pMac, tCsrConfigParam *pParam)
                 pMac->roam.configParam.PERRoamFullScanThreshold;
         pParam->PERroamTriggerPercent =
                 pMac->roam.configParam.PERroamTriggerPercent;
+        pParam->PERMinRssiThresholdForRoam =
+                pMac->roam.configParam.PERMinRssiThresholdForRoam;
 #endif
 #ifdef FEATURE_WLAN_LFR
         pParam->isFastRoamIniFeatureEnabled = pMac->roam.configParam.isFastRoamIniFeatureEnabled;
@@ -6953,7 +6958,6 @@ eHalStatus csrRoamConnect(tpAniSirGlobal pMac, tANI_U32 sessionId, tCsrRoamProfi
     }
     /* Reset abortConnection for the fresh connection */
     pSession->abortConnection = FALSE;
-    pSession->dhcp_done = false;
     csrRoamCancelRoaming(pMac, sessionId);
     csrScanRemoveFreshScanCommand(pMac, sessionId);
     csrScanCancelIdleScan(pMac);
@@ -9940,6 +9944,15 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                         status = csrRoamCallCallback(pMac, sessionId, pRoamInfo, 0, eCSR_ROAM_WDS_IND, eCSR_ROAM_RESULT_WDS_ASSOCIATION_IND);//Sta
                     if(CSR_IS_INFRA_AP(pRoamInfo->u.pConnectedProfile))
                     {
+#ifdef SAP_AUTH_OFFLOAD
+                        if (pMac->sap_auth_offload)
+                        {
+                            smsLog(pMac, LOGW, FL(" Auth is not required to set in Auth offload case \n"));
+                            pRoamInfo->fAuthRequired = FALSE;
+                        }
+                        else
+                        {
+#endif
                         if( CSR_IS_ENC_TYPE_STATIC( pSession->pCurRoamProfile->negotiatedUCEncryptionType ))
                         {
                             csrRoamIssueSetContextReq( pMac, sessionId, pSession->pCurRoamProfile->negotiatedUCEncryptionType, 
@@ -9952,6 +9965,9 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                         {
                             pRoamInfo->fAuthRequired = TRUE;
                         }
+#ifdef SAP_AUTH_OFFLOAD
+                        }
+#endif
                         status = csrRoamCallCallback(pMac, sessionId, pRoamInfo, 0, eCSR_ROAM_INFRA_IND, eCSR_ROAM_RESULT_INFRA_ASSOCIATION_IND);
                         if (!HAL_STATUS_SUCCESS(status))
                             pRoamInfo->statusCode = eSIR_SME_ASSOC_REFUSED;// Refused due to Mac filtering 
@@ -11679,7 +11695,13 @@ static eCsrCfgDot11Mode csrRoamGetPhyModeBandForBss( tpAniSirGlobal pMac, tCsrRo
    }
 
     /* Incase of WEP Security encryption type is coming as part of add key. So while STart BSS dont have information */
-    if( (!CSR_IS_11n_ALLOWED(pProfile->EncryptionType.encryptionType[0] ) || ((pProfile->privacy == 1) && (pProfile->EncryptionType.encryptionType[0] == eCSR_ENCRYPT_TYPE_NONE))  ) &&
+   if (
+#ifdef SAP_AUTH_OFFLOAD
+      (!pMac->sap_auth_offload && !pMac->sap_auth_offload_sec_type) &&
+#endif
+      ((!CSR_IS_11n_ALLOWED(pProfile->EncryptionType.encryptionType[0] ) ||
+       ((pProfile->privacy == 1) &&
+       (pProfile->EncryptionType.encryptionType[0] == eCSR_ENCRYPT_TYPE_NONE)))) &&
         ((eCSR_CFG_DOT11_MODE_11N == cfgDot11Mode) ||
 #ifdef WLAN_FEATURE_11AC
         (eCSR_CFG_DOT11_MODE_11AC == cfgDot11Mode) ||
@@ -14611,16 +14633,7 @@ eHalStatus csrSendMBSetContextReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId,
                 // set pSirKey->keyLength = keyLength;
                 p = pal_set_U16( p, pal_cpu_to_be16(keyLength) );
         if ( keyLength && pKey ) 
-        {   
             vos_mem_copy(p, pKey, keyLength);
-            if(keyLength == 16)
-            {
-                smsLog(pMac, LOG1, "  SME Set keyIdx (%d) encType(%d) key = %02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X",
-                keyId, edType, pKey[0], pKey[1], pKey[2], pKey[3], pKey[4],
-                pKey[5], pKey[6], pKey[7], pKey[8],
-                pKey[9], pKey[10], pKey[11], pKey[12], pKey[13], pKey[14], pKey[15]);
-            }
-        }
         status = palSendMBMessage(pMac->hHdd, pMsg);
     } while( 0 );
     return( status );
