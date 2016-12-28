@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -167,6 +167,11 @@ typedef enum eSriLinkState {
     eSIR_LINK_FINISH_CAL_STATE  = 13,
     eSIR_LINK_LISTEN_STATE      = 14,
     eSIR_LINK_SEND_ACTION_STATE = 15,
+
+#ifdef WLAN_FEATURE_LFR_MBB
+    eSIR_LINK_PRE_AUTH_REASSOC_STATE = 17,
+#endif
+
 } tSirLinkState;
 
 
@@ -861,6 +866,10 @@ typedef struct sSirMbMsgP2p
 
 #define SIR_LIM_CONVERT_ACTIVE_CHANNEL_TO_PASSIVE (SIR_LIM_TIMEOUT_MSG_START + 0x2C)
 #define SIR_LIM_AUTH_RETRY_TIMEOUT            (SIR_LIM_TIMEOUT_MSG_START + 0x2D)
+
+#ifdef WLAN_FEATURE_LFR_MBB
+#define SIR_LIM_PREAUTH_MBB_RSP_TIMEOUT   (SIR_LIM_TIMEOUT_MSG_START + 0x2E)
+#endif
 
 #define SIR_LIM_MSG_TYPES_END            (SIR_LIM_MSG_TYPES_BEGIN+0xFF)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -74,6 +74,10 @@
 
 #if defined WLAN_FEATURE_VOWIFI_11R
 #include <limFT.h>
+#endif
+
+#ifdef WLAN_FEATURE_LFR_MBB
+#include "lim_mbb.h"
 #endif
 
 #ifdef FEATURE_WLAN_ESE
@@ -5809,6 +5813,13 @@ limProcessSmeReqMessages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
        case eWNI_SME_FT_AGGR_QOS_REQ:
             limProcessFTAggrQosReq(pMac, pMsgBuf);
             break;
+#endif
+
+#ifdef WLAN_FEATURE_LFR_MBB
+        case eWNI_SME_MBB_PRE_AUTH_REASSOC_REQ:
+             lim_process_pre_auth_reassoc_req(pMac, pMsg);
+             bufConsumed = FALSE;
+             break;
 #endif
 
 #if defined(FEATURE_WLAN_ESE) && !defined(FEATURE_WLAN_ESE_UPLOAD)
