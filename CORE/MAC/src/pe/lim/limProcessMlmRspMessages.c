@@ -1972,6 +1972,12 @@ void limProcessMlmAddStaRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ,tpPESession 
         limProcessBtAmpApMlmAddStaRsp(pMac, limMsgQ,psessionEntry);
         return;
     }
+#ifdef WLAN_FEATURE_LFR_MBB
+        if (pMac->ft.ftSmeContext.is_preauth_lfr_mbb) {
+            lim_process_sta_mlm_add_sta_rsp_mbb(pMac, limMsgQ, psessionEntry);
+            return;
+        }
+#endif
     limProcessStaMlmAddStaRsp(pMac, limMsgQ,psessionEntry);
 }
 void limProcessStaMlmAddStaRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ ,tpPESession psessionEntry)
@@ -3435,9 +3441,16 @@ void limProcessMlmAddBssRsp( tpAniSirGlobal pMac, tpSirMsgQ limMsgQ )
             else
             limProcessApMlmAddBssRsp( pMac,limMsgQ);
         }
-        else
+        else {
+#ifdef WLAN_FEATURE_LFR_MBB
+        if (pMac->ft.ftSmeContext.is_preauth_lfr_mbb) {
+            lim_process_sta_mlm_add_bss_rsp_mbb(pMac, limMsgQ, psessionEntry);
+            return;
+        }
+#endif
             /* Called while processing assoc response */
             limProcessStaMlmAddBssRsp( pMac, limMsgQ,psessionEntry);
+        }
     }
 
     if(limIsInMCC(pMac))

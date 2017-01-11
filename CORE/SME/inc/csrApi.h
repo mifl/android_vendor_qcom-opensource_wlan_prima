@@ -1749,6 +1749,5 @@ eHalStatus csrSetBand(tHalHandle hHal, eCsrBand eBand);
 ---------------------------------------------------------------------------*/
 eCsrBand csrGetCurrentBand (tHalHandle hHal);
 
-
 #endif
 
