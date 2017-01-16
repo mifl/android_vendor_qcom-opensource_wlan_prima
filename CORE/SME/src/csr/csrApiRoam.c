@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -9572,6 +9572,8 @@ eHalStatus csrRoamPrepareFilterFromProfile(tpAniSirGlobal pMac, tCsrRoamProfile 
             pScanFilter->MDID.mobilityDomain = pProfile->MDID.mobilityDomain;
         }
 #endif
+        vos_mem_copy(pScanFilter->bssid_hint,
+            pProfile->bssid_hint, VOS_MAC_ADDR_SIZE);
 
 #ifdef WLAN_FEATURE_11W
         // Management Frame Protection
@@ -9944,6 +9946,15 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                         status = csrRoamCallCallback(pMac, sessionId, pRoamInfo, 0, eCSR_ROAM_WDS_IND, eCSR_ROAM_RESULT_WDS_ASSOCIATION_IND);//Sta
                     if(CSR_IS_INFRA_AP(pRoamInfo->u.pConnectedProfile))
                     {
+#ifdef SAP_AUTH_OFFLOAD
+                        if (pMac->sap_auth_offload)
+                        {
+                            smsLog(pMac, LOGW, FL(" Auth is not required to set in Auth offload case \n"));
+                            pRoamInfo->fAuthRequired = FALSE;
+                        }
+                        else
+                        {
+#endif
                         if( CSR_IS_ENC_TYPE_STATIC( pSession->pCurRoamProfile->negotiatedUCEncryptionType ))
                         {
                             csrRoamIssueSetContextReq( pMac, sessionId, pSession->pCurRoamProfile->negotiatedUCEncryptionType, 
@@ -9956,6 +9967,9 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                         {
                             pRoamInfo->fAuthRequired = TRUE;
                         }
+#ifdef SAP_AUTH_OFFLOAD
+                        }
+#endif
                         status = csrRoamCallCallback(pMac, sessionId, pRoamInfo, 0, eCSR_ROAM_INFRA_IND, eCSR_ROAM_RESULT_INFRA_ASSOCIATION_IND);
                         if (!HAL_STATUS_SUCCESS(status))
                             pRoamInfo->statusCode = eSIR_SME_ASSOC_REFUSED;// Refused due to Mac filtering 
@@ -11683,7 +11697,13 @@ static eCsrCfgDot11Mode csrRoamGetPhyModeBandForBss( tpAniSirGlobal pMac, tCsrRo
    }
 
     /* Incase of WEP Security encryption type is coming as part of add key. So while STart BSS dont have information */
-    if( (!CSR_IS_11n_ALLOWED(pProfile->EncryptionType.encryptionType[0] ) || ((pProfile->privacy == 1) && (pProfile->EncryptionType.encryptionType[0] == eCSR_ENCRYPT_TYPE_NONE))  ) &&
+   if (
+#ifdef SAP_AUTH_OFFLOAD
+      (!pMac->sap_auth_offload && !pMac->sap_auth_offload_sec_type) &&
+#endif
+      ((!CSR_IS_11n_ALLOWED(pProfile->EncryptionType.encryptionType[0] ) ||
+       ((pProfile->privacy == 1) &&
+       (pProfile->EncryptionType.encryptionType[0] == eCSR_ENCRYPT_TYPE_NONE)))) &&
         ((eCSR_CFG_DOT11_MODE_11N == cfgDot11Mode) ||
 #ifdef WLAN_FEATURE_11AC
         (eCSR_CFG_DOT11_MODE_11AC == cfgDot11Mode) ||
@@ -17728,6 +17748,10 @@ eHalStatus csrIsFullPowerNeeded( tpAniSirGlobal pMac, tSmeCmd *pCommand,
                 break;
             case eCsrCapsChange:
                 fNeedFullPower = eANI_BOOLEAN_TRUE;
+                break;
+            case eCsrForcedDisassocSta:
+            case eCsrForcedDeauthSta:
+                fNeedFullPower = eANI_BOOLEAN_FALSE;
                 break;
             default:
                 //Check whether the profile is already connected. If so, no need for full power

@@ -421,6 +421,7 @@ tpPESession peFindSessionByBssid(tpAniSirGlobal pMac,  tANI_U8*  bssid,    tANI_
 tpPESession peFindSessionByBssIdx(tpAniSirGlobal pMac,  tANI_U8 bssIdx);
 
 
+tANI_S8 limGetInfraSessionId(tpAniSirGlobal pMac);
 
 
 /*--------------------------------------------------------------------------
@@ -495,10 +496,5 @@ void peDeleteSession(tpAniSirGlobal pMac, tpPESession psessionEntry);
   \sa
   --------------------------------------------------------------------------*/
 
-
+int peFindBssIdxFromSmeSessionId(tpAniSirGlobal pMac, tANI_U8 sme_sessionId);
 #endif //#if !defined( __LIM_SESSION_H )
-
-
-
-
-

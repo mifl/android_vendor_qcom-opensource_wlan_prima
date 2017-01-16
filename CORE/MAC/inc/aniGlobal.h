@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, 2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1086,6 +1086,11 @@ typedef struct sAniSirGlobal
     v_U32_t PERroamTimeout;
     v_U32_t currentBssScore;
 #endif
+#ifdef SAP_AUTH_OFFLOAD
+    bool sap_auth_offload;
+    uint32_t sap_auth_offload_sec_type;
+#endif /* SAP_AUTH_OFFLOAD */
+   bool max_power_cmd_pending;
 } tAniSirGlobal;
 
 #ifdef FEATURE_WLAN_TDLS
