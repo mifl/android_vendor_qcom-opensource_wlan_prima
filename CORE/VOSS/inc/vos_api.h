@@ -511,4 +511,5 @@ bool vos_is_wlan_logging_enabled(void);
 
 v_BOOL_t vos_is_probe_rsp_offload_enabled(void);
 
+bool vos_check_arp_target_ip(vos_pkt_t *pPacket);
 #endif // if !defined __VOS_NVITEM_H

@@ -1653,6 +1653,8 @@ struct hdd_context_s
 
     v_U64_t extscan_start_time_since_boot;
     v_U8_t con_scan_abort_cnt;
+
+    uint32_t track_arp_ip;
 };
 
 typedef enum  {
