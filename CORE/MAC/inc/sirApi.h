@@ -6126,5 +6126,11 @@ enum sir_roam_cleanup_type {
     SIR_MBB_CONNECTED,
 };
 #endif
+typedef void(*hdd_conAliveCb)(void *data, bool status);
+
+typedef struct {
+   hdd_conAliveCb rsp_cb_fn;
+   void *data_ctx;
+}getConStatusParams, *pgetConStatusParams;
 
 #endif /* __SIR_API_H */

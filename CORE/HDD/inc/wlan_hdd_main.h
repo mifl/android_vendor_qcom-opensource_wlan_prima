@@ -1224,6 +1224,7 @@ struct hdd_adapter_s
 
    /* Currently used antenna Index*/
    int antennaIndex;
+   bool nud_set_arp_stats;
    bool con_status;
    bool dad;
 };
