@@ -144,6 +144,9 @@ typedef enum {
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
    PER_BASED_ROAMING = 63,
 #endif
+#ifdef WLAN_FEATURE_LFR_MBB
+   MAKE_BEFORE_BREAK = 67,
+#endif
    //MAX_FEATURE_SUPPORTED = 128
 } placeHolderInCapBitmap;
 
