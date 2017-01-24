@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2716,24 +2716,21 @@ limTdlsPopulateMatchingRateSet(tpAniSirGlobal pMac,
             for (j = 0;j < tempRateSet.numRates; j++)
             {
                 if ((tempRateSet2.rate[i] & 0x7F) ==
-                    (tempRateSet.rate[j] & 0x7F))
+                        (tempRateSet.rate[j] & 0x7F))
                 {
-                    if ((bRateIndex > SIR_NUM_11B_RATES) ||
-                        (aRateIndex > SIR_NUM_11A_RATES))
-                    {
-                        limLog(pMac, LOGE, FL("Invalid number of rates"
-                                              "(11b->%d, 11a->%d)"),
-                                              bRateIndex,aRateIndex);
-                        return eSIR_FAILURE;
-                    }
-
                     if (sirIsArate(tempRateSet2.rate[i] & 0x7f))
                     {
                         isArate=1;
-                        rates->llaRates[aRateIndex++] = tempRateSet2.rate[i];
+                        if (aRateIndex < SIR_NUM_11A_RATES)
+                            rates->llaRates[aRateIndex++] =
+                                tempRateSet2.rate[i];
                     }
                     else
-                        rates->llbRates[bRateIndex++] = tempRateSet2.rate[i];
+                    {
+                        if (bRateIndex < SIR_NUM_11B_RATES)
+                            rates->llbRates[bRateIndex++] =
+                                tempRateSet2.rate[i];
+                    }
                     break;
                 }
             }
@@ -5070,7 +5067,7 @@ void PopulateDot11fTdlsOffchannelParams(tpAniSirGlobal pMac,
 {
     tANI_U32   numChans = WNI_CFG_VALID_CHANNEL_LIST_LEN;
     tANI_U8    validChan[WNI_CFG_VALID_CHANNEL_LIST_LEN];
-    tANI_U8    i;
+    tANI_U8    i, j;
     tANI_U8    op_class;
     if (wlan_cfgGetStr(pMac, WNI_CFG_VALID_CHANNEL_LIST,
                           validChan, &numChans) != eSIR_SUCCESS)
@@ -5084,11 +5081,17 @@ void PopulateDot11fTdlsOffchannelParams(tpAniSirGlobal pMac,
     }
     suppChannels->num_bands = (tANI_U8) numChans;
 
-    for ( i = 0U; i < suppChannels->num_bands; i++)
+    for ( i = 0U, j = 0U; i < suppChannels->num_bands; i++)
     {
-        suppChannels->bands[i][0] = validChan[i];
-        suppChannels->bands[i][1] = 1;
+        /* don't populate dfs channels in supported channels ie */
+        if (!LIM_IS_CHANNEL_DFS(validChan[i])) {
+            suppChannels->bands[j][0] = validChan[i];
+            suppChannels->bands[j][1] = 1;
+            j++;
+        }
     }
+    /* update the channel list with new length */
+    suppChannels->num_bands = j;
     suppChannels->present = 1 ;
     /*Get present operating class based on current operating channel*/
     op_class = limGetOPClassFromChannel(
