@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -8822,7 +8822,6 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
    if(VOS_STATUS_SUCCESS == status)
    {
       wlan_hdd_set_concurrency_mode(pHddCtx, session_type);
-
       //Initialize the WoWL service
       if(!hdd_init_wowl(pAdapter))
       {
@@ -10655,6 +10654,8 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
                  vos_timer_getCurrentState(&pHddCtx->tdls_source_timer)) {
        vos_timer_stop(&pHddCtx->tdls_source_timer);
    }
+
+   vos_set_snoc_high_freq_voting(false);
 
    vos_timer_destroy(&pHddCtx->tdls_source_timer);
 
@@ -14843,6 +14844,7 @@ void hdd_initialize_adapter_common(hdd_adapter_t *pAdapter)
         init_completion(&pAdapter->hdd_set_batch_scan_req_var);
         init_completion(&pAdapter->hdd_get_batch_scan_req_var);
 #endif
+        init_completion(&pAdapter->wlan_suspend_comp_var);
 
         return;
 }
