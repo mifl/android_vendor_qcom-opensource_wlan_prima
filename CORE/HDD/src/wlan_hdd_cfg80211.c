@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -10046,6 +10046,8 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
          }
     }
 #endif
+    /* Check and restart SAP if it is on Unsafe channel */
+    hdd_check_for_unsafe_ch(pHostapdAdapter, pHddCtx);
 
     pHostapdState->bCommit = TRUE;
     EXIT();
@@ -14005,7 +14007,6 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
     v_U32_t roamId;
     tCsrRoamProfile *pRoamProfile;
     eCsrAuthType RSNAuthType;
-    const u8 *pValidBssid = NULL;
 
     ENTER();
 
@@ -14053,30 +14054,38 @@ int wlan_hdd_cfg80211_connect_start( hdd_adapter_t  *pAdapter,
         vos_mem_copy((void *)(pRoamProfile->SSIDs.SSIDList->SSID.ssId),
                 ssid, ssid_len);
 
+        vos_mem_zero(pRoamProfile->BSSIDs.bssid, WNI_CFG_BSSID_LEN);
+        vos_mem_zero(pRoamProfile->bssid_hint, WNI_CFG_BSSID_LEN);
+
         if (bssid)
         {
-            pValidBssid = bssid;
-        }
-        else if (bssid_hint)
-        {
-            pValidBssid = bssid_hint;
-        }
-        if (pValidBssid)
-        {
             pRoamProfile->BSSIDs.numOfBSSIDs = 1;
-            vos_mem_copy((void *)(pRoamProfile->BSSIDs.bssid), pValidBssid,
+            vos_mem_copy(pRoamProfile->BSSIDs.bssid, bssid,
                     WNI_CFG_BSSID_LEN);
             /* Save BSSID in seperate variable as well, as RoamProfile
                BSSID is getting zeroed out in the association process. And in
                case of join failure we should send valid BSSID to supplicant
              */
-            vos_mem_copy((void *)(pWextState->req_bssId), pValidBssid,
+            vos_mem_copy(pWextState->req_bssId, bssid,
                     WNI_CFG_BSSID_LEN);
+
         }
-        else
+        else if (bssid_hint)
         {
-            vos_mem_zero((void *)(pRoamProfile->BSSIDs.bssid),WNI_CFG_BSSID_LEN);
+            /* Store bssid_hint to use in the scan filter. */
+            vos_mem_copy(pRoamProfile->bssid_hint, bssid_hint,
+                    WNI_CFG_BSSID_LEN);
+            /*
+             * Save BSSID in seperate variable as well, as RoamProfile
+             * BSSID is getting zeroed out in the association process. And in
+             * case of join failure we should send valid BSSID to supplicant
+             */
+            vos_mem_copy(pWextState->req_bssId, bssid_hint,
+                    WNI_CFG_BSSID_LEN);
+            hddLog(LOG1, FL(" bssid_hint: "MAC_ADDRESS_STR),
+                   MAC_ADDR_ARRAY(pRoamProfile->bssid_hint));
         }
+
 
         hddLog(LOG1, FL("Connect to SSID: %s opertating Channel: %u"),
                pRoamProfile->SSIDs.SSIDList->SSID.ssId, operatingChannel);
@@ -16858,6 +16867,12 @@ static int __wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                  FL("psapCtx is NULL"));
             return -ENOENT;
+        }
+        if (pHddCtx->cfg_ini->enable_sap_auth_offload)
+        {
+            VOS_TRACE(VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO,
+              "Change reason code to eSIR_MAC_DISASSOC_LEAVING_BSS_REASON in sap auth offload");
+            pDelStaParams->reason_code = eSIR_MAC_DISASSOC_LEAVING_BSS_REASON;
         }
         if (vos_is_macaddr_broadcast((v_MACADDR_t *)pDelStaParams->peerMacAddr))
         {

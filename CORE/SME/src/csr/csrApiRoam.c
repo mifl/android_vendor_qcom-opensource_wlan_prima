@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -9572,6 +9572,8 @@ eHalStatus csrRoamPrepareFilterFromProfile(tpAniSirGlobal pMac, tCsrRoamProfile 
             pScanFilter->MDID.mobilityDomain = pProfile->MDID.mobilityDomain;
         }
 #endif
+        vos_mem_copy(pScanFilter->bssid_hint,
+            pProfile->bssid_hint, VOS_MAC_ADDR_SIZE);
 
 #ifdef WLAN_FEATURE_11W
         // Management Frame Protection
@@ -10687,6 +10689,12 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                                     {
                                        tpSirSetActiveModeSetBncFilterReq pMsg;
                                        pMsg = vos_mem_malloc(sizeof(tSirSetActiveModeSetBncFilterReq));
+                                       if (NULL == pMsg)
+                                       {
+                                           smsLog(pMac, LOGE, FL("vos_mem_malloc failed"));
+                                           return;
+                                       }
+
                                        pMsg->messageType = pal_cpu_to_be16((tANI_U16)eWNI_SME_SET_BCN_FILTER_REQ);
                                        pMsg->length = pal_cpu_to_be16(sizeof(
                                            tSirSetActiveModeSetBncFilterReq));
@@ -10710,6 +10718,12 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                                     {
                                          tpSirSmeHT40OBSSScanInd pMsg;
                                          pMsg = vos_mem_malloc(sizeof(tSirSmeHT40OBSSScanInd));
+                                         if (NULL == pMsg)
+                                         {
+                                             smsLog(pMac, LOGE, FL("vos_mem_malloc failed"));
+                                             return;
+                                         }
+
                                          pMsg->messageType =
                                            pal_cpu_to_be16((tANI_U16)eWNI_SME_HT40_OBSS_SCAN_IND);
                                          pMsg->length =
@@ -17746,6 +17760,10 @@ eHalStatus csrIsFullPowerNeeded( tpAniSirGlobal pMac, tSmeCmd *pCommand,
                 break;
             case eCsrCapsChange:
                 fNeedFullPower = eANI_BOOLEAN_TRUE;
+                break;
+            case eCsrForcedDisassocSta:
+            case eCsrForcedDeauthSta:
+                fNeedFullPower = eANI_BOOLEAN_FALSE;
                 break;
             default:
                 //Check whether the profile is already connected. If so, no need for full power

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -788,7 +788,7 @@ static int hdd_stop_bss_link(hdd_adapter_t *pHostapdAdapter,v_PVOID_t usrDataFor
 }
 
 #ifdef SAP_AUTH_OFFLOAD
-void hdd_set_sap_auth_offload(hdd_adapter_t *pHostapdAdapter,
+bool hdd_set_sap_auth_offload(hdd_adapter_t *pHostapdAdapter,
         bool enabled)
 {
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pHostapdAdapter);
@@ -812,7 +812,7 @@ void hdd_set_sap_auth_offload(hdd_adapter_t *pHostapdAdapter,
             hddLog(VOS_TRACE_LEVEL_ERROR,
                     "%s: invalid key length(%d) of WPA security!", __func__,
                     sap_offload_info.key_len);
-            return;
+            return false;
         }
     }
     if (sap_offload_info.key_len)
@@ -826,12 +826,12 @@ void hdd_set_sap_auth_offload(hdd_adapter_t *pHostapdAdapter,
     {
         hddLog(VOS_TRACE_LEVEL_ERROR,
                 "%s: sme_set_sap_auth_offload fail!", __func__);
-        return;
+        return false;
     }
 
     hddLog(VOS_TRACE_LEVEL_INFO_HIGH,
             "%s: sme_set_sap_auth_offload successfully!", __func__);
-    return;
+    return true;
 }
 #endif
 
@@ -1059,8 +1059,12 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
             {
                 bAuthRequired = FALSE;
             }
-
-            if (bAuthRequired || bWPSState == eANI_BOOLEAN_TRUE )
+            /* fAuthRequiredshould should be false for sap offload */
+            if ((bAuthRequired || bWPSState)
+#ifdef SAP_AUTH_OFFLOAD
+               && !cfg_param->enable_sap_auth_offload
+#endif
+               )
             {
                 vos_status = hdd_softap_RegisterSTA( pHostapdAdapter,
                                        TRUE,
@@ -1346,7 +1350,19 @@ stopbss :
 
         /* Stop the pkts from n/w stack as we are going to free all of
          * the TX WMM queues for all STAID's */
-        hdd_hostapd_stop(dev);
+
+        /*
+         * If channel avoidance is in progress means driver is performing SAP
+         * restart. So don't do carrier off, which may lead framework to do
+         * driver reload.
+         */
+        hddLog(LOG1, FL("ch avoid in progress: %d"),
+                        pHddCtx->is_ch_avoid_in_progress);
+        if (pHddCtx->is_ch_avoid_in_progress &&
+            pHddCtx->cfg_ini->sap_restrt_ch_avoid)
+            netif_tx_disable(dev);
+        else
+            hdd_hostapd_stop(dev);
 
         /* reclaim all resources allocated to the BSS */
         vos_status = hdd_softap_stop_bss(pHostapdAdapter);
@@ -1583,16 +1599,55 @@ static void hdd_unsafe_channel_restart_sap(hdd_adapter_t *adapter,
       adapter->sessionCtx.ap.sapConfig.channel =
                               AUTO_CHANNEL_SELECT;
 
-      netif_tx_disable(adapter->dev);
 
-      if (hdd_ctx->cfg_ini->sap_restrt_ch_avoid)
-              schedule_work(
-              &hdd_ctx->sap_start_work);
+      if (hdd_ctx->cfg_ini->sap_restrt_ch_avoid) {
+          netif_tx_disable(adapter->dev);
+          schedule_work(&hdd_ctx->sap_start_work);
+      } else {
+          hdd_hostapd_stop(adapter->dev);
+      }
 
       return;
    }
    return;
 }
+
+void hdd_check_for_unsafe_ch(hdd_adapter_t *phostapd_adapter,
+                                           hdd_context_t *hdd_ctxt)
+{
+    v_U16_t    channelLoop;
+    v_U16_t    unsafeChannelCount = 0;
+    v_U16_t    unsafeChannelList[NUM_20MHZ_RF_CHANNELS];
+
+    /* Get unsafe channel list */
+    vos_get_wlan_unsafe_channel(unsafeChannelList, sizeof(unsafeChannelList),
+                                &unsafeChannelCount);
+    for (channelLoop = 0; channelLoop < unsafeChannelCount; channelLoop++)
+    {
+        if ((unsafeChannelList[channelLoop] ==
+             phostapd_adapter->sessionCtx.ap.operatingChannel)) {
+            if ((AUTO_CHANNEL_SELECT ==
+                phostapd_adapter->sessionCtx.ap.sapConfig.channel)
+                && (WLAN_HDD_SOFTAP == phostapd_adapter->device_mode)) {
+               /*
+                * current operating channel is un-safe channel
+                * restart driver
+                */
+                hdd_unsafe_channel_restart_sap(phostapd_adapter, hdd_ctxt);
+               /*
+                * On LE, this event is handled by wlan-services to
+                * restart SAP. On android, this event would be
+                * ignored.
+                */
+                wlan_hdd_send_svc_nlink_msg(WLAN_SVC_SAP_RESTART_IND,
+                                                                NULL, 0);
+            }
+            break;
+        }
+    }
+    return;
+}
+
 
 
 /**---------------------------------------------------------------------------
@@ -1758,28 +1813,9 @@ void hdd_hostapd_ch_avoid_cb
                 "%s : Current operation channel %d",
                 __func__,
                 pHostapdAdapter->sessionCtx.ap.operatingChannel);
-      for (channelLoop = 0; channelLoop < unsafeChannelCount; channelLoop++)
-      {
-          if ((unsafeChannelList[channelLoop] ==
-                pHostapdAdapter->sessionCtx.ap.operatingChannel))
-          {
-              if ((AUTO_CHANNEL_SELECT ==
-                     pHostapdAdapter->sessionCtx.ap.sapConfig.channel)
-                && (WLAN_HDD_SOFTAP == pHostapdAdapter->device_mode))
-              {
-                  /* current operating channel is un-safe channel
-                   * restart driver */
-                   hdd_unsafe_channel_restart_sap(pHostapdAdapter, hddCtxt);
-                   /* On LE, this event is handled by wlan-services to
-                    * restart SAP. On android, this event would be
-                    * ignored.
-                    */
-                   wlan_hdd_send_svc_nlink_msg(WLAN_SVC_SAP_RESTART_IND,
-                                                                  NULL, 0);
-              }
-              return;
-          }
-      }
+      /* Check and Restart the SAP if it is on unsafe channel */
+      hdd_check_for_unsafe_ch(pHostapdAdapter, hddCtxt);
+
    }
 
 #ifdef WLAN_FEATURE_AP_HT40_24G
@@ -4896,7 +4932,14 @@ VOS_STATUS hdd_init_ap_mode( hdd_adapter_t *pAdapter )
 
 #ifdef SAP_AUTH_OFFLOAD
     if (pHddCtx->cfg_ini->enable_sap_auth_offload)
-        hdd_set_sap_auth_offload(pAdapter, TRUE);
+    {
+        if (!hdd_set_sap_auth_offload(pAdapter, TRUE))
+        {
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+             FL("SAP AUTH OFFLOAD is not enabled successfully, Don't start SAP"));
+            return VOS_STATUS_E_FAILURE;
+        }
+    }
 #endif
 
     // Allocate the Wireless Extensions state structure

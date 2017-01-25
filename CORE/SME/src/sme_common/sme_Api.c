@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -73,6 +73,7 @@
 #include "sapApi.h"
 #include "macTrace.h"
 #include "vos_utils.h"
+#include "limSession.h"
 
 extern tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 
@@ -1158,6 +1159,7 @@ sme_process_cmd:
                             {
                                csrReleaseCommand(pMac, pCommand);
                             }
+                            pMac->max_power_cmd_pending = false;
                             break;
                         case eSmeCommandSetMaxTxPowerPerBand:
                             csrLLUnlock(&pMac->sme.smeCmdActiveList);
@@ -1170,6 +1172,7 @@ sme_process_cmd:
                                         &pCommand->Link, LL_ACCESS_LOCK)) {
                                csrReleaseCommand(pMac, pCommand);
                             }
+                            pMac->max_power_cmd_pending = false;
                             break;
 
                         case eSmeCommandUpdateChannelList:
@@ -5309,13 +5312,6 @@ eHalStatus sme_RoamSetKey(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamSetKey *pS
       smsLog(pMac, LOGE, FL("Invalid key length %d"), pSetKey->keyLength);
       return eHAL_STATUS_FAILURE;
    }
-#ifdef SAP_AUTH_OFFLOAD
-   if (pMac->sap_auth_offload_sec_type)
-   {
-       smsLog(pMac, LOGW, FL("No set key is required in sap auth offload enable"));
-       return  eHAL_STATUS_SUCCESS;
-   }
-#endif
    status = sme_AcquireGlobalLock( &pMac->sme );
    if ( HAL_STATUS_SUCCESS( status ) )
    {
@@ -5343,6 +5339,15 @@ eHalStatus sme_RoamSetKey(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamSetKey *pS
 
       if(CSR_IS_INFRA_AP(&pSession->connectedProfile))
       {
+#ifdef SAP_AUTH_OFFLOAD
+         if (pMac->sap_auth_offload_sec_type)
+         {
+             smsLog(pMac, LOGE,
+                 FL("No set key is required in sap auth offload enable"));
+             sme_ReleaseGlobalLock(&pMac->sme);
+             return  eHAL_STATUS_SUCCESS;
+         }
+#endif
          if(pSetKey->keyDirection == eSIR_TX_DEFAULT)
          {
             if ( ( eCSR_ENCRYPT_TYPE_WEP40 == pSetKey->encType ) ||
@@ -9684,6 +9689,13 @@ eHalStatus sme_SetMaxTxPower(tHalHandle hHal, tSirMacAddr bssid,
    eHalStatus status = eHAL_STATUS_SUCCESS;
    tSmeCmd *set_max_tx_pwr;
 
+   if (pMac->max_power_cmd_pending)
+   {
+      smsLog(pMac, LOG1,
+        FL("set max tx power already in progress"));
+      return eHAL_STATUS_RESOURCES;
+   }
+
    MTRACE(vos_trace(VOS_MODULE_ID_SME,
        TRACE_CODE_SME_RX_HDD_SET_MAXTXPOW, NO_SESSION, 0));
    smsLog(pMac, LOG1,
@@ -9702,11 +9714,13 @@ eHalStatus sme_SetMaxTxPower(tHalHandle hHal, tSirMacAddr bssid,
            vos_mem_copy(set_max_tx_pwr->u.set_tx_max_pwr.self_sta_mac_addr,
                  self_mac_addr, SIR_MAC_ADDR_LENGTH);
            set_max_tx_pwr->u.set_tx_max_pwr.power = db;
+           pMac->max_power_cmd_pending = true;
            status = csrQueueSmeCommand(pMac, set_max_tx_pwr, eANI_BOOLEAN_TRUE);
            if ( !HAL_STATUS_SUCCESS( status ) )
            {
                smsLog( pMac, LOGE, FL("fail to send msg status = %d"), status );
                csrReleaseCommandScan(pMac, set_max_tx_pwr);
+               pMac->max_power_cmd_pending = false;
            }
        }
        else
@@ -9738,6 +9752,13 @@ eHalStatus sme_SetMaxTxPowerPerBand(eCsrBand band, v_S7_t dB,
     tSmeCmd *set_max_tx_pwr_per_band;
     tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 
+   if (mac_ctx->max_power_cmd_pending)
+   {
+      smsLog(mac_ctx, LOG1,
+        FL("set max tx power already in progress"));
+      return eHAL_STATUS_RESOURCES;
+   }
+
    smsLog(mac_ctx, LOG1,
           FL("band : %d power %d dB"),
           band, dB);
@@ -9752,11 +9773,13 @@ eHalStatus sme_SetMaxTxPowerPerBand(eCsrBand band, v_S7_t dB,
            set_max_tx_pwr_per_band->command = eSmeCommandSetMaxTxPowerPerBand;
            set_max_tx_pwr_per_band->u.set_tx_max_pwr_per_band.band = band;
            set_max_tx_pwr_per_band->u.set_tx_max_pwr_per_band.power = dB;
+           mac_ctx->max_power_cmd_pending = true;
            status = csrQueueSmeCommand(mac_ctx, set_max_tx_pwr_per_band,
                                                            eANI_BOOLEAN_TRUE);
            if (!HAL_STATUS_SUCCESS(status)) {
                smsLog(mac_ctx, LOGE, FL("fail to send msg status = %d"), status);
                csrReleaseCommand(mac_ctx, set_max_tx_pwr_per_band);
+               mac_ctx->max_power_cmd_pending = false;
            }
        } else {
            smsLog(mac_ctx, LOGE, FL("can not obtain a common buffer"));
@@ -14636,6 +14659,7 @@ eHalStatus sme_set_dhcp_srv_offload(tHalHandle hal,
 	vos_mem_copy(dhcp_serv_info, dhcp_srv_info,
 		     sizeof(*dhcp_serv_info));
 
+        dhcp_serv_info->bssidx = peFindBssIdxFromSmeSessionId(mac, dhcp_srv_info->bssidx);
 	status = sme_AcquireGlobalLock(&mac->sme);
 	if (eHAL_STATUS_SUCCESS == status) {
 		/* serialize the req through MC thread */
@@ -14688,7 +14712,8 @@ eHalStatus sme_set_mdns_offload(tHalHandle hal,
     }
 
     vos_mem_copy(mdns_offload, mdns_info, sizeof(*mdns_offload));
-
+    mdns_offload->bss_idx =
+                peFindBssIdxFromSmeSessionId(mac, mdns_info->bss_idx);
     status = sme_AcquireGlobalLock(&mac->sme);
     if (eHAL_STATUS_SUCCESS == status) {
         /* serialize the req through MC thread */
@@ -14740,7 +14765,7 @@ eHalStatus sme_set_mdns_fqdn(tHalHandle hal,
     }
 
     vos_mem_copy(fqdn_info, mdns_fqdn, sizeof(*fqdn_info));
-
+    fqdn_info->bss_idx = peFindBssIdxFromSmeSessionId(mac, mdns_fqdn->bss_idx);
     status = sme_AcquireGlobalLock(&mac->sme);
     if (eHAL_STATUS_SUCCESS == status) {
         /* serialize the req through MC thread */
@@ -14792,7 +14817,7 @@ eHalStatus sme_set_mdns_resp(tHalHandle hal,
     }
 
     vos_mem_copy(resp_info, mdns_resp, sizeof(*resp_info));
-
+    resp_info->bss_idx = peFindBssIdxFromSmeSessionId(mac, mdns_resp->bss_idx);
     status = sme_AcquireGlobalLock(&mac->sme);
     if (eHAL_STATUS_SUCCESS == status) {
         /* serialize the req through MC thread */
