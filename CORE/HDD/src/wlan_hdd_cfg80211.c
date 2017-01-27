@@ -3597,6 +3597,12 @@ static int __wlan_hdd_cfg80211_extscan_set_bssid_hotlist(struct wiphy *wiphy,
         pReqMsg->numBssid = i;
     }
 
+    if (i < pReqMsg->numBssid) {
+        hddLog(LOGW, FL("Number of AP %u less than expected %u"),
+               i, pReqMsg->numBssid);
+        pReqMsg->numBssid = i;
+    }
+
     context = &pHddCtx->ext_scan_context;
     spin_lock(&hdd_context_lock);
     INIT_COMPLETION(context->response_event);
