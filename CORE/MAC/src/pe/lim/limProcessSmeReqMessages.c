@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -74,6 +74,10 @@
 
 #if defined WLAN_FEATURE_VOWIFI_11R
 #include <limFT.h>
+#endif
+
+#ifdef WLAN_FEATURE_LFR_MBB
+#include "lim_mbb.h"
 #endif
 
 #ifdef FEATURE_WLAN_ESE
@@ -250,7 +254,7 @@ __limIsSmeAssocCnfValid(tpSirSmeAssocCnf pAssocCnf)
  * @return    Total IE length
  */
 
-static tANI_U16
+tANI_U16
 __limGetSmeJoinReqSizeForAlloc(tANI_U8 *pBuf)
 {
     tANI_U16 len = 0;
@@ -2437,6 +2441,12 @@ __limProcessSmeReassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         limLog(pMac, LOGP,
                FL("could not retrieve Capabilities value"));
     }
+
+    lim_update_caps_info_for_bss(pMac, &caps,
+                        pReassocReq->bssDescription.capabilityInfo);
+
+    limLog(pMac, LOG1, FL("Capabilities info Reassoc: 0x%X"), caps);
+
     pMlmReassocReq->capabilityInfo = caps;
     
     /* Update PE sessionId*/
@@ -5803,6 +5813,13 @@ limProcessSmeReqMessages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
        case eWNI_SME_FT_AGGR_QOS_REQ:
             limProcessFTAggrQosReq(pMac, pMsgBuf);
             break;
+#endif
+
+#ifdef WLAN_FEATURE_LFR_MBB
+        case eWNI_SME_MBB_PRE_AUTH_REASSOC_REQ:
+             lim_process_pre_auth_reassoc_req(pMac, pMsg);
+             bufConsumed = FALSE;
+             break;
 #endif
 
 #if defined(FEATURE_WLAN_ESE) && !defined(FEATURE_WLAN_ESE_UPLOAD)

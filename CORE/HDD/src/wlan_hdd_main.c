@@ -12127,6 +12127,8 @@ int hdd_wlan_startup(struct device *dev )
    memdump_init();
    hdd_dp_util_send_rps_ind(pHddCtx);
 
+   hdd_assoc_registerFwdEapolCB(pVosContext);
+
    goto success;
 
 err_reg_netdev:

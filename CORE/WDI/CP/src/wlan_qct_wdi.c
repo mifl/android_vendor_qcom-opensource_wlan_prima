@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -220,6 +220,7 @@ static placeHolderInCapBitmap supportEnabledFeatures[] =
    ,WIFI_CONFIG                    //61
    ,ANTENNA_DIVERSITY_SELECTION    //62
    ,PER_BASED_ROAMING              //63
+   ,MAKE_BEFORE_BREAK              //67
 };
 
 /*-------------------------------------------------------------------------- 
@@ -1640,6 +1641,12 @@ void WDI_TraceHostFWCapabilities(tANI_U32 *capabilityBitmap)
                           snprintf(pCapStr, sizeof("PER_BASED_ROAMING"),
                                          "%s", "PER_BASED_ROAMING");
                           pCapStr += strlen("PER_BASED_ROAMING");
+                          break;
+
+                     case MAKE_BEFORE_BREAK:
+                          snprintf(pCapStr, sizeof("MAKE_BEFORE_BREAK"),
+                                         "%s", "MAKE_BEFORE_BREAK");
+                          pCapStr += strlen("MAKE_BEFORE_BREAK");
                           break;
                  }
                  *pCapStr++ = ',';
@@ -25494,6 +25501,11 @@ WDI_2_HAL_LINK_STATE
 
   case WDI_LINK_SEND_ACTION_STATE:
     return eSIR_LINK_SEND_ACTION_STATE;
+
+#ifdef WLAN_FEATURE_LFR_MBB
+  case WDI_LINK_PRE_AUTH_REASSOC_STATE:
+    return eSIR_LINK_PRE_AUTH_REASSOC_STATE;
+#endif
 
   default:
     return eSIR_LINK_MAX;

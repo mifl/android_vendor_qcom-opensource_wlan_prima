@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -144,6 +144,9 @@ typedef enum {
 #ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
    PER_BASED_ROAMING = 63,
 #endif
+#ifdef WLAN_FEATURE_LFR_MBB
+   MAKE_BEFORE_BREAK = 67,
+#endif
    //MAX_FEATURE_SUPPORTED = 128
 } placeHolderInCapBitmap;
 
@@ -167,6 +170,11 @@ typedef enum eSriLinkState {
     eSIR_LINK_FINISH_CAL_STATE  = 13,
     eSIR_LINK_LISTEN_STATE      = 14,
     eSIR_LINK_SEND_ACTION_STATE = 15,
+
+#ifdef WLAN_FEATURE_LFR_MBB
+    eSIR_LINK_PRE_AUTH_REASSOC_STATE = 17,
+#endif
+
 } tSirLinkState;
 
 
@@ -858,6 +866,11 @@ typedef struct sSirMbMsgP2p
 #define SIR_LIM_DISASSOC_ACK_TIMEOUT       (SIR_LIM_TIMEOUT_MSG_START + 0x26)
 #define SIR_LIM_DEAUTH_ACK_TIMEOUT       (SIR_LIM_TIMEOUT_MSG_START + 0x27)
 #define SIR_LIM_PERIODIC_JOIN_PROBE_REQ_TIMEOUT (SIR_LIM_TIMEOUT_MSG_START + 0x28)
+
+#ifdef WLAN_FEATURE_LFR_MBB
+#define SIR_LIM_PREAUTH_MBB_RSP_TIMEOUT   (SIR_LIM_TIMEOUT_MSG_START + 0x29)
+#define SIR_LIM_REASSOC_MBB_RSP_TIMEOUT   (SIR_LIM_TIMEOUT_MSG_START + 0x2A)
+#endif
 
 #define SIR_LIM_CONVERT_ACTIVE_CHANNEL_TO_PASSIVE (SIR_LIM_TIMEOUT_MSG_START + 0x2C)
 #define SIR_LIM_AUTH_RETRY_TIMEOUT            (SIR_LIM_TIMEOUT_MSG_START + 0x2D)
