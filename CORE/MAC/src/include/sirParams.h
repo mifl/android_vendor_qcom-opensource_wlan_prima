@@ -147,6 +147,7 @@ typedef enum {
 #ifdef WLAN_FEATURE_LFR_MBB
    MAKE_BEFORE_BREAK = 67,
 #endif
+   NUD_DEBUG = 68,
    //MAX_FEATURE_SUPPORTED = 128
 } placeHolderInCapBitmap;
 
@@ -772,6 +773,12 @@ typedef struct sSirMbMsgP2p
 #define SIR_HAL_PER_ROAM_SCAN_TRIGGER_REQ  (SIR_HAL_ITC_MSG_TYPES_BEGIN + 288)
 #define SIR_HAL_PER_ROAM_SCAN_TRIGGER_RSP  (SIR_HAL_ITC_MSG_TYPES_BEGIN + 289)
 #endif
+/* ARP Debug stats */
+#define SIR_HAL_SET_ARP_STATS_REQ          (SIR_HAL_ITC_MSG_TYPES_BEGIN + 301)
+#define SIR_HAL_GET_ARP_STATS_REQ          (SIR_HAL_ITC_MSG_TYPES_BEGIN + 302)
+
+#define SIR_HAL_TRIGGER_ADD_BA_REQ         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 303)
+#define SIR_HAL_GET_CON_STATUS             (SIR_HAL_ITC_MSG_TYPES_BEGIN + 304)
 #define SIR_HAL_MSG_TYPES_END              (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 
 // CFG message types
