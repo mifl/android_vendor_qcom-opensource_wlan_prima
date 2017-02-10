@@ -665,6 +665,12 @@ void lim_handle_reassoc_mbb_success(tpAniSirGlobal mac,
         goto end;
     }
 
+    /*
+     * Change Mlm state of new AP to Del sta rsp state so that
+     * duplicate reassoc response will be dropped.
+     */
+    session_entry->limMlmState = eLIM_MLM_WT_DEL_STA_RSP_STATE;
+
     /* Delete sta for currently connected AP */
     ret_code = lim_del_sta_mbb(mac, sta_ds_connected_ap,
                     false, session_entry_con_ap);
@@ -1701,4 +1707,19 @@ end:
       vos_mem_free(add_sta_params);
       limMsgQ->bodyptr = NULL;
     }
+}
+
+eAniBoolean lim_is_mbb_reassoc_in_progress(tpAniSirGlobal mac,
+            tpPESession session_entry)
+{
+    if (session_entry == NULL)
+        return eANI_BOOLEAN_FALSE;
+
+    if ((eLIM_STA_ROLE == session_entry->limSystemRole) &&
+                        mac->ft.ftSmeContext.is_preauth_lfr_mbb) {
+        limLog(mac, LOG1, FL("MBB Reassoc in progress"));
+        return eANI_BOOLEAN_TRUE;
+    }
+
+    return eANI_BOOLEAN_FALSE;
 }
