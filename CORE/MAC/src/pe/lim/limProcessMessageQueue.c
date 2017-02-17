@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -711,6 +711,7 @@ limHandle80211Frames(tpAniSirGlobal pMac, tpSirMsgQ limMsg, tANI_U8 *pDeferMsg)
     tANI_U8             sessionId;
     tAniBool            isFrmFt = FALSE;
     tANI_U16            fcOffset = WLANHAL_RX_BD_HEADER_SIZE;
+    tANI_S8             pe_sessionid = -1;
 
     *pDeferMsg= false;
     limGetBDfromRxPacket(pMac, limMsg->bodyptr, (tANI_U32 **)&pRxPacketInfo);
@@ -800,6 +801,24 @@ limHandle80211Frames(tpAniSirGlobal pMac, tpSirMsgQ limMsg, tANI_U8 *pDeferMsg)
             /* Normal RSSI based roaming */
             pMac->PERroamCandidatesCnt = 0;
         }
+
+        pe_sessionid = limGetInfraSessionId(pMac);
+        if (pe_sessionid != -1) {
+            psessionEntry = peFindSessionBySessionId(pMac, pe_sessionid);
+            if (psessionEntry != NULL)
+            {
+                if ((psessionEntry->limSmeState == eLIM_SME_WT_DEAUTH_STATE) ||
+                    (psessionEntry->limSmeState == eLIM_SME_WT_DISASSOC_STATE))
+                {
+                     limLog(pMac, LOG1,
+                       FL("Drop candidate ind as deauth/disassoc in progress"));
+                     goto end;
+                }
+            }
+        }
+        else
+         limLog(pMac, LOGE,
+               FL("session id doesn't exist for infra"));
 
         //send a session 0 for now - TBD
         limSendSmeCandidateFoundInd(pMac, 0);
@@ -1628,6 +1647,7 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
 #endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
         case eWNI_SME_MAC_SPOOF_ADDR_IND:
         case eWNI_SME_REGISTER_MGMT_FRAME_CB:
+        case eWNI_SME_DEL_TEST_BA:
             // These messages are from HDD
             limProcessNormalHddMsg(pMac, limMsg, false);   //no need to response to hdd
             break;
