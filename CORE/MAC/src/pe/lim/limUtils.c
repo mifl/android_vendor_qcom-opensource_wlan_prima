@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -643,6 +643,13 @@ char *limMsgStr(tANI_U32 msgType)
 #ifdef WLAN_FEATURE_VOWIFI_11R
         case SIR_LIM_FT_PREAUTH_RSP_TIMEOUT:
             return "SIR_LIM_FT_PREAUTH_RSP_TIMEOUT";
+#endif
+
+#ifdef WLAN_FEATURE_LFR_MBB
+        case SIR_LIM_PREAUTH_MBB_RSP_TIMEOUT:
+            return "SIR_LIM_PREAUTH_MBB_RSP_TIMEOUT";
+        case SIR_LIM_REASSOC_MBB_RSP_TIMEOUT:
+            return "SIR_LIM_REASSOC_MBB_RSP_TIMEOUT";
 #endif
 
         case SIR_HAL_APP_SETUP_NTF:
@@ -8572,4 +8579,36 @@ tANI_U8 lim_compute_ext_cap_ie_length (tDot11fIEExtCap *ext_cap) {
     }
 
     return i;
+}
+
+/**
+ * lim_update_caps_info_for_bss - Update capability info for this BSS
+ *
+ * @mac_ctx: mac context
+ * @caps: Pointer to capability info to be updated
+ * @bss_caps: Capability info of the BSS
+ *
+ * Update the capability info in Assoc/Reassoc request frames and reset
+ * the spectrum management, short preamble, immediate block ack bits
+ * if the BSS doesnot support it
+ *
+ * Return: None
+ */
+void lim_update_caps_info_for_bss(tpAniSirGlobal mac_ctx,
+                                  uint16_t *caps, uint16_t bss_caps)
+{
+    if (!(bss_caps & LIM_SPECTRUM_MANAGEMENT_BIT_MASK)) {
+          *caps &= (~LIM_SPECTRUM_MANAGEMENT_BIT_MASK);
+          limLog(mac_ctx, LOG1, FL("Clearing spectrum management:no AP support"));
+    }
+
+    if (!(bss_caps & LIM_SHORT_PREAMBLE_BIT_MASK)) {
+          *caps &= (~LIM_SHORT_PREAMBLE_BIT_MASK);
+          limLog(mac_ctx, LOG1, FL("Clearing short preamble:no AP support"));
+    }
+
+    if (!(bss_caps & LIM_IMMEDIATE_BLOCK_ACK_MASK)) {
+          *caps &= (~LIM_IMMEDIATE_BLOCK_ACK_MASK);
+          limLog(mac_ctx, LOG1, FL("Clearing Immed Blk Ack:no AP support"));
+    }
 }

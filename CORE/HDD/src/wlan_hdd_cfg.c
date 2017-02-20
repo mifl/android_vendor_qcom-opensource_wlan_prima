@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2884,6 +2884,15 @@ REG_VARIABLE( CFG_EXTSCAN_ENABLE, WLAN_PARAM_Integer,
                  CFG_PER_ROAM_BAD_RSSI_MAX),
 #endif
 
+#ifdef WLAN_FEATURE_LFR_MBB
+   REG_VARIABLE(CFG_ENABLE_LFR_MBB, WLAN_PARAM_Integer,
+                hdd_config_t, enable_lfr_mbb,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_ENABLE_LFR_MBB_DEFAULT,
+                CFG_ENABLE_LFR_MBB_MIN,
+                CFG_ENABLE_LFR_MBB_MAX ),
+#endif
+
    REG_VARIABLE( CFG_ENABLE_ADAPT_RX_DRAIN_NAME, WLAN_PARAM_Integer,
                  hdd_config_t, fEnableAdaptRxDrain,
                  VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK ,
@@ -4301,6 +4310,13 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
             "Name = [%s] Value = [%u] ", CFG_SAP_PROBE_RESP_OFFLOAD_NAME,
             pHddCtx->cfg_ini->sap_probe_resp_offload);
+
+#ifdef WLAN_FEATURE_LFR_MBB
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+          "Name = [gEnableLFRMBB] Value = [%u] ",
+           pHddCtx->cfg_ini->enable_lfr_mbb);
+#endif
+
 }
 
 
@@ -6116,7 +6132,8 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig->csrConfig.PERRoamFullScanThreshold =
                    pConfig->PERRoamFullScanThreshold * -1;
    smeConfig->csrConfig.PERroamTriggerPercent = pConfig->PERroamTriggerPercent;
-
+   smeConfig->csrConfig.PERMinRssiThresholdForRoam =
+                   pConfig->PERMinRssiThresholdForRoam;
 
    if (0 == smeConfig->csrConfig.isRoamOffloadScanEnabled)
    {
@@ -6124,6 +6141,11 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
        smeConfig->csrConfig.bFastRoamInConIniFeatureEnabled = 0;
    }
 #endif
+
+#ifdef WLAN_FEATURE_LFR_MBB
+   smeConfig->csrConfig.enable_lfr_mbb = pConfig->enable_lfr_mbb;
+#endif
+
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
    smeConfig->csrConfig.neighborRoamConfig.nNeighborReassocRssiThreshold = pConfig->nNeighborReassocRssiThreshold;
    smeConfig->csrConfig.neighborRoamConfig.nNeighborLookupRssiThreshold = pConfig->nNeighborLookupRssiThreshold;

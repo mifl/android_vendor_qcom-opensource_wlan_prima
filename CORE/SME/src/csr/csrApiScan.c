@@ -2204,8 +2204,9 @@ static tANI_S32 csrFindCongestionScore (tpAniSirGlobal pMac, tCsrScanResult *pBs
 
     if (bssInfo->rssi < pMac->roam.configParam.PERMinRssiThresholdForRoam) {
         smsLog(pMac, LOG1,
-               FL("discrarding candidate due to low rssi=%d bssid "
+               FL("discarding candidate due to low rssi=%d than %d, bssid "
                MAC_ADDRESS_STR), bssInfo->rssi,
+               pMac->roam.configParam.PERMinRssiThresholdForRoam,
                MAC_ADDR_ARRAY(pBss->Result.BssDescriptor.bssId));
         return 0;
     }
@@ -9064,6 +9065,25 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
    pBssDescr->capabilityInfo = *((tANI_U16 *)&pParsedFrame->capabilityInfo);
    vos_mem_copy((tANI_U8 *) &pBssDescr->bssId, (tANI_U8 *) macHeader->bssId, sizeof(tSirMacAddr));
    pBssDescr->nReceivedTime = vos_timer_get_system_time();
+
+#ifdef WLAN_FEATURE_VOWIFI_11R
+    // MobilityDomain
+    pBssDescr->mdie[0] = 0;
+    pBssDescr->mdie[1] = 0;
+    pBssDescr->mdie[2] = 0;
+    pBssDescr->mdiePresent = FALSE;
+    // If mdie is present in the probe resp we fill it in the bss description
+    if(pParsedFrame->mdiePresent)
+    {
+        pBssDescr->mdiePresent = TRUE;
+        pBssDescr->mdie[0] = pParsedFrame->mdie[0];
+        pBssDescr->mdie[1] = pParsedFrame->mdie[1];
+        pBssDescr->mdie[2] = pParsedFrame->mdie[2];
+    }
+    smsLog(pMac, LOG1, FL("mdie=%02x%02x%02x"),
+           (unsigned int)pBssDescr->mdie[0], (unsigned int)pBssDescr->mdie[1],
+           (unsigned int)pBssDescr->mdie[2]);
+#endif
 
    smsLog( pMac, LOG1, FL("Bssid= "MAC_ADDRESS_STR
                        " chan= %d, rssi = %d "),

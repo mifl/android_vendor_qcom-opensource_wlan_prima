@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2871,6 +2871,15 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_SAP_PROBE_RESP_OFFLOAD_MAX     (1)
 #define CFG_SAP_PROBE_RESP_OFFLOAD_DEFAULT (1)
 
+/*
+ * gEnableLFRMBB is used to disable/enable LFR Make before Break
+ * 1: Enable LFR Make before Break
+ * 0: Disable LFR Make before Break
+ */
+#define CFG_ENABLE_LFR_MBB         "gEnableLFRMBB"
+#define CFG_ENABLE_LFR_MBB_MIN     (0)
+#define CFG_ENABLE_LFR_MBB_MAX     (1)
+#define CFG_ENABLE_LFR_MBB_DEFAULT (0)
 
 /*--------------------------------------------------------------------------- 
   Type declarations
@@ -3102,6 +3111,11 @@ typedef struct
    v_U32_t                      PERtimerThreshold;
    v_U32_t                      PERroamRxPktsThreshold;
 #endif
+
+#ifdef WLAN_FEATURE_LFR_MBB
+   tANI_BOOLEAN enable_lfr_mbb;
+#endif
+
    hdd_wmm_classification_t     PktClassificationBasis; // DSCP or 802.1Q
    v_BOOL_t                     bImplicitQosEnabled;
 

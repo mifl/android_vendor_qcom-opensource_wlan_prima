@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -74,6 +74,10 @@
 
 #if defined WLAN_FEATURE_VOWIFI_11R
 #include <limFT.h>
+#endif
+
+#ifdef WLAN_FEATURE_LFR_MBB
+#include "lim_mbb.h"
 #endif
 
 #ifdef FEATURE_WLAN_ESE
@@ -250,7 +254,7 @@ __limIsSmeAssocCnfValid(tpSirSmeAssocCnf pAssocCnf)
  * @return    Total IE length
  */
 
-static tANI_U16
+tANI_U16
 __limGetSmeJoinReqSizeForAlloc(tANI_U8 *pBuf)
 {
     tANI_U16 len = 0;
@@ -2437,6 +2441,12 @@ __limProcessSmeReassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
         limLog(pMac, LOGP,
                FL("could not retrieve Capabilities value"));
     }
+
+    lim_update_caps_info_for_bss(pMac, &caps,
+                        pReassocReq->bssDescription.capabilityInfo);
+
+    limLog(pMac, LOG1, FL("Capabilities info Reassoc: 0x%X"), caps);
+
     pMlmReassocReq->capabilityInfo = caps;
     
     /* Update PE sessionId*/
@@ -5516,6 +5526,57 @@ static void lim_register_mgmt_frame_ind_cb(tpAniSirGlobal pMac,
       limLog(pMac, LOGE, FL("sme_req->callback is null"));
 }
 
+static void lim_delba_con_status(tpAniSirGlobal pMac,
+                            void *msg_buf)
+{
+   tpSmeDelBAPeerInd  delba_params;
+   tpDphHashNode       pSta;
+   tANI_U16            aid;
+   tLimBAState         curBaState;
+   tpPESession         psessionEntry;
+   tANI_U8             sessionId;
+
+   delba_params = (tpSmeDelBAPeerInd)msg_buf;
+
+   psessionEntry = peFindSessionByBssid(pMac, delba_params->bssId, &sessionId);
+   if (!psessionEntry)
+   {
+      PELOGE(limLog(pMac, LOGE,FL("session does not exist for given BSSId"));)
+      return;
+   }
+
+   pSta = dphLookupHashEntry(pMac, delba_params->bssId, &aid,
+                             &psessionEntry->dph.dphHashTable);
+   if(!pSta)
+   {
+      limLog(pMac, LOGE,
+      FL("STA context not found - ignoring BA Delete IND from HAL"));
+      return;
+   }
+
+   LIM_GET_STA_BA_STATE(pSta, delba_params->baTID, &curBaState);
+   if( eLIM_BA_STATE_IDLE != curBaState )
+   {
+      limLog(pMac, LOGE,
+             FL("Received unexpected BA Delete IND when STA BA state is %d"),
+             curBaState);
+      return;
+   }
+
+   if(eSIR_SUCCESS != limPostMlmDelBAReq(pMac, pSta,
+                                        delba_params->baDirection,
+                                        delba_params->baTID,
+                                        eSIR_MAC_PEER_REJECT_MECHANISIM_REASON,
+                                        psessionEntry)) {
+      limLog(pMac, LOGE, FL("Post DEL BA request failed"));
+   }
+   else
+   {
+      limLog(pMac, LOG1, FL(" Delete BA session StaId %d on tid %d"),
+             delba_params->staIdx, delba_params->baTID);
+   }
+}
+
 /**
  * limProcessSmeReqMessages()
  *
@@ -5805,6 +5866,13 @@ limProcessSmeReqMessages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
             break;
 #endif
 
+#ifdef WLAN_FEATURE_LFR_MBB
+        case eWNI_SME_MBB_PRE_AUTH_REASSOC_REQ:
+             lim_process_pre_auth_reassoc_req(pMac, pMsg);
+             bufConsumed = FALSE;
+             break;
+#endif
+
 #if defined(FEATURE_WLAN_ESE) && !defined(FEATURE_WLAN_ESE_UPLOAD)
        case eWNI_SME_ESE_ADJACENT_AP_REPORT:
             limProcessAdjacentAPRepMsg ( pMac, pMsgBuf );
@@ -5861,6 +5929,9 @@ limProcessSmeReqMessages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
             break ;
         case eWNI_SME_REGISTER_MGMT_FRAME_CB:
             lim_register_mgmt_frame_ind_cb(pMac, pMsgBuf);
+            break;
+        case eWNI_SME_DEL_TEST_BA:
+            lim_delba_con_status(pMac, pMsgBuf);
             break;
         default:
             vos_mem_free((v_VOID_t*)pMsg->bodyptr);
