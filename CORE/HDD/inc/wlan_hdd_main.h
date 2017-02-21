@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -395,6 +395,35 @@ typedef struct hdd_pmf_stats_s
 } hdd_pmf_stats_t;
 #endif
 
+typedef enum
+{
+   HDD_TX_FRAME_IN_NOT_ASSOCIATED_STATE = 0,
+   HDD_VOS_PACKET_RETURNED_BY_VOSS_IS_NULL,
+   HDD_WLANTL_STAPKTPENDING_RETURNED_ERROR_CODE,
+   HDD_INSERT_TX_QUEUE_FAILED,
+   HDD_FAILED_TO_SIGNAL_TL,
+   HDD_ERROR_ATTACHING_SKB,
+   HDD_FAILURE_EXTRACTING_SKB_FROM_VOS_PKT,
+   HDD_FAILURE_WALKING_PACKET_CHAIN,
+   HDD_STA_RX_ARP_PACKET_REFUSED_IN_NET_STACK
+} HDD_PACKET_DROP_CAUSE;
+
+typedef struct hdd_arp_stats_s
+{
+   uint16   txCount;
+   uint16   rxCount;
+   uint16   txDropped;
+   uint16   rxDropped;
+   uint16   rxDelivered;
+   uint16   rxRefused;
+   uint16   tx_host_fw_sent;
+   uint16   rx_host_drop_reorder;
+   uint16_t tx_fw_cnt;
+   uint16_t rx_fw_cnt;
+   uint16_t tx_ack_cnt;
+   HDD_PACKET_DROP_CAUSE reason;
+} hdd_arp_stats_t;
+
 typedef struct hdd_stats_s
 {
    tCsrSummaryStatsInfo       summary_stat;
@@ -405,6 +434,7 @@ typedef struct hdd_stats_s
    tCsrPerStaStatsInfo        perStaStats;
    hdd_tx_rx_stats_t          hddTxRxStats;
    hdd_chip_reset_stats_t     hddChipResetStats;
+   hdd_arp_stats_t            hddArpStats;
 #ifdef WLAN_FEATURE_11W
    hdd_pmf_stats_t            hddPmfStats;
 #endif
@@ -817,6 +847,64 @@ typedef struct hdd_mdns_state_s
 } hdd_mdns_state_t;
 #endif /* MDNS_OFFLOAD */
 
+#ifdef WLAN_FEATURE_TSF
+
+#define HDD_TSF_CAP_REQ_TIMEOUT 2000
+#define HDD_TSF_GET_REQ_TIMEOUT 2000
+
+/**
+ * enum hdd_tsf_get_state - status of get tsf action
+ *
+ * TSF_RETURN:                   get tsf
+ * TSF_STA_NOT_CONNECTED_NO_TSF: sta not connected to ap
+ * TSF_NOT_RETURNED_BY_FW:       fw not returned tsf
+ * TSF_CURRENT_IN_CAP_STATE:     driver in capture state
+ * TSF_CAPTURE_FAIL:             capture fail
+ * TSF_GET_FAIL:                 get fail
+ * TSF_RESET_GPIO_FAIL:          GPIO reset fail
+ * TSF_SAP_NOT_STARTED_NO_TSF    SAP not started
+ */
+enum hdd_tsf_get_state {
+	TSF_RETURN = 0,
+	TSF_STA_NOT_CONNECTED_NO_TSF,
+	TSF_NOT_RETURNED_BY_FW,
+	TSF_CURRENT_IN_CAP_STATE,
+	TSF_CAPTURE_FAIL,
+	TSF_GET_FAIL,
+	TSF_RESET_GPIO_FAIL,
+	TSF_SAP_NOT_STARTED_NO_TSF
+};
+
+/**
+ * enum hdd_tsf_capture_state - status of capture
+ *
+ * TSF_IDLE:                     idle
+ * TSF__CAP_STATE:               current is in capture state
+ */
+enum hdd_tsf_capture_state {
+	TSF_IDLE = 0,
+	TSF_CAP_STATE
+};
+
+/**
+ * struct hdd_tsf_ctx_s - TSF capture ctx
+ * @tsf_get_state : tsf action enum
+ * @tsf_capture_state: tsf capture state enum
+ * @tsf_capture_done_event : Indicate tsf completion
+ * @tsf_high : Higher 32-bit for 64-bit tsf
+ * @tsf_lo : Lower 32-bit for 64-bit tsf
+ *
+ */
+struct hdd_tsf_ctx_s {
+    enum hdd_tsf_get_state tsf_get_state;
+    enum hdd_tsf_capture_state tsf_capture_state;
+    vos_event_t tsf_capture_done_event;
+    vos_spin_lock_t tsf_lock;
+    uint32_t tsf_high;
+    uint32_t tsf_low;
+};
+
+#endif /* WLAN_FEATURE_TSF */
 /*
  * Per station structure kept in HDD for multiple station support for SoftAP
 */
@@ -1261,6 +1349,12 @@ struct hdd_adapter_s
 #ifdef MDNS_OFFLOAD
     hdd_mdns_state_t mdns_status;
 #endif /* MDNS_OFFLOAD */
+
+#ifdef WLAN_FEATURE_TSF
+    struct hdd_tsf_ctx_s tsf_cap_ctx;
+#endif
+    bool con_status;
+    bool dad;
 };
 
 #define WLAN_HDD_GET_STATION_CTX_PTR(pAdapter) (&(pAdapter)->sessionCtx.station)
@@ -1318,6 +1412,10 @@ typedef struct
 
 #define WLAN_WAIT_TIME_LL_STATS 800
 
+#define WLAN_WAIT_TIME_NUD_STATS 800
+#define WLAN_NUD_STATS_LEN 800
+#define WLAN_NUD_STATS_ARP_PKT_TYPE 1
+
 /* FW memory dump feature
 @TODO : Move this code to a separate file later */
 #define PROCFS_MEMDUMP_DIR  "debug"
@@ -1365,6 +1463,16 @@ struct hdd_ll_stats_context {
     struct completion response_event;
 };
 #endif /* End of WLAN_FEATURE_LINK_LAYER_STATS */
+
+/**
+ * struct hdd_nud_stats_context - hdd NUD stats context
+ *
+ * @response_event: NUD stats request wait event
+ */
+struct hdd_nud_stats_context {
+    struct completion response_event;
+};
+
 #ifdef WLAN_FEATURE_EXTSCAN
 /**
  * struct hdd_ext_scan_context - hdd ext scan context
@@ -1652,6 +1760,7 @@ struct hdd_context_s
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
     struct hdd_ll_stats_context ll_stats_context;
 #endif /* End of WLAN_FEATURE_LINK_LAYER_STATS */
+    struct hdd_nud_stats_context nud_stats_context;
 
 #ifdef WLAN_FEATURE_EXTSCAN
     struct hdd_ext_scan_context ext_scan_context;
@@ -2017,6 +2126,19 @@ static inline void hdd_init_ll_stat_ctx(void)
     return;
 }
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
+
+/**
+ * hdd_init_nud_stats_ctx() - initialize NUD stats context
+ * @hdd_ctx: Pointer to hdd context
+ *
+ * Return: none
+ */
+static inline void hdd_init_nud_stats_ctx(hdd_context_t *hdd_ctx)
+{
+    init_completion(&hdd_ctx->nud_stats_context.response_event);
+    return;
+}
+
 void hdd_initialize_adapter_common(hdd_adapter_t *pAdapter);
 void hdd_wlan_free_wiphy_channels(struct wiphy *wiphy);
 void wlan_hdd_init_deinit_defer_scan_context(scan_context_t *scan_ctx);
@@ -2036,6 +2158,9 @@ void wlan_hdd_defer_scan_init_work(hdd_context_t *pHddCtx,
                                 unsigned long delay);
 int hdd_reassoc(hdd_adapter_t *pAdapter, const tANI_U8 *bssid,
 			const tANI_U8 channel, const handoff_src src);
+#ifdef DHCP_SERVER_OFFLOAD
+VOS_STATUS wlan_hdd_set_dhcp_server_offload(hdd_adapter_t *hostapd_adapter);
+#endif
 #ifdef MDNS_OFFLOAD
 bool wlan_hdd_set_mdns_offload(hdd_adapter_t *adapter);
 #else
@@ -2044,4 +2169,30 @@ static inline bool wlan_hdd_set_mdns_offload(hdd_adapter_t *adapter)
     return FALSE;
 }
 #endif /* MDNS_OFFLOAD */
+
+void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter);
+
+#ifdef WLAN_FEATURE_TSF
+void wlan_hdd_tsf_init(hdd_adapter_t *adapter);
+int hdd_capture_tsf(hdd_adapter_t *adapter, uint32_t *buf, int len);
+int hdd_indicate_tsf(hdd_adapter_t *adapter, uint32_t *buf, int len);
+#else
+static inline void
+wlan_hdd_tsf_init(hdd_adapter_t *adapter)
+{
+	return;
+}
+
+static inline int
+hdd_indicate_tsf(hdd_adapter_t *adapter, uint32_t *buf, int len)
+{
+	return -ENOTSUPP;
+}
+
+static inline int
+hdd_capture_tsf(hdd_adapter_t *adapter, uint32_t *buf, int len)
+{
+	return -ENOTSUPP;
+}
+#endif
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )

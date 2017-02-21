@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -6664,6 +6664,28 @@ struct WDI_sap_ofl_enable_params{
     wpt_uint8 key[64];
 };
 
+/**
+ * wdi_cap_tsf_params_t - wdi capture tsf params
+ * @bssidx: bss index
+ * @capTSFget: whether get/set request
+ *
+ */
+ typedef struct {
+   wpt_uint8 bss_idx;
+   wpt_uint8  capTSFget;
+} wdi_cap_tsf_params_t;
+
+/**
+ * wdi_cap_tsf_rsp_t - capture tsf response
+ * @bssidx: bss index
+ * @capTSFget: whether get/set request
+ *
+ */
+ typedef struct {
+    wpt_uint32 status;
+    wpt_uint32 tsf_lo;
+    wpt_uint32 tsf_hi;
+} wdi_cap_tsf_rsp_t;
 
 /*----------------------------------------------------------------------------
  *   WDI callback types
@@ -8625,6 +8647,9 @@ typedef void  (*WDI_WifiConfigSetRspCb) (WDI_WifconfigSetRsp *wdiRsp, void *pUse
 typedef void (*WDI_AntennaDivSelRspCb)(WDI_Status status,
               void *resp, void *pUserData);
 
+typedef void (*wdi_nud_set_arp_rsp_cb)(void *event_data,void *user_data);
+typedef void (*wdi_nud_get_arp_rsp_cb)(void *event_data,void *user_data);
+
 #ifdef DHCP_SERVER_OFFLOAD
 typedef void (*wdi_dhcp_srv_offload_rsp_cb)(void *event_data,void *user_data);
 #endif /* DHCP_SERVER_OFFLOAD */
@@ -8634,6 +8659,8 @@ typedef void (*wdi_mdns_fqdn_rsp_cb)(void *event_data,void *user_data);
 typedef void (*wdi_mdns_resp_rsp_cb)(void *event_data,void *user_data);
 typedef void (*wdi_get_stats_rsp_cb)(void *event_data,void *user_data);
 #endif /* MDNS_OFFLOAD */
+
+typedef void (*wdi_tsf_rsp_cb)(void *event_data,void *user_data);
 
 
 /*========================================================================
@@ -12424,6 +12451,57 @@ WDI_SetAllowedActionFramesInd(
 );
 
 void WDI_SetMgmtPktViaWQ5(wpt_boolean sendMgmtPktViaWQ5);
+
+/* ARP DEBUG STATS */
+typedef struct
+{
+   wpt_uint8 flag;
+   wpt_uint8 pkt_type;
+   wpt_uint32 ip_addr;
+} WDI_SetARPStatsParamsInfoType;
+
+typedef struct
+{
+  wpt_uint32 status;
+} WDI_SetARPStatsRspParamsType;
+
+typedef void (*WDI_SetARPStatsRspCb)(WDI_SetARPStatsRspParamsType* StatsRsp,
+                                     void* pUserData);
+
+WDI_Status
+WDI_SetARPStatsReq
+(
+  WDI_SetARPStatsParamsInfoType *pwdiSetStatsReqParams,
+  WDI_SetARPStatsRspCb          wdiSetARPStatsRspCb,
+  void*                      pUserData
+);
+
+/* ARP DEBUG STATS */
+typedef struct
+{
+   wpt_uint8 pkt_type;
+} WDI_GetARPStatsParamsInfoType;
+
+typedef struct
+{
+  wpt_uint32 status;
+  wpt_uint16 dad;
+  wpt_uint16 tx_fw_cnt;
+  wpt_uint16 rx_fw_cnt;
+  wpt_uint16 tx_ack_cnt;
+} WDI_GetARPStatsRspParamsType;
+
+typedef void (*WDI_GetARPStatsRspCb)(WDI_GetARPStatsRspParamsType* StatsRsp,
+                                     void* pUserData);
+
+WDI_Status
+WDI_GetARPStatsReq
+(
+  WDI_GetARPStatsParamsInfoType *pwdiGetStatsReqParams,
+  WDI_GetARPStatsRspCb          wdiGetARPStatsRspCb,
+  void*                      pUserData
+);
+
 WDI_Status
 WDI_process_sap_auth_offload(
    struct WDI_sap_ofl_enable_params *sap_ofl_enable_cmd
@@ -12474,5 +12552,16 @@ wdi_get_mdns_stats_req
    void *user_data
 );
 #endif /* MDNS_OFFLOAD */
+
+WDI_Status
+wdi_process_cap_tsf_req (wdi_cap_tsf_params_t *wdi_cap_tsf_req,
+                         wdi_tsf_rsp_cb wdi_tsf_rsp_callback,
+                         void *user_data);
+
+WDI_Status
+wdi_process_get_tsf_req (wdi_cap_tsf_params_t *wdi_get_tsf_req,
+                         wdi_tsf_rsp_cb wdi_tsf_rsp_callback,
+                         void *user_data);
+
 
 #endif /* #ifndef WLAN_QCT_WDI_H */

@@ -14565,6 +14565,77 @@ void sme_set_mgmt_frm_via_wq5(tHalHandle hHal, tANI_BOOLEAN sendMgmtPktViaWQ5)
     return;
 }
 
+/* ARP DEBUG STATS */
+
+/**
+ * sme_set_nud_debug_stats() - sme api to set nud debug stats
+ * @hHal: handle to hal
+ * @pSetStatsParam: pointer to set stats param
+ */
+eHalStatus sme_set_nud_debug_stats(tHalHandle hHal,
+                         setArpStatsParams *pSetStatsParam)
+{
+   setArpStatsParams *arp_set_param;
+   vos_msg_t msg;
+
+   arp_set_param = vos_mem_malloc(sizeof(*arp_set_param));
+   if (arp_set_param == NULL) {
+       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+               FL("Memory allocation failure"));
+       return VOS_STATUS_E_NOMEM;
+   }
+
+   vos_mem_copy(arp_set_param, pSetStatsParam, sizeof(*arp_set_param));
+
+   msg.type = WDA_SET_ARP_STATS_REQ;
+   msg.reserved = 0;
+   msg.bodyptr = arp_set_param;
+
+   if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)) {
+       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+               FL("Not able to post message to WDA"));
+       vos_mem_free(arp_set_param);
+       return VOS_STATUS_E_FAILURE;
+   }
+
+   return VOS_STATUS_SUCCESS;
+}
+
+/**
+ * sme_get_nud_debug_stats() - sme api to get nud debug stats
+ * @hHal: handle to hal
+ * @pGetStatsParam: pointer to set stats param
+ */
+eHalStatus sme_get_nud_debug_stats(tHalHandle hHal,
+                         getArpStatsParams *pGetStatsParam)
+{
+   getArpStatsParams *arpGetParams;
+   vos_msg_t msg;
+
+   arpGetParams = vos_mem_malloc(sizeof(*arpGetParams));
+   if (arpGetParams == NULL) {
+       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+               FL("Memory allocation failure"));
+       return VOS_STATUS_E_NOMEM;
+   }
+
+   vos_mem_copy(arpGetParams, pGetStatsParam, sizeof(*arpGetParams));
+
+   msg.type = WDA_GET_ARP_STATS_REQ;
+   msg.reserved = 0;
+   msg.bodyptr = arpGetParams;
+
+   if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)) {
+       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+               FL("Not able to post message to WDA"));
+       vos_mem_free(arpGetParams);
+       return VOS_STATUS_E_FAILURE;
+   }
+
+   return VOS_STATUS_SUCCESS;
+}
+
+
 #ifdef SAP_AUTH_OFFLOAD
 /**
  * sme_set_sap_auth_offload() enable/disable Software AP Auth Offload
@@ -14923,4 +14994,135 @@ VOS_STATUS sme_apfind_set_cmd(struct sme_ap_find_request_req *input)
 
     return VOS_STATUS_SUCCESS;
 }
+
 #endif /* WLAN_FEATURE_APFIND */
+
+/**
+ * sme_capture_tsf_req() - send tsf capture request to firmware
+ * @hHal: hal handle.
+ * @cap_tsf_params: capture tsf request params.
+ *
+ * Return: hal status.
+ */
+eHalStatus sme_capture_tsf_req(tHalHandle hHal, tSirCapTsfParams cap_tsf_params)
+{
+    eHalStatus          status    = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal      pMac      = PMAC_STRUCT(hHal);
+    vos_msg_t           vosMessage;
+    tpSirCapTsfParams   tsf_params = NULL;
+    VOS_STATUS vos_status;
+    tCsrRoamSession *pSession;
+
+    MTRACE(vos_trace(VOS_MODULE_ID_SME,
+                     TRACE_CODE_SME_TX_HDD_CAP_TSF_REQ, NO_SESSION, 0));
+    if (eHAL_STATUS_SUCCESS == ( status = sme_AcquireGlobalLock(&pMac->sme)))
+    {
+        pSession = CSR_GET_SESSION(pMac, cap_tsf_params.session_id);
+        if (!pSession)
+        {
+            smsLog(pMac, LOGE, FL("session %d not found"),
+                  cap_tsf_params.bss_idx);
+            sme_ReleaseGlobalLock( &pMac->sme );
+            return eHAL_STATUS_FAILURE;
+        }
+
+        tsf_params = (tpSirCapTsfParams)
+                        vos_mem_malloc(sizeof(*tsf_params));
+
+        if (NULL == tsf_params)
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Not able to allocate memory for sme_capture_tsf_req",
+                       __func__);
+           sme_ReleaseGlobalLock( &pMac->sme );
+           return eHAL_STATUS_FAILURE;
+        }
+        vos_mem_copy(&tsf_params->bssid, &pSession->connectedProfile.bssid,
+                     sizeof(tsf_params->bssid));
+
+        tsf_params->tsf_rsp_cb_func  = cap_tsf_params.tsf_rsp_cb_func;
+        tsf_params->tsf_rsp_cb_ctx  = cap_tsf_params.tsf_rsp_cb_ctx;
+
+        /* serialize the req through MC thread */
+        /* TODO: check if callback is required */
+        vosMessage.bodyptr = tsf_params;
+        vosMessage.type    = eWNI_SME_CAP_TSF_REQ;
+
+        vos_status = vos_mq_post_message(VOS_MQ_ID_PE, &vosMessage);
+
+        if (!VOS_IS_STATUS_SUCCESS(vos_status))
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Post Set TM Level MSG fail", __func__);
+           vos_mem_free(tsf_params);
+           status = eHAL_STATUS_FAILURE;
+        }
+        sme_ReleaseGlobalLock( &pMac->sme );
+    }
+    return(status);
+}
+
+/**
+ * sme_get_tsf_req() - send tsf get request to firmware
+ * @hHal: hal handle.
+ * @cap_tsf_params: capture tsf request params.
+ *
+ * Return: hal status.
+ */
+eHalStatus sme_get_tsf_req(tHalHandle hHal, tSirCapTsfParams cap_tsf_params)
+{
+    eHalStatus          status    = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal      pMac      = PMAC_STRUCT(hHal);
+    vos_msg_t           vosMessage;
+    tpSirCapTsfParams   tsf_params = NULL;
+    VOS_STATUS          vosStatus;
+    tCsrRoamSession *pSession;
+
+    MTRACE(vos_trace(VOS_MODULE_ID_SME,
+                     TRACE_CODE_SME_TX_HDD_GET_TSF_REQ, NO_SESSION, 0));
+
+    if (eHAL_STATUS_SUCCESS == (status = sme_AcquireGlobalLock(&pMac->sme)))
+    {
+        pSession = CSR_GET_SESSION(pMac, cap_tsf_params.session_id);
+
+        if (!pSession)
+        {
+            smsLog(pMac, LOGE, FL("session %d not found"),
+                  cap_tsf_params.bss_idx);
+            sme_ReleaseGlobalLock(&pMac->sme);
+            return eHAL_STATUS_FAILURE;
+        }
+
+        tsf_params = (tpSirCapTsfParams)
+                      vos_mem_malloc(sizeof(*tsf_params));
+        if (NULL == tsf_params)
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Not able to allocate memory for sme_capture_tsf_req",
+                       __func__);
+           sme_ReleaseGlobalLock(&pMac->sme);
+           return eHAL_STATUS_FAILURE;
+        }
+
+        vos_mem_copy(&tsf_params->bssid, &pSession->connectedProfile.bssid,
+                     sizeof(tsf_params->bssid));
+        tsf_params->tsf_rsp_cb_func = cap_tsf_params.tsf_rsp_cb_func;
+        tsf_params->tsf_rsp_cb_ctx  = cap_tsf_params.tsf_rsp_cb_ctx;
+
+        /* serialize the req through MC thread */
+        /* TODO: check if callback is required */
+        vosMessage.bodyptr = tsf_params;
+        vosMessage.type    = eWNI_SME_GET_TSF_REQ;
+
+        vosStatus = vos_mq_post_message(VOS_MQ_ID_PE, &vosMessage);
+        if (!VOS_IS_STATUS_SUCCESS(vosStatus))
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Post Set TM Level MSG fail", __func__);
+           vos_mem_free(tsf_params);
+           status = eHAL_STATUS_FAILURE;
+        }
+        sme_ReleaseGlobalLock(&pMac->sme);
+    }
+    return(status);
+}

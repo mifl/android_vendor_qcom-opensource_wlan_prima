@@ -989,11 +989,6 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
             hddLog(LOG1, FL("BSS stop status = %s"),pSapEvent->sapevt.sapStopBssCompleteEvent.status ?
                              "eSAP_STATUS_FAILURE" : "eSAP_STATUS_SUCCESS");
 
-#ifdef SAP_AUTH_OFFLOAD
-            if (cfg_param->enable_sap_auth_offload)
-                hdd_set_sap_auth_offload(pHostapdAdapter, FALSE);
-#endif
-
             //Free up Channel List incase if it is set
             sapCleanupChannelList();
 
@@ -1359,7 +1354,7 @@ stopbss :
         hddLog(LOG1, FL("ch avoid in progress: %d"),
                         pHddCtx->is_ch_avoid_in_progress);
         if (pHddCtx->is_ch_avoid_in_progress &&
-            pHddCtx->cfg_ini->sap_restrt_ch_avoid)
+            pHddCtx->cfg_ini->sap_internal_restart)
             netif_tx_disable(dev);
         else
             hdd_hostapd_stop(dev);
@@ -1600,7 +1595,7 @@ static void hdd_unsafe_channel_restart_sap(hdd_adapter_t *adapter,
                               AUTO_CHANNEL_SELECT;
 
 
-      if (hdd_ctx->cfg_ini->sap_restrt_ch_avoid) {
+      if (hdd_ctx->cfg_ini->sap_internal_restart) {
           netif_tx_disable(adapter->dev);
           schedule_work(&hdd_ctx->sap_start_work);
       } else {
@@ -2136,6 +2131,12 @@ static __iw_softap_setparam(struct net_device *dev,
                      ret = -EINVAL;
                      break;
                 }
+                break;
+            }
+        case QCSAP_PARAM_CAP_TSF:
+            {
+                ret = hdd_capture_tsf(pHostapdAdapter,
+                                     (uint32_t *)&set_value, 1);
                 break;
             }
         default:
@@ -3244,6 +3245,60 @@ static iw_softap_ap_stats(struct net_device *dev,
     return ret;
 }
 
+/**
+ * __iw_softap_get_three() - return three value to upper layer.
+ *
+ * @dev: pointer of net_device of this wireless card
+ * @info: meta data about Request sent
+ * @wrqu: include request info
+ * @extra: buf used for in/out
+ *
+ * Return: execute result
+ */
+static int __iw_softap_get_three(struct net_device *dev,
+                                 struct iw_request_info *info,
+                                 union iwreq_data *wrqu, char *extra)
+{
+    uint32_t *value = (uint32_t *)extra;
+    uint32_t sub_cmd = value[0];
+    int ret = 0; /* success */
+
+    hdd_adapter_t *padapter = WLAN_HDD_GET_PRIV_PTR(dev);
+
+    switch (sub_cmd) {
+    case QCSAP_IOCTL_GET_TSF:
+        ret = hdd_indicate_tsf(padapter, value, 3);
+        break;
+    default:
+        hddLog(LOGE, FL("Invalid getparam command %d"), sub_cmd);
+        break;
+    }
+    return ret;
+}
+
+
+/**
+ * iw_softap_get_three() - return three value to upper layer.
+ *
+ * @dev: pointer of net_device of this wireless card
+ * @info: meta data about Request sent
+ * @wrqu: include request info
+ * @extra: buf used for in/Output
+ *
+ * Return: execute result
+ */
+static int iw_softap_get_three(struct net_device *dev,
+                               struct iw_request_info *info,
+                               union iwreq_data *wrqu, char *extra)
+{
+    int ret;
+
+    vos_ssr_protect(__func__);
+    ret = __iw_softap_get_three(dev, info, wrqu, extra);
+    vos_ssr_unprotect(__func__);
+
+    return ret;
+}
 static int __iw_softap_set_channel_range(struct net_device *dev,
                                        struct iw_request_info *info,
                                        union iwreq_data *wrqu, char *extra)
@@ -4702,6 +4757,8 @@ static const struct iw_priv_args hostapd_private_args[] = {
       IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0,  "setMcRate" },
   { QCSAP_PARAM_SET_PROXIMITY,
       IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0,  "setProximity" },
+  { QCSAP_PARAM_CAP_TSF,
+     IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0,  "cap_tsf" },
   { QCSAP_PARAM_SET_WOWL,
       IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0,  "wowl" },
   { QCSAP_IOCTL_GETPARAM,
@@ -4737,6 +4794,14 @@ static const struct iw_priv_args hostapd_private_args[] = {
         IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 6 , 0, "disassoc_sta" },
   { QCSAP_IOCTL_AP_STATS, 0,
         IW_PRIV_TYPE_CHAR | QCSAP_MAX_WSC_IE, "ap_stats" },
+  /* handlers for main ioctl */
+  { QCSAP_IOCTL_PRIV_SET_NONE_GET_THREE_INT, 0,
+       IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3, "" },
+#ifdef WLAN_FEATURE_TSF
+  { QCSAP_IOCTL_GET_TSF, 0,
+       IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3,
+       "get_tsf" },
+#endif
   { QCSAP_IOCTL_GET_STATS, 0,
         IW_PRIV_TYPE_CHAR | QCSAP_MAX_STR_LEN, "getStats"},
   { QCSAP_IOCTL_CLR_STATS, 0, 0, "clearStats" },
@@ -4846,6 +4911,7 @@ static const iw_handler hostapd_private[] = {
    [QCSAP_IOCTL_ASSOC_STA_MACADDR - SIOCIWFIRSTPRIV] = iw_softap_getassoc_stamacaddr,
    [QCSAP_IOCTL_DISASSOC_STA - SIOCIWFIRSTPRIV] = iw_softap_disassoc_sta,
    [QCSAP_IOCTL_AP_STATS - SIOCIWFIRSTPRIV] = iw_softap_ap_stats,
+   [QCSAP_IOCTL_PRIV_SET_NONE_GET_THREE_INT - SIOCIWFIRSTPRIV] = iw_softap_get_three,
    [QCSAP_IOCTL_PRIV_SET_THREE_INT_GET_NONE - SIOCIWFIRSTPRIV]  = iw_set_three_ints_getnone,
    [QCSAP_IOCTL_PRIV_SET_VAR_INT_GET_NONE - SIOCIWFIRSTPRIV]     = iw_set_var_ints_getnone,
    [QCSAP_IOCTL_SET_CHANNEL_RANGE - SIOCIWFIRSTPRIV] = iw_softap_set_channel_range,
@@ -5150,4 +5216,108 @@ VOS_STATUS hdd_unregister_hostapd(hdd_adapter_t *pAdapter, tANI_U8 rtnl_held)
    }
    EXIT();
    return 0;
+}
+
+/**
+ * hdd_sap_indicate_disconnect_for_sta() - Indicate disconnect indication
+ * to supplicant, if there any clients connected to SAP interface.
+ * @adapter: sap adapter context
+ *
+ * Return:   nothing
+ */
+void hdd_sap_indicate_disconnect_for_sta(hdd_adapter_t *adapter)
+{
+	tSap_Event sap_event;
+	int staId;
+	hdd_context_t *hdd_ctx;
+	v_CONTEXT_t vos_ctx;
+	ptSapContext sap_ctx;
+
+	ENTER();
+
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	if (0 != wlan_hdd_validate_context(hdd_ctx)) {
+		return;
+	}
+
+	vos_ctx = hdd_ctx->pvosContext;
+	if (NULL == vos_ctx) {
+		VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+			"%s: VOS context is not valid",__func__);
+		return;
+	}
+
+	sap_ctx = VOS_GET_SAP_CB(vos_ctx);
+	if (!sap_ctx) {
+		hddLog(LOGE, FL("invalid sap context"));
+		return;
+	}
+
+	for (staId = 0; staId < WLAN_MAX_STA_COUNT; staId++) {
+		if (sap_ctx->aStaInfo[staId].isUsed) {
+			hddLog(LOG1, FL("staId: %d isUsed: %d %p"),
+					staId, sap_ctx->aStaInfo[staId].isUsed,
+					sap_ctx);
+
+			if (vos_is_macaddr_broadcast(
+				&sap_ctx->aStaInfo[staId].macAddrSTA))
+				continue;
+
+			sap_event.sapHddEventCode = eSAP_STA_DISASSOC_EVENT;
+			vos_mem_copy(
+				&sap_event.sapevt.
+				sapStationDisassocCompleteEvent.staMac,
+				&sap_ctx->aStaInfo[staId].macAddrSTA,
+				sizeof(v_MACADDR_t));
+			sap_event.sapevt.sapStationDisassocCompleteEvent.
+			reason =
+				eSAP_MAC_INITATED_DISASSOC;
+			sap_event.sapevt.sapStationDisassocCompleteEvent.
+			statusCode =
+				eSIR_SME_RESOURCES_UNAVAILABLE;
+			hdd_hostapd_SAPEventCB(&sap_event,
+					sap_ctx->pUsrContext);
+		}
+	}
+
+	clear_bit(SOFTAP_BSS_STARTED, &adapter->event_flags);
+
+	EXIT();
+}
+
+/**
+ * hdd_sap_destroy_events() - Destroy sap evets
+ * @adapter: sap adapter context
+ *
+ * Return:   nothing
+ */
+void hdd_sap_destroy_events(hdd_adapter_t *adapter)
+{
+	hdd_context_t *hdd_ctx;
+	v_CONTEXT_t vos_ctx;
+	ptSapContext sap_ctx;
+
+	ENTER();
+
+	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
+	if (0 != wlan_hdd_validate_context(hdd_ctx)) {
+		return;
+	}
+
+	vos_ctx = hdd_ctx->pvosContext;
+	if (NULL == vos_ctx) {
+		VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+			"%s: VOS context is not valid",__func__);
+		return;
+	}
+
+	sap_ctx = VOS_GET_SAP_CB(vos_ctx);
+	if (!sap_ctx) {
+		hddLog(LOGE, FL("invalid sap context"));
+		return;
+	}
+
+	if (!VOS_IS_STATUS_SUCCESS(vos_lock_destroy(&sap_ctx->SapGlobalLock)))
+		VOS_TRACE(VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
+			FL("WLANSAP_Stop failed destroy lock"));
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -151,6 +151,7 @@ typedef enum {
     */
    SAP_OFFLOADS = 65,
    SAP_BUFF_ALLOC = 66,
+   NUD_DEBUG = 68,
    //MAX_FEATURE_SUPPORTED = 128
 } placeHolderInCapBitmap;
 
@@ -791,6 +792,13 @@ typedef struct sSirMbMsgP2p
 #define SIR_HAL_APFIND_SET_CMD             (SIR_HAL_ITC_MSG_TYPES_BEGIN + 299)
 #define SIR_HAL_AP_FIND_IND                (SIR_HAL_ITC_MSG_TYPES_BEGIN + 300)
 #endif/* WLAN_FEATURE_APFIND */
+
+#define SIR_HAL_CAP_TSF_REQ                (SIR_HAL_ITC_MSG_TYPES_BEGIN + 301)
+#define SIR_HAL_GET_TSF_REQ                (SIR_HAL_ITC_MSG_TYPES_BEGIN + 302)
+
+/* ARP Debug stats */
+#define SIR_HAL_SET_ARP_STATS_REQ          (SIR_HAL_ITC_MSG_TYPES_BEGIN + 303)
+#define SIR_HAL_GET_ARP_STATS_REQ          (SIR_HAL_ITC_MSG_TYPES_BEGIN + 304)
 
 #define SIR_HAL_MSG_TYPES_END              (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 
