@@ -8685,7 +8685,7 @@ hdd_adapter_t* hdd_open_adapter( hdd_context_t *pHddCtx, tANI_U8 session_type,
          pAdapter->device_mode = session_type;
 
          hdd_initialize_adapter_common(pAdapter);
-         status = hdd_init_ap_mode(pAdapter);
+         status = hdd_init_ap_mode(pAdapter, false);
          if( VOS_STATUS_SUCCESS != status )
             goto err_free_netdev;
 
@@ -9027,6 +9027,7 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
          if( hdd_connIsConnected(pstation) ||
              (pstation->conn_info.connState == eConnectionState_Connecting) )
          {
+            INIT_COMPLETION(pAdapter->disconnect_comp_var);
             if (pWextState->roamProfile.BSSType == eCSR_BSS_TYPE_START_IBSS)
                 halStatus = sme_RoamDisconnect(pHddCtx->hHal,
                                              pAdapter->sessionId,
@@ -9462,8 +9463,8 @@ VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx )
           vos_flush_work(&pHddCtx->sap_start_work);
           hdd_sap_indicate_disconnect_for_sta(pAdapter);
           hdd_cleanup_actionframe(pHddCtx, pAdapter);
-          hdd_softap_deinit_tx_rx(pAdapter);
-          hdd_sap_destroy_events(pAdapter);
+          hdd_softap_deinit_tx_rx(pAdapter, true);
+          hdd_sap_destroy_timers(pAdapter);
       } else {
           netif_carrier_off(pAdapter->dev);
       }
@@ -9687,7 +9688,7 @@ VOS_STATUS hdd_start_all_adapters( hdd_context_t *pHddCtx )
 
          case WLAN_HDD_SOFTAP:
             if (pHddCtx->cfg_ini->sap_internal_restart) {
-                hdd_init_ap_mode(pAdapter);
+                hdd_init_ap_mode(pAdapter, true);
                 status = hdd_sta_id_hash_attach(pAdapter);
                 if (VOS_STATUS_SUCCESS != status)
                 {
@@ -11821,6 +11822,7 @@ int hdd_wlan_startup(struct device *dev )
 
 
    hdd_init_ll_stats_ctx(pHddCtx);
+   hdd_init_nud_stats_ctx(pHddCtx);
 
 #ifdef CONFIG_ENABLE_LINUX_REG
    init_completion(&pHddCtx->linux_reg_req);
@@ -12658,6 +12660,9 @@ int hdd_wlan_startup(struct device *dev )
 
    pHddCtx->is_ap_mode_wow_supported =
               sme_IsFeatureSupportedByFW(SAP_MODE_WOW);
+
+   hdd_assoc_registerFwdEapolCB(pVosContext);
+
    goto success;
 
 err_reg_netdev:
