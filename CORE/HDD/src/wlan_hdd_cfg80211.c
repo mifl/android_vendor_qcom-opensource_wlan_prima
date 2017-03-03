@@ -5675,6 +5675,50 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
     }
     return 0;
 }
+
+/*
+ * FUNCTION: wlan_hdd_update_wiphy_bands
+ * This function is called by hdd_wlan_startup()
+ * during initialization.
+ * This function is used to re-initialize wiphy bands.
+ */
+void wlan_hdd_update_wiphy_bands(struct wiphy *wiphy, hdd_config_t *pCfg)
+{
+   int i, j;
+
+   for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+   {
+       if (NULL == wiphy->bands[i])
+       {
+          hddLog(VOS_TRACE_LEVEL_INFO,"%s: wiphy->bands[i] is NULL, i = %d",
+                 __func__, i);
+          continue;
+       }
+
+       for (j = 0; j < wiphy->bands[i]->n_channels; j++)
+       {
+           struct ieee80211_supported_band *band = wiphy->bands[i];
+
+           if (IEEE80211_BAND_2GHZ == i &&
+               eCSR_BAND_5G == pCfg->nBandCapability) // 5G only
+           {
+               // Enable social channels for P2P
+               if (WLAN_HDD_IS_SOCIAL_CHANNEL(band->channels[j].center_freq))
+                   band->channels[j].flags &= ~IEEE80211_CHAN_DISABLED;
+               else
+                   band->channels[j].flags |= IEEE80211_CHAN_DISABLED;
+               continue;
+           }
+           else if (IEEE80211_BAND_5GHZ == i &&
+                    eCSR_BAND_24 == pCfg->nBandCapability) // 2G only
+           {
+               band->channels[j].flags |= IEEE80211_CHAN_DISABLED;
+               continue;
+           }
+       }
+    }
+}
+
 /*
  * FUNCTION: wlan_hdd_cfg80211_init
  * This function is called by hdd_wlan_startup()

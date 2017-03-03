@@ -9643,6 +9643,7 @@ int hdd_wlan_startup(struct device *dev )
    int ret;
    struct wiphy *wiphy;
    v_MACADDR_t mac_addr;
+   tSmeConfigParams smeConfig;
 
    ENTER();
    /*
@@ -10070,6 +10071,17 @@ int hdd_wlan_startup(struct device *dev )
 
    /* Exchange capability info between Host and FW and also get versioning info from FW */
    hdd_exchange_version_and_caps(pHddCtx);
+
+   if (!sme_IsFeatureSupportedByFW(FWCAP_5GHZ_ENABLED) &&
+       hdd_is_5g_supported(pHddCtx))
+   {
+       pHddCtx->cfg_ini->nBandCapability = 1;
+       wlan_hdd_update_wiphy_bands(wiphy, pHddCtx->cfg_ini);
+       memset(&smeConfig, 0x00, sizeof(smeConfig));
+       sme_GetConfigParam(pHddCtx->hHal, &smeConfig);
+       smeConfig.csrConfig.bandCapability = 1;
+       sme_UpdateConfig(pHddCtx->hHal, &smeConfig);
+   }
 
 #ifdef CONFIG_ENABLE_LINUX_REG
    status = wlan_hdd_init_channels(pHddCtx);

@@ -204,6 +204,7 @@ static placeHolderInCapBitmap supportEnabledFeatures[] =
    ,MGMT_FRAME_LOGGING             //53
    ,ENHANCED_TXBD_COMPLETION       //54
    ,LOGGING_ENHANCEMENT            //55
+   ,FWCAP_5GHZ_ENABLED             //70
 };
 
 /*-------------------------------------------------------------------------- 
@@ -849,6 +850,8 @@ WDI_ControlBlockType  gWDICb;
 static wpt_uint8      gWDIInitialized = eWLAN_PAL_FALSE;
 
 const wpt_uint8 szTransportChName[] = "WLAN_CTRL";
+
+static DECLARE_COMPLETION(caps_exchange_resp);
 
 /*Helper routine for retrieving the PAL Context from WDI*/
 WPT_INLINE
@@ -29355,6 +29358,7 @@ WDI_featureCapsExchangeReq
 {
    WDI_EventInfoType   wdiEventData;
    wpt_int32           fCapsStructSize;
+   WDI_Status          status;
    
    /*------------------------------------------------------------------------
      Sanity Check 
@@ -29399,8 +29403,19 @@ WDI_featureCapsExchangeReq
    wdiEventData.uEventDataSize  = fCapsStructSize; 
    wdiEventData.pCBfnc          = wdiFeatureCapsExchangeCb; 
    wdiEventData.pUserData       = pUserData;
-   
-   return WDI_PostMainEvent(&gWDICb, WDI_REQUEST_EVENT, &wdiEventData);
+
+   status = WDI_PostMainEvent(&gWDICb, WDI_REQUEST_EVENT, &wdiEventData);
+   INIT_COMPLETION(caps_exchange_resp);
+   if (!wait_for_completion_timeout(&caps_exchange_resp,
+       msecs_to_jiffies(5000)))
+   {
+       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                 "%s: Timeout waiting to get the resp from fw",
+                 __func__);
+       return WDI_STATUS_E_FAILURE;
+   }
+
+   return status;
 }
 
 /**
@@ -29567,7 +29582,7 @@ WDI_ProcessFeatureCapsExchangeRsp
    /*Notify UMAC - there is no callback right now but can be used in future if reqd */
    if (wdiFeatureCapsExchangeCb != NULL)
       wdiFeatureCapsExchangeCb(NULL, NULL);
-
+   complete(&caps_exchange_resp);
    return WDI_STATUS_SUCCESS; 
 }
 
