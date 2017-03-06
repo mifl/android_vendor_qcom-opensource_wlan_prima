@@ -6776,6 +6776,7 @@ typedef enum {
     MGMT_FRAME_LOGGING     = 53,
     ENHANCED_TXBD_COMPLETION = 54,
     LOGGING_ENHANCEMENT    = 55,
+    FWCAP_5GHZ_ENABLED     = 70,
     MAX_FEATURE_SUPPORTED  = 128,
 } placeHolderInCapBitmap;
 
