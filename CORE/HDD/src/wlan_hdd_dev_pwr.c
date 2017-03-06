@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -138,6 +138,10 @@ static int wlan_suspend(hdd_context_t* pHddCtx)
        if ((vos_timer_get_system_time() - pHddCtx->last_suspend_success) >=
                                          WLAN_POWER_COLLAPSE_FAIL_THRESHOLD)
        {
+           VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+            FL("Current time: %lu Last suspend fail time: %lu continuous fail count: %d"),
+            vos_timer_get_system_time(), pHddCtx->last_suspend_success,
+            pHddCtx->continuous_suspend_fail_cnt);
            pHddCtx->last_suspend_success = 0;
 
            if (!(vos_isLoadUnloadInProgress() ||
