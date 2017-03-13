@@ -2221,8 +2221,9 @@ static tANI_S32 csrFindCongestionScore (tpAniSirGlobal pMac, tCsrScanResult *pBs
 
     if (bssInfo->rssi < pMac->roam.configParam.PERMinRssiThresholdForRoam) {
         smsLog(pMac, LOG1,
-               FL("discrarding candidate due to low rssi=%d bssid "
+               FL("discarding candidate due to low rssi=%d than %d, bssid "
                MAC_ADDRESS_STR), bssInfo->rssi,
+               pMac->roam.configParam.PERMinRssiThresholdForRoam,
                MAC_ADDR_ARRAY(pBss->Result.BssDescriptor.bssId));
         return 0;
     }
@@ -6895,7 +6896,7 @@ eHalStatus csrScanCopyRequest(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq, tCs
                         }
                         else
                             csrValidateScanChannels(pMac, pDstReq, pSrcReq,
-                                                    new_index, ch144_support);
+                                                    &new_index, ch144_support);
                         pDstReq->ChannelInfo.numOfChannels = new_index;
 #ifdef FEATURE_WLAN_LFR
                         if ( ( ( eCSR_SCAN_HO_BG_SCAN ==
@@ -9173,6 +9174,25 @@ eHalStatus csrScanSavePreferredNetworkFound(tpAniSirGlobal pMac,
    vos_mem_copy((tANI_U8 *) &pBssDescr->bssId, (tANI_U8 *) macHeader->bssId, sizeof(tSirMacAddr));
    pBssDescr->nReceivedTime = vos_timer_get_system_time();
 
+#ifdef WLAN_FEATURE_VOWIFI_11R
+    // MobilityDomain
+    pBssDescr->mdie[0] = 0;
+    pBssDescr->mdie[1] = 0;
+    pBssDescr->mdie[2] = 0;
+    pBssDescr->mdiePresent = FALSE;
+    // If mdie is present in the probe resp we fill it in the bss description
+    if(pParsedFrame->mdiePresent)
+    {
+        pBssDescr->mdiePresent = TRUE;
+        pBssDescr->mdie[0] = pParsedFrame->mdie[0];
+        pBssDescr->mdie[1] = pParsedFrame->mdie[1];
+        pBssDescr->mdie[2] = pParsedFrame->mdie[2];
+    }
+    smsLog(pMac, LOG1, FL("mdie=%02x%02x%02x"),
+           (unsigned int)pBssDescr->mdie[0], (unsigned int)pBssDescr->mdie[1],
+           (unsigned int)pBssDescr->mdie[2]);
+#endif
+
    smsLog( pMac, LOG1, FL("Bssid= "MAC_ADDRESS_STR
                        " chan= %d, rssi = %d "),
                        MAC_ADDR_ARRAY(pBssDescr->bssId),
@@ -9390,7 +9410,7 @@ void UpdateCCKMTSF(tANI_U32 *timeStamp0, tANI_U32 *timeStamp1, tANI_U32 *incr)
 #endif
 
 void csrValidateScanChannels(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq,
-        tCsrScanRequest *pSrcReq, int new_index, tANI_U8 ch144_support)
+        tCsrScanRequest *pSrcReq, tANI_U32 *new_index, tANI_U8 ch144_support)
 {
 
     int index;
@@ -9441,9 +9461,9 @@ void csrValidateScanChannels(tpAniSirGlobal pMac, tCsrScanRequest *pDstReq,
                             continue;
                         }
 
-            pDstReq->ChannelInfo.ChannelList[new_index] =
+            pDstReq->ChannelInfo.ChannelList[*new_index] =
                 pSrcReq->ChannelInfo.ChannelList[index];
-            new_index++;
+            (*new_index)++;
         }
     }
 }

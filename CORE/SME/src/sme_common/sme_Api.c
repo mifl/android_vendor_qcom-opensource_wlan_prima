@@ -1537,6 +1537,10 @@ eHalStatus sme_Open(tHalHandle hHal)
 #if defined WLAN_FEATURE_VOWIFI_11R
       sme_FTOpen(pMac);
 #endif
+#ifdef WLAN_FEATURE_LFR_MBB
+
+#endif
+
       sme_p2pOpen(pMac);
       smeTraceInit(pMac);
       sme_register_debug_callback();
@@ -14565,6 +14569,77 @@ void sme_set_mgmt_frm_via_wq5(tHalHandle hHal, tANI_BOOLEAN sendMgmtPktViaWQ5)
     return;
 }
 
+/* ARP DEBUG STATS */
+
+/**
+ * sme_set_nud_debug_stats() - sme api to set nud debug stats
+ * @hHal: handle to hal
+ * @pSetStatsParam: pointer to set stats param
+ */
+eHalStatus sme_set_nud_debug_stats(tHalHandle hHal,
+                         setArpStatsParams *pSetStatsParam)
+{
+   setArpStatsParams *arp_set_param;
+   vos_msg_t msg;
+
+   arp_set_param = vos_mem_malloc(sizeof(*arp_set_param));
+   if (arp_set_param == NULL) {
+       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+               FL("Memory allocation failure"));
+       return VOS_STATUS_E_NOMEM;
+   }
+
+   vos_mem_copy(arp_set_param, pSetStatsParam, sizeof(*arp_set_param));
+
+   msg.type = WDA_SET_ARP_STATS_REQ;
+   msg.reserved = 0;
+   msg.bodyptr = arp_set_param;
+
+   if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)) {
+       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+               FL("Not able to post message to WDA"));
+       vos_mem_free(arp_set_param);
+       return VOS_STATUS_E_FAILURE;
+   }
+
+   return VOS_STATUS_SUCCESS;
+}
+
+/**
+ * sme_get_nud_debug_stats() - sme api to get nud debug stats
+ * @hHal: handle to hal
+ * @pGetStatsParam: pointer to set stats param
+ */
+eHalStatus sme_get_nud_debug_stats(tHalHandle hHal,
+                         getArpStatsParams *pGetStatsParam)
+{
+   getArpStatsParams *arpGetParams;
+   vos_msg_t msg;
+
+   arpGetParams = vos_mem_malloc(sizeof(*arpGetParams));
+   if (arpGetParams == NULL) {
+       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+               FL("Memory allocation failure"));
+       return VOS_STATUS_E_NOMEM;
+   }
+
+   vos_mem_copy(arpGetParams, pGetStatsParam, sizeof(*arpGetParams));
+
+   msg.type = WDA_GET_ARP_STATS_REQ;
+   msg.reserved = 0;
+   msg.bodyptr = arpGetParams;
+
+   if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MODULE_ID_WDA, &msg)) {
+       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+               FL("Not able to post message to WDA"));
+       vos_mem_free(arpGetParams);
+       return VOS_STATUS_E_FAILURE;
+   }
+
+   return VOS_STATUS_SUCCESS;
+}
+
+
 #ifdef SAP_AUTH_OFFLOAD
 /**
  * sme_set_sap_auth_offload() enable/disable Software AP Auth Offload
@@ -14984,6 +15059,57 @@ eHalStatus sme_capture_tsf_req(tHalHandle hHal, tSirCapTsfParams cap_tsf_params)
            VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
                      "%s: Post Set TM Level MSG fail", __func__);
            vos_mem_free(tsf_params);
+           status = eHAL_STATUS_FAILURE;
+        }
+        sme_ReleaseGlobalLock( &pMac->sme );
+    }
+    return(status);
+}
+
+eHalStatus sme_del_sta_ba_session_req(tHalHandle hHal,
+                                      tDelBaParams sta_del_params)
+{
+    eHalStatus          status    = eHAL_STATUS_SUCCESS;
+    tpAniSirGlobal      pMac      = PMAC_STRUCT(hHal);
+    vos_msg_t           vosMessage;
+    ptDelBaParams del_params = NULL;
+    VOS_STATUS vos_status;
+    tCsrRoamSession *pSession;
+
+    MTRACE(vos_trace(VOS_MODULE_ID_SME,
+                     TRACE_CODE_SME_DEL_STA_BA_SESSION_REQ, NO_SESSION, 0));
+    if (eHAL_STATUS_SUCCESS == ( status = sme_AcquireGlobalLock(&pMac->sme)))
+    {
+        pSession = CSR_GET_SESSION(pMac, sta_del_params.session_id);
+        if (!pSession)
+        {
+            smsLog(pMac, LOGE, FL("session not found"));
+            sme_ReleaseGlobalLock( &pMac->sme );
+            return eHAL_STATUS_FAILURE;
+        }
+
+        del_params = (ptDelBaParams) vos_mem_malloc(sizeof(*del_params));
+
+        if (NULL == del_params)
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Not able to allocate memory for sme_del_sta_ba_session_req", __func__);
+           sme_ReleaseGlobalLock( &pMac->sme );
+           return eHAL_STATUS_FAILURE;
+        }
+        vos_mem_copy(&del_params->session_id, &pSession->sessionId,
+                     sizeof(del_params->session_id));
+
+        vosMessage.bodyptr = del_params;
+        vosMessage.type    = eWNI_SME_DEL_BA_SES_REQ;
+
+        vos_status = vos_mq_post_message(VOS_MQ_ID_PE, &vosMessage);
+
+        if (!VOS_IS_STATUS_SUCCESS(vos_status))
+        {
+           VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+                     "%s: Post Set TM Level MSG fail", __func__);
+           vos_mem_free(del_params);
            status = eHAL_STATUS_FAILURE;
         }
         sme_ReleaseGlobalLock( &pMac->sme );

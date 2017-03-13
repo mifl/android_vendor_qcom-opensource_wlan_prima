@@ -2227,13 +2227,6 @@ REG_TABLE_ENTRY g_registry_table[] =
                CFG_BCN_EARLY_TERM_WAKE_MIN,
                CFG_BCN_EARLY_TERM_WAKE_MAX ),
 
-   REG_VARIABLE( CFG_AP_DATA_AVAIL_POLL_PERIOD_NAME, WLAN_PARAM_Integer,
-              hdd_config_t, apDataAvailPollPeriodInMs,
-              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
-              CFG_AP_DATA_AVAIL_POLL_PERIOD_DEFAULT,
-              CFG_AP_DATA_AVAIL_POLL_PERIOD_MIN,
-              CFG_AP_DATA_AVAIL_POLL_PERIOD_MAX ),
-
    REG_VARIABLE( CFG_ENABLE_CLOSE_LOOP_NAME, WLAN_PARAM_Integer,
                 hdd_config_t, enableCloseLoop,
                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -2882,6 +2875,15 @@ REG_VARIABLE( CFG_EXTSCAN_ENABLE, WLAN_PARAM_Integer,
                  CFG_PER_ROAM_BAD_RSSI_DEFAULT,
                  CFG_PER_ROAM_BAD_RSSI_MIN,
                  CFG_PER_ROAM_BAD_RSSI_MAX),
+#endif
+
+#ifdef WLAN_FEATURE_LFR_MBB
+   REG_VARIABLE(CFG_ENABLE_LFR_MBB, WLAN_PARAM_Integer,
+                hdd_config_t, enable_lfr_mbb,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_ENABLE_LFR_MBB_DEFAULT,
+                CFG_ENABLE_LFR_MBB_MIN,
+                CFG_ENABLE_LFR_MBB_MAX ),
 #endif
 
    REG_VARIABLE( CFG_ENABLE_ADAPT_RX_DRAIN_NAME, WLAN_PARAM_Integer,
@@ -4275,7 +4277,6 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [maxListenInterval] Value = [%u] ",pHddCtx->cfg_ini->nTeleBcnMaxListenInterval);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [maxLiNumIdleBeacons] Value = [%u] ",pHddCtx->cfg_ini->nTeleBcnMaxLiNumIdleBeacons);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [bcnEarlyTermWakeInterval] Value = [%u] ",pHddCtx->cfg_ini->bcnEarlyTermWakeInterval);
-  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gApDataAvailPollInterVal] Value = [%u] ",pHddCtx->cfg_ini->apDataAvailPollPeriodInMs);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableBypass11d] Value = [%u] ",pHddCtx->cfg_ini->enableBypass11d);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableDFSChnlScan] Value = [%u] ",pHddCtx->cfg_ini->enableDFSChnlScan);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH, "Name = [gEnableDFSPnoChnlScan] Value = [%u] ",pHddCtx->cfg_ini->enableDFSPnoChnlScan);
@@ -4538,6 +4539,13 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
         "Name = [gEnableSapInternalRestart] Value = [%u] ",
          pHddCtx->cfg_ini->sap_internal_restart);
+
+#ifdef WLAN_FEATURE_LFR_MBB
+   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+          "Name = [gEnableLFRMBB] Value = [%u] ",
+           pHddCtx->cfg_ini->enable_lfr_mbb);
+#endif
+
 }
 
 
@@ -5539,13 +5547,6 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
         hddLog(LOGE,"Failure: Could not pass on WNI_CFG_HEART_BEAT_THRESHOLD configuration info to CCM"  );
     }
 
-   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_AP_DATA_AVAIL_POLL_PERIOD, pConfig->apDataAvailPollPeriodInMs,
-               NULL, eANI_BOOLEAN_FALSE)==eHAL_STATUS_FAILURE)
-   {
-      fStatus = FALSE;
-      hddLog(LOGE,"Failure: Could not pass on WNI_CFG_AP_DATA_AVAIL_POLL_PERIOD configuration info to CCM"  );
-   }
-
    if(ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_ENABLE_CLOSE_LOOP,
                    pConfig->enableCloseLoop, NULL, eANI_BOOLEAN_FALSE)
        ==eHAL_STATUS_FAILURE)
@@ -6418,7 +6419,8 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig->csrConfig.PERRoamFullScanThreshold =
                    pConfig->PERRoamFullScanThreshold * -1;
    smeConfig->csrConfig.PERroamTriggerPercent = pConfig->PERroamTriggerPercent;
-
+   smeConfig->csrConfig.PERMinRssiThresholdForRoam =
+                   pConfig->PERMinRssiThresholdForRoam;
 
    if (0 == smeConfig->csrConfig.isRoamOffloadScanEnabled)
    {
@@ -6426,6 +6428,11 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
        smeConfig->csrConfig.bFastRoamInConIniFeatureEnabled = 0;
    }
 #endif
+
+#ifdef WLAN_FEATURE_LFR_MBB
+   smeConfig->csrConfig.enable_lfr_mbb = pConfig->enable_lfr_mbb;
+#endif
+
 #ifdef WLAN_FEATURE_NEIGHBOR_ROAMING
    smeConfig->csrConfig.neighborRoamConfig.nNeighborReassocRssiThreshold = pConfig->nNeighborReassocRssiThreshold;
    smeConfig->csrConfig.neighborRoamConfig.nNeighborLookupRssiThreshold = pConfig->nNeighborLookupRssiThreshold;
