@@ -2708,6 +2708,10 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_DISABLE_BAR_WAKEUP_HOST_MAX         1
 #define CFG_DISABLE_BAR_WAKEUP_HOST_DEFAULT     0
 
+#define CFG_CH_AVOID_SAP_RESTART_NAME    "sap_ch_avoid_restart"
+#define CFG_CH_AVOID_SAP_RESTART_MIN     (0)
+#define CFG_CH_AVOID_SAP_RESTART_MAX     (1)
+#define CFG_CH_AVOID_SAP_RESTART_DEFAULT (1)
 
 /*
  * gExtScanConcMode is used to manage EXT Scan during concurrency
@@ -3446,6 +3450,7 @@ typedef struct
    uint32_t                    edca_bk_aifs;
    uint32_t                    edca_be_aifs;
    v_BOOL_t                    sap_probe_resp_offload;
+   v_BOOL_t                    sap_restrt_ch_avoid;
 } hdd_config_t;
 
 /*--------------------------------------------------------------------------- 
