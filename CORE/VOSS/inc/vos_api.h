@@ -513,7 +513,10 @@ bool vos_is_wlan_logging_enabled(void);
 
 v_BOOL_t vos_is_probe_rsp_offload_enabled(void);
 
-bool vos_check_arp_target_ip(vos_pkt_t *pPacket);
+bool vos_check_arp_target_ip(void *pSkb, bool conversion);
+bool vos_check_arp_req_target_ip(void *pSkb, bool conversion);
+bool vos_check_arp_src_ip(void *pSkb, bool conversion);
+bool vos_check_arp_rsp_src_ip(void *pSkb, bool conversion);
 void vos_update_arp_fw_tx_delivered(void);
 void vos_update_arp_rx_drop_reorder(void);
 #endif // if !defined __VOS_NVITEM_H
