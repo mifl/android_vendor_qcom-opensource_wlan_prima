@@ -76,6 +76,10 @@
 #include <limFT.h>
 #endif
 
+#ifdef WLAN_FEATURE_LFR_MBB
+#include "lim_mbb.h"
+#endif
+
 
 #define JOIN_FAILURE_TIMEOUT   1000   // in msecs
 /* This overhead is time for sending NOA start to host in case of GO/sending NULL data & receiving ACK 
@@ -243,7 +247,7 @@ __limIsSmeAssocCnfValid(tpSirSmeAssocCnf pAssocCnf)
  * @return    Total IE length
  */
 
-static tANI_U16
+tANI_U16
 __limGetSmeJoinReqSizeForAlloc(tANI_U8 *pBuf)
 {
     tANI_U16 len = 0;
@@ -2087,6 +2091,14 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                         "Regulatory max = %d, local power constraint = %d,"
                         " max tx = %d", regMax, localPowerConstraint,
                           psessionEntry->maxTxPower );
+
+        if (pSmeJoinReq->powerCap.maxTxPower > psessionEntry->maxTxPower)
+        {
+            pSmeJoinReq->powerCap.maxTxPower = psessionEntry->maxTxPower;
+            VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,
+                   "Update MaxTxPower in join Req to %d",
+                    pSmeJoinReq->powerCap.maxTxPower);
+        }
 
         if (pMac->lim.gLimCurrentBssUapsd)
         {
@@ -5905,6 +5917,13 @@ limProcessSmeReqMessages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
        case eWNI_SME_FT_AGGR_QOS_REQ:
             limProcessFTAggrQosReq(pMac, pMsgBuf);
             break;
+#endif
+
+#ifdef WLAN_FEATURE_LFR_MBB
+        case eWNI_SME_MBB_PRE_AUTH_REASSOC_REQ:
+             lim_process_pre_auth_reassoc_req(pMac, pMsg);
+             bufConsumed = FALSE;
+             break;
 #endif
 
 #if defined(FEATURE_WLAN_ESE) && !defined(FEATURE_WLAN_ESE_UPLOAD)

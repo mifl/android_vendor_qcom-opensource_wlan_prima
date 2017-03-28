@@ -90,6 +90,7 @@
 
 #include "pttMsgApi.h"
 #include "vos_trace.h"
+#include "vos_diag_core_event.h"
 
 #include "vos_api.h"
 
@@ -223,7 +224,7 @@ static placeHolderInCapBitmap supportEnabledFeatures[] =
    ,SAP_MODE_WOW                   //64
    ,SAP_OFFLOADS                   //65
    ,SAP_BUFF_ALLOC                 //66
-   ,FEATURE_NOT_SUPPORTED
+   ,MAKE_BEFORE_BREAK              //67
    ,NUD_DEBUG                      //68
 };
 
@@ -2013,6 +2014,13 @@ void WDI_TraceHostFWCapabilities(tANI_U32 *capabilityBitmap)
                                          "%s", "SAP_BUFF_ALLOC");
                           pCapStr += strlen("SAP_BUFF_ALLOC");
                           break;
+
+                     case MAKE_BEFORE_BREAK:
+                          snprintf(pCapStr, sizeof("MAKE_BEFORE_BREAK"),
+                                         "%s", "MAKE_BEFORE_BREAK");
+                          pCapStr += strlen("MAKE_BEFORE_BREAK");
+                          break;
+
                      case NUD_DEBUG:
                           snprintf(pCapStr, sizeof("NUD_DEBUG"),
                                          "%s", "NUD_DEBUG");
@@ -2332,7 +2340,6 @@ WDI_Init
       goto fail_wdts_open;
     }
   }
-
   /*The WDI is initialized - set state to init */
   gWDICb.uGlobalState = WDI_INIT_ST;
   gWDICb.roamDelayStatsEnabled = vos_get_roam_delay_stats_enabled();
@@ -2345,6 +2352,8 @@ WDI_Init
   pWdiDevCapability->ucMaxBSSSupported  = gWDICb.ucMaxBssids;
 
   wdi_register_debug_callback();
+
+  vos_wake_lock_init(&gWDICb.find_ap_lock, "find_ap_lock");
 
   return WDI_STATUS_SUCCESS;
 
@@ -2693,7 +2702,7 @@ WDI_Close
                 "Failed to delete mutex %d", wptStatus);
      WDI_ASSERT(0);
   }
-
+  vos_wake_lock_destroy(&gWDICb.find_ap_lock);
   /*Clear control block.  note that this will clear the "magic"
     which will inhibit all asynchronous callbacks*/
   WDI_CleanCB(&gWDICb);
@@ -25926,6 +25935,11 @@ WDI_2_HAL_LINK_STATE
   case WDI_LINK_SEND_ACTION_STATE:
     return eSIR_LINK_SEND_ACTION_STATE;
 
+#ifdef WLAN_FEATURE_LFR_MBB
+  case WDI_LINK_PRE_AUTH_REASSOC_STATE:
+    return eSIR_LINK_PRE_AUTH_REASSOC_STATE;
+#endif
+
   default:
     return eSIR_LINK_MAX;
   }
@@ -27831,6 +27845,7 @@ WDI_ProcessPERRoamScanTriggerRsp
 #endif
 
 #ifdef WLAN_FEATURE_APFIND
+#define FIND_AP_WAKELOCK_TIMEOUT 1000
 /**
  @brief Process QRF Preferred Network Found Indication function
 
@@ -27862,7 +27877,9 @@ WDI_ProcessQRFPrefNetworkFoundInd
      WDI_ASSERT( 0 );
      return WDI_STATUS_E_FAILURE;
   }
-
+  vos_wake_lock_timeout_release(&pWDICtx->find_ap_lock,
+                                FIND_AP_WAKELOCK_TIMEOUT,
+                                WIFI_POWER_EVENT_WAKELOCK_FIND_AP_INDICATION);
   /*Fill in the indication parameters*/
   wdiInd.wdiIndicationType = WDI_AP_FOUND_IND;
   if ( pWDICtx->wdiLowLevelIndCB )

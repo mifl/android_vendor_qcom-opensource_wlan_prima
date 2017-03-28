@@ -3768,10 +3768,20 @@ static int __wlan_hdd_cfg80211_extscan_set_bssid_hotlist(struct wiphy *wiphy,
 
     pReqMsg->numBssid = nla_get_u32(
               tb[QCA_WLAN_VENDOR_ATTR_EXTSCAN_BSSID_HOTLIST_PARAMS_NUM_AP]);
+    if (pReqMsg->numBssid > WLAN_EXTSCAN_MAX_HOTLIST_APS) {
+        hddLog(LOGE, FL("Number of AP: %u exceeds max: %u"),
+               pReqMsg->numBssid, WLAN_EXTSCAN_MAX_HOTLIST_APS);
+        goto fail;
+    }
     hddLog(VOS_TRACE_LEVEL_INFO, FL("Number of AP (%d)"), pReqMsg->numBssid);
 
     nla_for_each_nested(apTh,
                 tb[QCA_WLAN_VENDOR_ATTR_EXTSCAN_AP_THRESHOLD_PARAM], rem) {
+        if (i == pReqMsg->numBssid) {
+            hddLog(LOGW, FL("Ignoring excess AP"));
+            break;
+        }
+
         if(nla_parse(tb2, QCA_WLAN_VENDOR_ATTR_EXTSCAN_SUBCMD_CONFIG_PARAM_MAX,
                 nla_data(apTh), nla_len(apTh),
                 NULL)) {
@@ -3808,6 +3818,12 @@ static int __wlan_hdd_cfg80211_extscan_set_bssid_hotlist(struct wiphy *wiphy,
         hddLog(VOS_TRACE_LEVEL_INFO, FL("RSSI High (%d)"),
                                          pReqMsg->ap[i].high);
         i++;
+    }
+
+    if (i < pReqMsg->numBssid) {
+        hddLog(LOGW, FL("Number of AP %u less than expected %u"),
+               i, pReqMsg->numBssid);
+        pReqMsg->numBssid = i;
     }
 
     context = &pHddCtx->ext_scan_context;
@@ -8305,7 +8321,7 @@ struct nl80211_vendor_cmd_info wlan_hdd_cfg80211_vendor_events[] =
     },
 
 
-    {
+    [QCA_NL80211_VENDOR_SUBCMD_NAN_INDEX] = {
         .vendor_id = QCA_NL80211_VENDOR_ID,
         .subcmd = QCA_NL80211_VENDOR_SUBCMD_NAN
     },
@@ -9753,10 +9769,12 @@ void hdd_dhcp_server_offload_done(void *fw_dhcp_srv_offload_cb_context,
 /**
  * wlan_hdd_set_dhcp_server_offload() - set dhcp server offload
  * @hostapd_adapter: pointer to hostapd adapter.
+ * @re_init: flag set if api called post ssr
  *
  * Return: None
  */
-VOS_STATUS wlan_hdd_set_dhcp_server_offload(hdd_adapter_t *hostapd_adapter)
+VOS_STATUS wlan_hdd_set_dhcp_server_offload(hdd_adapter_t *hostapd_adapter,
+					    bool re_init)
 {
 	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(hostapd_adapter);
 	sir_dhcp_srv_offload_info dhcp_srv_info;
@@ -9768,9 +9786,11 @@ VOS_STATUS wlan_hdd_set_dhcp_server_offload(hdd_adapter_t *hostapd_adapter)
 
 	ENTER();
 
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
-		return VOS_STATUS_E_INVAL;
+	if (!re_init) {
+		ret = wlan_hdd_validate_context(hdd_ctx);
+		if (0 != ret)
+			return VOS_STATUS_E_INVAL;
+	}
 
 	/* Prepare the request to send to SME */
 	dhcp_srv_info = vos_mem_malloc(sizeof(*dhcp_srv_info));
@@ -10351,7 +10371,7 @@ static int wlan_hdd_cfg80211_start_bss(hdd_adapter_t *pHostapdAdapter,
     /* set dhcp server offload */
     if (iniConfig->enable_dhcp_srv_offload &&
         sme_IsFeatureSupportedByFW(SAP_OFFLOADS)) {
-        status = wlan_hdd_set_dhcp_server_offload(pHostapdAdapter);
+        status = wlan_hdd_set_dhcp_server_offload(pHostapdAdapter, false);
         if (!VOS_IS_STATUS_SUCCESS(status))
         {
             VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
@@ -20058,6 +20078,12 @@ static int __wlan_hdd_cfg80211_testmode(struct wiphy *wiphy, void *data, int len
 
             buf = nla_data(tb[WLAN_HDD_TM_ATTR_DATA]);
             buf_len = nla_len(tb[WLAN_HDD_TM_ATTR_DATA]);
+
+            if (buf_len > sizeof(*hb_params)) {
+                hddLog(LOGE, FL("buf_len=%d exceeded hb_params size limit"),
+                       buf_len);
+                return -ERANGE;
+            }
 
             hb_params_temp =(tSirLPHBReq *)buf;
             if ((hb_params_temp->cmd == LPHB_SET_TCP_PARAMS_INDID) &&
