@@ -840,9 +840,11 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
    if (arp_pkt)
    {
-       ++pAdapter->hdd_stats.hddArpStats.txCount;
-       VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                 "%s :ARP packet received form net_dev", __func__);
+      if (pHddCtx->track_arp_ip && vos_check_arp_req_target_ip(skb, false)) {
+         ++pAdapter->hdd_stats.hddArpStats.tx_arp_req_count;
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                   "%s :ARP packet received form net_dev", __func__);
+      }
    }
 
    //Get TL Q index corresponding to Qdisc queue index/AC.
@@ -2667,6 +2669,7 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
    vos_pkt_t* pNextVosPacket;
    v_U8_t proto_type;
    v_BOOL_t arp_pkt;
+   bool track_arp_resp = false;
 
    //Sanity check on inputs
    if ( ( NULL == vosContext ) || 
@@ -2799,9 +2802,12 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
 
       if (arp_pkt)
       {
-         ++pAdapter->hdd_stats.hddArpStats.rxCount;
-         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                   "%s :STA RX ARP received",__func__);
+         if (pHddCtx->track_arp_ip && vos_check_arp_rsp_src_ip(skb, false)) {
+            ++pAdapter->hdd_stats.hddArpStats.rx_arp_rsp_count;
+            track_arp_resp = true;
+            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                     "%s :STA RX ARP received",__func__);
+         }
       }
 
       if (pHddCtx->rx_wow_dump) {
@@ -2854,9 +2860,11 @@ VOS_STATUS hdd_rx_packet_cbk( v_VOID_t *vosContext,
 
         if (arp_pkt)
         {
-           ++pAdapter->hdd_stats.hddArpStats.rxDelivered;
-           VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                     "STA RX ARP packet Delivered to net stack");
+           if (track_arp_resp) {
+              ++pAdapter->hdd_stats.hddArpStats.rxDelivered;
+              VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+                        "STA RX ARP packet Delivered to net stack");
+           }
         }
 
          ++pAdapter->hdd_stats.hddTxRxStats.rxDelivered;

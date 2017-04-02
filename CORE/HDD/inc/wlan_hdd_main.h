@@ -391,8 +391,8 @@ typedef enum
 
 typedef struct hdd_arp_stats_s
 {
-   uint16   txCount;
-   uint16   rxCount;
+   uint16   tx_arp_req_count;
+   uint16   rx_arp_rsp_count;
    uint16   txDropped;
    uint16   rxDropped;
    uint16   rxDelivered;
@@ -574,8 +574,14 @@ typedef struct hdd_wapi_info_s hdd_wapi_info_t;
 #endif /* FEATURE_WLAN_WAPI */
 
 typedef struct beacon_data_s {
-    u8 *head, *tail;
-    int head_len, tail_len;
+    u8 *head;
+    u8 *tail;
+    u8 *proberesp_ies;
+    u8 *assocresp_ies;
+    int head_len;
+    int tail_len;
+    int proberesp_ies_len;
+    int assocresp_ies_len;
     int dtim_period;
 } beacon_data_t;
 
@@ -1502,6 +1508,11 @@ struct hdd_context_s
    /* Lock to avoid race condtion during start/stop bss*/
    struct mutex sap_lock;
 
+   struct work_struct  sap_start_work;
+   bool is_sap_restart_required;
+   bool is_ch_avoid_in_progress;
+   vos_spin_lock_t sap_update_info_lock;
+
    /* Lock to avoid race condtion between ROC timeout and
       cancel callbacks*/
    struct mutex roc_lock;
@@ -1774,6 +1785,10 @@ VOS_STATUS hdd_stop_all_adapters( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_start_all_adapters( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_reconnect_all_adapters( hdd_context_t *pHddCtx );
+struct cfg80211_bss* hdd_get_bss_entry(struct wiphy *wiphy,
+      struct ieee80211_channel *channel,
+      const u8 *bssid,
+      const u8 *ssid, size_t ssid_len);
 void hdd_connect_result(struct net_device *dev, const u8 *bssid,
    tCsrRoamInfo *roam_info, const u8 *req_ie,
    size_t req_ie_len, const u8 * resp_ie,
