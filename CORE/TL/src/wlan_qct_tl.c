@@ -698,8 +698,8 @@ WLANTL_Open
   }
 
   // scheduling init to be the last one of previous round
-  pTLCb->uCurServedAC = WLANTL_AC_BK;
-  pTLCb->ucCurLeftWeight = 1;
+  pTLCb->uCurServedAC = WLANTL_AC_VO;
+  pTLCb->ucCurLeftWeight = pTLCb->tlConfigInfo.ucAcWeights[pTLCb->uCurServedAC];
   pTLCb->ucCurrentSTA = WLAN_MAX_STA_COUNT-1;
 
   vos_timer_init(&pTLCb->tx_frames_timer, VOS_TIMER_TYPE_SW,
@@ -6116,6 +6116,11 @@ static void WLANTL_CacheEapol(WLANTL_CbType* pTLCb, vos_pkt_t* vosTempBuff)
                "%s: Cache Eapol frame", __func__));
       pTLCb->vosEapolCachedFrame = vosTempBuff;
    }
+   else {
+      TLLOG1(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
+               "%s: Drop duplicate EAPOL frame", __func__));
+      vos_pkt_return_packet(vosTempBuff);
+   }
 }
 
 /*==========================================================================
@@ -6182,7 +6187,9 @@ WLANTL_RxFrames
   v_S7_t              currentAvgRSSI = 0;
   v_U8_t              ac;
 #endif
+  uint8_t            ucMPDUHLen;
   uint16_t           seq_no;
+  uint16_t           usEtherType = 0;
 
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -6220,7 +6227,7 @@ WLANTL_RxFrames
    ---------------------------------------------------------------------*/
   vosTempBuff = vosDataBuff;
 
-  while ( NULL != vosTempBuff )
+  while (NULL != vosDataBuff)
   {
     broadcast = VOS_FALSE;
     selfBcastLoopback = VOS_FALSE; 
@@ -6363,6 +6370,7 @@ WLANTL_RxFrames
       ucSTAId = (v_U8_t)WDA_GET_RX_STAID( pvBDHeader );
       ucTid   = (v_U8_t)WDA_GET_RX_TID( pvBDHeader );
       uDPUSig = WDA_GET_RX_DPUSIG(pvBDHeader);
+      ucMPDUHLen = (uint8_t)WDA_GET_RX_MPDU_HEADER_LEN(pvBDHeader);
       seq_no = (uint16_t)WDA_GET_RX_REORDER_CUR_PKT_SEQ_NO(pvBDHeader);
 
       TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
@@ -6391,9 +6399,21 @@ WLANTL_RxFrames
       /* Pre assoc cache eapol */
       if (pTLCb->preassoc_caching)
       {
-        TLLOG1(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
-               "WLAN TL:TL preassoc_caching is enabled seq No: %d", seq_no));
-         WLANTL_CacheEapol(pTLCb, vosTempBuff);
+         WLANTL_GetEtherType(pvBDHeader,vosTempBuff, ucMPDUHLen, &usEtherType);
+         if (WLANTL_LLC_8021X_TYPE != usEtherType)
+         {
+            VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
+                      "%s: RX Frame not EAPOL EtherType %d",
+                      __func__, usEtherType);
+            vos_pkt_return_packet(vosTempBuff);
+         }
+         else
+         {
+            WLANTL_CacheEapol(pTLCb, vosTempBuff);
+            TLLOG1(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
+                "WLAN TL:TL preassoc_caching is enabled seq No: %d", seq_no));
+         }
+
          vosTempBuff = vosDataBuff;
          continue;
       }
@@ -11691,10 +11711,8 @@ WLAN_TLAPGetNextTxIds
   ++ucNextSTA;
 
   if ( WLAN_MAX_STA_COUNT <= ucNextSTA )
-  {
-    //one round is done.
     ucNextSTA = 0;
-    pTLCb->ucCurLeftWeight--;
+
     isServed = FALSE;
     if ( 0 == pTLCb->ucCurLeftWeight )
     {
@@ -11712,7 +11730,6 @@ WLAN_TLAPGetNextTxIds
       pTLCb->ucCurLeftWeight =  pTLCb->tlConfigInfo.ucAcWeights[pTLCb->uCurServedAC];
  
     } // (0 == pTLCb->ucCurLeftWeight)
-  } //( WLAN_MAX_STA_COUNT == ucNextSTA )
 
   ucTempSTA = ucNextSTA;
   minWeightSta = ucNextSTA;
@@ -11807,6 +11824,7 @@ WLAN_TLAPGetNextTxIds
                    " TL serve one station AC: %d  W: %d StaId: %d",
                    pTLCb->uCurServedAC, pTLCb->ucCurLeftWeight, pTLCb->ucCurrentSTA ));
       
+        pTLCb->ucCurLeftWeight--;
         return VOS_STATUS_SUCCESS;
       } //STA loop
 
@@ -11859,6 +11877,7 @@ WLAN_TLAPGetNextTxIds
          TLLOG4(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_LOW,
                     " TL serve one station AC: %d  W: %d StaId: %d",
                    pTLCb->uCurServedAC, pTLCb->ucCurLeftWeight, pTLCb->ucCurrentSTA ));
+         pTLCb->ucCurLeftWeight--;
          return VOS_STATUS_SUCCESS;
       }
 
@@ -11887,6 +11906,7 @@ WLAN_TLAPGetNextTxIds
          TLLOG4(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_LOW,
                     " TL serve one station AC: %d  W: %d StaId: %d",
                    pTLCb->uCurServedAC, pTLCb->ucCurLeftWeight, pTLCb->ucCurrentSTA ));
+         pTLCb->ucCurLeftWeight--;
          return VOS_STATUS_SUCCESS;
       }
 
