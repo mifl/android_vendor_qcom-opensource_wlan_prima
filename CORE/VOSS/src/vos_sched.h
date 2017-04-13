@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017  The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -356,6 +356,8 @@ typedef struct _VosContextType
    v_U32_t connectivity_log_level;
    v_U32_t packet_stats_log_level;
    v_U8_t      vosWrapperFullReported;
+   bool snoc_high_freq_voting;
+   spinlock_t freq_voting_lock;
 } VosContextType, *pVosContextType;
 
 
