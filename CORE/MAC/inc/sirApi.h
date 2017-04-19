@@ -766,7 +766,7 @@ typedef struct sSirChannelList
 
 typedef struct sSirDFSChannelList
 {
-    tANI_U32         timeStamp[SIR_MAX_24G_5G_CHANNEL_RANGE];
+    v_TIME_t         timeStamp[SIR_MAX_24G_5G_CHANNEL_RANGE];
 
 } tSirDFSChannelList, *tpSirDFSChannelList;
 
@@ -3767,6 +3767,12 @@ typedef struct sSirWlanSetRxpFilters
     tANI_U8 setMcstBcstFilter;
 }tSirWlanSetRxpFilters,*tpSirWlanSetRxpFilters;
 
+
+typedef struct sSirUpdateCfgIntParam
+{
+    tANI_U32 cfgId;
+}tSirUpdateCfgIntParam,*tpSirUpdateCfgIntParam;
+
 typedef struct
 {
   //FW mail box address
@@ -3786,6 +3792,7 @@ typedef struct
 typedef void(*FWLoggingInitReqCb)(void *fwlogInitCbContext, tAniLoggingInitRsp *pRsp);
 typedef void ( *tGetFrameLogCallback) (void *pContext);
 typedef void(*RssiMonitorReqCb)(void *rssiMonitorCbContext, VOS_STATUS status);
+typedef void(*pktFilterReqCb)(void *data, tANI_U32 status);
 
 typedef struct sAniGetFrameLogReq
 {
@@ -4227,6 +4234,8 @@ typedef struct sSirRcvFltPktClearParam
   tANI_U8    filterId;
   tSirMacAddr selfMacAddr;
   tSirMacAddr bssId;
+  pktFilterReqCb     pktFilterCallback;
+  void        *cbCtx;
 }tSirRcvFltPktClearParam, *tpSirRcvFltPktClearParam;
 
 //
