@@ -6378,10 +6378,10 @@ static tANI_BOOLEAN csrRoamProcessResults( tpAniSirGlobal pMac, tSmeCmd *pComman
                 case eCsrForcedDisassocSta:
                 case eCsrForcedDeauthSta:
                    csrRoamStateChange( pMac, eCSR_ROAMING_STATE_JOINED, sessionId);
-                   if( CSR_IS_SESSION_VALID(pMac, sessionId) )
-                   {                    
-                       pSession = CSR_GET_SESSION(pMac, sessionId);
-                       if (pSession)
+                   pSession = CSR_GET_SESSION(pMac, sessionId);
+                   if (pSession)
+                   {
+                       if( CSR_IS_SESSION_VALID(pMac, sessionId) )
                        {
                            if ( CSR_IS_INFRA_AP(&pSession->connectedProfile) )
                            {
@@ -6397,7 +6397,18 @@ static tANI_BOOLEAN csrRoamProcessResults( tpAniSirGlobal pMac, tSmeCmd *pComman
                                          eCSR_ROAM_LOSTLINK,
                                          eCSR_ROAM_RESULT_FORCED);
                            }
+                       }
+                       else
+                       {
+                           smsLog(pMac, LOGE, FL("Inactive session %d"),
+                                              sessionId);
+                           return eHAL_STATUS_FAILURE;
                       }
+                   }
+                   else
+                   {
+                       smsLog(pMac, LOGE, FL("Invalid session"));
+                       return eHAL_STATUS_FAILURE;
                    }
                    break;
                 case eCsrLostLink1:
@@ -18987,11 +18998,21 @@ void csrRoamFTPreAuthRspProcessor( tHalHandle hHal, tpSirFTPreAuthRsp pFTPreAuth
         tANI_U16 ft_ies_length;
         ft_ies_length = pFTPreAuthRsp->ric_ies_length;
 
+        if (pMac->roam.roamSession[pMac->ft.ftSmeContext.smeSessionId].
+            connectedProfile.MDID.mdiePresent)
+              pMac->ft.ftSmeContext.addMDIE = TRUE;
+
         if ( (pMac->ft.ftSmeContext.reassoc_ft_ies) &&
              (pMac->ft.ftSmeContext.reassoc_ft_ies_length))
         {
             vos_mem_free(pMac->ft.ftSmeContext.reassoc_ft_ies);
             pMac->ft.ftSmeContext.reassoc_ft_ies_length = 0;
+        }
+
+        if (!ft_ies_length)
+        {
+             pMac->ft.ftSmeContext.psavedFTPreAuthRsp = NULL;
+             return;
         }
 
         pMac->ft.ftSmeContext.reassoc_ft_ies = vos_mem_malloc(ft_ies_length);
