@@ -101,6 +101,7 @@
 #define SOFTAP_BSS_STARTED     (4)
 #define DEVICE_IFACE_OPENED    (5)
 #define TDLS_INIT_DONE         (6)
+#define SOFTAP_INIT_DONE       (7)
 
 /** Maximum time(ms)to wait for disconnect to complete **/
 #define WLAN_WAIT_TIME_DISCONNECT  5000
@@ -1795,6 +1796,8 @@ struct hdd_context_s
     scan_reject_states last_scan_reject_reason;
     v_TIME_t last_scan_reject_timestamp;
     bool is_ap_mode_wow_supported;
+
+    uint32_t track_arp_ip;
 };
 
 typedef enum  {
@@ -2196,4 +2199,5 @@ hdd_capture_tsf(hdd_adapter_t *adapter, uint32_t *buf, int len)
 	return -ENOTSUPP;
 }
 #endif
+int hdd_dhcp_mdns_offload(hdd_adapter_t *adapter);
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )
