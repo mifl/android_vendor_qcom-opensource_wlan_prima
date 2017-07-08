@@ -816,6 +816,7 @@ struct hdd_station_ctx
    hdd_ibss_peer_info_t ibss_peer_info;
 
    v_BOOL_t hdd_ReassocScenario;
+   v_BOOL_t get_mgmt_log_sent;
 
 };
 
@@ -1796,6 +1797,7 @@ struct hdd_context_s
     scan_reject_states last_scan_reject_reason;
     v_TIME_t last_scan_reject_timestamp;
     bool is_ap_mode_wow_supported;
+    bool is_fatal_event_log_sup;
 
     uint32_t track_arp_ip;
 };

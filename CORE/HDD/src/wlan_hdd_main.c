@@ -758,11 +758,6 @@ void hdd_checkandupdate_dfssetting( hdd_adapter_t *pAdapter, char *country_code)
        /*New country doesn't support DFS */
        sme_UpdateDfsSetting(WLAN_HDD_GET_HAL_CTX(pAdapter), 0);
     }
-    else
-    {
-       /*New country Supports DFS as well resetting value back from .ini*/
-       sme_UpdateDfsSetting(WLAN_HDD_GET_HAL_CTX(pAdapter), cfg_param->enableDFSChnlScan);
-    }
 
 }
 
@@ -9027,6 +9022,12 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
          if( hdd_connIsConnected(pstation) ||
              (pstation->conn_info.connState == eConnectionState_Connecting) )
          {
+            /*
+             * Indicate sme of disconnect so that in progress connection
+             * or preauth can be aborted.
+             */
+            sme_abortConnection(WLAN_HDD_GET_HAL_CTX(pAdapter),
+                            pAdapter->sessionId);
             INIT_COMPLETION(pAdapter->disconnect_comp_var);
             if (pWextState->roamProfile.BSSType == eCSR_BSS_TYPE_START_IBSS)
                 halStatus = sme_RoamDisconnect(pHddCtx->hHal,
@@ -12674,6 +12675,11 @@ int hdd_wlan_startup(struct device *dev )
 
    pHddCtx->is_ap_mode_wow_supported =
               sme_IsFeatureSupportedByFW(SAP_MODE_WOW);
+
+   pHddCtx->is_fatal_event_log_sup =
+      sme_IsFeatureSupportedByFW(FATAL_EVENT_LOGGING);
+   hddLog(VOS_TRACE_LEVEL_INFO, FL("FATAL_EVENT_LOGGING: %d"),
+          pHddCtx->is_fatal_event_log_sup);
 
    hdd_assoc_registerFwdEapolCB(pVosContext);
 
