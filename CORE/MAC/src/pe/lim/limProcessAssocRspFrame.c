@@ -532,16 +532,18 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
         psessionEntry->assocRsp = NULL;
     }
 
-    psessionEntry->assocRsp = vos_mem_malloc(frameLen);
-    if (NULL == psessionEntry->assocRsp)
-    {
-        PELOGE(limLog(pMac, LOGE, FL("Unable to allocate memory to store assoc response, len = %d"), frameLen);)
-    }
-    else
-    {
-        //Store the Assoc response. This is sent to csr/hdd in join cnf response. 
-        vos_mem_copy(psessionEntry->assocRsp, pBody, frameLen);
-        psessionEntry->assocRspLen = frameLen;
+    if (frameLen) {
+        psessionEntry->assocRsp = vos_mem_malloc(frameLen);
+        if (NULL == psessionEntry->assocRsp)
+        {
+            PELOGE(limLog(pMac, LOGE, FL("Unable to allocate memory to store assoc response, len = %d"), frameLen);)
+        }
+        else
+        {
+            //Store the Assoc response. This is sent to csr/hdd in join cnf response.
+            vos_mem_copy(psessionEntry->assocRsp, pBody, frameLen);
+            psessionEntry->assocRspLen = frameLen;
+        }
     }
 
 #ifdef WLAN_FEATURE_VOWIFI_11R
@@ -553,16 +555,19 @@ limProcessAssocRspFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tANI_U8 sub
     if(pAssocRsp->ricPresent)
     {
         psessionEntry->RICDataLen = pAssocRsp->num_RICData * sizeof(tDot11fIERICDataDesc);
-        psessionEntry->ricData = vos_mem_malloc(psessionEntry->RICDataLen);
-        if ( NULL == psessionEntry->ricData )
+        if (psessionEntry->RICDataLen)
         {
-            PELOGE(limLog(pMac, LOGE, FL("Unable to allocate memory to store assoc response"));)
-            psessionEntry->RICDataLen = 0; 
-        }
-        else
-        {
-            vos_mem_copy(psessionEntry->ricData,
-                         &pAssocRsp->RICData[0], psessionEntry->RICDataLen);
+            psessionEntry->ricData = vos_mem_malloc(psessionEntry->RICDataLen);
+            if ( NULL == psessionEntry->ricData )
+            {
+                PELOGE(limLog(pMac, LOGE, FL("Unable to allocate memory to store assoc response"));)
+                psessionEntry->RICDataLen = 0;
+            }
+            else
+            {
+                vos_mem_copy(psessionEntry->ricData,
+                             &pAssocRsp->RICData[0], psessionEntry->RICDataLen);
+            }
         }
     }
     else
