@@ -2034,4 +2034,17 @@ void wlan_hdd_defer_scan_init_work(hdd_context_t *pHddCtx,
 #endif
                                 struct cfg80211_scan_request *request,
                                 unsigned long delay);
+
+/**
+ * hdd_drv_cmd_validate() - Validates for space in hdd driver command
+ * @command: pointer to input data (its a NULL terminated string)
+ * @len: length of command name
+ *
+ * This function checks for space after command name and if no space
+ * is found returns error.
+ *
+ * Return: 0 for success non-zero for failure
+ */
+int hdd_drv_cmd_validate(tANI_U8 *command, int len);
+
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )
