@@ -162,6 +162,7 @@
 #define hddLog(level, args...) VOS_TRACE( VOS_MODULE_ID_HDD, level, ## args)
 #define ENTER() VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "Enter:%s", __func__)
 #define EXIT()  VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "Exit:%s", __func__)
+#define ENTER_DEV(dev)  VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO, "Enter:%s dev_name: %s", __func__, (dev)->name)
 
 #define WLAN_HDD_GET_PRIV_PTR(__dev__) (hdd_adapter_t*)(netdev_priv((__dev__)))
 
@@ -1091,6 +1092,8 @@ typedef enum
 } eHDD_BATCH_SCAN_STATE;
 
 #endif
+
+#define HDD_SCAN_REJECT_RATE_LIMIT 5
 
 /*
  * @eHDD_SCAN_REJECT_DEFAULT: default value
@@ -2186,6 +2189,18 @@ static inline bool wlan_hdd_set_mdns_offload(hdd_adapter_t *adapter)
 #endif /* MDNS_OFFLOAD */
 
 void wlan_hdd_start_sap(hdd_adapter_t *ap_adapter);
+
+/**
+ * hdd_drv_cmd_validate() - Validates for space in hdd driver command
+ * @command: pointer to input data (its a NULL terminated string)
+ * @len: length of command name
+ *
+ * This function checks for space after command name and if no space
+ * is found returns error.
+ *
+ * Return: 0 for success non-zero for failure
+ */
+int hdd_drv_cmd_validate(tANI_U8 *command, int len);
 
 #ifdef WLAN_FEATURE_TSF
 void wlan_hdd_tsf_init(hdd_adapter_t *adapter);

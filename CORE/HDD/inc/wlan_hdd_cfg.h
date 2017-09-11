@@ -366,6 +366,11 @@ typedef enum
 #define CFG_CHANNEL_BONDING_MODE_MAX           WNI_CFG_CHANNEL_BONDING_MODE_STAMAX 
 #define CFG_CHANNEL_BONDING_MODE_DEFAULT       WNI_CFG_CHANNEL_BONDING_MODE_STADEF 
 
+#define CFG_OVERRIDE_HT40_20_24GHZ_NAME    "override_ht20_40_24g"
+#define CFG_OVERRIDE_HT40_20_24GHZ_MIN           0
+#define CFG_OVERRIDE_HT40_20_24GHZ_MAX           1
+#define CFG_OVERRIDE_HT40_20_24GHZ_DEFAULT       0
+
 #define CFG_CHANNEL_BONDING_MODE_5GHZ_NAME     "gChannelBondingMode5GHz"
 #define CFG_CHANNEL_BONDING_MODE_MIN           WNI_CFG_CHANNEL_BONDING_MODE_STAMIN 
 #define CFG_CHANNEL_BONDING_MODE_MAX           WNI_CFG_CHANNEL_BONDING_MODE_STAMAX 
@@ -3082,6 +3087,12 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ENABLE_LFR_MBB_MAX     (1)
 #define CFG_ENABLE_LFR_MBB_DEFAULT (0)
 
+/* Value for TRIGGER_NULLFRAME_BEFORE_HB.*/
+#define CFG_TRIGGER_NULLFRAME_BEFORE_HB_NAME       "gTriggerNullframeBeforeHb"
+#define CFG_TRIGGER_NULLFRAME_BEFORE_HB_MIN        (0)
+#define CFG_TRIGGER_NULLFRAME_BEFORE_HB_MAX        (1)
+#define CFG_TRIGGER_NULLFRAME_BEFORE_HB_DEFAULT    (0)
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -3157,6 +3168,7 @@ typedef struct
    v_U32_t       nAutoBmpsTimerValue;
    eHddDot11Mode dot11Mode;
    v_U32_t       nChannelBondingMode24GHz;
+   bool          override_ht20_40_24g;
    v_U32_t       nChannelBondingMode5GHz;
    v_U32_t       MaxRxAmpduFactor;
    v_U32_t       nBAAgingTimerInterval;
@@ -3681,6 +3693,7 @@ typedef struct
    uint32_t                    max_sched_scan_plan_interval;
    uint32_t                    max_sched_scan_plan_iterations;
    uint32_t                    sta_auth_retries_for_code17;
+   uint32_t                    trigger_nullframe_before_hb;
 } hdd_config_t;
 
 /*--------------------------------------------------------------------------- 
