@@ -50,7 +50,7 @@ else
 ifneq ($(TARGET_SUPPORTS_WEARABLES),true)
     WLAN_BLD_DIR := vendor/qcom/opensource/wlan
 else
-    WLAN_BLD_DIR := device/qcom/msm8909w/opensource/wlan
+    WLAN_BLD_DIR := vendor/qcom/opensource/wlan
 endif
 endif
 
