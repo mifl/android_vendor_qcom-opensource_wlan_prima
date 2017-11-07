@@ -2645,7 +2645,7 @@ limProcessActionFrameNoSession(tpAniSirGlobal pMac, tANI_U8 *pBd)
                 tANI_U8 P2POui[] = { 0x50, 0x6F, 0x9A, 0x09 };
 		tANI_U32 frameLen;
 
-		frameLen = WDA_GET_RX_PAYLOAD_LEN(pRxPacketInfo);
+		frameLen = WDA_GET_RX_PAYLOAD_LEN(pBd);
 
 		if (frameLen < sizeof(pActionHdr)) {
 			limLog(pMac, LOG1,
