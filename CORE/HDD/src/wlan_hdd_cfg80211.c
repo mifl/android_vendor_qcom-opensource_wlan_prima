@@ -8577,9 +8577,11 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
     VOS_STATUS vos_status;
     eHalStatus halStatus;
     hdd_context_t *pHddCtx;
-    uint8_t staid, i;
+    uint8_t i;
     v_MACADDR_t *peerMacAddr;
     u64 rsc_counter = 0;
+    uint8_t staid = HDD_MAX_STA_COUNT;
+    bool pairwise_set_key = false;
 
     ENTER();
 
@@ -8739,6 +8741,7 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                 __func__, __LINE__);
         setKey.keyDirection = eSIR_TX_RX;
         vos_mem_copy(setKey.peerMac, mac_addr,WNI_CFG_BSSID_LEN);
+        pairwise_set_key = true;
     }
     if ((WLAN_HDD_IBSS == pAdapter->device_mode) && !pairwise)
     {
@@ -8766,7 +8769,9 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
         pHostapdState = WLAN_HDD_GET_HOSTAP_STATE_PTR(pAdapter);
         if( pHostapdState->bssState == BSS_START )
         {
-            staid = hdd_sta_id_find_from_mac_addr(pAdapter, peerMacAddr);
+            if (peerMacAddr && (pairwise_set_key == true))
+                staid = hdd_sta_id_find_from_mac_addr(pAdapter, peerMacAddr);
+
             status = WLANSAP_SetKeySta( pVosContext, &setKey);
 
             if ( status != eHAL_STATUS_SUCCESS )
@@ -8816,7 +8821,8 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
             }
         }
 
-        staid = pHddStaCtx->conn_info.staId[0];
+        if (pairwise_set_key == true)
+           staid = pHddStaCtx->conn_info.staId[0];
 
         pWextState->roamProfile.Keys.KeyLength[key_index] = (u8)params->key_len;
 
@@ -8942,11 +8948,10 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
         }
     }
 
-    if (pairwise) {
+    if (pairwise_set_key == true) {
        for (i = 0; i < params->seq_len; i++) {
           rsc_counter |= (params->seq[i] << i*8);
        }
-
        WLANTL_SetKeySeqCounter(pVosContext, rsc_counter, staid);
     }
 
