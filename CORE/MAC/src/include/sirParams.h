@@ -155,6 +155,7 @@ typedef enum {
    MAKE_BEFORE_BREAK = 67,
 #endif
    NUD_DEBUG = 68,
+   FATAL_EVENT_LOGGING = 69,
    //MAX_FEATURE_SUPPORTED = 128
 } placeHolderInCapBitmap;
 
