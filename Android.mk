@@ -9,12 +9,14 @@ WLAN_CHIPSET := prima
 WLAN_SELECT := CONFIG_PRIMA_WLAN=m
 endif
 
-# Build/Package options for 8916, 8974, 8226, 8610, 8909, 8952 targets
-ifneq (,$(filter msm8916 msm8974 msm8226 msm8610 msm8909 msm8952,$(TARGET_BOARD_PLATFORM)))
-
+# Disable Build options for LOW RAM targets suct as 8909_256
+ifneq ($(TARGET_BOARD_SUFFIX), _256)
+# Build/Package options for 8916, 8974, 8226, 8610, 8909, 8952, 8937, 8953 targets
+ifneq (,$(filter msm8916 msm8974 msm8226 msm8610 msm8909 msm8952 msm8937 msm8953 titanium,$(TARGET_BOARD_PLATFORM)))
 WLAN_CHIPSET := pronto
 WLAN_SELECT := CONFIG_PRONTO_WLAN=m
 endif
+endif # TARGET_BOARD_SUFFIX
 
 # Build/Package only in case of supported target
 ifneq ($(WLAN_CHIPSET),)
