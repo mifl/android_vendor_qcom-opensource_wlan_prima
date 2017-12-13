@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -452,7 +452,7 @@ WLANSAP_CleanCB
 
     pSapCtx->sapsMachine= eSAP_DISCONNECTED;
 
-    VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s: Initializing State: %d, sapContext value = %p",
+    VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO_HIGH, "%s: Initializing State: %d, sapContext value = %pK",
             __func__, pSapCtx->sapsMachine, pSapCtx);
     pSapCtx->sessionId = 0;
     pSapCtx->channel = 0;
@@ -2140,7 +2140,7 @@ VOS_STATUS WLANSAP_SendAction( v_PVOID_t pvosGCtx, const tANI_U8 *pBuf,
         if( ( NULL == hHal ) || ( eSAP_TRUE != pSapCtx->isSapSessionOpen ) )
         {
             VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
-                       "%s: HAL pointer (%p) NULL OR SME session is not open (%d)",
+                       "%s: HAL pointer (%pK) NULL OR SME session is not open (%d)",
                        __func__, hHal, pSapCtx->isSapSessionOpen );
             return VOS_STATUS_E_FAULT;
         }
@@ -2208,7 +2208,7 @@ VOS_STATUS WLANSAP_RemainOnChannel( v_PVOID_t pvosGCtx,
         if( ( NULL == hHal ) || ( eSAP_TRUE != pSapCtx->isSapSessionOpen ) )
         {
             VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
-                       "%s: HAL pointer (%p) NULL OR SME session is not open (%d)",
+                       "%s: HAL pointer (%pK) NULL OR SME session is not open (%d)",
                        __func__, hHal, pSapCtx->isSapSessionOpen );
             return VOS_STATUS_E_FAULT;
         }
@@ -2267,7 +2267,7 @@ VOS_STATUS WLANSAP_CancelRemainOnChannel( v_PVOID_t pvosGCtx )
     if ((NULL == hHal) || (eSAP_TRUE != pSapCtx->isSapSessionOpen))
     {
         VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
-                "%s: HAL pointer (%p) NULL OR SME session is not open (%d)",
+                "%s: HAL pointer (%pK) NULL OR SME session is not open (%d)",
                 __func__, hHal, pSapCtx->isSapSessionOpen );
         return VOS_STATUS_E_FAULT;
     }
@@ -2329,7 +2329,7 @@ VOS_STATUS WLANSAP_RegisterMgmtFrame( v_PVOID_t pvosGCtx, tANI_U16 frameType,
         if( ( NULL == hHal ) || ( eSAP_TRUE != pSapCtx->isSapSessionOpen ) )
         {
             VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
-                       "%s: HAL pointer (%p) NULL OR SME session is not open (%d)",
+                       "%s: HAL pointer (%pK) NULL OR SME session is not open (%d)",
                        __func__, hHal, pSapCtx->isSapSessionOpen );
             return VOS_STATUS_E_FAULT;
         }
@@ -2394,7 +2394,7 @@ VOS_STATUS WLANSAP_DeRegisterMgmtFrame( v_PVOID_t pvosGCtx, tANI_U16 frameType,
         if( ( NULL == hHal ) || ( eSAP_TRUE != pSapCtx->isSapSessionOpen ) )
         {
             VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_ERROR,
-                       "%s: HAL pointer (%p) NULL OR SME session is not open (%d)",
+                       "%s: HAL pointer (%pK) NULL OR SME session is not open (%d)",
                        __func__, hHal, pSapCtx->isSapSessionOpen );
             return VOS_STATUS_E_FAULT;
         }
@@ -2510,6 +2510,12 @@ int wlansap_set_channel_change(v_PVOID_t vos_ctx,
         return -EINVAL;
    }
    mac_ctx = PMAC_STRUCT(hal);
+
+   if (eSAP_STARTED != sap_ctx->sapsMachine) {
+        hddLog(LOGE, FL("SAP is not in eSAP_STARTED state "));
+        return -EINVAL;
+   }
+
    if (sap_ctx->channel == new_channel) {
         hddLog(LOGE, FL("channel %d already set"), new_channel);
         return -EALREADY;
@@ -2527,11 +2533,6 @@ int wlansap_set_channel_change(v_PVOID_t vos_ctx,
    } else if (!allow_dfs_chan && (chan_state == NV_CHANNEL_DFS)) {
         hddLog(LOGE,
                FL("DFS channel ignore channel switch as allow_dfs_chan is false"));
-        return -EINVAL;
-   }
-
-   if (eSAP_STARTED != sap_ctx->sapsMachine) {
-        hddLog(LOGE, FL("SAP is not in eSAP_STARTED state "));
         return -EINVAL;
    }
    if (!wlansap_validate_phy_mode(sap_ctx->csrRoamProfile.phyMode,
