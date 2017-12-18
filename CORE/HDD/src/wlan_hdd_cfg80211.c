@@ -8770,7 +8770,7 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
         if( pHostapdState->bssState == BSS_START )
         {
             if (peerMacAddr && (pairwise_set_key == true))
-                staid = hdd_sta_id_find_from_mac_addr(pAdapter, peerMacAddr);
+                hdd_softap_GetStaId(pAdapter, peerMacAddr, &staid);
 
             status = WLANSAP_SetKeySta( pVosContext, &setKey);
 
