@@ -421,24 +421,46 @@ wlan_hdd_iface_limit[] = {
     },
 };
 
+/* interface limits for sta + monitor SCC */
+static const struct ieee80211_iface_limit
+wlan_hdd_iface_sta_mon_limit[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1, /* Monitor interface */
+		.types = BIT(NL80211_IFTYPE_MONITOR),
+	},
+};
+
 /* By default, only single channel concurrency is allowed */
 static struct ieee80211_iface_combination
-wlan_hdd_iface_combination = {
-        .limits = wlan_hdd_iface_limit,
-        .num_different_channels = 1,
-        /*
-         * max = WLAN_MAX_INTERFACES ; JellyBean architecture creates wlan0
-         * and p2p0 interfaces during driver init
-         * Some vendors create separate interface for P2P operations.
-         * wlan0: STA interface
-         * p2p0: P2P Device interface, action frames goes
-         * through this interface.
-         * p2p-xx: P2P interface, After GO negotiation this interface is
-         * created for p2p operations(GO/CLIENT interface).
-         */
-        .max_interfaces = WLAN_MAX_INTERFACES,
-        .n_limits = ARRAY_SIZE(wlan_hdd_iface_limit),
-        .beacon_int_infra_match = false,
+wlan_hdd_iface_combination[] = {
+	{
+		.limits = wlan_hdd_iface_limit,
+		.num_different_channels = 1,
+		/*
+		 * max = WLAN_MAX_INTERFACES ; JellyBean architecture creates wlan0
+		 * and p2p0 interfaces during driver init
+		 * Some vendors create separate interface for P2P operations.
+		 * wlan0: STA interface
+		 * p2p0: P2P Device interface, action frames goes
+		 * through this interface.
+		 * p2p-xx: P2P interface, After GO negotiation this interface is
+		 * created for p2p operations(GO/CLIENT interface).
+		 */
+		.max_interfaces = WLAN_MAX_INTERFACES,
+		.n_limits = ARRAY_SIZE(wlan_hdd_iface_limit),
+		.beacon_int_infra_match = false,
+	},
+	{
+		.limits = wlan_hdd_iface_sta_mon_limit,
+		.num_different_channels = 1,
+		.max_interfaces = WLAN_STA_AND_MON_INTERFACES,
+		.n_limits = ARRAY_SIZE(wlan_hdd_iface_sta_mon_limit),
+		.beacon_int_infra_match = false,
+	}
 };
 #endif
 
@@ -8546,12 +8568,8 @@ int wlan_hdd_cfg80211_init(struct device *dev,
                             | BIT(NL80211_IFTYPE_ADHOC)
                             | BIT(NL80211_IFTYPE_P2P_CLIENT)
                             | BIT(NL80211_IFTYPE_P2P_GO)
-                            | BIT(NL80211_IFTYPE_AP);
-
-    if (VOS_MONITOR_MODE == hdd_get_conparam())
-    {
-        wiphy->interface_modes |= BIT(NL80211_IFTYPE_MONITOR);
-    }
+                            | BIT(NL80211_IFTYPE_AP)
+                            | BIT(NL80211_IFTYPE_MONITOR);
 
     if( pCfg->advertiseConcurrentOperation )
     {
@@ -8559,14 +8577,14 @@ int wlan_hdd_cfg80211_init(struct device *dev,
         if( pCfg->enableMCC )
         {
             /* Currently, supports up to two channels */
-            wlan_hdd_iface_combination.num_different_channels = 2;
+            wlan_hdd_iface_combination[0].num_different_channels = 2;
 
             if( !pCfg->allowMCCGODiffBI )
-                wlan_hdd_iface_combination.beacon_int_infra_match = true;
+                wlan_hdd_iface_combination[0].beacon_int_infra_match = true;
 
         }
-        wiphy->iface_combinations = &wlan_hdd_iface_combination;
-        wiphy->n_iface_combinations = 1;
+        wiphy->iface_combinations = wlan_hdd_iface_combination;
+        wiphy->n_iface_combinations = ARRAY_SIZE(wlan_hdd_iface_combination);
 #endif
     }
 
@@ -11102,6 +11120,12 @@ int __wlan_hdd_cfg80211_change_iface( struct wiphy *wiphy,
             __func__, hdd_device_modetoString(pAdapter->device_mode),
                                               pAdapter->device_mode);
 
+    if (pHddCtx->concurrency_mode == VOS_STA_MON) {
+        hddLog(VOS_TRACE_LEVEL_FATAL,
+               "%s: STA + MON is in progress, cannot change interface",
+               __func__);
+    }
+
     if (vos_max_concurrent_connections_reached()) {
         hddLog(VOS_TRACE_LEVEL_INFO, FL("Reached max concurrent connections"));
         return -EINVAL;
@@ -12039,6 +12063,11 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
     VOS_STATUS vos_status;
     eHalStatus halStatus;
     hdd_context_t *pHddCtx;
+    uint8_t i;
+    v_MACADDR_t *peerMacAddr;
+    u64 rsc_counter = 0;
+    uint8_t staid = HDD_MAX_STA_COUNT;
+    bool pairwise_set_key = false;
 
     ENTER();
 
@@ -12076,11 +12105,15 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
     {
         hddLog(VOS_TRACE_LEVEL_ERROR,"%s: Invalid seq length %d", __func__,
                 params->seq_len);
+
+        return -EINVAL;
     }
 
     hddLog(VOS_TRACE_LEVEL_INFO,
            "%s: called with key index = %d & key length %d & seq length %d",
            __func__, key_index, params->key_len, params->seq_len);
+
+    peerMacAddr = (v_MACADDR_t *)mac_addr;
 
     /*extract key idx, key len and key*/
     vos_mem_zero(&setKey,sizeof(tCsrRoamSetKey));
@@ -12193,6 +12226,7 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                 __func__, __LINE__);
         setKey.keyDirection = eSIR_TX_RX;
         vos_mem_copy(setKey.peerMac, mac_addr,WNI_CFG_BSSID_LEN);
+        pairwise_set_key = true;
     }
     if ((WLAN_HDD_IBSS == pAdapter->device_mode) && !pairwise)
     {
@@ -12222,6 +12256,9 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
         {
             hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
             vos_status = wlan_hdd_check_ula_done(pAdapter);
+
+            if (peerMacAddr && (pairwise_set_key == true))
+                staid = hdd_sta_id_find_from_mac_addr(pAdapter, peerMacAddr);
 
             if ( vos_status != VOS_STATUS_SUCCESS )
             {
@@ -12283,6 +12320,9 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                 hdd_PerformRoamSetKeyComplete(pAdapter);
             }
         }
+
+        if (pairwise_set_key == true)
+           staid = pHddStaCtx->conn_info.staId[0];
 
         pWextState->roamProfile.Keys.KeyLength[key_index] = (u8)params->key_len;
 
@@ -12389,6 +12429,13 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                 goto end;
             }
         }
+    }
+
+    if (pairwise_set_key == true) {
+       for (i = 0; i < params->seq_len; i++) {
+          rsc_counter |= (params->seq[i] << i*8);
+       }
+       WLANTL_SetKeySeqCounter(pVosContext, rsc_counter, staid);
     }
 
 end:
@@ -13925,6 +13972,11 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
               "%s: Not scanning on device_mode = %s (%d)",
               __func__, hdd_device_modetoString(pAdapter->device_mode),
                                                 pAdapter->device_mode);
+        return -EOPNOTSUPP;
+    }
+
+    if (pAdapter->device_mode == WLAN_HDD_MONITOR) {
+        hddLog(LOGE, FL("Scan is not supported for monitor adapter"));
         return -EOPNOTSUPP;
     }
 
@@ -15677,6 +15729,9 @@ static int __wlan_hdd_cfg80211_connect( struct wiphy *wiphy,
         return status;
     }
 
+    if (wlan_hdd_check_and_stop_mon(pAdapter, true))
+        return -EINVAL;
+
     status = wlan_hdd_reassoc_bssid_hint(pAdapter, req);
     if (0 == status)
         return status;
@@ -15843,6 +15898,8 @@ int wlan_hdd_disconnect( hdd_adapter_t *pAdapter, u16 reason )
     hddLog(VOS_TRACE_LEVEL_INFO, FL("Disabling queues"));
     netif_tx_disable(pAdapter->dev);
     netif_carrier_off(pAdapter->dev);
+
+    wlan_hdd_check_and_stop_mon(pAdapter, true);
 
     /*issue disconnect*/
     status = sme_RoamDisconnect( WLAN_HDD_GET_HAL_CTX(pAdapter),
