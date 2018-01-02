@@ -1110,7 +1110,7 @@ void csrAbortCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand, tANI_BOOLEAN fStop
         {
         case eSmeCommandScan:
             // We need to inform the requester before dropping the scan command
-            smsLog( pMac, LOGW, "%s: Drop scan reason %d callback %p",
+            smsLog( pMac, LOGW, "%s: Drop scan reason %d callback %pK",
                     __func__, pCommand->u.scanCmd.reason,
                     pCommand->u.scanCmd.callback);
             if (NULL != pCommand->u.scanCmd.callback)
@@ -3373,15 +3373,18 @@ eHalStatus csrRoamPrepareBssConfig(tpAniSirGlobal pMac, tCsrRoamProfile *pProfil
         {
              pBssConfig->uHeartBeatThresh = pMac->roam.configParam.HeartbeatThresh24;
         }
-        //Join timeout
-        // if we find a BeaconInterval in the BssDescription, then set the Join Timeout to 
-        // be 10 x the BeaconInterval.                          
-        if ( pBssDesc->beaconInterval )
+        /*
+         * Join timeout, if we find a BeaconInterval in the BssDescription,
+         * then set the Join Timeout to be 3 BeaconInterval.
+         */
+        if (pBssDesc->beaconInterval)
         {
             //Make sure it is bigger than the minimal
-            pBssConfig->uJoinTimeOut = CSR_ROAM_MAX(10 * pBssDesc->beaconInterval, CSR_JOIN_FAILURE_TIMEOUT_MIN);
+            pBssConfig->uJoinTimeOut =
+                                  CSR_ROAM_MAX(3 * pBssDesc->beaconInterval,
+                                                CSR_JOIN_FAILURE_TIMEOUT_MIN);
         }
-        else 
+        else
         {
             pBssConfig->uJoinTimeOut = CSR_JOIN_FAILURE_TIMEOUT_DEFAULT;
         }
@@ -10814,7 +10817,7 @@ void csrRoamCheckForLinkStatusChange( tpAniSirGlobal pMac, tSirSmeRsp *pSirMsg )
                                                  operationChannel,
                                                  IS_HT40_OBSS_SCAN_FEATURE_ENABLE);
                                          smsLog( pMac, LOG1,FL("connectState %d"
-                                                 "pCurRoamProfile %p"),
+                                                 "pCurRoamProfile %pK"),
                                                  pSession->connectState,
                                                  pSession->pCurRoamProfile);
                                     }
@@ -14080,6 +14083,8 @@ eHalStatus csrSendJoinReqMsg( tpAniSirGlobal pMac, tANI_U32 sessionId, tSirBssDe
     {
         vos_mem_free( pMsg );
     }
+    pMac->roam.roamSession[sessionId].connect_req_start_time =
+                                                   vos_timer_get_system_time();
 
     return( status );
 }
@@ -19653,7 +19658,7 @@ void csrGetStaticUapsdMask(tpAniSirGlobal pMac, tANI_U8 *staticUapsdMask)
 
     if(!pSession || !pSession->pCurRoamProfile)
        smsLog(pMac, LOGE, FL("Either pSession or Roam profile is NULL,"
-           " pSession:%p"), pSession);
+           " pSession:%pK"), pSession);
     else
        *staticUapsdMask = pSession->pCurRoamProfile->uapsd_mask;
 }
