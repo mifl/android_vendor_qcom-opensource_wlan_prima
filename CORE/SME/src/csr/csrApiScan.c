@@ -5287,6 +5287,8 @@ eHalStatus csrScanSmeScanResponse( tpAniSirGlobal pMac, void *pMsgBuf )
         pCommand = GET_BASE_ADDR( pEntry, tSmeCmd, Link );
         if ( eSmeCommandScan == pCommand->command )
         {
+            scanStatus = (eSIR_SME_SUCCESS == pScanRsp->statusCode) ?
+                          eCSR_SCAN_SUCCESS : eCSR_SCAN_FAILURE;
             /* Purge the scan results based on Aging */
             if (pEntry && pMac->scan.scanResultCfgAgingTime)
                 csrPurgeScanResultByAge(pMac);
