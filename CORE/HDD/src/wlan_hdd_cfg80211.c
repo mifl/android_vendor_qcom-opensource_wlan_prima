@@ -9206,7 +9206,8 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
             hdd_station_ctx_t *pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
             vos_status = wlan_hdd_check_ula_done(pAdapter);
 
-            staid = hdd_sta_id_find_from_mac_addr(pAdapter, peerMacAddr);
+            if (peerMacAddr && (pairwise_set_key == true))
+                staid = hdd_sta_id_find_from_mac_addr(pAdapter, peerMacAddr);
 
             if ( vos_status != VOS_STATUS_SUCCESS )
             {
@@ -9290,8 +9291,6 @@ static int __wlan_hdd_cfg80211_add_key( struct wiphy *wiphy,
                 setKey.keyDirection);
 
         vos_status = wlan_hdd_check_ula_done(pAdapter);
-        if (peerMacAddr && (pairwise_set_key == true))
-            staid = hdd_sta_id_find_from_mac_addr(pAdapter, peerMacAddr);
 
         if ( vos_status != VOS_STATUS_SUCCESS )
         {
