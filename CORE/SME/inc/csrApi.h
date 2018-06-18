@@ -402,6 +402,7 @@ typedef struct tagCsrScanResultFilter
     tANI_U8 MFPRequired;
     tANI_U8 MFPCapable;
 #endif
+    bool ignore_pmf_cap;
 }tCsrScanResultFilter;
 
 
