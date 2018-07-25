@@ -8902,6 +8902,7 @@ _sap_offload_parse_assoc_req(tpAniSirGlobal pmac,
     tSirRetStatus status;
     tpDphHashNode sta_ds = NULL;
     uint8_t *frame_body = NULL;
+    uint32_t data_len;
 
     tpPESession session_entry = limIsApSessionActive(pmac);
 
@@ -8911,16 +8912,31 @@ _sap_offload_parse_assoc_req(tpAniSirGlobal pmac,
             return NULL;
     }
 
+    if (add_sta_req->data_len <= sizeof(tSirMacMgmtHdr))
+    {
+        limLog(pmac, LOGE, FL("insufficient length of assoc request"));
+        return NULL;
+    }
+
     /* Update Attribute and Remove IE for
      * Software AP Authentication Offload
      */
     frame_body = (tANI_U8 *)add_sta_req->bufp;
+
+    /*
+     * strip MAC mgmt header before passing buf to
+     * sirConvertAssocReqFrame2Struct() as this API
+     * expects buf starting from fixed parameters only.
+     */
+    frame_body += sizeof(tSirMacMgmtHdr);
+    data_len = add_sta_req->data_len - sizeof(tSirMacMgmtHdr);
+
     mac_assoc_req = (tpSirMacAssocReqFrame)frame_body;
     mac_assoc_req->capabilityInfo.privacy = 0;
 
     status = sirConvertAssocReqFrame2Struct(pmac,
             frame_body,
-            add_sta_req->data_len,
+            data_len,
             assoc_req);
     if (status != eSIR_SUCCESS)
     {
