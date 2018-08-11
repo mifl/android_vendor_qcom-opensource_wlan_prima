@@ -1331,13 +1331,6 @@ VOS_STATUS hdd_hostapd_SAPEventCB( tpSap_Event pSapEvent, v_PVOID_t usrDataForCa
 
             pHddApCtx->operatingChannel = 0; //Invalidate the channel info.
 
-            if (pHostapdAdapter->device_mode == WLAN_HDD_P2P_GO)
-            {
-                hddLog(LOG1,
-                       FL("P2P Go is getting removed and we are trying to re-enable TDLS"));
-                wlan_hdd_tdls_reenable(pHddCtx);
-            }
-
             goto stopbss;
         case eSAP_STA_SET_KEY_EVENT:
             //TODO: forward the message to hostapd once implementtation is done for now just print
@@ -1753,6 +1746,14 @@ stopbss :
         wireless_send_event(dev, we_event, &wrqu, (char *)we_custom_event_generic);
         hdd_dump_concurrency_info(pHddCtx);
     }
+        if (pHostapdAdapter->device_mode == WLAN_HDD_P2P_GO ||
+            pHostapdAdapter->device_mode == WLAN_HDD_SOFTAP)
+        {
+            hddLog(LOG1,
+                   FL("SAP or Go is getting removed and we are trying to re-enable TDLS"));
+            wlan_hdd_tdls_reenable(pHddCtx);
+        }
+
     return VOS_STATUS_SUCCESS;
 }
 
@@ -1797,11 +1798,12 @@ int hdd_softap_unpackIE(
         RSNIeLen = gen_ie_len - 2; 
         // Unpack the RSN IE
         memset(&dot11RSNIE, 0, sizeof(tDot11fIERSN));
-        status = dot11fUnpackIeRSN((tpAniSirGlobal) halHandle,
-                            pRsnIe,
-                            RSNIeLen,
-                            &dot11RSNIE);
-        if (DOT11F_FAILED(status))
+
+        status = sme_unpack_rsn_ie(halHandle,
+                                   pRsnIe,
+                                   RSNIeLen,
+                                   &dot11RSNIE);
+        if (!DOT11F_SUCCEEDED(status))
         {
              hddLog(LOGE,
                         FL("unpack failed for RSN IE status:(0x%08x)"),
@@ -1813,12 +1815,12 @@ int hdd_softap_unpackIE(
         hddLog(LOG1, FL("%s: pairwise cipher suite count: %d"),
                 __func__, dot11RSNIE.pwise_cipher_suite_count );
         hddLog(LOG1, FL("%s: authentication suite count: %d"),
-                __func__, dot11RSNIE.akm_suite_count);
+                __func__, dot11RSNIE.akm_suite_cnt);
         /*Here we have followed the apple base code, 
           but probably I suspect we can do something different*/
-        //dot11RSNIE.akm_suite_count
+        //dot11RSNIE.akm_suite_cnt
         // Just translate the FIRST one 
-        *pAuthType =  hdd_TranslateRSNToCsrAuthType(dot11RSNIE.akm_suites[0]); 
+        *pAuthType =  hdd_TranslateRSNToCsrAuthType(dot11RSNIE.akm_suite[0]);
         //dot11RSNIE.pwise_cipher_suite_count 
         *pEncryptType = hdd_TranslateRSNToCsrEncryptionType(dot11RSNIE.pwise_cipher_suites[0]);                     
         //dot11RSNIE.gp_cipher_suite_count 
@@ -4600,10 +4602,12 @@ static int __iw_softap_stopbss(struct net_device *dev,
 
     if(test_bit(SOFTAP_BSS_STARTED, &pHostapdAdapter->event_flags))
     {
+        hdd_hostapd_state_t *pHostapdState =
+                              WLAN_HDD_GET_HOSTAP_STATE_PTR(pHostapdAdapter);
+
+        vos_event_reset(&pHostapdState->vosEvent);
         if ( VOS_STATUS_SUCCESS == (status = WLANSAP_StopBss((WLAN_HDD_GET_CTX(pHostapdAdapter))->pvosContext) ) )
         {
-            hdd_hostapd_state_t *pHostapdState = WLAN_HDD_GET_HOSTAP_STATE_PTR(pHostapdAdapter);
-
             status = vos_wait_single_event(&pHostapdState->vosEvent, 10000);
 
             if (!VOS_IS_STATUS_SUCCESS(status))
