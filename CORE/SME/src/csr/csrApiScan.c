@@ -381,6 +381,10 @@ eHalStatus csrQueueScanRequest( tpAniSirGlobal pMac, tSmeCmd *pScanCmd )
     /* split scan if any one of the following:
      * - STA session is connected and the scan is not a P2P search
      * - any P2P session is connected
+     * - STA+SAP. In STA+SAP concurrency, scan requests received on
+     *   STA interface when not in connected state are not split.
+     *   This can result in large time gap between successive beacons
+     *   sent by SAP.
      * Do not split scans if no concurrent infra connections are 
      * active and if the scan is a BG scan triggered by LFR (OR)
      * any scan if LFR is in the middle of a BG scan. Splitting
@@ -388,7 +392,11 @@ eHalStatus csrQueueScanRequest( tpAniSirGlobal pMac, tSmeCmd *pScanCmd )
      * candidates and resulting in disconnects.
      */
 
-    if(csrIsStaSessionConnected(pMac) &&
+    if (csrIsInfraApStarted(pMac))
+    {
+      nNumChanCombinedConc = 1;
+    }
+    else if(csrIsStaSessionConnected(pMac) &&
        !csrIsP2pSessionConnected(pMac))
     {
       nNumChanCombinedConc = pMac->roam.configParam.nNumStaChanCombinedConc;
@@ -5764,7 +5772,8 @@ static tANI_BOOLEAN csrScanProcessScanResults( tpAniSirGlobal pMac, tSmeCmd *pCo
                        eCSR_NEIGHBOR_ROAM_STATE_CFG_CHAN_LIST_SCAN))) &&
 #endif
                     (pCommand->u.scanCmd.u.scanRequest.p2pSearch != 1)) ||
-                (csrIsP2pSessionConnected(pMac)) )
+                (csrIsP2pSessionConnected(pMac)) ||
+                csrIsInfraApStarted(pMac))
         {
             /* if active connected sessions present then continue to split scan
              * with specified interval between consecutive scans */
@@ -7152,6 +7161,10 @@ static void csrStaApConcTimerHandler(void *pv)
          * any one of the following:
          * - STA session is connected and the scan is not a P2P search
          * - any P2P session is connected
+         * - STA+SAP. In STA+SAP concurrency, scan requests received on
+         *   STA interface when not in connected state are not split.
+         *   This can result in large time gap between successive beacons
+         *   sent by SAP.
          * Do not split scans if no concurrent infra connections are 
          * active and if the scan is a BG scan triggered by LFR (OR)
          * any scan if LFR is in the middle of a BG scan. Splitting
@@ -7159,7 +7172,11 @@ static void csrStaApConcTimerHandler(void *pv)
          * candidates and resulting in disconnects.
          */
 
-        if((csrIsStaSessionConnected(pMac) &&
+        if (csrIsInfraApStarted(pMac))
+        {
+            nNumChanCombinedConc = 1;
+        }
+        else if((csrIsStaSessionConnected(pMac) &&
            !csrIsP2pSessionConnected(pMac)))
         {
            nNumChanCombinedConc = pMac->roam.configParam.nNumStaChanCombinedConc;
@@ -7178,7 +7195,8 @@ static void csrStaApConcTimerHandler(void *pv)
                      eCSR_NEIGHBOR_ROAM_STATE_CFG_CHAN_LIST_SCAN))) &&
 #endif
                   (pScanCmd->u.scanCmd.u.scanRequest.p2pSearch != 1)) ||
-              (csrIsP2pSessionConnected(pMac))))
+              (csrIsP2pSessionConnected(pMac)) ||
+              csrIsInfraApStarted(pMac)))
         {
              vos_mem_set(&scanReq, sizeof(tCsrScanRequest), 0);
 

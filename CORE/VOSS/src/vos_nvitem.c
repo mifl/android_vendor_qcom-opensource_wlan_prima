@@ -1633,6 +1633,30 @@ VOS_STATUS vos_nv_close(void)
     return VOS_STATUS_SUCCESS;
 }
 
+void vos_nv_enable_5g_channel_world_regd(uint8_t ch_5g)
+{
+    uint32_t chan_index;
+    eRfChannels rf_chan = INVALID_RF_CHANNEL;
+    sRegulatoryDomains *regd;
+
+    if (!ch_5g)
+        return;
+
+    for (chan_index = 0; chan_index <= RF_CHAN_165; chan_index++) {
+        if (rfChannels[chan_index].channelNum == ch_5g) {
+            rf_chan = chan_index;
+            break;
+        }
+    }
+
+    if (rf_chan == INVALID_RF_CHANNEL)
+        return;
+
+    regd = &pnvEFSTable->halnv.tables.regDomains[REGDOMAIN_WORLD];
+    regd->channels[rf_chan].enabled = NV_CHANNEL_ENABLE;
+}
+
+
 /**------------------------------------------------------------------------
   \brief vos_nv_getSupportedCountryCode() - get the list of supported
   country codes

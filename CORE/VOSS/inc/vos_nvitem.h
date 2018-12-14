@@ -807,4 +807,6 @@ void vos_getCurrentCountryCode
 int vos_update_nv_table_from_wiphy_band(void *hdd_ctx,
                                          void *wiphy,v_U8_t nBandCapability);
 
+void vos_nv_enable_5g_channel_world_regd(uint8_t ch_5g);
+
 #endif // __VOS_NVITEM_H

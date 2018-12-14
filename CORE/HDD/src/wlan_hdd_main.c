@@ -12627,6 +12627,9 @@ int hdd_wlan_startup(struct device *dev )
        goto err_wdclose;
    }
 
+   vos_nv_enable_5g_channel_world_regd(
+        pHddCtx->cfg_ini->enable_5g_channel_world);
+
    status = vos_init_wiphy_from_nv_bin();
    if (!VOS_IS_STATUS_SUCCESS(status))
    {

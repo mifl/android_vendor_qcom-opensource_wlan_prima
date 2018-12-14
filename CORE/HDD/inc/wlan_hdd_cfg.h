@@ -2466,6 +2466,29 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MAX                 ( 1 )
 #define CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_DEFAULT             ( 0 )
 
+/*
+ * <ini>
+ * gEnable5GChannelWorldMode - Chan.No to be enabled in WORLD REGD 5G band
+ * @Min: 0
+ * @Max: 165
+ * @Default: 0
+ *
+ * This ini is used to enable the specified channel in 5GHz band
+ * for World Regd.
+ *
+ * Related: None
+ *
+ * Supported Feature: SAP/STA
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+#define CFG_ENABLE_5G_WORLD_MODE_NAME    "gEnable5GChannelWorldMode"
+#define CFG_ENABLE_5G_WORLD_MODE_MIN     (0)
+#define CFG_ENABLE_5G_WORLD_MODE_MAX     (165)
+#define CFG_ENABLE_5G_WORLD_MODE_DEFAULT (0)
+
 #define CFG_ADVERTISE_CONCURRENT_OPERATION_NAME    "gAdvertiseConcurrentOperation"
 #define CFG_ADVERTISE_CONCURRENT_OPERATION_DEFAULT ( 1 )
 #define CFG_ADVERTISE_CONCURRENT_OPERATION_MIN     ( 0 )
@@ -3705,6 +3728,7 @@ typedef struct
    uint32_t                    sta_auth_retries_for_code17;
    uint32_t                    trigger_nullframe_before_hb;
    bool                        force_scc_with_ecsa;
+   uint8_t                     enable_5g_channel_world;
 } hdd_config_t;
 
 /*--------------------------------------------------------------------------- 

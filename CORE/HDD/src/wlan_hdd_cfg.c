@@ -3112,6 +3112,13 @@ REG_VARIABLE( CFG_EXTSCAN_ENABLE, WLAN_PARAM_Integer,
                 CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MIN,
                 CFG_ENABLE_STRICT_REGULATORY_FOR_FCC_MAX ),
 
+   REG_VARIABLE(CFG_ENABLE_5G_WORLD_MODE_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, enable_5g_channel_world,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_ENABLE_5G_WORLD_MODE_DEFAULT,
+                CFG_ENABLE_5G_WORLD_MODE_MIN,
+                CFG_ENABLE_5G_WORLD_MODE_MAX),
+
    REG_VARIABLE( CFG_ADVERTISE_CONCURRENT_OPERATION_NAME , WLAN_PARAM_Integer,
                  hdd_config_t, advertiseConcurrentOperation,
                  VAR_FLAGS_OPTIONAL,
@@ -4387,6 +4394,10 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
           "Name = [gEnableDelAck] Value = [%u] ",
           pHddCtx->cfg_ini->enable_delack);
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+          "Name = [%s] Value = [%u]",
+          CFG_ENABLE_5G_WORLD_MODE_NAME,
+          pHddCtx->cfg_ini->enable_5g_channel_world);
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
           "Name = [disableBarWakeUp] Value = [%u] ",
           pHddCtx->cfg_ini->disableBarWakeUp);
