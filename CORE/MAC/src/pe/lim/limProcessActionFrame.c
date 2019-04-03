@@ -64,6 +64,7 @@
 #include "eseApi.h"
 #endif
 #include "wlan_qct_wda.h"
+#include "dot11f.h"
 
 
 #define BA_DEFAULT_TX_BUFFER_SIZE 64
