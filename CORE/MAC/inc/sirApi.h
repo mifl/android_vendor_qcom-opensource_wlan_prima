@@ -1105,6 +1105,7 @@ typedef struct sSirSmeJoinReq
     tAniBool            spectrumMgtIndicator;
     tSirMacPowerCapInfo powerCap;
     tSirSupChnl         supportedChannels;
+    bool                force_rsne_override;
     tSirBssDescription  bssDescription;
 
 } tSirSmeJoinReq, *tpSirSmeJoinReq;

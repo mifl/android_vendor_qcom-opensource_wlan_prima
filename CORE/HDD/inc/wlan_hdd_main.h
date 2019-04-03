@@ -1457,6 +1457,7 @@ struct hdd_context_s
 #endif /* End of WLAN_FEATURE_LINK_LAYER_STATS */
     unsigned long  last_suspend_success;
     v_U32_t  continuous_suspend_fail_cnt;
+    bool force_rsne_override;
 };
 
 

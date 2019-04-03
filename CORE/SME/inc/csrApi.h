@@ -941,6 +941,7 @@ typedef struct tagCsrRoamProfile
     tCsrMobilityDomainInfo MDID;
 #endif
     tVOS_CON_MODE csrPersona;
+    bool force_rsne_override;
 
 }tCsrRoamProfile;
 
