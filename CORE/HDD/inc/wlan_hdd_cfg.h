@@ -2570,6 +2570,30 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_MAXCHAN_FOR_CHANTIME_CORR_MAX        (35)
 #define CFG_MAXCHAN_FOR_CHANTIME_CORR_DEFAULT    (10)
 
+/*
+ * <ini>
+ * force_rsne_override - force rsn ie override from user
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable test mode to force rsne override used in
+ * security enhancement test cases to pass the RSNIE sent by user in
+ * assoc request.
+ *
+ * Related: None
+ *
+ * Supported Feature: STA
+ *
+ * Usage: internal
+ *
+ * </ini>
+ */
+#define CFG_FORCE_RSNE_OVERRIDE_NAME    "force_rsne_override"
+#define CFG_FORCE_RSNE_OVERRIDE_MIN     (0)
+#define CFG_FORCE_RSNE_OVERRIDE_MAX     (1)
+#define CFG_FORCE_RSNE_OVERRIDE_DEFAULT (0)
+
 /*--------------------------------------------------------------------------- 
   Type declarations
   -------------------------------------------------------------------------*/ 
@@ -3088,6 +3112,7 @@ typedef struct
    v_U8_t                      boffset_correction_enable;
    v_BOOL_t                    disableBarWakeUp;
    v_U8_t                      max_chan_for_dwell_time_cfg;
+   bool                        force_rsne_override;
 } hdd_config_t;
 
 /*--------------------------------------------------------------------------- 

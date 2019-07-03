@@ -402,6 +402,7 @@ typedef struct tagCsrScanResultFilter
     tANI_U8 MFPRequired;
     tANI_U8 MFPCapable;
 #endif
+    bool ignore_pmf_cap;
 }tCsrScanResultFilter;
 
 
@@ -941,6 +942,7 @@ typedef struct tagCsrRoamProfile
     tCsrMobilityDomainInfo MDID;
 #endif
     tVOS_CON_MODE csrPersona;
+    bool force_rsne_override;
 
 }tCsrRoamProfile;
 

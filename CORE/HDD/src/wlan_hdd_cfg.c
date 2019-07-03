@@ -3424,12 +3424,20 @@ REG_VARIABLE( CFG_EXTSCAN_ENABLE, WLAN_PARAM_Integer,
                  CFG_DISABLE_BAR_WAKEUP_HOST_MIN,
                  CFG_DISABLE_BAR_WAKEUP_HOST_MAX),
 
-  REG_VARIABLE( CFG_MAXCHAN_FOR_CHANTIME_CORR_NAME, WLAN_PARAM_Integer,
+    REG_VARIABLE(CFG_MAXCHAN_FOR_CHANTIME_CORR_NAME, WLAN_PARAM_Integer,
                  hdd_config_t, max_chan_for_dwell_time_cfg,
                  VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
                  CFG_MAXCHAN_FOR_CHANTIME_CORR_DEFAULT,
                  CFG_MAXCHAN_FOR_CHANTIME_CORR_MIN,
                  CFG_MAXCHAN_FOR_CHANTIME_CORR_MAX ),
+
+    REG_VARIABLE(CFG_FORCE_RSNE_OVERRIDE_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, force_rsne_override,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_FORCE_RSNE_OVERRIDE_DEFAULT,
+                 CFG_FORCE_RSNE_OVERRIDE_MIN,
+                 CFG_FORCE_RSNE_OVERRIDE_MAX),
+
 };
 
 /*
@@ -3861,6 +3869,11 @@ static void print_hdd_cfg(hdd_context_t *pHddCtx)
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
           "Name = [gMaxChannelForMoreDwellTime] Value = [%u] ",
           pHddCtx->cfg_ini->max_chan_for_dwell_time_cfg);
+
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+            "Name = [%s] Value = [%u] ",
+            CFG_FORCE_RSNE_OVERRIDE_NAME,
+            pHddCtx->cfg_ini->force_rsne_override);
 }
 
 
