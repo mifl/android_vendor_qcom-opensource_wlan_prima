@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1109,6 +1109,8 @@ PopulateDot11fExtCap(tpAniSirGlobal      pMac,
            pDot11f->present = 1;
        }
     }
+
+    p_ext_cap->fils_capability = 0;
 
     if (pDot11f->present)
     {
