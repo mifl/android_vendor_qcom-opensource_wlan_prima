@@ -292,7 +292,8 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
     }
 
     if ((pStaDs->mlmStaContext.mlmState == eLIM_MLM_WT_DEL_STA_RSP_STATE) ||
-        (pStaDs->mlmStaContext.mlmState == eLIM_MLM_WT_DEL_BSS_RSP_STATE))
+        (pStaDs->mlmStaContext.mlmState == eLIM_MLM_WT_DEL_BSS_RSP_STATE) ||
+         pStaDs->sta_deletion_in_progress)
     {
         /**
          * Already in the process of deleting context for the peer
@@ -300,13 +301,13 @@ limProcessDisassocFrame(tpAniSirGlobal pMac, tANI_U8 *pRxPacketInfo, tpPESession
          */
         PELOGE(limLog(pMac, LOGE,
                FL("received Disassoc frame in state %d from "MAC_ADDRESS_STR
-               ",isDisassocDeauthInProgress : %d\n"),
+               ",isDisassocDeauthInProgress : %d \n"),
                pStaDs->mlmStaContext.mlmState, MAC_ADDR_ARRAY(pHdr->sa),
                pStaDs->isDisassocDeauthInProgress);)
 
         return;
     } 
-
+    pStaDs->sta_deletion_in_progress = true;
     if (pStaDs->mlmStaContext.mlmState != eLIM_MLM_LINK_ESTABLISHED_STATE)
     {
         /**
