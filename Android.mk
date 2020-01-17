@@ -23,20 +23,32 @@ ifneq ($(WLAN_CHIPSET),)
 
 LOCAL_PATH := $(call my-dir)
 
-# This makefile is only for DLKM
+ifeq ($(TARGET_SUPPORTS_WEARABLES),true)
+ifneq ($(findstring device,$(LOCAL_PATH)),)
+    WLAN_DLKM := 1
+else
 ifneq ($(findstring vendor,$(LOCAL_PATH)),)
+    WLAN_DLKM := 1
+else
+    WLAN_DLKM := 0
+endif # findstring device
+endif
+else
+ifneq ($(findstring vendor,$(LOCAL_PATH)),)
+    WLAN_DLKM := 1
+else
+    WLAN_DLKM := 0
+endif # findstring vendor
+endif # TARGET_SUPPORTS_WEARABLES
+
+# This makefile is only for DLKM
+ifeq ($(WLAN_DLKM),1)
 
 # Determine if we are Proprietary or Open Source
 ifneq ($(findstring opensource,$(LOCAL_PATH)),)
     WLAN_PROPRIETARY := 0
 else
     WLAN_PROPRIETARY := 1
-endif
-
-ifeq ($(WLAN_PROPRIETARY),1)
-    WLAN_BLD_DIR := vendor/qcom/proprietary/wlan
-else
-    WLAN_BLD_DIR := vendor/qcom/opensource/wlan
 endif
 
 # DLKM_DIR was moved for JELLY_BEAN (PLATFORM_SDK 16)
@@ -81,11 +93,28 @@ include $(BUILD_PREBUILT)
 
 endif
 
+ifeq ($(TARGET_KERNEL_VERSION),)
+$(info "WLAN: TARGET_KERNEL_VERSION is not defined, assuming default")
+TARGET_KERNEL_SOURCE := kernel
+KERNEL_TO_BUILD_ROOT_OFFSET := ../
+endif
+
+ifeq ($(KERNEL_TO_BUILD_ROOT_OFFSET),)
+$(info "WLAN: KERNEL_TO_BUILD_ROOT_OFFSET is not defined, assuming default")
+KERNEL_TO_BUILD_ROOT_OFFSET := ../
+endif
+
 # Build wlan.ko as either prima_wlan.ko or pronto_wlan.ko
 ###########################################################
 
 # This is set once per LOCAL_PATH, not per (kernel) module
-KBUILD_OPTIONS := WLAN_ROOT=../$(WLAN_BLD_DIR)/prima
+
+ifeq ($(KBUILD_OPTIONS),)
+KBUILD_OPTIONS += WLAN_PROPRIETARY=$(WLAN_PROPRIETARY)
+KBUILD_OPTIONS += TARGET_SUPPORTS_WEARABLES=$(TARGET_SUPPORTS_WEARABLES)
+KBUILD_OPTIONS += KERNEL_TO_BUILD_ROOT_OFFSET=$(KERNEL_TO_BUILD_ROOT_OFFSET)
+endif
+
 # We are actually building wlan.ko here, as per the
 # requirement we are specifying <chipset>_wlan.ko as LOCAL_MODULE.
 # This means we need to rename the module to <chipset>_wlan.ko
@@ -95,8 +124,15 @@ KBUILD_OPTIONS += BOARD_PLATFORM=$(TARGET_BOARD_PLATFORM)
 KBUILD_OPTIONS += $(WLAN_SELECT)
 
 
+ifeq ($(KERNEL_TO_BUILD_ROOT_OFFSET),../../)
+$(warning "Him: TARGET_KERNEL_VERSION defined")
+VERSION=$(shell grep -w "VERSION =" $(TOP)/kernel/msm-$(TARGET_KERNEL_VERSION)/Makefile | sed 's/^VERSION = //' )
+PATCHLEVEL=$(shell grep -w "PATCHLEVEL =" $(TOP)/kernel/msm-$(TARGET_KERNEL_VERSION)/Makefile | sed 's/^PATCHLEVEL = //' )
+else
+$(warning "Him: TARGET_KERNEL_VERSION not defined")
 VERSION=$(shell grep -w "VERSION =" $(TOP)/kernel/Makefile | sed 's/^VERSION = //' )
 PATCHLEVEL=$(shell grep -w "PATCHLEVEL =" $(TOP)/kernel/Makefile | sed 's/^PATCHLEVEL = //' )
+endif
 
 include $(CLEAR_VARS)
 LOCAL_MODULE              := $(WLAN_CHIPSET)_wlan.ko

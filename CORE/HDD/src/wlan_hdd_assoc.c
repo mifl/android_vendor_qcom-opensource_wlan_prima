@@ -67,6 +67,57 @@
 #include "vos_utils.h"
 #include <wlan_hdd_wext.h>
 
+#if defined CFG80211_ROAMED_API_UNIFIED || \
+	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
+/**
+ * hdd_send_roamed_ind() - send roamed indication to cfg80211
+ * @dev: network device
+ * @bss: cfg80211 roamed bss pointer
+ * @req_ie: IEs used in reassociation request
+ * @req_ie_len: Length of the @req_ie
+ * @resp_ie: IEs received in successful reassociation response
+ * @resp_ie_len: Length of @resp_ie
+ *
+ * Return: none
+ */
+static void hdd_send_roamed_ind(struct net_device *dev,
+				struct cfg80211_bss *bss, const uint8_t *req_ie,
+				size_t req_ie_len, const uint8_t *resp_ie,
+				size_t resp_ie_len)
+{
+	struct cfg80211_roam_info info = {0};
+
+	info.bss = bss;
+	info.req_ie = req_ie;
+	info.req_ie_len = req_ie_len;
+	info.resp_ie = resp_ie;
+	info.resp_ie_len = resp_ie_len;
+
+	cfg80211_roamed(dev, &info, GFP_KERNEL);
+}
+#else
+/**
+ * hdd_send_roamed_ind() - send roamed indication to cfg80211
+ * @dev: network device
+ * @bss: cfg80211 roamed bss pointer
+ * @req_ie: IEs used in reassociation request
+ * @req_ie_len: Length of the @req_ie
+ * @resp_ie: IEs received in successful reassociation response
+ * @resp_ie_len: Length of @resp_ie
+ *
+ * Return: none
+ */
+static inline void hdd_send_roamed_ind(struct net_device *dev,
+				       struct cfg80211_bss *bss,
+				       const uint8_t *req_ie, size_t req_ie_len,
+				       const uint8_t *resp_ie,
+				       size_t resp_ie_len)
+{
+	cfg80211_roamed_bss(dev, bss, req_ie, req_ie_len, resp_ie, resp_ie_len,
+			    GFP_KERNEL);
+}
+#endif
+
 v_BOOL_t mibIsDot11DesiredBssTypeInfrastructure( hdd_adapter_t *pAdapter );
 
 struct ether_addr
@@ -1078,11 +1129,11 @@ static eHalStatus hdd_DisConnectHandler( hdd_adapter_t *pAdapter, tCsrRoamInfo *
                /* To avoid wpa_supplicant sending "HANGED" CMD to ICS UI */
                if ( eCSR_ROAM_LOSTLINK == roamStatus )
                {
-                   cfg80211_disconnected(dev, pRoamInfo->reasonCode, NULL, 0, GFP_KERNEL);
+                   wlan_hdd_cfg80211_indicate_disconnect(dev, false, pRoamInfo->reasonCode);
                }
                else
                {
-                   cfg80211_disconnected(dev, WLAN_REASON_UNSPECIFIED, NULL, 0, GFP_KERNEL);
+                   wlan_hdd_cfg80211_indicate_disconnect(dev, false, WLAN_REASON_UNSPECIFIED);
                }
             }
 
@@ -1465,7 +1516,10 @@ static void hdd_SendReAssocEvent(struct net_device *dev, hdd_adapter_t *pAdapter
     u8 *pFTAssocRsp = NULL;
     v_U8_t *rspRsnIe = kmalloc(IW_GENERIC_IE_MAX, GFP_KERNEL);
     tANI_U32 rspRsnLength = 0;
+    struct cfg80211_bss* bss;
+    tCsrRoamConnectedProfile roam_profile;
     struct ieee80211_channel *chan;
+    tHalHandle hHal = WLAN_HDD_GET_HAL_CTX(pAdapter);
 
     if (!rspRsnIe) {
         hddLog(LOGE, "%s: Unable to allocate RSN IE", __func__);
@@ -1500,9 +1554,15 @@ static void hdd_SendReAssocEvent(struct net_device *dev, hdd_adapter_t *pAdapter
     memset(rspRsnIe + len, 0, IW_GENERIC_IE_MAX - len);
 
     chan = ieee80211_get_channel(pAdapter->wdev.wiphy, (int) pCsrRoamInfo->pBssDesc->channelId);
-    cfg80211_roamed(dev,chan,pCsrRoamInfo->bssid,
-                    reqRsnIe, reqRsnLength,
-                    rspRsnIe, rspRsnLength,GFP_KERNEL);
+    vos_mem_zero(&roam_profile, sizeof(tCsrRoamConnectedProfile));
+    sme_RoamGetConnectProfile(hHal, pAdapter->sessionId, &roam_profile);
+    bss = hdd_get_bss_entry(pAdapter->wdev.wiphy,
+              chan, pCsrRoamInfo->bssid,
+              &roam_profile.SSID.ssId[0],
+              roam_profile.SSID.length);
+     hdd_send_roamed_ind(dev, bss,
+               reqRsnIe, reqRsnLength,
+               rspRsnIe, rspRsnLength);
 
 done:
     kfree(rspRsnIe);
@@ -1715,6 +1775,8 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                 {
                     if ( !hddDisconInProgress )
                     {
+			struct cfg80211_bss *roam_bss;
+
                         hddLog(LOG1, "%s ft_carrier_on is %d, sending roamed "
                                  "indication", __FUNCTION__, ft_carrier_on);
                         chan = ieee80211_get_channel(pAdapter->wdev.wiphy,
@@ -1725,9 +1787,13 @@ static eHalStatus hdd_AssociationCompletionHandler( hdd_adapter_t *pAdapter, tCs
                         {
                             vos_record_roam_event(e_HDD_SEND_REASSOC_RSP, NULL, 0);
                         }
-                        cfg80211_roamed(dev,chan, pRoamInfo->bssid,
-                                    pFTAssocReq, assocReqlen, pFTAssocRsp, assocRsplen,
-                                    GFP_KERNEL);
+                        roam_bss = hdd_get_bss_entry(pAdapter->wdev.wiphy,
+                                chan, pRoamInfo->bssid,
+                               pRoamInfo->u.pConnectedProfile->SSID.ssId,
+                               pRoamInfo->u.pConnectedProfile->SSID.length);
+                        hdd_send_roamed_ind(dev, roam_bss,
+                               pFTAssocReq, assocReqlen,
+                               pFTAssocRsp, assocRsplen);
                     }
                     if (sme_GetFTPTKState(WLAN_HDD_GET_HAL_CTX(pAdapter)))
                     {
@@ -2120,10 +2186,10 @@ static void hdd_RoamIbssIndicationHandler( hdd_adapter_t *pAdapter,
 
             if (chan_no <= 14)
                 freq = ieee80211_channel_to_frequency(chan_no,
-                                                      IEEE80211_BAND_2GHZ);
+                                                      HDD_NL80211_BAND_2GHZ);
             else
                 freq = ieee80211_channel_to_frequency(chan_no,
-                                                      IEEE80211_BAND_5GHZ);
+                                                      HDD_NL80211_BAND_5GHZ);
 
             chan = ieee80211_get_channel(pAdapter->wdev.wiphy, freq);
 

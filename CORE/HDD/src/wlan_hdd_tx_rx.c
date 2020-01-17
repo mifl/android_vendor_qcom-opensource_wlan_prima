@@ -786,7 +786,7 @@ void hdd_dump_dhcp_pkt(struct sk_buff *skb, int path)
        }
     }
 
-    dev->trans_start = jiffies;
+    netif_trans_update(dev);
 
     return NETDEV_TX_OK;
  }
@@ -1033,7 +1033,7 @@ int hdd_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
       }
    }
 
-   dev->trans_start = jiffies;
+   netif_trans_update(dev);
 
    return NETDEV_TX_OK;
 }
@@ -1081,9 +1081,7 @@ void __hdd_tx_timeout(struct net_device *dev)
    v_ULONG_t diff_in_jiffies = 0;
    hdd_station_ctx_t *pHddStaCtx = NULL;
 
-   VOS_TRACE( VOS_MODULE_ID_HDD_DATA, VOS_TRACE_LEVEL_ERROR,
-      "%s: Transmission timeout occurred jiffies %lu dev->trans_start %lu",
-        __func__,jiffies,dev->trans_start);
+   TX_TIMEOUT_TRACE(dev, VOS_MODULE_ID_HDD_DATA);
 
    if ( NULL == pAdapter )
    {

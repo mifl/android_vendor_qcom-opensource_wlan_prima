@@ -67,6 +67,7 @@
 #include <net/arp.h>
 #include <net/cfg80211.h>
 #include <linux/wireless.h>
+#include <linux/etherdevice.h>
 #include <wlan_hdd_wowl.h>
 #include <aniGlobal.h>
 #include "ccmApi.h"
@@ -106,7 +107,7 @@
         ((uintptr_t)OFFSET_OF( tSirBssDescription, ieFields)))
 
 #define HDD2GHZCHAN(freq, chan, flag)   {     \
-    .band =  IEEE80211_BAND_2GHZ, \
+    .band =  HDD_NL80211_BAND_2GHZ, \
     .center_freq = (freq), \
     .hw_value = (chan),\
     .flags = (flag), \
@@ -115,7 +116,7 @@
 }
 
 #define HDD5GHZCHAN(freq, chan, flag)   {     \
-    .band =  IEEE80211_BAND_5GHZ, \
+    .band =  HDD_NL80211_BAND_5GHZ, \
     .center_freq = (freq), \
     .hw_value = (chan),\
     .flags = (flag), \
@@ -197,12 +198,6 @@ static const u32 hdd_cipher_suites[] =
     WLAN_CIPHER_SUITE_AES_CMAC,
 #endif
 };
-
-static inline int is_broadcast_ether_addr(const u8 *addr)
-{
-    return ((addr[0] == 0xff) && (addr[1] == 0xff) && (addr[2] == 0xff) &&
-            (addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff));
-}
 
 const static struct ieee80211_channel hdd_channels_2_4_GHZ[] =
 {
@@ -299,7 +294,7 @@ static struct ieee80211_supported_band wlan_hdd_band_2_4_GHZ =
 {
     .channels = NULL,
     .n_channels = ARRAY_SIZE(hdd_channels_2_4_GHZ),
-    .band       = IEEE80211_BAND_2GHZ,
+    .band       = HDD_NL80211_BAND_2GHZ,
     .bitrates = g_mode_rates,
     .n_bitrates = g_mode_rates_size,
     .ht_cap.ht_supported   = 1,
@@ -318,7 +313,7 @@ static struct ieee80211_supported_band wlan_hdd_band_p2p_2_4_GHZ =
 {
     .channels = hdd_social_channels_2_4_GHZ,
     .n_channels = ARRAY_SIZE(hdd_social_channels_2_4_GHZ),
-    .band       = IEEE80211_BAND_2GHZ,
+    .band       = HDD_NL80211_BAND_2GHZ,
     .bitrates = g_mode_rates,
     .n_bitrates = g_mode_rates_size,
     .ht_cap.ht_supported   = 1,
@@ -337,7 +332,7 @@ static struct ieee80211_supported_band wlan_hdd_band_5_GHZ =
 {
     .channels = NULL,
     .n_channels = ARRAY_SIZE(hdd_channels_5_GHZ),
-    .band     = IEEE80211_BAND_5GHZ,
+    .band     = HDD_NL80211_BAND_5GHZ,
     .bitrates = a_mode_rates,
     .n_bitrates = a_mode_rates_size,
     .ht_cap.ht_supported   = 1,
@@ -2696,7 +2691,7 @@ static void wlan_hdd_cfg80211_extscan_cached_results_ind(void *ctx,
                     goto fail;
                 }
 
-                if (nla_put_u64(skb,
+                if (hdd_wlan_nla_put_u64(skb,
                     QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_SCAN_RESULT_TIME_STAMP,
                     pSirWifiScanResult->ts) )
                 {
@@ -2841,7 +2836,7 @@ static void wlan_hdd_cfg80211_extscan_hotlist_match_ind(void *ctx,
             if (!ap)
                 goto fail;
 
-            if (nla_put_u64(skb,
+            if (hdd_wlan_nla_put_u64(skb,
                    QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_SCAN_RESULT_TIME_STAMP,
                     pData->ap[i].ts) ||
                 nla_put(skb,
@@ -3045,7 +3040,7 @@ static void wlan_hdd_cfg80211_extscan_full_scan_result_event(void *ctx,
     hddLog(VOS_TRACE_LEVEL_INFO, "IE Length (%u)", pData->ieLength);
     if (nla_put_u32(skb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_REQUEST_ID,
                 pData->requestId) ||
-        nla_put_u64(skb,
+        hdd_wlan_nla_put_u64(skb,
             QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_SCAN_RESULT_TIME_STAMP,
             pData->ap.ts) ||
         nla_put(skb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_SCAN_RESULT_SSID,
@@ -5654,7 +5649,7 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
 
     ENTER();
 
-    for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+    for (i = 0; i < HDD_NUM_NL80211_BANDS; i++)
     {
 
         if (NULL == wiphy->bands[i])
@@ -5671,12 +5666,12 @@ int wlan_hdd_cfg80211_update_band(struct wiphy *wiphy, eCsrBand eBand)
             channelEnabledState = vos_nv_getChannelEnabledState(
                                   band->channels[j].hw_value);
 
-            if (IEEE80211_BAND_2GHZ == i && eCSR_BAND_5G == eBand) // 5G only
+            if (HDD_NL80211_BAND_2GHZ == i && eCSR_BAND_5G == eBand) // 5G only
             {
                 band->channels[j].flags |= IEEE80211_CHAN_DISABLED;
                 continue;
             }
-            else if (IEEE80211_BAND_5GHZ == i && eCSR_BAND_24 == eBand) // 2G only
+            else if (HDD_NL80211_BAND_5GHZ == i && eCSR_BAND_24 == eBand) // 2G only
             {
                 band->channels[j].flags |= IEEE80211_CHAN_DISABLED;
                 continue;
@@ -5712,7 +5707,7 @@ void wlan_hdd_update_wiphy_bands(struct wiphy *wiphy, hdd_config_t *pCfg)
 {
    int i, j;
 
-   for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+   for (i = 0; i < HDD_NUM_NL80211_BANDS; i++)
    {
        if (NULL == wiphy->bands[i])
        {
@@ -5725,7 +5720,7 @@ void wlan_hdd_update_wiphy_bands(struct wiphy *wiphy, hdd_config_t *pCfg)
        {
            struct ieee80211_supported_band *band = wiphy->bands[i];
 
-           if (IEEE80211_BAND_2GHZ == i &&
+           if (HDD_NL80211_BAND_2GHZ == i &&
                eCSR_BAND_5G == pCfg->nBandCapability) // 5G only
            {
                // Enable social channels for P2P
@@ -5735,7 +5730,7 @@ void wlan_hdd_update_wiphy_bands(struct wiphy *wiphy, hdd_config_t *pCfg)
                    band->channels[j].flags |= IEEE80211_CHAN_DISABLED;
                continue;
            }
-           else if (IEEE80211_BAND_5GHZ == i &&
+           else if (HDD_NL80211_BAND_5GHZ == i &&
                     eCSR_BAND_24 == pCfg->nBandCapability) // 2G only
            {
                band->channels[j].flags |= IEEE80211_CHAN_DISABLED;
@@ -5897,38 +5892,38 @@ int wlan_hdd_cfg80211_init(struct device *dev,
      * wiphy flags don't get reset because of static memory.
      * It's better not to store channel in static memory.
      */
-    wiphy->bands[IEEE80211_BAND_2GHZ] = &wlan_hdd_band_2_4_GHZ;
-    wiphy->bands[IEEE80211_BAND_2GHZ]->channels =
+    wiphy->bands[HDD_NL80211_BAND_2GHZ] = &wlan_hdd_band_2_4_GHZ;
+    wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels =
         (struct ieee80211_channel *)vos_mem_malloc(sizeof(hdd_channels_2_4_GHZ));
-    if (wiphy->bands[IEEE80211_BAND_2GHZ]->channels == NULL)
+    if (wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels == NULL)
     {
         hddLog(VOS_TRACE_LEVEL_ERROR,
                 FL("Not enough memory to allocate channels"));
         return -ENOMEM;
     }
-    vos_mem_copy(wiphy->bands[IEEE80211_BAND_2GHZ]->channels,
+    vos_mem_copy(wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels,
             &hdd_channels_2_4_GHZ[0],
             sizeof(hdd_channels_2_4_GHZ));
 
     if (true == hdd_is_5g_supported(pHddCtx))
     {
-        wiphy->bands[IEEE80211_BAND_5GHZ] = &wlan_hdd_band_5_GHZ;
-        wiphy->bands[IEEE80211_BAND_5GHZ]->channels =
+        wiphy->bands[HDD_NL80211_BAND_5GHZ] = &wlan_hdd_band_5_GHZ;
+        wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels =
             (struct ieee80211_channel *)vos_mem_malloc(sizeof(hdd_channels_5_GHZ));
-        if (wiphy->bands[IEEE80211_BAND_5GHZ]->channels == NULL)
+        if (wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels == NULL)
         {
             hddLog(VOS_TRACE_LEVEL_ERROR,
                     FL("Not enough memory to allocate channels"));
-            vos_mem_free(wiphy->bands[IEEE80211_BAND_2GHZ]->channels);
-            wiphy->bands[IEEE80211_BAND_2GHZ]->channels = NULL;
+            vos_mem_free(wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels);
+            wiphy->bands[HDD_NL80211_BAND_2GHZ]->channels = NULL;
             return -ENOMEM;
         }
-        vos_mem_copy(wiphy->bands[IEEE80211_BAND_5GHZ]->channels,
+        vos_mem_copy(wiphy->bands[HDD_NL80211_BAND_5GHZ]->channels,
                 &hdd_channels_5_GHZ[0],
                 sizeof(hdd_channels_5_GHZ));
     }
 
-   for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+   for (i = 0; i < HDD_NUM_NL80211_BANDS; i++)
    {
 
        if (NULL == wiphy->bands[i])
@@ -5942,7 +5937,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
        {
            struct ieee80211_supported_band *band = wiphy->bands[i];
 
-           if (IEEE80211_BAND_2GHZ == i && eCSR_BAND_5G == pCfg->nBandCapability) // 5G only
+           if (HDD_NL80211_BAND_2GHZ == i && eCSR_BAND_5G == pCfg->nBandCapability) // 5G only
            {
                // Enable social channels for P2P
                if (WLAN_HDD_IS_SOCIAL_CHANNEL(band->channels[j].center_freq))
@@ -5951,7 +5946,7 @@ int wlan_hdd_cfg80211_init(struct device *dev,
                    band->channels[j].flags |= IEEE80211_CHAN_DISABLED;
                continue;
            }
-           else if (IEEE80211_BAND_5GHZ == i && eCSR_BAND_24 == pCfg->nBandCapability) // 2G only
+           else if (HDD_NL80211_BAND_5GHZ == i && eCSR_BAND_24 == pCfg->nBandCapability) // 2G only
            {
                band->channels[j].flags |= IEEE80211_CHAN_DISABLED;
                continue;
@@ -6012,14 +6007,14 @@ void wlan_hdd_cfg80211_update_reg_info(struct wiphy *wiphy)
     }
     if ((defaultCountryCode[0]== 'U') && (defaultCountryCode[1]=='S'))
     {
-       if (NULL == wiphy->bands[IEEE80211_BAND_5GHZ])
+       if (NULL == wiphy->bands[HDD_NL80211_BAND_5GHZ])
        {
-          hddLog(VOS_TRACE_LEVEL_ERROR,"%s: wiphy->bands[IEEE80211_BAND_5GHZ] is NULL",__func__ );
+          hddLog(VOS_TRACE_LEVEL_ERROR,"%s: wiphy->bands[HDD_NL80211_BAND_5GHZ] is NULL",__func__ );
           return;
        }
-       for (j = 0; j < wiphy->bands[IEEE80211_BAND_5GHZ]->n_channels; j++)
+       for (j = 0; j < wiphy->bands[HDD_NL80211_BAND_5GHZ]->n_channels; j++)
        {
-          struct ieee80211_supported_band *band = wiphy->bands[IEEE80211_BAND_5GHZ];
+          struct ieee80211_supported_band *band = wiphy->bands[HDD_NL80211_BAND_5GHZ];
           // Mark UNII -1 band channel as passive
           if (WLAN_HDD_CHANNEL_IN_UNII_1_BAND(band->channels[j].center_freq))
              band->channels[j].flags |= IEEE80211_CHAN_PASSIVE_SCAN;
@@ -6814,12 +6809,12 @@ VOS_STATUS wlan_hdd_validate_operation_channel(hdd_adapter_t *pAdapter,int chann
                      if (channel <= ARRAY_SIZE(hdd_channels_2_4_GHZ))
                      {
                          freq = ieee80211_channel_to_frequency(channel,
-                                                          IEEE80211_BAND_2GHZ);
+                                                          HDD_NL80211_BAND_2GHZ);
                      }
                      else
                      {
                          freq = ieee80211_channel_to_frequency(channel,
-                                                          IEEE80211_BAND_5GHZ);
+                                                          HDD_NL80211_BAND_5GHZ);
                      }
 #else
                      freq = ieee80211_channel_to_frequency(channel);
@@ -9923,11 +9918,11 @@ static struct cfg80211_bss* wlan_hdd_cfg80211_inform_bss(
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,38))
     if (chan_no <= ARRAY_SIZE(hdd_channels_2_4_GHZ))
     {
-        freq = ieee80211_channel_to_frequency(chan_no, IEEE80211_BAND_2GHZ);
+        freq = ieee80211_channel_to_frequency(chan_no, HDD_NL80211_BAND_2GHZ);
     }
     else
     {
-        freq = ieee80211_channel_to_frequency(chan_no, IEEE80211_BAND_5GHZ);
+        freq = ieee80211_channel_to_frequency(chan_no, HDD_NL80211_BAND_5GHZ);
     }
 #else
     freq = ieee80211_channel_to_frequency(chan_no);
@@ -10059,15 +10054,15 @@ wlan_hdd_cfg80211_inform_bss_frame( hdd_adapter_t *pAdapter,
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,38))
     if (chan_no <= ARRAY_SIZE(hdd_channels_2_4_GHZ) &&
-        (wiphy->bands[IEEE80211_BAND_2GHZ] != NULL))
+        (wiphy->bands[HDD_NL80211_BAND_2GHZ] != NULL))
     {
-        freq = ieee80211_channel_to_frequency(chan_no, IEEE80211_BAND_2GHZ);
+        freq = ieee80211_channel_to_frequency(chan_no, HDD_NL80211_BAND_2GHZ);
     }
     else if ((chan_no > ARRAY_SIZE(hdd_channels_2_4_GHZ)) &&
-        (wiphy->bands[IEEE80211_BAND_5GHZ] != NULL))
+        (wiphy->bands[HDD_NL80211_BAND_5GHZ] != NULL))
 
     {
-        freq = ieee80211_channel_to_frequency(chan_no, IEEE80211_BAND_5GHZ);
+        freq = ieee80211_channel_to_frequency(chan_no, HDD_NL80211_BAND_5GHZ);
     }
     else
     {
@@ -10453,6 +10448,71 @@ VOS_STATUS wlan_hdd_cfg80211_roam_metrics_handover(hdd_adapter_t * pAdapter,
 }
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0))
+/**
+* hdd_cfg80211_scan_done() - Scan completed callback to cfg80211
+* @adapter: Pointer to the adapter
+* @req : Scan request
+* @aborted : true scan aborted false scan success
+*
+* This function notifies scan done to cfg80211
+*
+* Return: none
+*/
+static void hdd_cfg80211_scan_done(hdd_adapter_t *adapter,
+				struct cfg80211_scan_request *req,
+				bool aborted)
+{
+	struct cfg80211_scan_info info = {
+		.aborted = aborted
+	};
+
+	if (adapter->dev->flags & IFF_UP)
+		cfg80211_scan_done(req, &info);
+	else
+		hddLog(LOGW,
+		FL("IFF_UP flag reset for %s"), adapter->dev->name);
+}
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
+/**
+* hdd_cfg80211_scan_done() - Scan completed callback to cfg80211
+* @adapter: Pointer to the adapter
+* @req : Scan request
+* @aborted : true scan aborted false scan success
+*
+* This function notifies scan done to cfg80211
+*
+* Return: none
+*/
+static void hdd_cfg80211_scan_done(hdd_adapter_t *adapter,
+				struct cfg80211_scan_request *req,
+				bool aborted)
+{
+	if (adapter->dev->flags & IFF_UP)
+		cfg80211_scan_done(req, aborted);
+	else
+		hddLog(LOGW,
+		FL("IFF_UP flag reset for %s"), adapter->dev->name);
+}
+#else
+/**
+* hdd_cfg80211_scan_done() - Scan completed callback to cfg80211
+* @adapter: Pointer to the adapter
+* @req : Scan request
+* @aborted : true scan aborted false scan success
+*
+* This function notifies scan done to cfg80211
+*
+* Return: none
+*/
+static void hdd_cfg80211_scan_done(hdd_adapter_t *adapter,
+				struct cfg80211_scan_request *req,
+				bool aborted)
+{
+	cfg80211_scan_done(req, aborted);
+}
+#endif
+
 /*
  * FUNCTION: hdd_cfg80211_scan_done_callback
  * scanning callback function, called after finishing scan
@@ -10592,7 +10652,7 @@ static eHalStatus hdd_cfg80211_scan_done_callback(tHalHandle halHandle,
     {
          aborted = true;
     }
-    cfg80211_scan_done(req, aborted);
+    hdd_cfg80211_scan_done(pAdapter, req, aborted);
     complete(&pScanInfo->abortscan_event_var);
 
     if ((pHddCtx->cfg_ini->enableMacSpoofing == MAC_ADDR_SPOOFING_FW_HOST_ENABLE
@@ -11001,7 +11061,7 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
                 if (0 > ret)
                     hddLog(VOS_TRACE_LEVEL_INFO, "%s: NO SCAN result", __func__);
 
-                cfg80211_scan_done(request, eCSR_SCAN_SUCCESS);
+                hdd_cfg80211_scan_done(pAdapter, request, eCSR_SCAN_SUCCESS);
 
                 status = eHAL_STATUS_SUCCESS;
                 goto free_mem;
@@ -11572,8 +11632,12 @@ static int wlan_hdd_set_akm_suite( hdd_adapter_t *pAdapter,
     hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
     ENTER();
     /* Should be in ieee802_11_defs.h */
+#ifndef WLAN_AKM_SUITE_8021X_SHA256
 #define WLAN_AKM_SUITE_8021X_SHA256 0x000FAC05
+#endif
+#ifndef WLAN_AKM_SUITE_PSK_SHA256
 #define WLAN_AKM_SUITE_PSK_SHA256   0x000FAC06
+#endif
     /*set key mgmt type*/
     switch(key_mgmt)
     {
@@ -13381,6 +13445,21 @@ static int wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
     return ret;
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)) && \
+	!defined(WITH_BACKPORTS)
+static inline void wlan_hdd_fill_station_info_signal(struct station_info
+							*sinfo)
+{
+	sinfo->filled |= STATION_INFO_SIGNAL;
+}
+#else
+static inline void wlan_hdd_fill_station_info_signal(struct station_info
+							*sinfo)
+{
+	sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+}
+#endif
+
 static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,18,0))
                                           const u8* mac,
@@ -13446,7 +13525,7 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_devic
     rate_flags = pAdapter->hdd_stats.ClassA_stat.tx_rate_flags;
 
     wlan_hdd_get_rssi(pAdapter, &sinfo->signal);
-    sinfo->filled |= STATION_INFO_SIGNAL;
+    wlan_hdd_fill_station_info_signal(sinfo);
 
     /*overwrite rate_flags if MAX link-speed need to be reported*/
     if ((eHDD_LINK_SPEED_REPORT_MAX == pCfg->reportMaxLinkSpeed) ||
@@ -13726,12 +13805,22 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_devic
             if (rate_flags & eHAL_TX_RATE_VHT80)
             {
                 sinfo->txrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)) || \
+	!defined(WITH_BACKPORTS)
+		sinfo->txrate.bw = RATE_INFO_BW_80;
+#else
                 sinfo->txrate.flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
+#endif
             }
             else if (rate_flags & eHAL_TX_RATE_VHT40)
             {
                 sinfo->txrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)) || \
+	!defined(WITH_BACKPORTS)
+		sinfo->txrate.bw = RATE_INFO_BW_40;
+#else
                 sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+#endif
             }
             else if (rate_flags & eHAL_TX_RATE_VHT20)
             {
@@ -13743,7 +13832,12 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_devic
                 sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
                 if (rate_flags & eHAL_TX_RATE_HT40)
                 {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)) || \
+	!defined(WITH_BACKPORTS)
+		    sinfo->txrate.bw = RATE_INFO_BW_40;
+#else
                     sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+#endif
                 }
             }
             if (rate_flags & eHAL_TX_RATE_SGI)
@@ -13791,12 +13885,22 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_devic
             }
             if (rate_flags & eHAL_TX_RATE_HT40)
             {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)) || \
+	defined(WITH_BACKPORTS)
+		sinfo->txrate.bw = RATE_INFO_BW_40;
+#else
                 sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+#endif
             }
 #ifdef WLAN_FEATURE_11AC
             else if (rate_flags & eHAL_TX_RATE_VHT80)
             {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0)) || \
+	defined(WITH_BACKPORTS)
+		sinfo->txrate.bw = RATE_INFO_BW_80;
+#else
                 sinfo->txrate.flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
+#endif
             }
 #endif /* WLAN_FEATURE_11AC */
 #ifdef LINKSPEED_DEBUG_ENABLED
@@ -13806,7 +13910,13 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_devic
 #endif //LINKSPEED_DEBUG_ENABLED
         }
     }
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)) && \
+	!defined(WITH_BACKPORTS)
     sinfo->filled |= STATION_INFO_TX_BITRATE;
+#else
+    sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
+#endif
 
     sinfo->tx_packets =
        pAdapter->hdd_stats.summary_stat.tx_frm_cnt[0] +
@@ -13826,11 +13936,19 @@ static int __wlan_hdd_cfg80211_get_station(struct wiphy *wiphy, struct net_devic
        pAdapter->hdd_stats.summary_stat.fail_cnt[2] +
        pAdapter->hdd_stats.summary_stat.fail_cnt[3];
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)) && \
+	!defined(WITH_BACKPORTS)
     sinfo->filled |=
+       STATION_INFO_RX_PACKETS |
        STATION_INFO_TX_PACKETS |
        STATION_INFO_TX_RETRIES |
        STATION_INFO_TX_FAILED;
-
+#else
+    sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS) |
+	BIT(NL80211_STA_INFO_TX_RETRIES) |
+	BIT(NL80211_STA_INFO_TX_FAILED) |
+	BIT(NL80211_STA_INFO_RX_PACKETS);
+#endif
     MTRACE(vos_trace(VOS_MODULE_ID_HDD,
                      TRACE_CODE_HDD_CFG80211_GET_STA,
                       pAdapter->sessionId, maxRate));
@@ -14105,7 +14223,7 @@ static int __wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
     return 0;
 }
 
-#ifdef CFG80211_DEL_STA_V2
+#ifdef USE_CFG80211_DEL_STA_V2
 static int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
                                          struct net_device *dev,
                                          struct station_del_parameters *param)
@@ -14124,7 +14242,7 @@ static int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 
     vos_ssr_protect(__func__);
 
-#ifdef CFG80211_DEL_STA_V2
+#ifdef USE_CFG80211_DEL_STA_V2
     if (NULL == param) {
         hddLog(VOS_TRACE_LEVEL_ERROR, "%s: Invalid argumet passed", __func__);
         vos_ssr_unprotect(__func__);
@@ -14599,6 +14717,69 @@ void hdd_cfg80211_sched_scan_start_status_cb(void *callbackContext, VOS_STATUS s
     EXIT();
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)) || \
+	defined (CFG80211_MULTI_SCAN_PLAN_BACKPORT)
+/**
+ * hdd_config_sched_scan_plan() - configures the sched scan plans
+ *    from the framework.
+ * @pno_req: pointer to PNO scan request
+ * @request: pointer to scan request from framework
+ *
+ * Return: None
+ */
+static void hdd_config_sched_scan_plan(tpSirPNOScanReq pno_req,
+                                  struct cfg80211_sched_scan_request *request,
+                                  hdd_context_t *hdd_ctx)
+{
+    v_U32_t i = 0;
+
+    pno_req->scanTimers.ucScanTimersCount = request->n_scan_plans;
+    for (i = 0; i < request->n_scan_plans; i++)
+    {
+        pno_req->scanTimers.aTimerValues[i].uTimerRepeat =
+            request->scan_plans[i].iterations;
+        pno_req->scanTimers.aTimerValues[i].uTimerValue =
+            request->scan_plans[i].interval;
+    }
+}
+#else
+static void hdd_config_sched_scan_plan(tpSirPNOScanReq pno_req,
+                                  struct cfg80211_sched_scan_request *request,
+                                  hdd_context_t *hdd_ctx)
+{
+    v_U32_t i, temp_int;
+     /* Driver gets only one time interval which is hardcoded in
+     * supplicant for 10000ms. Taking power consumption into account 6
+     * timers will be used, Timervalue is increased exponentially
+     * i.e 10,20,40, 80,160,320 secs. And number of scan cycle for each
+     * timer is configurable through INI param gPNOScanTimerRepeatValue.
+     * If it is set to 0 only one timer will be used and PNO scan cycle
+     * will be repeated after each interval specified by supplicant
+     * till PNO is disabled.
+     */
+    if (0 == hdd_ctx->cfg_ini->configPNOScanTimerRepeatValue)
+        pno_req->scanTimers.ucScanTimersCount =
+            HDD_PNO_SCAN_TIMERS_SET_ONE;
+    else
+        pno_req->scanTimers.ucScanTimersCount =
+            HDD_PNO_SCAN_TIMERS_SET_MULTIPLE;
+
+    temp_int = (request->interval)/1000;
+    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
+              "Base scan interval = %d PNOScanTimerRepeatValue = %d",
+              temp_int, hdd_ctx->cfg_ini->configPNOScanTimerRepeatValue);
+    for ( i = 0; i < pno_req->scanTimers.ucScanTimersCount; i++)
+    {
+        pno_req->scanTimers.aTimerValues[i].uTimerRepeat =
+            hdd_ctx->cfg_ini->configPNOScanTimerRepeatValue;
+        pno_req->scanTimers.aTimerValues[i].uTimerValue = temp_int;
+        temp_int *= 2;
+    }
+    //Repeat last timer until pno disabled.
+    pno_req->scanTimers.aTimerValues[i-1].uTimerRepeat = 0;
+}
+#endif
+
 /*
  * FUNCTION: __wlan_hdd_cfg80211_sched_scan_start
  * Function to enable PNO
@@ -14610,7 +14791,7 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
     tSirPNOScanReq pnoRequest = {0};
     hdd_context_t *pHddCtx;
     tHalHandle hHal;
-    v_U32_t i, indx, num_ch, tempInterval, j;
+    v_U32_t i, indx, num_ch, j;
     u8 valid_ch[WNI_CFG_VALID_CHANNEL_LIST_LEN] = {0};
     u8 channels_allowed[WNI_CFG_VALID_CHANNEL_LIST_LEN] = {0};
     v_U32_t num_channels_allowed = WNI_CFG_VALID_CHANNEL_LIST_LEN;
@@ -14854,34 +15035,7 @@ static int __wlan_hdd_cfg80211_sched_scan_start(struct wiphy *wiphy,
                 pnoRequest.us5GProbeTemplateLen);
     }
 
-    /* Driver gets only one time interval which is hardcoded in
-     * supplicant for 10000ms. Taking power consumption into account 6 timers
-     * will be used, Timervalue is increased exponentially i.e 10,20,40,
-     * 80,160,320 secs. And number of scan cycle for each timer
-     * is configurable through INI param gPNOScanTimerRepeatValue.
-     * If it is set to 0 only one timer will be used and PNO scan cycle
-     * will be repeated after each interval specified by supplicant
-     * till PNO is disabled.
-     */
-    if (0 == pHddCtx->cfg_ini->configPNOScanTimerRepeatValue)
-        pnoRequest.scanTimers.ucScanTimersCount = HDD_PNO_SCAN_TIMERS_SET_ONE;
-    else
-        pnoRequest.scanTimers.ucScanTimersCount =
-                                               HDD_PNO_SCAN_TIMERS_SET_MULTIPLE;
-
-    tempInterval = (request->interval)/1000;
-    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-              "Base scan interval = %d PNOScanTimerRepeatValue = %d",
-              tempInterval, pHddCtx->cfg_ini->configPNOScanTimerRepeatValue);
-    for ( i = 0; i < pnoRequest.scanTimers.ucScanTimersCount; i++)
-    {
-        pnoRequest.scanTimers.aTimerValues[i].uTimerRepeat =
-                                 pHddCtx->cfg_ini->configPNOScanTimerRepeatValue;
-        pnoRequest.scanTimers.aTimerValues[i].uTimerValue = tempInterval;
-        tempInterval *= 2;
-    }
-    //Repeat last timer until pno disabled.
-    pnoRequest.scanTimers.aTimerValues[i-1].uTimerRepeat = 0;
+    hdd_config_sched_scan_plan(&pnoRequest, request, pHddCtx);
 
     pnoRequest.modePNO = SIR_PNO_MODE_IMMEDIATE;
 
@@ -15091,7 +15245,8 @@ static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
                                          u16 status_code, u32 peer_capability,
                                          const u8 *buf, size_t len)
 #else /* TDLS_MGMT_VERSION2 */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || defined(WITH_BACKPORTS)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || \
+	defined(WITH_BACKPORTS)
 static int __wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
                                          struct net_device *dev,
                                          const u8 *peer, u8 action_code,
@@ -15486,7 +15641,8 @@ static int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *d
                                         dialog_token, status_code,
                                         peer_capability, buf, len);
 #else /* TDLS_MGMT_VERSION2 */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || defined(WITH_BACKPORTS)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)) || \
+	defined(WITH_BACKPORTS)
     ret = __wlan_hdd_cfg80211_tdls_mgmt(wiphy, dev, peer, action_code,
                                         dialog_token, status_code,
                                         peer_capability, initiator,
@@ -16830,7 +16986,7 @@ static int __wlan_hdd_cfg80211_dump_survey(struct wiphy *wiphy,
     hdd_wlan_get_freq(channel, &freq);
 
 
-    for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+    for (i = 0; i < HDD_NUM_NL80211_BANDS; i++)
     {
         if (NULL == wiphy->bands[i])
         {

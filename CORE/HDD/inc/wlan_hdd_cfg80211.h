@@ -100,6 +100,12 @@
 #endif
 #endif
 
+#if defined(CFG80211_DEL_STA_V2) || \
+	(LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) || \
+	defined(WITH_BACKPORTS)
+#define USE_CFG80211_DEL_STA_V2
+#endif
+
 #define MAX_CHANNEL MAX_2_4GHZ_CHANNEL + NUM_5GHZ_CHANNELS
 
 typedef struct {
@@ -1030,7 +1036,9 @@ void wlan_hdd_cfg80211_extscan_callback(void *ctx, const tANI_U16 evType,
 
 void wlan_hdd_cfg80211_nan_init(hdd_context_t *pHddCtx);
 
-#if !(defined (SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC))
+#if !(defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) && \
+        (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) && \
+        !(defined(WITH_BACKPORTS))
 static inline struct sk_buff *
 backported_cfg80211_vendor_event_alloc(struct wiphy *wiphy,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,18,0))
@@ -1044,4 +1052,22 @@ backported_cfg80211_vendor_event_alloc(struct wiphy *wiphy,
 #define cfg80211_vendor_event_alloc backported_cfg80211_vendor_event_alloc
 #endif
 
+#if defined(CFG80211_DISCONNECTED_V2) || \
+	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0))
+static inline void wlan_hdd_cfg80211_indicate_disconnect(struct net_device *dev,
+                                                         bool locally_generated,
+                                                         int reason)
+{
+	cfg80211_disconnected(dev, reason, NULL, 0,
+                              locally_generated, GFP_KERNEL);
+}
+#else
+static inline void wlan_hdd_cfg80211_indicate_disconnect(struct net_device *dev,
+                                                         bool locally_generated,
+                                                         int reason)
+{
+	cfg80211_disconnected(dev, reason, NULL, 0,
+                              GFP_KERNEL);
+}
+#endif
 #endif

@@ -14,31 +14,31 @@ ifeq ($(KERNEL_BUILD),1)
 endif
 
 ifeq ($(KERNEL_BUILD), 0)
-	# These are configurable via Kconfig for kernel-based builds
-	# Need to explicitly configure for Android-based builds
+# These are configurable via Kconfig for kernel-based builds
+# Need to explicitly configure for Android-based builds
 
-	#Flag to enable BlueTooth AMP feature
-	CONFIG_PRIMA_WLAN_BTAMP := n
+#Flag to enable BlueTooth AMP feature
+    CONFIG_PRIMA_WLAN_BTAMP := n
 
-	#Flag to enable Legacy Fast Roaming(LFR)
-	CONFIG_PRIMA_WLAN_LFR := y
+#Flag to enable Legacy Fast Roaming(LFR)
+    CONFIG_PRIMA_WLAN_LFR := y
 
-	#JB kernel has PMKSA patches, hence enabling this flag
-	CONFIG_PRIMA_WLAN_OKC := y
+#JB kernel has PMKSA patches, hence enabling this flag
+    CONFIG_PRIMA_WLAN_OKC := y
 
-	# JB kernel has CPU enablement patches, so enable
-	CONFIG_PRIMA_WLAN_11AC_HIGH_TP := y
+# JB kernel has CPU enablement patches, so enable
+    CONFIG_PRIMA_WLAN_11AC_HIGH_TP := y
 
-	#Flag to enable TDLS feature
-	CONFIG_QCOM_TDLS := y
+#Flag to enable TDLS feature
+    CONFIG_QCOM_TDLS := y
 
-	#Flag to enable Fast Transition (11r) feature
-	CONFIG_QCOM_VOWIFI_11R := y
+#Flag to enable Fast Transition (11r) feature
+    CONFIG_QCOM_VOWIFI_11R := y
 
 	#Flag to enable Protected Managment Frames (11w) feature
-	ifneq ($(CONFIG_PRONTO_WLAN),)
-	CONFIG_WLAN_FEATURE_11W := y
-	endif
+ifneq ($(CONFIG_PRONTO_WLAN),)
+    CONFIG_WLAN_FEATURE_11W := y
+endif
 
 	#Flag to enable new Linux Regulatory implementation
 	CONFIG_ENABLE_LINUX_REG := y
@@ -74,6 +74,33 @@ HAVE_CFG80211 := 0
 endif
 endif
 
+ifeq ($(KERNEL_BUILD), 0)
+ifeq ($(WLAN_PROPRIETARY),1)
+    WLAN_BLD_DIR := vendor/qcom/proprietary/wlan
+else
+ifneq ($(TARGET_SUPPORTS_WEARABLES),true)
+ifneq ($(ANDROID_BUILD_TOP),)
+    WLAN_BLD_DIR := $(ANDROID_BUILD_TOP)/vendor/qcom/opensource/wlan
+else
+    WLAN_BLD_DIR := vendor/qcom/opensource/wlan
+endif # ANDROID_BUILD_TOP
+else
+ifneq ($(ANDROID_BUILD_TOP),)
+    WLAN_BLD_DIR := $(ANDROID_BUILD_TOP)/device/qcom/sdm429w/opensource/wlan
+else
+    WLAN_BLD_DIR := $(BOARD_OPENSOURCE_DIR)/wlan
+endif # ANDROID_BUILD_TOP
+endif # TARGET_SUPPORTS_WEARABLES
+endif # WLAN_PROPRIETARY
+
+ifneq ($(ANDROID_BUILD_TOP),)
+WLAN_ROOT=$(WLAN_BLD_DIR)/prima
+else
+WLAN_ROOT=$(KERNEL_TO_BUILD_ROOT_OFFSET)$(WLAN_BLD_DIR)/prima
+endif # ANDROID_BUILD_TOP
+endif # KERNEL_BUILD
+
+ifeq ($(CONFIG_PRIMA_WLAN_BTAMP),y)
 ############ BAP ############
 BAP_DIR :=	CORE/BAP
 BAP_INC_DIR :=	$(BAP_DIR)/inc
@@ -102,6 +129,7 @@ BAP_OBJS := 	$(BAP_SRC_DIR)/bapApiData.o \
 		$(BAP_SRC_DIR)/bapRsnTxRx.o \
 		$(BAP_SRC_DIR)/btampFsm.o \
 		$(BAP_SRC_DIR)/btampHCI.o
+endif
 
 ############ DXE ############
 DXE_DIR :=	CORE/DXE
@@ -122,8 +150,7 @@ HDD_SRC_DIR :=	$(HDD_DIR)/src
 HDD_INC := 	-I$(WLAN_ROOT)/$(HDD_INC_DIR) \
 		-I$(WLAN_ROOT)/$(HDD_SRC_DIR)
 
-HDD_OBJS := 	$(HDD_SRC_DIR)/bap_hdd_main.o \
-		$(HDD_SRC_DIR)/wlan_hdd_assoc.o \
+HDD_OBJS := 	$(HDD_SRC_DIR)/wlan_hdd_assoc.o \
 		$(HDD_SRC_DIR)/wlan_hdd_cfg.o \
 		$(HDD_SRC_DIR)/wlan_hdd_debugfs.o \
 		$(HDD_SRC_DIR)/wlan_hdd_dev_pwr.o \
@@ -142,6 +169,10 @@ HDD_OBJS := 	$(HDD_SRC_DIR)/bap_hdd_main.o \
 		$(HDD_SRC_DIR)/wlan_hdd_wext.o \
 		$(HDD_SRC_DIR)/wlan_hdd_wmm.o \
 		$(HDD_SRC_DIR)/wlan_hdd_wowl.o
+
+ifeq ($(CONFIG_PRIMA_WLAN_BTAMP),y)
+HDD_OBJS += 	$(HDD_SRC_DIR)/bap_hdd_main.o
+endif
 
 ifeq ($(HAVE_CFG80211),1)
 HDD_OBJS +=	$(HDD_SRC_DIR)/wlan_hdd_cfg80211.o \
@@ -478,8 +509,7 @@ RIVA_INC :=	-I$(WLAN_ROOT)/riva/inc
 
 LINUX_INC :=	-Iinclude/linux
 
-INCS :=		$(BAP_INC) \
-		$(DXE_INC) \
+INCS :=		$(DXE_INC) \
 		$(HDD_INC) \
 		$(LINUX_INC) \
 		$(MAC_INC) \
@@ -493,8 +523,11 @@ INCS :=		$(BAP_INC) \
 		$(WDA_INC) \
 		$(WDI_INC)
 
-OBJS :=		$(BAP_OBJS) \
-		$(DXE_OBJS) \
+ifeq ($(CONFIG_PRIMA_WLAN_BTAMP),y)
+INCS +=		$(BAP_INC)
+endif
+
+OBJS :=		$(DXE_OBJS) \
 		$(HDD_OBJS) \
 		$(MAC_OBJS) \
 		$(SAP_OBJS) \
@@ -505,6 +538,10 @@ OBJS :=		$(BAP_OBJS) \
 		$(VOSS_OBJS) \
 		$(WDA_OBJS) \
 		$(WDI_OBJS)
+
+ifeq ($(CONFIG_PRIMA_WLAN_BTAMP),y)
+OBJS += 	$(BAP_OBJS)
+endif
 
 EXTRA_CFLAGS += $(INCS)
 EXTRA_CFLAGS += -fno-pic

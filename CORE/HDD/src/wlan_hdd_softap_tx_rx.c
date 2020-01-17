@@ -513,7 +513,7 @@ int hdd_softap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
          goto xmit_done;
       }
    }
-   dev->trans_start = jiffies;
+   netif_trans_update(dev);
 
    VOS_TRACE( VOS_MODULE_ID_HDD_SAP_DATA, VOS_TRACE_LEVEL_INFO_LOW,
               "%s: exit", __func__);

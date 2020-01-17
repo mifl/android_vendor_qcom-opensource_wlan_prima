@@ -1481,7 +1481,7 @@ static tANI_BOOLEAN csrNeighborRoamProcessScanResults(tpAniSirGlobal pMac,
             VOS_TRACE (VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_DEBUG,
             FL("Scan result: BSSID "MAC_ADDRESS_STR" (Rssi %ld, Ch:%d)"),
             MAC_ADDR_ARRAY(pScanResult->BssDescriptor.bssId),
-            abs(pScanResult->BssDescriptor.rssi),
+            (long)abs(pScanResult->BssDescriptor.rssi),
             pScanResult->BssDescriptor.channelId);
 
        if ((VOS_TRUE == vos_mem_compare(pScanResult->BssDescriptor.bssId,
@@ -1728,7 +1728,7 @@ static tANI_BOOLEAN csrNeighborRoamProcessScanResults(tpAniSirGlobal pMac,
         {
             VOS_TRACE (VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
                        "%s: [INFOLOG] potential candidate to roam immediately (diff=%ld, expected=%d)",
-                       __func__, abs(abs(CurrAPRssi) - abs(pScanResult->BssDescriptor.rssi)),
+                       __func__, (long)abs(abs(CurrAPRssi) - abs(pScanResult->BssDescriptor.rssi)),
                        immediateRoamRssiDiff);
             roamNow = eANI_BOOLEAN_TRUE;
         }

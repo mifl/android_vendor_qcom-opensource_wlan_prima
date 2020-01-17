@@ -7750,6 +7750,44 @@ VOS_STATUS hdd_stop_all_adapters( hdd_context_t *pHddCtx )
    return VOS_STATUS_SUCCESS;
 }
 
+/**
+ * hdd_get_bss_entry() - Get the bss entry matching the chan, bssid and ssid
+ * @wiphy: wiphy
+ * @channel: channel of the BSS to find
+ * @bssid: bssid of the BSS to find
+ * @ssid: ssid of the BSS to find
+ * @ssid_len: ssid len of of the BSS to find
+ *
+ * The API is a wrapper to get bss from kernel matching the chan,
+ * bssid and ssid
+ *
+ * Return: Void
+ */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)) \
+	&& !defined(WITH_BACKPORTS) && !defined(IEEE80211_PRIVACY)
+
+struct cfg80211_bss* hdd_get_bss_entry(struct wiphy *wiphy,
+      struct ieee80211_channel *channel,
+      const u8 *bssid,
+      const u8 *ssid, size_t ssid_len)
+{
+   return cfg80211_get_bss(wiphy, channel, bssid,
+           ssid, ssid_len,
+           WLAN_CAPABILITY_ESS,
+           WLAN_CAPABILITY_ESS);
+}
+#else
+struct cfg80211_bss* hdd_get_bss_entry(struct wiphy *wiphy,
+      struct ieee80211_channel *channel,
+      const u8 *bssid,
+      const u8 *ssid, size_t ssid_len)
+{
+   return cfg80211_get_bss(wiphy, channel, bssid,
+           ssid, ssid_len,
+           IEEE80211_BSS_TYPE_ESS,
+           IEEE80211_PRIVACY_ANY);
+}
+#endif
 
 #ifdef FEATURE_WLAN_BATCH_SCAN
 /**---------------------------------------------------------------------------
@@ -7904,8 +7942,8 @@ VOS_STATUS hdd_start_all_adapters( hdd_context_t *pHddCtx )
                pAdapter->sessionCtx.station.hdd_ReassocScenario = VOS_FALSE;
 
                /* indicate disconnected event to nl80211 */
-               cfg80211_disconnected(pAdapter->dev, WLAN_REASON_UNSPECIFIED,
-                                     NULL, 0, GFP_KERNEL); 
+               wlan_hdd_cfg80211_indicate_disconnect(pAdapter->dev, false,
+                                                     WLAN_REASON_UNSPECIFIED);
             }
             else if (eConnectionState_Connecting == connState)
             {
@@ -8737,7 +8775,7 @@ req_put:
 void hdd_wlan_free_wiphy_channels(struct wiphy *wiphy)
 {
     int i =0;
-    for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+    for (i = 0; i < HDD_NUM_NL80211_BANDS; i++)
     {
         if (NULL != wiphy->bands[i] &&
                 (NULL != wiphy->bands[i]->channels))
@@ -11040,13 +11078,13 @@ static void __exit hdd_module_exit(void)
 
 #ifdef MODULE
 static int fwpath_changed_handler(const char *kmessage,
-                                 struct kernel_param *kp)
+                                 const struct kernel_param *kp)
 {
    return param_set_copystring(kmessage, kp);
 }
 
 static int con_mode_handler(const char *kmessage,
-                                 struct kernel_param *kp)
+                                const struct kernel_param *kp)
 {
    return param_set_int(kmessage, kp);
 }
@@ -11093,7 +11131,7 @@ static int kickstart_driver(void)
 
   --------------------------------------------------------------------------*/
 static int fwpath_changed_handler(const char *kmessage,
-                                  struct kernel_param *kp)
+                                  const struct kernel_param *kp)
 {
    int ret;
 
@@ -11116,7 +11154,7 @@ static int fwpath_changed_handler(const char *kmessage,
   \return -
 
   --------------------------------------------------------------------------*/
-static int con_mode_handler(const char *kmessage, struct kernel_param *kp)
+static int con_mode_handler(const char *kmessage,const struct kernel_param *kp)
 {
    int ret;
 
@@ -12384,10 +12422,24 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Qualcomm Atheros, Inc.");
 MODULE_DESCRIPTION("WLAN HOST DEVICE DRIVER");
 
-module_param_call(con_mode, con_mode_handler, param_get_int, &con_mode,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+static const struct kernel_param_ops con_mode_ops = {
+		.set = con_mode_handler,
+		.get = param_get_int,
+};
 
-module_param_call(fwpath, fwpath_changed_handler, param_get_string, &fwpath,
+static const struct kernel_param_ops fwpath_ops = {
+		.set = fwpath_changed_handler,
+		.get = param_get_string,
+};
+
+#ifdef MODULE
+module_param(con_mode, int, 0);
+#else
+module_param_cb(con_mode, &con_mode_ops, &con_mode,
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+#endif
+
+module_param_cb(fwpath, &fwpath_ops, &fwpath,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
 module_param(enable_dfs_chan_scan, int,
