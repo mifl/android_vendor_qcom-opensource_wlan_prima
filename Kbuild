@@ -75,23 +75,11 @@ endif
 endif
 
 ifeq ($(KERNEL_BUILD), 0)
-ifeq ($(WLAN_PROPRIETARY),1)
-    WLAN_BLD_DIR := vendor/qcom/proprietary/wlan
-else
-ifneq ($(TARGET_SUPPORTS_WEARABLES),true)
 ifneq ($(ANDROID_BUILD_TOP),)
     WLAN_BLD_DIR := $(ANDROID_BUILD_TOP)/vendor/qcom/opensource/wlan
 else
     WLAN_BLD_DIR := vendor/qcom/opensource/wlan
 endif # ANDROID_BUILD_TOP
-else
-ifneq ($(ANDROID_BUILD_TOP),)
-    WLAN_BLD_DIR := $(ANDROID_BUILD_TOP)/device/qcom/sdm429w/opensource/wlan
-else
-    WLAN_BLD_DIR := $(BOARD_OPENSOURCE_DIR)/wlan
-endif # ANDROID_BUILD_TOP
-endif # TARGET_SUPPORTS_WEARABLES
-endif # WLAN_PROPRIETARY
 
 ifneq ($(ANDROID_BUILD_TOP),)
 WLAN_ROOT=$(WLAN_BLD_DIR)/prima
